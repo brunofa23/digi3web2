@@ -21,7 +21,7 @@ export default class BooksController {
   public async index({ response }) {
     const books = await Book
     .query()
-    //.preload('livrotipos')
+    .preload('typebooks')
 
     return response.send({ books })
   }

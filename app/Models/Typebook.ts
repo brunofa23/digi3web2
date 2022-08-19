@@ -1,9 +1,11 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
+
+import Book from './Book'
 
 export default class Typebook extends BaseModel {
   public static get fillable() {
-    return ['id', 'name', 'status', 'path', 'createdAt', 'updatedAt']
+    return ['id', 'name', 'status', 'path', 'books_id','createdAt', 'updatedAt']
   }
 
   @column({ isPrimary: true })
@@ -26,4 +28,16 @@ export default class Typebook extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+
+/**
+ * Relatioship
+ */
+ @belongsTo(() => Book, {
+  foreignKey: 'books_is'
+})
+public tabarqbin: BelongsTo<typeof Book>
+
+
+
 }

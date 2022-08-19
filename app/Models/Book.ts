@@ -17,7 +17,7 @@ export default class Book extends BaseModel {
 
 
   @hasMany(()=>Typebook)
-  public typebook: HasMany<typeof Typebook>
+  public typebooks: HasMany<typeof Typebook>
 
   @column({ isPrimary: true })
   public id: number
