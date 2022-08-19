@@ -33,10 +33,10 @@ export default class Typebook extends BaseModel {
 /**
  * Relatioship
  */
- @belongsTo(() => Book, {
-  foreignKey: 'books_is'
-})
-public tabarqbin: BelongsTo<typeof Book>
+//  @belongsTo(() => Book, {
+//   foreignKey: 'books_id'
+// })
+// public books: BelongsTo<typeof Book>
 
 
 

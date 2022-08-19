@@ -52,20 +52,16 @@ export default class TypebooksController {
 
   }
 
-  public async update({params, request}:HttpContextContract){
+  public async update({request, params }:HttpContextContract){
     const body = request.only(Typebook.fillable)
-    const data = await Typebook.findOrFail(params.id)
-    //await data.fill(body).save()
-    // data.name = body.title
-    // data.status = body.status
-    // data.path = body.path
-
-    // await data.save();
-
+    body.id = params.id
+    const data = await Typebook.findOrFail(body.id)
+    await data.fill(body).save()
     return{
       message:'Tipo de Livro cadastrado com sucesso!!',
       data: data,
-      body: body
+      body: body,
+      params: params.id
     }
 
   }
