@@ -24,9 +24,9 @@ export default class TypebooksController {
   }
 
   public async index({ response }) {
-    const data = await Typebook.all()
-    //.query()
-    //.preload('livrotipos')
+    //const data = await Typebook.all()
+    const data = await Typebook.query()
+    .preload('bookrecords')
 
     return response.send({ data })
   }

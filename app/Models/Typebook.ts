@@ -1,12 +1,21 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, belongsTo, BelongsTo, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
 
 import Book from './Book'
+import Bookrecord from './Bookrecord'
 
 export default class Typebook extends BaseModel {
   public static get fillable() {
     return ['id', 'name', 'status', 'path', 'books_id','createdAt', 'updatedAt']
   }
+
+  @hasMany(()=>Bookrecord, {
+    foreignKey: 'typebooks_id',
+    localKey:'id'
+  })
+  public bookrecords: HasMany<typeof Bookrecord>
+
+
 
   @column({ isPrimary: true })
   public id: number
