@@ -5,8 +5,15 @@ export default class extends BaseSchema {
 
   public async up () {
     this.schema.createTable(this.tableName, (table) => {
-      table.increments('id')
+      //table.increments('id')
+      table.integer('bookrecords_id').notNullable().unsigned().references('bookrecords.id')
+      table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id')
+      table.integer('seq')
+      table.string('ext',5)
+      table.string('file_name', 45)
+      table.string('previous_file_name',45)
 
+      table.primary(['bookrecords_id','typebooks_id','seq'])
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */

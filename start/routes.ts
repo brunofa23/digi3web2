@@ -29,6 +29,7 @@ Route.group(()=>{
   Route.resource("/books", 'BooksController').apiOnly()
   Route.resource("/typebooks", 'TypebooksController').apiOnly()
   Route.resource("/bookrecords", 'BookrecordsController').apiOnly()
+  Route.resource("/indeximages", 'IndeximagesController').apiOnly()
 
 
 }).prefix('/api')

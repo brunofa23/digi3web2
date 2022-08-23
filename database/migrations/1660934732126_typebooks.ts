@@ -9,7 +9,7 @@ export default class extends BaseSchema {
       table.string('name')
       table.boolean('status')
       table.string('path',120)
-      table.integer('books_id').notNullable().references('books.id').onDelete('CASCADE')
+      table.integer('books_id').notNullable().unsigned().references('books.id').onDelete('CASCADE')
 
 
       /**

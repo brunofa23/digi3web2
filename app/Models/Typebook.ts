@@ -10,6 +10,7 @@ import {
 
 import Book from './Book'
 import Bookrecord from './Bookrecord'
+import Indeximage from './Indeximage'
 
 export default class Typebook extends BaseModel {
   public static get fillable() {
@@ -26,9 +27,15 @@ export default class Typebook extends BaseModel {
 
   @hasMany(() => Bookrecord, {
     foreignKey: 'typebooks_id',
-    localKey: 'id',
+    localKey: 'id'
   })
   public bookrecords: HasMany<typeof Bookrecord>
+
+  @hasMany(() => Indeximage, {
+    foreignKey: 'typebooks_id',
+    localKey: 'id'
+  })
+  public typebooks: HasMany<typeof Indeximage>
 
   @column({ isPrimary: true })
   public id: number
