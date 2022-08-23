@@ -5,7 +5,6 @@ export default class Indeximage extends BaseModel {
 
   public static get fillable() {
     return [
-      'id',
       'bookrecords_id',
       'typebooks_id',
       'seq',
@@ -18,17 +17,14 @@ export default class Indeximage extends BaseModel {
   }
 
 
-  @column({ isPrimary: true })
-  public id: number
-
-  @column()
+  @column({isPrimary:true})
   public bookrecords_id: number
 
-  @column()
+  @column({isPrimary:true})
   public typebooks_id:number
 
-  @column()
-  public seq:string
+  @column({isPrimary:true})
+  public seq:number
 
   @column()
   public ext:string

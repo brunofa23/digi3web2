@@ -29,7 +29,9 @@ Route.group(()=>{
   Route.resource("/books", 'BooksController').apiOnly()
   Route.resource("/typebooks", 'TypebooksController').apiOnly()
   Route.resource("/bookrecords", 'BookrecordsController').apiOnly()
+  Route.patch("/indeximages/:id/:id2/:id3", "IndeximagesController.update");
   Route.resource("/indeximages", 'IndeximagesController').apiOnly()
+
 
 
 }).prefix('/api')

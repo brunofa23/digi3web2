@@ -2,13 +2,10 @@ import { DateTime } from 'luxon'
 import {
   BaseModel,
   column,
-  belongsTo,
-  BelongsTo,
   HasMany,
   hasMany,
 } from '@ioc:Adonis/Lucid/Orm'
 
-import Book from './Book'
 import Bookrecord from './Bookrecord'
 import Indeximage from './Indeximage'
 

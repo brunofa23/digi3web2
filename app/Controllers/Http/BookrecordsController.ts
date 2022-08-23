@@ -1,12 +1,12 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-import Database from '@ioc:Adonis/Lucid/Database'
+
 import Bookrecord from 'App/Models/Bookrecord'
 
 export default class BookrecordsController {
   public async index({ response }) {
-    const data = await Bookrecord.all()
-    //const data = await Bookrecord.query()
-    //.preload('livrotipos')
+    //const data = await Bookrecord.all()
+    const data = await Bookrecord.query()
+    .preload('bookrecords')
 
     //*** PARA CRIAR QUERY ESPECÍFICA */
     // const data = await Database.from('bookrecords').select(
