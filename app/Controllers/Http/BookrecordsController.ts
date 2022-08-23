@@ -4,26 +4,27 @@ import Bookrecord from 'App/Models/Bookrecord'
 
 export default class BookrecordsController {
   public async index({ response }) {
-    //const data = await Bookrecord.all()
+    const data = await Bookrecord.all()
     //const data = await Bookrecord.query()
     //.preload('livrotipos')
 
-    const data = await Database.from('bookrecords').select(
-      'typebooks_id',
-      'books_id',
-      'cod',
-      'book',
-      'sheet',
-      'side',
-      'approximate_term',
-      'index',
-      'obs',
-      'letter',
-      'year',
-      'model',
-    )
+    //*** PARA CRIAR QUERY ESPECÍFICA */
+    // const data = await Database.from('bookrecords').select(
+    //   'typebooks_id',
+    //   'books_id',
+    //   'cod',
+    //   'book',
+    //   'sheet',
+    //   'side',
+    //   'approximate_term',
+    //   'index',
+    //   'obs',
+    //   'letter',
+    //   'year',
+    //   'model',
+    // )
 
-    return response.send({ message: 'teste', data })
+    return response.send({ data })
   }
 
   public async store({ request, params, response }: HttpContextContract) {
@@ -43,4 +44,47 @@ export default class BookrecordsController {
       data: data,
     }
   }
+
+
+  public async show({params}: HttpContextContract){
+    const data = await Bookrecord.findOrFail(params.id)
+
+    return{
+      data:data,
+    }
+  }
+
+
+  public async destroy({params}:HttpContextContract){
+    const data = await Bookrecord.findOrFail(params.id)
+
+    await data.delete()
+
+    return{
+      message:"Livro excluido com sucesso.",
+      data:data
+    }
+
+  }
+
+
+  public async update({request, params }:HttpContextContract){
+    const body = request.only(Bookrecord.fillable)
+    body.id = params.id
+    const data = await Bookrecord.findOrFail(body.id)
+    await data.fill(body).save()
+    return{
+      message:'Tipo de Livro cadastrado com sucesso!!',
+      data: data,
+      params: params.id
+    }
+
+  }
+
+
+
+
+
+
+  //************************ */
 }

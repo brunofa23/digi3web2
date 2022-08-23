@@ -28,4 +28,21 @@ export default class BooksController {
 
 
 
+  public async update({request, params }:HttpContextContract){
+    const body = request.only(Book.fillable)
+    body.id = params.id
+    const data = await Book.findOrFail(body.id)
+    await data.fill(body).save()
+    return{
+      message:'Tipo de Livro cadastrado com sucesso!!',
+      data: data,
+      body: body,
+      params: params.id
+    }
+
+  }
+
+
+
+
 }
