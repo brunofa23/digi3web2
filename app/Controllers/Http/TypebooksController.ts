@@ -26,6 +26,7 @@ export default class TypebooksController {
     //const data = await Typebook.all()
     const data = await Typebook.query()
     .preload('bookrecords')
+    .preload('book')
 
     return response.send({ data })
   }

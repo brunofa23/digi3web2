@@ -4,10 +4,13 @@ import {
   column,
   HasMany,
   hasMany,
+  hasOne,
+  HasOne,
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Bookrecord from './Bookrecord'
 import Indeximage from './Indeximage'
+import Book from './Book'
 
 export default class Typebook extends BaseModel {
   public static get fillable() {
@@ -33,6 +36,13 @@ export default class Typebook extends BaseModel {
     localKey: 'id'
   })
   public typebooks: HasMany<typeof Indeximage>
+
+  @hasOne(() => Book,{
+    foreignKey: 'id',
+    localKey: 'books_id'
+  })
+  public book: HasOne<typeof Book>
+
 
   @column({ isPrimary: true })
   public id: number
