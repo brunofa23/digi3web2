@@ -6,7 +6,7 @@ export default class TypebooksController {
   public async store({ request,params, response }: HttpContextContract) {
     const body = request.only(Typebook.fillable)
     const id = params.id
-
+    console.log(request)
     //Verificar se existe o codigo passado pelo parâmetro
     //await Book.findByOrFail(id)
 
@@ -22,7 +22,9 @@ export default class TypebooksController {
 
   }
 
-  public async index({ response }) {
+  public async index({ request, response }) {
+
+    console.log(request)
     //const data = await Typebook.all()
     const data = await Typebook.query()
     .preload('bookrecords')
