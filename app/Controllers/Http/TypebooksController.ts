@@ -24,12 +24,23 @@ export default class TypebooksController {
 
   public async index({ request, response }) {
 
-    console.log(request)
+
+    //const name = request.requestData
+    const {id, name} = request.requestData
+
+    console.log(id)
+    console.log(name)
+
     //const data = await Typebook.all()
     const data = await Typebook.query()
     .preload('bookrecords')
     .preload('book')
+    //.whereLike('name',`%${name}%`)
+    .where('name','like',`%${name}%`)
+    //.orWhere(id)
+    //.where('name', 'like', `%name%`)
 
+    //console.log(data)
     return response.send({ data })
   }
 
