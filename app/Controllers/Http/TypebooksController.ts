@@ -3,7 +3,7 @@ import Typebook from 'App/Models/Typebook'
 
 export default class TypebooksController {
 
-  public async store({ request,params, response }: HttpContextContract) {
+  public async store({ request, params, response }: HttpContextContract) {
     const body = request.only(Typebook.fillable)
     const id = params.id
     console.log(request)
@@ -15,7 +15,7 @@ export default class TypebooksController {
     const data = await Typebook.create(body)
 
     response.status(201)
-    return{
+    return {
       message: "Criado com sucesso",
       data: data,
     }
@@ -23,55 +23,85 @@ export default class TypebooksController {
   }
 
   public async index({ request, response }) {
-
-
-    //const name = request.requestData
-    const {id, name} = request.requestData
+    const { id, name, status, books_id } = request.requestData
 
     console.log(id)
     console.log(name)
+    console.log('status', status)
+    console.log('books_id',books_id);
 
-    //const data = await Typebook.all()
-    const data = await Typebook.query()
-    .preload('bookrecords')
-    .preload('book')
-    //.whereLike('name',`%${name}%`)
-    .where('name','like',`%${name}%`)
-    //.orWhere(id)
-    //.where('name', 'like', `%name%`)
 
-    //console.log(data)
-    return response.send({ data })
+
+    if (!id && !name && !status && !books_id) {
+      const data = await Typebook.all()
+      console.log('tudo')
+      return response.send({ data })
+    }
+    else {
+
+      let query = " 1=1 "
+      let _status
+      if (status !== undefined) {
+        if (status === 'TRUE' || status === '1')
+          _status = 1
+        else
+          if (status === 'FALSE' || status === '0')
+            _status = 0
+        query += ` and status =${_status} `
+      }
+
+      if (name !== undefined)
+        query += ` and name like '%${name}%' `
+
+      if(books_id !==undefined){
+        query += ` and books_id = ${books_id} `
+      }
+
+      const data
+        = await Typebook.query()
+          .preload('bookrecords').preload('book')
+          .whereRaw(query)
+
+      //.where(conditions.where)
+      //.where("status","=", status)
+      //.whereIn(conditions.whereILike)
+      //.whereILike('name', `%${name}%`)
+
+
+      return response.send({ data })
+    }
+
+
   }
 
 
-  public async show({params}: HttpContextContract){
+  public async show({ params }: HttpContextContract) {
     const data = await Typebook.findOrFail(params.id)
 
-    return{
-      data:data,
+    return {
+      data: data,
     }
   }
 
-  public async destroy({params}:HttpContextContract){
+  public async destroy({ params }: HttpContextContract) {
     const data = await Typebook.findOrFail(params.id)
 
     await data.delete()
 
-    return{
-      message:"Livro excluido com sucesso.",
-      data:data
+    return {
+      message: "Livro excluido com sucesso.",
+      data: data
     }
 
   }
 
-  public async update({request, params }:HttpContextContract){
+  public async update({ request, params }: HttpContextContract) {
     const body = request.only(Typebook.fillable)
     body.id = params.id
     const data = await Typebook.findOrFail(body.id)
     await data.fill(body).save()
-    return{
-      message:'Tipo de Livro cadastrado com sucesso!!',
+    return {
+      message: 'Tipo de Livro cadastrado com sucesso!!',
       data: data,
       body: body,
       params: params.id
