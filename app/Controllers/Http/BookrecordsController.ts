@@ -3,10 +3,12 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Bookrecord from 'App/Models/Bookrecord'
 
 export default class BookrecordsController {
-  public async index({ response }) {
+
+  public async index({ response }:HttpContextContract) {
     //const data = await Bookrecord.all()
     const data = await Bookrecord.query()
       .preload('bookrecords')
+      //.where('typebooks_id','=',params.id)
 
 
     //*** PARA CRIAR QUERY ESPECÍFICA */
@@ -83,87 +85,14 @@ export default class BookrecordsController {
   }
 
 
+  public async createorupdatebookrecord({ request }) {
 
-  public async updateorcreatemany({ response }) {
-    const data = await Bookrecord.query()
-      .preload('bookrecords')
-
-    const keyForSearch = 'id'
-    const bookrecordsUpdate = [
-      {
-
-        "typebooks_id": 6,
-        "books_id": 2,
-        "cod": 1,
-        "book": 1,
-        "sheet": 1,
-        "side": "V",
-        "index": 0,
-
-
-      },
-      {
-        "typebooks_id": 6,
-        "books_id": 2,
-        "cod": 2,
-        "book": 1,
-        "sheet": 2,
-        "side": "V",
-        "index": 0,
-      },
-      {
-        "typebooks_id": 6,
-        "books_id": 2,
-        "cod": 2,
-        "book": 11,
-        "sheet": 2,
-        "side": "V",
-        "index": 0,
-      },
-      {
-        "typebooks_id": 6,
-        "books_id": 2,
-        "cod": 2,
-        "book": 9,
-        "sheet": 2,
-        "side": "V",
-        "index": 0,
-      },
-      {
-        "typebooks_id": 6,
-        "books_id": 2,
-        "cod": 2,
-        "book": 9,
-        "sheet": 2,
-        "side": "V",
-        "index": 0,
-      }
-
-    ]
-
-
-    this.updatemany(bookrecordsUpdate)
-
-    return response.send({ data })
-
+    console.log(request.requestBody)
+    const data = await Bookrecord.updateOrCreateMany('id', request.requestBody)
+    return data
   }
 
 
-
-  public async updatemany(bookrecordsUpdate ) {
-    //console.log('payload:::',payload)
-    const data = await Bookrecord.createMany(bookrecordsUpdate)
-    console.log('data:::',data)
-    //return data
-    // for (let _data of data) {
-    //   if (_data.$isLocal) {
-    //     // local+persisted instance
-    //   } else {
-    //     // existing row in the database
-    //   }
-
-
-  }
 
 
 

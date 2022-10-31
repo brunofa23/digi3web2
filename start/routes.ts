@@ -28,6 +28,11 @@ Route.group(()=>{
 
   Route.resource("/books", 'BooksController').apiOnly()
   Route.get("/bookrecords/updateorcreatemany", 'BookrecordsController.updateorcreatemany')
+  Route.patch("/bookrecords/createorupdatebookrecord", 'BookrecordsController.createorupdatebookrecord')
+
+
+
+
   Route.resource("/typebooks", 'TypebooksController').apiOnly()
   Route.resource("/bookrecords", 'BookrecordsController').apiOnly()
   Route.patch("/indeximages/:id/:id2/:id3", "IndeximagesController.update");
