@@ -4,11 +4,12 @@ import Bookrecord from 'App/Models/Bookrecord'
 
 export default class BookrecordsController {
 
-  public async index({ response }:HttpContextContract) {
-    //const data = await Bookrecord.all()
+  public async index({ request, response }: HttpContextContract) {
+    const body = request.only(Bookrecord.fillable)
+    console.log("TESTE", request.params())
     const data = await Bookrecord.query()
       .preload('bookrecords')
-      //.where('typebooks_id','=',params.id)
+      .where('typebooks_id', '=', body.id)
 
 
     //*** PARA CRIAR QUERY ESPECÍFICA */
@@ -51,12 +52,20 @@ export default class BookrecordsController {
 
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
-
+    console.log("SHOWWWW:", params)
     return {
       data: data,
     }
   }
 
+
+  // public async find({ params }: HttpContextContract) {
+  //   console.log("Find:", params)
+  //   const data = await Bookrecord.findOrFail(params.id)
+  //   return {
+  //     data: data,
+  //   }
+  // }
 
   public async destroy({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
@@ -87,9 +96,12 @@ export default class BookrecordsController {
 
   public async createorupdatebookrecord({ request }) {
 
+
     console.log(request.requestBody)
     const data = await Bookrecord.updateOrCreateMany('id', request.requestBody)
     return data
+
+
   }
 
 

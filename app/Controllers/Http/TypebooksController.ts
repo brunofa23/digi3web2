@@ -1,7 +1,23 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Typebook from 'App/Models/Typebook'
+import Bookrecord from 'App/Models/Bookrecord'
+import { Response } from '@adonisjs/core/build/standalone'
 
 export default class TypebooksController {
+
+
+  public async bookRecords({ params, response }: HttpContextContract) {
+
+    console.log("Executei bookrecords", params.id)
+
+    const data = await Bookrecord.query()
+      .preload('bookrecords')
+      .where('typebooks_id', '=', params.id)
+     return response.send({ data })
+  }
+
+
+
 
   public async store({ request, params, response }: HttpContextContract) {
     const body = request.only(Typebook.fillable)
