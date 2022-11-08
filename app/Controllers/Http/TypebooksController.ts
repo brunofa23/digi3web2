@@ -1,19 +1,78 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Typebook from 'App/Models/Typebook'
 import Bookrecord from 'App/Models/Bookrecord'
-import { Response } from '@adonisjs/core/build/standalone'
+
 
 export default class TypebooksController {
 
 
-  public async bookRecords({ params, response }: HttpContextContract) {
+  public async bookRecords({ request, params, response }) {
 
-    console.log("Executei bookrecords", params.id)
+    console.log("Executei bookrecords", request)
+
+    const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side } = request.requestData
+
+
+
+    let query = " 1=1 "
+    if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side)
+      query = ""
+    else {
+
+      //cod**************************************************
+      if (codstart != undefined && codend == undefined)
+        query += ` and cod =${codstart} `
+      else
+        if (codstart != undefined && codend != undefined)
+          query += ` and cod >=${codstart} `
+
+      if (codend != undefined)
+        query += ` and cod <= ${codend}`
+      //book ************************************************
+      if (bookstart != undefined && bookend == undefined)
+        query += ` and book =${bookstart} `
+      else
+        if (bookstart != undefined && bookend != undefined)
+          query += ` and book >=${bookstart} `
+
+      if (bookend != undefined)
+        query += ` and book <= ${bookend}`
+
+      //sheet **********************************************
+      if (sheetstart != undefined && sheetend == undefined)
+        query += ` and sheet =${sheetstart} `
+      else
+        if (sheetstart != undefined && sheetend != undefined)
+          query += ` and sheet >=${sheetstart} `
+
+      if (sheetend != undefined)
+        query += ` and sheet <= ${sheetend}`
+
+      //side *************************************************
+      if (side != undefined)
+        query += ` and side = ${side} `
+
+      //aproximate_term **************************************
+      if (approximateterm != undefined)
+        query += ` and approximate_term=${approximateterm}`
+      //year ***********************************************
+      if (year != undefined)
+        query += ` and year =${year} `
+
+
+
+
+    }
+
 
     const data = await Bookrecord.query()
       .preload('bookrecords')
       .where('typebooks_id', '=', params.id)
-     return response.send({ data })
+      .whereRaw(query).toQuery()
+
+
+
+    return response.send({ data })
   }
 
 
@@ -44,7 +103,7 @@ export default class TypebooksController {
     console.log(id)
     console.log(name)
     console.log('status', status)
-    console.log('books_id',books_id);
+    console.log('books_id', books_id);
 
 
 
@@ -69,7 +128,7 @@ export default class TypebooksController {
       if (name !== undefined)
         query += ` and name like '%${name}%' `
 
-      if(books_id !==undefined){
+      if (books_id !== undefined) {
         query += ` and books_id = ${books_id} `
       }
 
