@@ -29,6 +29,9 @@ Route.group(()=>{
   Route.resource("/books", 'BooksController').apiOnly()
   Route.get("/typebooks/:id/bookrecords", 'TypebooksController.bookRecords').as('TypebooksController.bookRecords')
   Route.patch("/bookrecords/createorupdatebookrecord", 'BookrecordsController.createorupdatebookrecord')
+  Route.patch("/bookrecords/fetchorcreatemany", 'BookrecordsController.fetchOrCreateMany')
+
+
 
   Route.resource("/typebooks", 'TypebooksController').apiOnly()
   Route.resource("/bookrecords", 'BookrecordsController').apiOnly()
