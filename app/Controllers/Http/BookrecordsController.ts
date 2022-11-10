@@ -59,13 +59,6 @@ export default class BookrecordsController {
   }
 
 
-  // public async find({ params }: HttpContextContract) {
-  //   console.log("Find:", params)
-  //   const data = await Bookrecord.findOrFail(params.id)
-  //   return {
-  //     data: data,
-  //   }
-  // }
 
   public async destroy({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)

@@ -10,13 +10,11 @@ export default class TypebooksController {
 
     console.log("Executei bookrecords", request)
 
-    const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side } = request.requestData
-
-
+    const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero } = request.requestData
 
     let query = " 1=1 "
-    if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side)
-      query = ""
+    if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero=='false') )
+      query = " sheet > 0  "
     else {
 
       //cod**************************************************
@@ -50,7 +48,7 @@ export default class TypebooksController {
 
       //side *************************************************
       if (side != undefined)
-        query += ` and side = ${side} `
+        query += ` and side = '${side}' `
 
       //aproximate_term **************************************
       if (approximateterm != undefined)
@@ -59,24 +57,17 @@ export default class TypebooksController {
       if (year != undefined)
         query += ` and year =${year} `
 
-
-
-
+      //sheetzero*****************************************
+      if(sheetzero)
+        query += ` and sheet>=0`
     }
-
 
     const data = await Bookrecord.query()
       .preload('bookrecords')
       .where('typebooks_id', '=', params.id)
-      .whereRaw(query).toQuery()
-
-
-
+      .whereRaw(query)
     return response.send({ data })
   }
-
-
-
 
   public async store({ request, params, response }: HttpContextContract) {
     const body = request.only(Typebook.fillable)
