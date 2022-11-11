@@ -113,20 +113,14 @@ export default class BookrecordsController {
 
 
   //Para geração de bookrecords
-  public async fetchOrCreateMany(request) {
+  public async fetchOrCreateMany({ request }) {
 
-    const booksRecordsToCreate1 = [
-      { cod: 3, book: 13, obs: 'FirstOrCreate', typebooks_id: 6, books_id: 2 }
-
-    ]
+    const {sheet, book, books_id, typebooks_id} = request.requestData
 
 
-    const sheet = 30
-    const book = 1
-    const books_id = 2
-    const typebooks_id = 6
     let cod = 1
     let sheetCount = 1
+
 
     const booksRecordsToCreate = [{cod: cod++, book, sheet: sheetCount, books_id, typebooks_id}]
     sheetCount++
@@ -138,9 +132,7 @@ export default class BookrecordsController {
     }
 
     console.log(booksRecordsToCreate)
-
     const data = await Bookrecord.fetchOrCreateMany(['cod', 'book'], booksRecordsToCreate)
-
     console.log("EXECUTEI fetchOrCreateMany")
     return data.length
 
