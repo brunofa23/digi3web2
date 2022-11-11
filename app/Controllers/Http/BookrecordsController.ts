@@ -117,18 +117,22 @@ export default class BookrecordsController {
 
     const {sheet, book, books_id, typebooks_id} = request.requestData
 
-
     let cod = 1
     let sheetCount = 1
 
+    //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
 
-    const booksRecordsToCreate = [{cod: cod++, book, sheet: sheetCount, books_id, typebooks_id}]
-    sheetCount++
+    if(!sheet || isNaN(sheet) || sheet<0 )
+    {
+      return "erro"//status 400
+    }
+
+    // const booksRecordsToCreate = [{cod: cod++, book, sheet: sheetCount, books_id, typebooks_id}]
+    // sheetCount++
+    const booksRecordsToCreate: Object[] = []
     while (sheetCount <= sheet) {
       booksRecordsToCreate.push({ cod: cod++, book, sheet: sheetCount, books_id, typebooks_id })
-
         sheetCount++
-
     }
 
     console.log(booksRecordsToCreate)
