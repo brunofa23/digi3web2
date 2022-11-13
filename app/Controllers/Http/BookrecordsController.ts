@@ -1,4 +1,5 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import { test } from '@japa/runner'
 
 import Bookrecord from 'App/Models/Bookrecord'
 
@@ -90,29 +91,35 @@ export default class BookrecordsController {
   public async createorupdatebookrecord({ request }) {
 
 
-    // console.log(request.requestBody)
-    const data = await Bookrecord.updateOrCreateMany('id', request.requestBody)
-    return data
+     console.log(request.requestBody)
+
+     const _request = request.requestBody
+     let newRecord: Object[]=[]
+     let updateRecord: Object[]=[]
+
+     for (const iterator of _request) {
+
+      if(!iterator.id)
+      newRecord.push({typebooks_id: iterator.typebooks_id, books_id: iterator.books_id, cod: iterator.cod, book: iterator.book, sheet: iterator.sheet, side: iterator.side, approximate_term: iterator.approximate_term })
+      else
+      updateRecord.push({id: iterator.id, typebooks_id: iterator.typebooks_id, books_id: iterator.books_id, cod: iterator.cod, book: iterator.book, sheet: iterator.sheet, side: iterator.side, approximate_term: iterator.approximate_term })
+
+     }
+
+     console.log("NEW iterator:::", newRecord)
+     console.log("UPDATE iterator:::", updateRecord)
+
+    await Bookrecord.createMany(newRecord)
+    await Bookrecord.updateOrCreateMany('id', updateRecord )
+    //const data = await Bookrecord.updateOrCreateMany('id', request.requestBody)
+    return "sucesso!!"
 
 
   }
 
 
-  // public async firstOrCreate() {
 
-  //   const searchPayload = { cod: 2, book: 12 }
-  //   const savePayload = { obs: 'FirstOrCreate1111', typebooks_id: 6, books_id:2 }
-
-  //   const data =  await Bookrecord.firstOrCreate(searchPayload, savePayload)
-
-  //   console.log("EXECUTEI FIRST OR CREATE")
-  //   return data
-
-  // }
-
-
-
-  //Para geração de bookrecords
+  //Para geração de bookrecords (gerar novo livro)
   public async fetchOrCreateMany({ request }) {
 
     const {sheet, book, books_id, typebooks_id} = request.requestData
@@ -135,7 +142,7 @@ export default class BookrecordsController {
         sheetCount++
     }
 
-    console.log(booksRecordsToCreate)
+    //console.log(booksRecordsToCreate)
     const data = await Bookrecord.fetchOrCreateMany(['cod', 'book'], booksRecordsToCreate)
     console.log("EXECUTEI fetchOrCreateMany")
     return data.length
