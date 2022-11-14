@@ -10,3 +10,7 @@ node ace configure @adonisjs/lucid
 -vai em config -> cors.ts
 -colocar a linha de comando:
 enabled: (request) => request.url().startsWith('/api'),
+
+
+abrir servidor
+ node ace serve --watch

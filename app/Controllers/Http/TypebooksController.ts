@@ -62,6 +62,7 @@ export default class TypebooksController {
         query += ` and sheet>=0`
     }
 
+
     const data = await Bookrecord.query()
       .preload('bookrecords')
       .where('typebooks_id', '=', params.id)
