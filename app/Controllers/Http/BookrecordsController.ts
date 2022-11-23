@@ -1,5 +1,5 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-import { test } from '@japa/runner'
+
 
 import Bookrecord from 'App/Models/Bookrecord'
 
@@ -7,7 +7,6 @@ export default class BookrecordsController {
 
   public async index({ request, response }: HttpContextContract) {
     const body = request.only(Bookrecord.fillable)
-    //console.log("TESTE", request.params())
     const data = await Bookrecord.query()
       .preload('bookrecords')
       .where('typebooks_id', '=', body.id)
@@ -91,27 +90,53 @@ export default class BookrecordsController {
   public async createorupdatebookrecord({ request }) {
 
 
-     console.log(request.requestBody)
+    console.log(request.requestBody)
 
-     const _request = request.requestBody
-     let newRecord: Object[]=[]
-     let updateRecord: Object[]=[]
+    const _request = request.requestBody
+    let newRecord: Object[] = []
+    let updateRecord: Object[] = []
 
-     for (const iterator of _request) {
+    for (const iterator of _request) {
 
-      if(!iterator.id)
-      newRecord.push({typebooks_id: iterator.typebooks_id, books_id: iterator.books_id, cod: iterator.cod, book: iterator.book, sheet: iterator.sheet, side: iterator.side, approximate_term: iterator.approximate_term })
+      if (!iterator.id)
+        newRecord.push({
+          typebooks_id: iterator.typebooks_id,
+          books_id: iterator.books_id,
+          cod: iterator.cod,
+          book: iterator.book,
+          sheet: iterator.sheet,
+          side: iterator.side,
+          approximate_term: iterator.approximate_term,
+          index: iterator.index,
+          obs: iterator.obs,
+          letter: iterator.letter,
+          year: iterator.year,
+          model: iterator.model
+        })
       else
-      updateRecord.push({id: iterator.id, typebooks_id: iterator.typebooks_id, books_id: iterator.books_id, cod: iterator.cod, book: iterator.book, sheet: iterator.sheet, side: iterator.side, approximate_term: iterator.approximate_term })
+        updateRecord.push({
+          id: iterator.id,
+          typebooks_id: iterator.typebooks_id,
+          books_id: iterator.books_id,
+          cod: iterator.cod,
+          book: iterator.book,
+          sheet: iterator.sheet,
+          side: iterator.side,
+          approximate_term: iterator.approximate_term,
+          index: iterator.index,
+          obs: iterator.obs,
+          letter: iterator.letter,
+          year: iterator.year,
+          model: iterator.model
+        })
 
-     }
+    }
 
-     console.log("NEW iterator:::", newRecord)
-     console.log("UPDATE iterator:::", updateRecord)
+    console.log("NEW iterator:::", newRecord)
+    console.log("UPDATE iterator:::", updateRecord)
 
     await Bookrecord.createMany(newRecord)
-    await Bookrecord.updateOrCreateMany('id', updateRecord )
-    //const data = await Bookrecord.updateOrCreateMany('id', request.requestBody)
+    await Bookrecord.updateOrCreateMany('id', updateRecord)
     return "sucesso!!"
 
 
@@ -122,15 +147,14 @@ export default class BookrecordsController {
   //Para geração de bookrecords (gerar novo livro)
   public async fetchOrCreateMany({ request }) {
 
-    const {sheet, book, books_id, typebooks_id} = request.requestData
+    const { sheet, book, books_id, typebooks_id } = request.requestData
 
     let cod = 1
     let sheetCount = 1
 
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
 
-    if(!sheet || isNaN(sheet) || sheet<0 )
-    {
+    if (!sheet || isNaN(sheet) || sheet < 0) {
       return "erro"//status 400
     }
 
@@ -139,7 +163,7 @@ export default class BookrecordsController {
     const booksRecordsToCreate: Object[] = []
     while (sheetCount <= sheet) {
       booksRecordsToCreate.push({ cod: cod++, book, sheet: sheetCount, books_id, typebooks_id })
-        sheetCount++
+      sheetCount++
     }
 
     //console.log(booksRecordsToCreate)
