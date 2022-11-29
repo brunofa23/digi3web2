@@ -14,3 +14,6 @@ enabled: (request) => request.url().startsWith('/api'),
 
 abrir servidor
  node ace serve --watch
+
+
+### parei na criação do generateOrUpdateBook faltando criar a iteração 
