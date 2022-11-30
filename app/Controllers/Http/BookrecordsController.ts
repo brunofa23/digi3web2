@@ -143,11 +143,14 @@ export default class BookrecordsController {
   }
 
 
-  public async generateOrUpdateBook({ request, response }) {
+  public async generateOrUpdateBookRecords({ request, response }) {
 
-    console.log(request.requestData)
+    // console.log(request.requestData)
+    console.log("EXECUTEI generateOrUpdateBookRecords")
 
     let {
+      generateTypeBook_id,
+      generateBooks_id,
       generateBook,
       generateStartCode,
       generateEndCode,
@@ -161,36 +164,85 @@ export default class BookrecordsController {
     } = request.requestData
 
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
-    if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
-      console.log("ERRRRRROR:", response.status(401))
-      return response.status(401)
-    }
+    // if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
+    //   console.log("ERRRRRROR:", response.status(401))
+    //   return response.status(401)
+    // }
 
+    // const generateBook = 10
+    // let generateStartCode = 1
+    // const generateEndCode = 40
+    // const generateStartSheetInCodReference = 5
+    // const generateEndSheetInCodReference = 35
+    // const generateSheetIncrement = 2
+    // let generateSideStart = "F"
+    // const generateAlternateOfSides = "FV"
+    // const generateApproximate_term = 1
+    // const generateApproximate_termIncrement = 1
+
+
+    let contSheet = 0
+    let contIncrementSheet = 0
+    let contFirstSheet = false
+    let contFirstSide = false
+    let sideNow = 0
     const bookrecords: Object[] = []
+
     for (let index = 0; index < generateEndCode; index++) {
+
+      console.log("generateStartCode", generateStartCode, " - generateStartSheetInCodReference", generateStartSheetInCodReference,);
+
+      if (generateStartCode >= generateStartSheetInCodReference) {
+        if (contIncrementSheet < generateSheetIncrement) {
+          contIncrementSheet++
+          if (contFirstSheet == false) {
+            contFirstSheet = true
+            contSheet++
+          }
+        } else {
+          contIncrementSheet = 1
+          contSheet++
+        }
+
+        if (generateAlternateOfSides == "F")
+          generateSideStart = "F"
+        else if (generateAlternateOfSides == "V")
+          generateSideStart = "V"
+        else if (generateAlternateOfSides == "FV") {
+          if (contFirstSide == false) {
+            generateSideStart = (generateSideStart == "F" ? "V" : "F")
+            contFirstSide = true
+          }
+          generateSideStart = (generateSideStart == "F" ? "V" : "F")
+        } else if (generateAlternateOfSides == "FFVV") {
+          if (sideNow >= 2) {
+            generateSideStart = (generateSideStart == "F" ? "V" : "F")
+            sideNow = 0
+          }
+          sideNow++
+        }
+
+      }
+      if (generateStartCode > generateEndSheetInCodReference)
+        contSheet = 0
+
       bookrecords.push({
         cod: generateStartCode++,
         book: generateBook,
+        sheet: contSheet,
+        side: generateSideStart,
+        typebooks_id: generateTypeBook_id,
+        books_id: generateBooks_id
       })
 
     }
 
-    // let cod = 1
-    // let sheetCount = 1
-
-    // const booksRecordsToCreate: Object[] = []
-    // while (sheetCount <= sheet) {
-    //   booksRecordsToCreate.push({ cod: cod++, book, sheet: sheetCount, books_id, typebooks_id })
-    //   sheetCount++
-    // }
-
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book'], bookrecords)
-    console.log("EXECUTEI fetchOrCreateMany")
-    return data.length
+    return  data.length
+
+
 
   }
-
-
 
 
   //Para geração de bookrecords (gerar novo livro)
@@ -204,7 +256,7 @@ export default class BookrecordsController {
     let sheetCount = 1
 
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
-
+    console.log("Executei fetchorCreateMany")
     if (!sheet || isNaN(sheet) || sheet < 0) {
       return "erro"//status 400
     }

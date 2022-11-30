@@ -30,6 +30,7 @@ Route.group(()=>{
   Route.get("/typebooks/:id/bookrecords", 'TypebooksController.bookRecords').as('TypebooksController.bookRecords')
   Route.patch("/bookrecords/createorupdatebookrecord", 'BookrecordsController.createorupdatebookrecord')
   Route.patch("/bookrecords/fetchorcreatemany", 'BookrecordsController.fetchOrCreateMany')
+  Route.put("/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookRecords')
 
 
 
