@@ -8,7 +8,7 @@ export default class TypebooksController {
 
   public async bookRecords({ request, params, response }) {
 
-    console.log("Executei bookrecords", request)
+    console.log("Executei bookrecords")
 
     const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero } = request.requestData
 
@@ -63,10 +63,18 @@ export default class TypebooksController {
     }
 
 
+    const page = request.input('page', 1)
+    const limit = 20
+
+    //const posts = await Database.from('posts').paginate(page, limit)
+
     const data = await Bookrecord.query()
-      .preload('bookrecords')
-      .where('typebooks_id', '=', params.id)
-      .whereRaw(query)
+    .preload('bookrecords')
+    .where('typebooks_id', '=', params.id)
+    .whereRaw(query)//.paginate(page, limit)
+
+    console.log(data)
+
     return response.send({ data })
   }
 
@@ -92,16 +100,16 @@ export default class TypebooksController {
   public async index({ request, response }) {
     const { id, name, status, books_id } = request.requestData
 
-    console.log(id)
-    console.log(name)
-    console.log('status', status)
-    console.log('books_id', books_id);
+    // console.log(id)
+    // console.log(name)
+    // console.log('status', status)
+    // console.log('books_id', books_id);
 
 
 
     if (!id && !name && !status && !books_id) {
       const data = await Typebook.all()
-      console.log('tudo')
+      //console.log('tudo')
       return response.send({ data })
     }
     else {
@@ -128,11 +136,6 @@ export default class TypebooksController {
         = await Typebook.query()
           .preload('bookrecords').preload('book')
           .whereRaw(query)
-
-      //.where(conditions.where)
-      //.where("status","=", status)
-      //.whereIn(conditions.whereILike)
-      //.whereILike('name', `%${name}%`)
 
 
       return response.send({ data })
