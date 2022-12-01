@@ -58,20 +58,23 @@ export default class BookrecordsController {
     }
   }
 
-  public async destroyManyBookRecords({ request }: HttpContextContract){
+  public async destroyManyBookRecords({ request }: HttpContextContract) {
 
-    const {typebook_id, book, codIni, codFim} = request.requestBody
-    console.log("Executei destroyManyBookRecords ",request, " book:",book, " codIni:", codIni, " codFim:", codFim);
+    const { typebook_id, book, codIni, codFim } = request.requestBody
+    let query= '1 = 1'
 
-    const data = await Bookrecord.query().where('typebooks_id', '=', typebook_id).andWhere('book','=', book)
-    .andWhere('cod','>', codIni)
-    .andWhere('cod', '<', codFim).delete().toQuery()
+    if (typebook_id != undefined) {
+      if (book != undefined)
+        query += ` and book=${book} `
 
-    // console.log("data::", data)
+      if (codIni != undefined && codFim != undefined)
+        query += ` and cod>=${codIni} and cod <=${codFim} `
 
-     return data
+       const data = await Bookrecord.query().where('typebooks_id', '=', typebook_id)
+         .whereRaw(query).delete()//.toQuery()
 
-
+      return data
+    }
   }
 
 
@@ -253,7 +256,7 @@ export default class BookrecordsController {
     }
 
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book'], bookrecords)
-    return  data.length
+    return data.length
 
 
 
