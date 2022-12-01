@@ -8,12 +8,12 @@ export default class TypebooksController {
 
   public async bookRecords({ request, params, response }) {
 
-    console.log("Executei bookrecords")
+    //console.log("Executei bookrecords", request.requestData)
 
-    const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero } = request.requestData
+    const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
 
     let query = " 1=1 "
-    if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero=='false') )
+    if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
       query = " sheet > 0  "
     else {
 
@@ -58,23 +58,26 @@ export default class TypebooksController {
         query += ` and year =${year} `
 
       //sheetzero*****************************************
-      if(sheetzero)
+      if (sheetzero)
         query += ` and sheet>=0`
+    }
+
+    //last pages of each book****************************
+    if (lastPagesOfEachBook) {
+      query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
     }
 
 
     const page = request.input('page', 1)
     const limit = 20
 
-    //const posts = await Database.from('posts').paginate(page, limit)
-
     const data = await Bookrecord.query()
-    .preload('bookrecords')
-    .where('typebooks_id', '=', params.id)
-    .whereRaw(query)//.paginate(page, limit)
+      .preload('bookrecords')
+      .where('typebooks_id', '=', params.id)
+      .whereRaw(query).paginate(page, limit)
 
-    console.log(data)
-
+    //console.log(data, "lastPagesOfEachBook",lastPagesOfEachBook)
+    //return response.send( data )
     return response.send({ data })
   }
 

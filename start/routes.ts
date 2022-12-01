@@ -32,6 +32,7 @@ Route.group(()=>{
   Route.patch("/bookrecords/fetchorcreatemany", 'BookrecordsController.fetchOrCreateMany')
   Route.put("/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookRecords')
 
+  Route.delete("/bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords')
 
 
   Route.resource("/typebooks", 'TypebooksController').apiOnly()

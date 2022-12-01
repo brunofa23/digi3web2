@@ -58,6 +58,21 @@ export default class BookrecordsController {
     }
   }
 
+  public async destroyManyBookRecords({ request }: HttpContextContract){
+
+    const {typebook_id, book, codIni, codFim} = request.requestBody
+    console.log("Executei destroyManyBookRecords ",request, " book:",book, " codIni:", codIni, " codFim:", codFim);
+
+    const data = await Bookrecord.query().where('typebooks_id', '=', typebook_id).andWhere('book','=', book)
+    .andWhere('cod','>', codIni)
+    .andWhere('cod', '<', codFim).delete().toQuery()
+
+    // console.log("data::", data)
+
+     return data
+
+
+  }
 
 
   public async destroy({ params }: HttpContextContract) {
