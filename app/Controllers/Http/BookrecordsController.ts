@@ -1,7 +1,9 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import Database from '@ioc:Adonis/Lucid/Database'
 
 
 import Bookrecord from 'App/Models/Bookrecord'
+import Indeximage from 'App/Models/Indeximage'
 
 export default class BookrecordsController {
 
@@ -61,19 +63,27 @@ export default class BookrecordsController {
   public async destroyManyBookRecords({ request }: HttpContextContract) {
 
     const { typebook_id, book, codIni, codFim } = request.requestBody
-    let query= '1 = 1'
+    let query = '1 = 1'
+
+    if (book == undefined)
+      return
 
     if (typebook_id != undefined) {
-      if (book != undefined)
+      if (book != undefined) {
         query += ` and book=${book} `
-
+      }
       if (codIni != undefined && codFim != undefined)
         query += ` and cod>=${codIni} and cod <=${codFim} `
 
-       const data = await Bookrecord.query().where('typebooks_id', '=', typebook_id)
-         .whereRaw(query).delete()//.toQuery()
+      //deleção tabela index images
+      const dataIndexImages = await Indeximage.query().delete()
+          .whereIn("bookrecords_id",
+            Database.from('bookrecords').select('id').where('typebooks_id', '=', typebook_id).whereRaw(query)
+            )
+      //delete from indeximages where bookrecords_id in (select id from bookrecords where `typebooks_id` = 7 and 1 = 1 and book=1 and cod>=1 and cod <=3)
 
-      return data
+      const data = await Bookrecord.query().where('typebooks_id', '=', typebook_id).whereRaw(query).delete()
+      return {dataIndexImages, data }
     }
   }
 
