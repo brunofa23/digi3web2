@@ -19,6 +19,10 @@
 */
 
 import Route from '@ioc:Adonis/Core/Route'
+
+import Application from '@ioc:Adonis/Core/Application'
+
+
 Route.group(()=>{
 
   Route.get('/', async () => {
@@ -40,6 +44,36 @@ Route.group(()=>{
   Route.patch("/indeximages/:id/:id2/:id3", "IndeximagesController.update");
   Route.resource("/indeximages", 'IndeximagesController').apiOnly()
 
+
+  Route.post('typebooks/:id/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
+
+
+  // Route.post('/indeximages/uploads', async ({ request }) => {
+  //   console.log("UPLOADS");
+
+  //   const images = request.files('images',{
+  //     size: '2mb',
+  //     extnames:['jpg', 'png', 'jpeg', 'pdf']
+  //   })
+
+  //   let cont = 1
+  //   for (let image of images) {
+
+  //     if(!image){
+  //       console.log("não é imagem")
+  //     }
+  //     if(!image.isValid){
+  //       console.log("Error", image.errors);
+
+  //     }
+
+  //     await image.move(Application.tmpPath('uploads'),{name:`cont${cont}.${image.extname}`,overwrite:true})
+  //     cont++
+  //     console.log("Name:",image.fieldName, ' ClienteName', image.clientName, 'tamanho:', image.size, 'path:', image.tmpPath, 'ext', image.extname);
+
+  //   }
+
+  // })
 
 
 }).prefix('/api')

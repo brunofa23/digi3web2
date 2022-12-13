@@ -1,3 +1,4 @@
+import { GoogleApis } from "googleapis";
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
@@ -82,8 +83,12 @@ async function authorize() {
 async function uploadFiles(authClient) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
+  let parents = ['1SUx-ExjG-qpltDCCaXV_OWgCs-tQZuEr']
+  //parents[0] = '1E5-xpRXwImV6QZdPv-amoGYV8MZqfZp4'
+
   const fileMetadata = {
     name: 'photo.jpg',
+    parents: parents
   };
   const media = {
     mimeType: 'image/jpeg',
@@ -94,7 +99,8 @@ async function uploadFiles(authClient) {
     const file = await drive.files.create({
       resource: fileMetadata,
       media: media,
-      fields: 'id',
+      fields: 'id'
+
     });
     console.log("CAMINHO IMAGEM::", path.join(process.cwd(), 'config/files/photo.jpg'));
     console.log('File Id:', file.data.id);
@@ -104,6 +110,56 @@ async function uploadFiles(authClient) {
     console.log("ERRO:::::", err);
     throw err;
   }
+
+}
+
+
+async function createFolder(authClient) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const fileMetadata = {
+    name: 'Nascimento',
+    mimeType: 'application/vnd.google-apps.folder',
+  };
+
+  try {
+    const file = await drive.files.create({
+      resource: fileMetadata,
+      fields: 'id',
+    });
+    console.log('Folder Id:', file.data.id);
+    return file.data.id;
+  } catch (err) {
+    // TODO(developer) - Handle error
+    throw err;
+  }
+
+}
+
+async function searchFile(authClient){
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const files = []
+
+  try {
+    const res = await drive.files.list({
+      q: "not name contains 'photo' "
+      //q: 'mimeType=\'image/jpeg\'',
+      // name:'repetida3.jpeg',
+      // fields: 'nextPageToken, files(id, name)',
+      // spaces: 'drive'
+      //name: 'repetida3.jpg'
+    });
+    Array.prototype.push.apply(files, res.files);
+    res.data.files.forEach(function(file) {
+      console.log('Found file:', file.name, file.id);
+    });
+    return res.data.files;
+
+  } catch (error) {
+    throw error;
+  }
+
 
 }
 
@@ -144,6 +200,13 @@ async function sendUploadFiles(){
   authorize().then(uploadFiles).catch(console.error)
 }
 
+async function sendCreateFolder() {
+  authorize().then(createFolder).catch(console.error)
+}
+
+async function sendSearchFile() {
+  authorize().then(searchFile).catch(console.error)
+}
 
 //export default {sendListFiles, sendUploadFiles, sendAuthorize}
-module.exports = {sendListFiles, sendUploadFiles, sendAuthorize}
+module.exports = {sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile}

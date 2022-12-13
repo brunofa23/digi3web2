@@ -15,21 +15,14 @@ import sourceMapSupport from 'source-map-support'
 import { Ignitor } from '@adonisjs/core/build/standalone'
 
 console.log("Antes google");
-//import './config/googledrive.js'
-//import {sendAuthorize} from '../digi3web2/config/googledrive.js'
-//import teste from '../digi3web2/config/googledrive.js'
-//teste.sendAuthorize()
 const authorize = require('./config/googledrive.ts')
 authorize.sendAuthorize()
-authorize.sendUploadFiles()
-authorize.sendListFiles()
-//sendAuthorize()
 
-console.log("depois google");
-console.log("executando upload");
-//import './config/googledrive.ts'
+//authorize.sendSearchFile()
+//authorize.sendCreateFolder()
+//authorize.sendUploadFiles()
+//authorize.sendListFiles()
 
-console.log("finalizando upload");
 
 
 

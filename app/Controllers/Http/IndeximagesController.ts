@@ -1,6 +1,8 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Indeximage from 'App/Models/Indeximage'
 
+import Application from '@ioc:Adonis/Core/Application'
+
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
@@ -13,7 +15,7 @@ export default class IndeximagesController {
     const data = await Indeximage.create(body)
 
     response.status(201)
-    return{
+    return {
       message: "Criado com sucesso",
       data: data,
     }
@@ -29,27 +31,27 @@ export default class IndeximagesController {
   }
 
 
-  public async show({params}: HttpContextContract){
+  public async show({ params }: HttpContextContract) {
     const data = await Indeximage.findOrFail(params.id)
 
-    return{
-      data:data,
+    return {
+      data: data,
     }
   }
 
-  public async destroy({params}:HttpContextContract){
+  public async destroy({ params }: HttpContextContract) {
     const data = await Indeximage.findOrFail(params.id)
 
     await data.delete()
 
-    return{
-      message:"Livro excluido com sucesso.",
-      data:data
+    return {
+      message: "Livro excluido com sucesso.",
+      data: data
     }
 
   }
 
-  public async update({request, params }:HttpContextContract){
+  public async update({ request, params }: HttpContextContract) {
     const body = request.only(Indeximage.fillable)
     body.bookrecords_id = params.id
     body.typebooks_id = params.id2
@@ -57,16 +59,16 @@ export default class IndeximagesController {
 
 
     const data = await Indeximage
-  .query()
-  .where('bookrecords_id', '=', body.bookrecords_id )
-  .where('typebooks_id', '=', body.typebooks_id)
-  .where('seq', '=', body.seq)
+      .query()
+      .where('bookrecords_id', '=', body.bookrecords_id)
+      .where('typebooks_id', '=', body.typebooks_id)
+      .where('seq', '=', body.seq)
     //const data = await Indeximage.findMany([3,10, 1] )
 
     await data.fill(body).save()
 
-    return{
-      message:'Tipo de Livro cadastrado com sucesso!!',
+    return {
+      message: 'Tipo de Livro cadastrado com sucesso!!',
       data: data,
       //body: body,
       params: params
@@ -74,7 +76,34 @@ export default class IndeximagesController {
 
   }
 
+  public async uploads({ request, params }) {
+    console.log("UPLOADS", params.id);
 
+
+    const images = request.files('images', {
+      size: '2mb',
+      extnames: ['jpg', 'png', 'jpeg', 'pdf']
+    })
+
+    let cont = 1
+    for (let image of images) {
+
+      //função para retornar o nome transformado do arquivo
+
+      if (!image) {
+        console.log("não é imagem")
+      }
+      if (!image.isValid) {
+        console.log("Error", image.errors);
+
+      }
+
+      await image.move(Application.tmpPath('uploads'), { name: `cont${cont}.${image.extname}`, overwrite: true })
+      cont++
+      console.log("Name:", image.fieldName, ' ClienteName', image.clientName, 'tamanho:', image.size, 'path:', image.tmpPath, 'ext', image.extname);
+
+    }
+  }
 
 
 }
