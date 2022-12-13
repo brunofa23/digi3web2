@@ -1,12 +1,15 @@
 
-const fs = require('fs').promises;
+const fsPromises = require('fs').promises;
+const fs = require('fs')
+
 const path = require('path');
 const process = require('process');
-const {authenticate} = require('@google-cloud/local-auth');
-const {google} = require('googleapis');
+const { authenticate } = require('@google-cloud/local-auth');
+const { google } = require('googleapis');
+const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads');
 
 // If modifying these scopes, delete token.json.
-const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/drive'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
@@ -14,7 +17,7 @@ const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly'];
 const TOKEN_PATH = path.join(process.cwd(), 'config/tokens/token.json');
 const CREDENTIALS_PATH = path.join(process.cwd(), 'config/credentials/credentials.json');
 
-console.log("TOKEN_PATH>>",TOKEN_PATH);
+console.log("TOKEN_PATH>>", TOKEN_PATH);
 
 /**
  * Reads previously authorized credentials from the save file.
@@ -23,7 +26,7 @@ console.log("TOKEN_PATH>>",TOKEN_PATH);
  */
 async function loadSavedCredentialsIfExist() {
   try {
-    const content = await fs.readFile(TOKEN_PATH);
+    const content = await fsPromises.readFile(TOKEN_PATH);
     const credentials = JSON.parse(content);
     return google.auth.fromJSON(credentials);
   } catch (err) {
@@ -38,7 +41,7 @@ async function loadSavedCredentialsIfExist() {
  * @return {Promise<void>}
  */
 async function saveCredentials(client) {
-  const content = await fs.readFile(CREDENTIALS_PATH);
+  const content = await fsPromises.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
   const key = keys.installed || keys.web;
   const payload = JSON.stringify({
@@ -47,7 +50,7 @@ async function saveCredentials(client) {
     client_secret: key.client_secret,
     refresh_token: client.credentials.refresh_token,
   });
-  await fs.writeFile(TOKEN_PATH, payload);
+  await fsPromises.writeFile(TOKEN_PATH, payload);
 }
 
 /**
@@ -75,23 +78,72 @@ async function authorize() {
  * Lists the names and IDs of up to 10 files.
  * @param {OAuth2Client} authClient An authorized OAuth2 client.
  */
+
+async function uploadFiles(authClient) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const fileMetadata = {
+    name: 'photo.jpg',
+  };
+  const media = {
+    mimeType: 'image/jpeg',
+    body: fs.createReadStream(path.join(process.cwd(), 'config/files/photo.jpg')),
+  };
+  console.log("MEDIA", media)
+  try {
+    const file = await drive.files.create({
+      resource: fileMetadata,
+      media: media,
+      fields: 'id',
+    });
+    console.log("CAMINHO IMAGEM::", path.join(process.cwd(), 'config/files/photo.jpg'));
+    console.log('File Id:', file.data.id);
+    return file.data.id;
+  } catch (err) {
+    // TODO(developer) - Handle error
+    console.log("ERRO:::::", err);
+    throw err;
+  }
+
+}
+
+
 async function listFiles(authClient) {
-    console.log("authClient",authClient);
-  const drive = google.drive({version: 'v3', auth: authClient});
+  console.log("authClient", authClient);
+  const drive = google.drive({ version: 'v3', auth: authClient });
   const res = await drive.files.list({
     pageSize: 10,
     fields: 'nextPageToken, files(id, name)',
   });
+
   const files = res.data.files;
   if (files.length === 0) {
     console.log('No files found.');
     return;
   }
-
   console.log('Files:');
   files.map((file) => {
     console.log(`${file.name} (${file.id})`);
   });
 }
 
-authorize().then(listFiles).catch(console.error);
+
+async function sendAuthorize(){
+   await authorize()
+   return true
+}
+
+async function sendListFiles(){
+  authorize().then(listFiles).catch(console.error);
+}
+
+async function sendUploadFiles(){
+  //const auth = await authorize()
+  //uploadFiles(auth)
+
+  authorize().then(uploadFiles).catch(console.error)
+}
+
+
+//export default {sendListFiles, sendUploadFiles, sendAuthorize}
+module.exports = {sendListFiles, sendUploadFiles, sendAuthorize}
