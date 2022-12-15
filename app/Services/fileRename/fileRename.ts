@@ -4,6 +4,8 @@ import Bookrecord from "App/Models/Bookrecord";
 async function transformFileNameToId(fileName, typebook_id) {
 
     //FORMATO L10(10).JPG
+    console.log("filename", fileName, "typebook_id", typebook_id );
+
     let name
     if (fileName.toUpperCase().startsWith('L')) {
         let separators = ["L", '\'', '(', ')', '|', '-'];
@@ -16,16 +18,14 @@ async function transformFileNameToId(fileName, typebook_id) {
                 .preload('bookrecords')
                 .where('typebooks_id', '=', typebook_id)
                 .whereRaw(query)
-            //name = await Bookrecord.find(44)
-            //name = "WWWWWWWWWW"
-            console.log("NNNNNAME:", name);
         }
 
     }
 
+    console.log("NAME:",name[0].id);
     //console.log("NOME:::>>", `id${name.id}(${name.cod})`);
-
-    return `id${name.id}(${name.cod})`
+    //return `id${name.id}(${name.cod})`
+    return name
 
 }
 

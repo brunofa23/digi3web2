@@ -76,7 +76,8 @@ export default class TypebooksController {
       .where('typebooks_id', '=', params.id)
       .whereRaw(query).paginate(page, limit)
 
-    //console.log(data, "lastPagesOfEachBook",lastPagesOfEachBook)
+
+    console.log("DATA>>>",data)
     //return response.send( data )
     return response.send({ data })
   }

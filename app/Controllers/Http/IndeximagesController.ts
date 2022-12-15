@@ -2,8 +2,9 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Indeximage from 'App/Models/Indeximage'
 
 import Application from '@ioc:Adonis/Core/Application'
+import { Response } from '@adonisjs/core/build/standalone'
 
-
+const FileRename = require ('../../Services/fileRename/fileRename')
 
 export default class IndeximagesController {
 
@@ -78,7 +79,7 @@ export default class IndeximagesController {
 
   }
 
-  public async uploads({ request, params }) {
+  public async uploads({ request, params, response }) {
     console.log("UPLOADS", params.id);
 
     const images = request.files('images', {
@@ -90,9 +91,9 @@ export default class IndeximagesController {
     for (let image of images) {
 
       //função para retornar o nome transformado do arquivo
-      const fileRename = require ('../../Services/fileRename/fileRename')
-      const file =  fileRename.transformFileNameToId(image.clientName, params.id)
-
+      const file =await FileRename.transformFileNameToId(image.clientName, params.id)
+      //const {id} = file[0]
+      //console.log("FILENAME::", file, "ID", id);
 
       if (!image) {
         console.log("não é imagem")
@@ -101,7 +102,6 @@ export default class IndeximagesController {
         console.log("Error", image.errors);
 
       }
-      //console.log("FILENAME::", file);
 
       await image.move(Application.tmpPath('uploads'), { name: `${file}.${image.extname}`, overwrite: true })
       cont++
