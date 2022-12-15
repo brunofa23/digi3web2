@@ -3,6 +3,8 @@ import Indeximage from 'App/Models/Indeximage'
 
 import Application from '@ioc:Adonis/Core/Application'
 
+
+
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
@@ -79,7 +81,6 @@ export default class IndeximagesController {
   public async uploads({ request, params }) {
     console.log("UPLOADS", params.id);
 
-
     const images = request.files('images', {
       size: '2mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf']
@@ -89,6 +90,9 @@ export default class IndeximagesController {
     for (let image of images) {
 
       //função para retornar o nome transformado do arquivo
+      const fileRename = require ('../../Services/fileRename/fileRename')
+      const file =  fileRename.transformFileNameToId(image.clientName, params.id)
+
 
       if (!image) {
         console.log("não é imagem")
@@ -97,12 +101,16 @@ export default class IndeximagesController {
         console.log("Error", image.errors);
 
       }
+      //console.log("FILENAME::", file);
 
-      await image.move(Application.tmpPath('uploads'), { name: `cont${cont}.${image.extname}`, overwrite: true })
+      await image.move(Application.tmpPath('uploads'), { name: `${file}.${image.extname}`, overwrite: true })
       cont++
-      console.log("Name:", image.fieldName, ' ClienteName', image.clientName, 'tamanho:', image.size, 'path:', image.tmpPath, 'ext', image.extname);
+      //console.log("Name:", image.fieldName, ' ClienteName', image.clientName, 'tamanho:', image.size, 'path:', image.tmpPath, 'ext', image.extname);
 
     }
+
+
+
   }
 
 

@@ -8,9 +8,9 @@ export default class TypebooksController {
 
   public async bookRecords({ request, params, response }) {
 
-    //console.log("Executei bookrecords", request.requestData)
-
     const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
+
+    console.log("Executei bookrecords", request.requestData)
 
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
