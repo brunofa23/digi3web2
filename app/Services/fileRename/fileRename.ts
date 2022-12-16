@@ -45,9 +45,9 @@ async function transformFilesNameToId(images, typebook_id) {
 
   let result: Object[] = []
   let seq = 0
-  let fileName = ""
   let query = ""
 
+  let cont
   for (let image of images) {
 
     if (!image) {
@@ -62,49 +62,49 @@ async function transformFilesNameToId(images, typebook_id) {
       let arrayFileName = image.clientName.split(new RegExp('([' + separators.join('') + '])'));
       query = ` cod =${arrayFileName[4]} and book = ${arrayFileName[2]} `
 
+
+      try {
+        const name = await Bookrecord.query()
+          //.preload('indeximage')
+          .where('typebooks_id', '=', typebook_id)
+          .whereRaw(query)
+
+        //retorna o ultimo seq
+        const data = await Indeximage.query().where('bookrecords_id', name[0].id).andWhere('typebooks_id', '=', typebook_id).orderBy('seq', 'desc').first()
+        if (!data)
+          this.seq = 0
+        else
+          this.seq = data.seq + 1
+
+
+        const fileName = `id${name[0].id}_${this.seq}_(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}_.${image.extname}`
+        const bookrecords_id = name[0].id
+        const typebooks_id = typebook_id
+        const seq = this.seq
+        const ext = image.extname
+        const file_name = fileName
+        const previous_file_name = image.clientName
+
+        const indexImage = {
+          bookrecords_id,
+          typebooks_id,
+          seq,
+          ext,
+          file_name,
+          previous_file_name
+        }
+
+        if (image && image.isValid) {
+          await image.move(Application.tmpPath('uploads'), { name: fileName, overwrite: true })
+          //chamar função para inserir na tabela indeximages
+          const dataIndexImage = await Indeximage.create(indexImage)
+          result.push(dataIndexImage)
+        }
+
+      } catch (error) {
+        console.log(error);
+      }
     }
-
-    const name = await Bookrecord.query()
-      //.preload('indeximage')
-      .where('typebooks_id', '=', typebook_id)
-      .whereRaw(query)
-
-    //retorna o ultimo seq
-    const data = await Indeximage.query().where('bookrecords_id', name[0].id).andWhere('typebooks_id', '=', typebook_id).orderBy('seq', 'desc').first()
-    if (!data)
-      this.seq = 0
-    else
-      this.seq = data.seq+1
-
-
-    fileName = `id${name[0].id}_${this.seq}_(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}_.${image.extname}`
-    const obj = name
-
-    const bookrecords_id = name[0].id
-    const typebooks_id = typebook_id
-    const seq = this.seq
-    const ext = image.extname
-    const file_name = fileName
-    const previous_file_name = image.clientName
-
-    const indexImage = {
-      bookrecords_id,
-      typebooks_id,
-      seq,
-      ext,
-      file_name,
-      previous_file_name
-    }
-
-
-    if (image && image.isValid)
-    {
-      await image.move(Application.tmpPath('uploads'), {name: fileName, overwrite: true })
-      //chamar função para inserir na tabela indeximages
-      const dataIndexImage = await Indeximage.create(indexImage)
-      result.push(dataIndexImage)
-    }
-
   }
   return result
 
