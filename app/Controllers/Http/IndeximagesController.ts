@@ -92,21 +92,6 @@ export default class IndeximagesController {
     const files = await FileRename.transformFilesNameToId(images, params.id)
     return files
 
-
-  //   for (let image of images) {
-  //     //função para retornar o nome transformado do arquivo
-  //     const file =await FileRename.transformFileNameToId(image, params.id)
-
-  //     if (!image) {
-  //      // console.log("não é imagem")
-  //     }
-  //     if (!image.isValid) {
-  //       //console.log("Error", image.errors);
-  //     }
-
-  //     await image.move(Application.tmpPath('uploads'), {name: file.fileName, overwrite: true })
-  //   }
-
    }
 
 

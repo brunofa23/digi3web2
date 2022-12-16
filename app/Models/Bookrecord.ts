@@ -29,6 +29,13 @@ export default class Bookrecord extends BaseModel {
   })
   public bookrecords: HasMany<typeof Indeximage>
 
+  @hasMany(() => Indeximage, {
+    foreignKey: 'bookrecords_id',
+    localKey: 'id'
+  })
+  public indeximage: HasMany<typeof Indeximage>
+
+
   @column({ isPrimary: true })
   public id: number
 
