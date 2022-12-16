@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import Bookrecord from './Bookrecord'
 
 export default class Indeximage extends BaseModel {
 
@@ -15,6 +16,12 @@ export default class Indeximage extends BaseModel {
       'updated_at'
     ]
   }
+
+  @hasOne(() => Bookrecord,{
+    foreignKey: 'id',
+    localKey: 'bookrecords_id'
+  })
+  public bookrecord: HasOne<typeof Bookrecord>
 
 
   @column({isPrimary:true})

@@ -3,6 +3,8 @@ import Indeximage from 'App/Models/Indeximage'
 
 import Application from '@ioc:Adonis/Core/Application'
 import { Response } from '@adonisjs/core/build/standalone'
+import Bookrecord from 'App/Models/Bookrecord'
+
 
 const FileRename = require ('../../Services/fileRename/fileRename')
 
@@ -79,39 +81,33 @@ export default class IndeximagesController {
 
   }
 
-  public async uploads({ request, params, response }) {
-    console.log("UPLOADS", params.id);
+  public async uploads({ request, params}) {
+    //console.log("UPLOADS", params.id);
 
     const images = request.files('images', {
       size: '2mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf']
     })
 
-    let cont = 1
-    for (let image of images) {
-
-      //função para retornar o nome transformado do arquivo
-      const file =await FileRename.transformFileNameToId(image.clientName, params.id)
-      //const {id} = file[0]
-      //console.log("FILENAME::", file, "ID", id);
-
-      if (!image) {
-        console.log("não é imagem")
-      }
-      if (!image.isValid) {
-        console.log("Error", image.errors);
-
-      }
-
-      await image.move(Application.tmpPath('uploads'), { name: `${file}.${image.extname}`, overwrite: true })
-      cont++
-      //console.log("Name:", image.fieldName, ' ClienteName', image.clientName, 'tamanho:', image.size, 'path:', image.tmpPath, 'ext', image.extname);
-
-    }
+    const files = await FileRename.transformFilesNameToId(images, params.id)
+    return files
 
 
+  //   for (let image of images) {
+  //     //função para retornar o nome transformado do arquivo
+  //     const file =await FileRename.transformFileNameToId(image, params.id)
 
-  }
+  //     if (!image) {
+  //      // console.log("não é imagem")
+  //     }
+  //     if (!image.isValid) {
+  //       //console.log("Error", image.errors);
+  //     }
+
+  //     await image.move(Application.tmpPath('uploads'), {name: file.fileName, overwrite: true })
+  //   }
+
+   }
 
 
 }
