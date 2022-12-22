@@ -14,9 +14,10 @@ import 'reflect-metadata'
 import sourceMapSupport from 'source-map-support'
 import { Ignitor } from '@adonisjs/core/build/standalone'
 
-console.log("Antes google");
-const authorize = require('./config/googledrive.ts')
-authorize.sendAuthorize()
+//console.log("Antes google");
+//const authorize = require('./config/googledrive.ts')
+//const authorize = require('./app/Services/googleDrive/googledrive')
+//authorize.sendAuthorize()
 
 //authorize.sendSearchFile()
 //authorize.sendCreateFolder()

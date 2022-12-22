@@ -1,4 +1,5 @@
 import { GoogleApis } from "googleapis";
+import { auth } from "googleapis/build/src/apis/file";
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
@@ -80,21 +81,53 @@ async function authorize() {
  * @param {OAuth2Client} authClient An authorized OAuth2 client.
  */
 
-async function uploadFiles(authClient) {
-  const drive = google.drive({ version: 'v3', auth: authClient });
+// async function uploadFilesBackup(authClient) {
+//   const drive = google.drive({ version: 'v3', auth: authClient });
 
-  let parents = ['1SUx-ExjG-qpltDCCaXV_OWgCs-tQZuEr']
-  //parents[0] = '1E5-xpRXwImV6QZdPv-amoGYV8MZqfZp4'
+//   let parents = ['1SUx-ExjG-qpltDCCaXV_OWgCs-tQZuEr']
+//   //parents[0] = '1E5-xpRXwImV6QZdPv-amoGYV8MZqfZp4'
+
+//   const fileMetadata = {
+//     name: 'photo.jpg',
+//     parents: parents
+//   };
+//   const media = {
+//     mimeType: 'image/jpeg',
+//     body: fs.createReadStream(path.join(process.cwd(), 'config/files/photo.jpg')),
+//   };
+//   console.log("MEDIA", media)
+//   try {
+//     const file = await drive.files.create({
+//       resource: fileMetadata,
+//       media: media,
+//       fields: 'id'
+
+//     });
+//     console.log("CAMINHO IMAGEM::", path.join(process.cwd(), 'config/files/photo.jpg'));
+//     console.log('File Id:', file.data.id);
+//     return file.data.id;
+//   } catch (err) {
+//     // TODO(developer) - Handle error
+//     console.log("ERRO:::::", err);
+//     throw err;
+//   }
+
+// }
+
+async function uploadFiles(authClient, parents, fileName) {
+
+const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const parent = [parents]
 
   const fileMetadata = {
-    name: 'photo.jpg',
-    parents: parents
+    name: fileName,
+    parents: parent
   };
   const media = {
     mimeType: 'image/jpeg',
-    body: fs.createReadStream(path.join(process.cwd(), 'config/files/photo.jpg')),
+    body: fs.createReadStream(`tmp/uploads/${fileName}`),
   };
-  console.log("MEDIA", media)
   try {
     const file = await drive.files.create({
       resource: fileMetadata,
@@ -102,7 +135,6 @@ async function uploadFiles(authClient) {
       fields: 'id'
 
     });
-    console.log("CAMINHO IMAGEM::", path.join(process.cwd(), 'config/files/photo.jpg'));
     console.log('File Id:', file.data.id);
     return file.data.id;
   } catch (err) {
@@ -112,7 +144,6 @@ async function uploadFiles(authClient) {
   }
 
 }
-
 
 async function createFolder(authClient) {
   const drive = google.drive({ version: 'v3', auth: authClient });
@@ -136,27 +167,30 @@ async function createFolder(authClient) {
 
 }
 
-async function searchFile(authClient){
+async function searchFile(authClient, fileName){
   const drive = google.drive({ version: 'v3', auth: authClient });
 
-  const files = []
+  console.log("CHEGUEI NA PESQUISA", fileName)
+  const files:Object[] = []
+
 
   try {
     const res = await drive.files.list({
-      q: "not name contains 'photo' "
-      //q: 'mimeType=\'image/jpeg\'',
-      // name:'repetida3.jpeg',
-      // fields: 'nextPageToken, files(id, name)',
-      // spaces: 'drive'
-      //name: 'repetida3.jpg'
+      q:`name ='${fileName}' `,
+      //q: "name = 'Nascimento' "
     });
     Array.prototype.push.apply(files, res.files);
+
     res.data.files.forEach(function(file) {
       console.log('Found file:', file.name, file.id);
+      files.push({name: file.name,id: file.id})
     });
-    return res.data.files;
+
+    return res.data.files
+    //return files
 
   } catch (error) {
+
     throw error;
   }
 
@@ -184,6 +218,7 @@ async function listFiles(authClient) {
 }
 
 
+//****************************************************************** */
 async function sendAuthorize(){
    await authorize()
    return true
@@ -193,19 +228,21 @@ async function sendListFiles(){
   authorize().then(listFiles).catch(console.error);
 }
 
-async function sendUploadFiles(){
-  //const auth = await authorize()
-  //uploadFiles(auth)
+async function sendUploadFiles(parent, fileName){
+  const auth = await authorize()
+  uploadFiles(auth, parent, fileName)
 
-  authorize().then(uploadFiles).catch(console.error)
+  //authorize().then(uploadFiles).catch(console.error)
 }
 
 async function sendCreateFolder() {
   authorize().then(createFolder).catch(console.error)
 }
 
-async function sendSearchFile() {
-  authorize().then(searchFile).catch(console.error)
+async function sendSearchFile(fileName) {
+  const auth = await authorize()
+  return searchFile(auth, fileName)
+  //authorize().then(searchFile).catch(console.error)
 }
 
 //export default {sendListFiles, sendUploadFiles, sendAuthorize}

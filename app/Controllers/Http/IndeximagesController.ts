@@ -5,7 +5,6 @@ import Application from '@ioc:Adonis/Core/Application'
 import { Response } from '@adonisjs/core/build/standalone'
 import Bookrecord from 'App/Models/Bookrecord'
 
-
 const FileRename = require ('../../Services/fileRename/fileRename')
 
 export default class IndeximagesController {
@@ -82,7 +81,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ request, params}) {
-    console.log("UPLOADS");
+    //console.log("UPLOADS SERVIDOR");
 
     const images = request.files('images', {
       size: '200mb',
@@ -90,6 +89,10 @@ export default class IndeximagesController {
     })
 
     const files = await FileRename.transformFilesNameToId(images, params.id)
+
+    //return files
+    console.log("FINALIZADO!!!");
+
     return {files, length: files.length}
 
    }

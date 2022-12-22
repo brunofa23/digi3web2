@@ -2,8 +2,15 @@
 import { Request } from "@adonisjs/core/build/standalone";
 import Bookrecord from "App/Models/Bookrecord";
 import Indeximage from "App/Models/Indeximage";
+import Typebook from "App/Models/Typebook";
+
 import { file } from "googleapis/build/src/apis/file";
 import Application from '@ioc:Adonis/Core/Application'
+import { Auth } from "googleapis";
+
+
+
+const authorize = require('App/Services/googleDrive/googledrive')
 
 async function transformFileNameToId(image, typebook_id) {
 
@@ -44,10 +51,16 @@ async function transformFileNameToId(image, typebook_id) {
 async function transformFilesNameToId(images, typebook_id) {
 
   let result: Object[] = []
-  let seq = 0
   let query = ""
 
-  let cont
+  const directoryParent = await Bookrecord.query()
+    .preload('typebooks')
+    .where('typebooks_id', '=', typebook_id).first()
+
+  authorize.sendAuthorize()
+  const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+
+  console.log("parente", idParent[0]);
   for (let image of images) {
 
     if (!image) {
@@ -62,10 +75,9 @@ async function transformFilesNameToId(images, typebook_id) {
       let arrayFileName = image.clientName.split(new RegExp('([' + separators.join('') + '])'));
       query = ` cod =${arrayFileName[4]} and book = ${arrayFileName[2]} `
 
-
       try {
         const name = await Bookrecord.query()
-          //.preload('indeximage')
+          .preload('typebooks')
           .where('typebooks_id', '=', typebook_id)
           .whereRaw(query)
 
@@ -77,7 +89,7 @@ async function transformFilesNameToId(images, typebook_id) {
           this.seq = data.seq + 1
 
 
-        const fileName = `id${name[0].id}_${this.seq}_(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}_.${image.extname}`
+        const fileName = `id${name[0].id}_${this.seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}_.${image.extname}`
         const bookrecords_id = name[0].id
         const typebooks_id = typebook_id
         const seq = this.seq
@@ -95,9 +107,26 @@ async function transformFilesNameToId(images, typebook_id) {
         }
 
         if (image && image.isValid) {
+          //copia o arquivo para servidor
           await image.move(Application.tmpPath('uploads'), { name: fileName, overwrite: true })
+          //copia o arquivo para o googledrive
+          await authorize.sendUploadFiles(idParent[0].id, fileName)
           //chamar função para inserir na tabela indeximages
           const dataIndexImage = await Indeximage.create(indexImage)
+
+          //exclui as imagens copiadas***********************
+          const fs = require('fs');
+
+          await fs.unlink(`tmp/uploads/${fileName}`, (err) => {
+            if (err) {
+              throw err;
+            }
+            console.log("Delete File successfully.");
+          });
+          //************************************************* */
+
+
+
           result.push(dataIndexImage)
         }
 

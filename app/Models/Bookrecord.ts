@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, HasMany, hasMany, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import Indeximage from './Indeximage'
+import Typebook from './Typebook'
 
 export default class Bookrecord extends BaseModel {
   public static get fillable() {
@@ -34,6 +35,13 @@ export default class Bookrecord extends BaseModel {
     localKey: 'id'
   })
   public indeximage: HasMany<typeof Indeximage>
+
+
+  @hasOne(() => Typebook,{
+    foreignKey: 'id',
+    localKey: 'typebooks_id'
+  })
+  public typebooks: HasOne<typeof Typebook>
 
 
   @column({ isPrimary: true })
