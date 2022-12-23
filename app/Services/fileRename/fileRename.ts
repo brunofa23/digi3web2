@@ -48,6 +48,18 @@ async function transformFileNameToId(image, typebook_id) {
 }
 
 
+function delay(time) {
+  return new Promise(resolve => setTimeout(resolve, time));
+}
+
+
+
+async function run() {
+  await delay(3000);
+  console.log('This printed after about 1 second');
+}
+
+
 async function transformFilesNameToId(images, typebook_id) {
 
   let result: Object[] = []
@@ -61,7 +73,16 @@ async function transformFilesNameToId(images, typebook_id) {
   const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
 
   console.log("parente", idParent[0]);
+  let cont = 0
+
   for (let image of images) {
+
+    cont++
+    if (cont >= 5)
+      {
+        run()
+        cont=0
+      }
 
     if (!image) {
       console.log("não é imagem")
