@@ -11,11 +11,13 @@ import {
 import Bookrecord from './Bookrecord'
 import Indeximage from './Indeximage'
 import Book from './Book'
+import Company from './Company'
 
 export default class Typebook extends BaseModel {
   public static get fillable() {
     return [
       'id',
+      'companies_id',
       'name',
       'status',
       'path',
@@ -25,11 +27,11 @@ export default class Typebook extends BaseModel {
     ]
   }
 
-  @hasMany(() => Bookrecord, {
-    foreignKey: 'typebooks_id',
-    localKey: 'id'
-  })
-  public bookrecords: HasMany<typeof Bookrecord>
+  // @hasMany(() => Bookrecord, {
+  //   foreignKey: 'typebooks_id',
+  //   localKey: 'id'
+  // })
+  // public bookrecords: HasMany<typeof Bookrecord>
 
   @hasMany(() => Indeximage, {
     foreignKey: 'typebooks_id',
@@ -43,9 +45,19 @@ export default class Typebook extends BaseModel {
   })
   public book: HasOne<typeof Book>
 
+  @hasOne(() => Company,{
+    foreignKey: 'id',
+    localKey: 'companies_id'
+  })
+  public company: HasOne<typeof Company>
+
+
 
   @column({ isPrimary: true })
   public id: number
+
+  @column({isPrimary:true})
+  public companies_id: number
 
   @column()
   public name: string

@@ -8,6 +8,7 @@ export default class extends BaseSeeder {
         {
             "typebooks_id": 8,
             "books_id": 2,
+            "companies_id":1,
             "cod": 1,
             "book": 1,
             "sheet": 1,
@@ -22,6 +23,7 @@ export default class extends BaseSeeder {
         {
             "typebooks_id": 8,
             "books_id": 2,
+            "companies_id":1,
             "cod": 2,
             "book": 1,
             "sheet": 2,
@@ -36,6 +38,7 @@ export default class extends BaseSeeder {
         {
             "typebooks_id": 8,
             "books_id": 2,
+            "companies_id":1,
             "cod": 3,
             "book": 1,
             "sheet": 3,
@@ -50,6 +53,7 @@ export default class extends BaseSeeder {
         {
             "typebooks_id": 8,
             "books_id": 2,
+            "companies_id":1,
             "cod": 4,
             "book": 1,
             "sheet": 4,
@@ -64,6 +68,7 @@ export default class extends BaseSeeder {
         {
           "typebooks_id": 6,
           "books_id": 3,
+          "companies_id":1,
           "cod": 3,
           "book": 1,
           "sheet": 3,
@@ -78,6 +83,7 @@ export default class extends BaseSeeder {
       {
           "typebooks_id": 6,
           "books_id": 3,
+          "companies_id":1,
           "cod": 4,
           "book": 1,
           "sheet": 4,

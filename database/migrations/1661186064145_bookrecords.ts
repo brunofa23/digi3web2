@@ -8,6 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id')
       table.integer('books_id').notNullable().unsigned().references('books.id').onDelete('CASCADE')
+      table.integer('companies_id').notNullable().unsigned().references('companies.id').onDelete('CASCADE')
       table.integer('cod')
       table.integer('book')
       table.integer('sheet')

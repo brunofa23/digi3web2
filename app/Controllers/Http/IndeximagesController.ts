@@ -84,15 +84,16 @@ export default class IndeximagesController {
     //console.log("UPLOADS SERVIDOR");
 
     const images = request.files('images', {
-      size: '200mb',
+      size: '6mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf']
     })
 
+
     const files = await FileRename.transformFilesNameToId(images, params.id)
 
-    //return files
     console.log("FINALIZADO!!!");
 
+    //return images
     return {files, length: files.length}
 
    }

@@ -11,6 +11,8 @@ node ace configure @adonisjs/lucid
 -colocar a linha de comando:
 enabled: (request) => request.url().startsWith('/api'),
 
+5 - seed específica
+node ace db:seed --files "./database/seeders/1 Company.ts"
 
 abrir servidor
  node ace serve --watch
