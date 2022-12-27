@@ -23,20 +23,30 @@ import Route from '@ioc:Adonis/Core/Route'
 import Application from '@ioc:Adonis/Core/Application'
 
 
-Route.group(()=>{
+Route.group(() => {
 
   Route.get('/', async () => {
     return { hello: 'world' }
   })
 
-
+  //BOOKS
   Route.resource("/books", 'BooksController').apiOnly()
-  Route.get("/typebooks/:id/bookrecords", 'TypebooksController.bookRecords').as('TypebooksController.bookRecords')
-  Route.patch("/bookrecords/createorupdatebookrecord", 'BookrecordsController.createorupdatebookrecord')
-  Route.patch("/bookrecords/fetchorcreatemany", 'BookrecordsController.fetchOrCreateMany')
-  Route.put("/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookRecords')
 
-  Route.delete("/bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords')
+  //COMPANIES
+  Route.resource("/companies", 'CompaniesController').apiOnly()
+
+  //TYPEBOOKS
+  Route.resource("/companies/:companies_id/typebooks", 'TypebooksController').apiOnly()
+
+  //BOOKRECORDS
+  Route.resource("/companies/:companies_id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
+
+  //Route.get("companies/:id/typebooks/:typebooks_id/bookrecords", 'TypebooksController.bookRecords').as('TypebooksController.bookRecords')
+  //Route.post("companies/:id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.create')
+  // Route.patch("/bookrecords/createorupdatebookrecord", 'BookrecordsController.createorupdatebookrecord')
+  // Route.patch("/bookrecords/fetchorcreatemany", 'BookrecordsController.fetchOrCreateMany')
+  // Route.put("/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookRecords')
+  // Route.delete("/bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords')
 
 
   Route.resource("/typebooks", 'TypebooksController').apiOnly()

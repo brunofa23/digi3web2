@@ -8,10 +8,10 @@ import {
   HasOne,
 } from '@ioc:Adonis/Lucid/Orm'
 
-import Bookrecord from './Bookrecord'
 import Indeximage from './Indeximage'
 import Book from './Book'
 import Company from './Company'
+import Bookrecord from './Bookrecord'
 
 export default class Typebook extends BaseModel {
   public static get fillable() {
@@ -27,11 +27,11 @@ export default class Typebook extends BaseModel {
     ]
   }
 
-  // @hasMany(() => Bookrecord, {
-  //   foreignKey: 'typebooks_id',
-  //   localKey: 'id'
-  // })
-  // public bookrecords: HasMany<typeof Bookrecord>
+  @hasMany(() => Bookrecord, {
+    foreignKey: 'typebooks_id',
+    localKey: 'id'
+  })
+  public bookrecords: HasMany<typeof Bookrecord>
 
   @hasMany(() => Indeximage, {
     foreignKey: 'typebooks_id',

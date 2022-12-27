@@ -7,33 +7,96 @@ import Indeximage from 'App/Models/Indeximage'
 
 export default class BookrecordsController {
 
-  public async index({ request, response }: HttpContextContract) {
-    const body = request.only(Bookrecord.fillable)
+  //Listar Bookrecords
+  public async index({ request, params, response }: HttpContextContract) {
+
+    if (!params.companies_id || !params.typebooks_id)
+      return "erro"
+
+    const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
+
+    let query = " 1=1 "
+    if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
+      query = " sheet > 0  "
+    else {
+
+      //cod**************************************************
+      if (codstart != undefined && codend == undefined)
+        query += ` and cod =${codstart} `
+      else
+        if (codstart != undefined && codend != undefined)
+          query += ` and cod >=${codstart} `
+
+      if (codend != undefined)
+        query += ` and cod <= ${codend}`
+      //book ************************************************
+      if (bookstart != undefined && bookend == undefined)
+        query += ` and book =${bookstart} `
+      else
+        if (bookstart != undefined && bookend != undefined)
+          query += ` and book >=${bookstart} `
+
+      if (bookend != undefined)
+        query += ` and book <= ${bookend}`
+
+      //sheet **********************************************
+      if (sheetstart != undefined && sheetend == undefined)
+        query += ` and sheet =${sheetstart} `
+      else
+        if (sheetstart != undefined && sheetend != undefined)
+          query += ` and sheet >=${sheetstart} `
+
+      if (sheetend != undefined)
+        query += ` and sheet <= ${sheetend}`
+
+      //side *************************************************
+      if (side != undefined)
+        query += ` and side = '${side}' `
+
+      //aproximate_term **************************************
+      if (approximateterm != undefined)
+        query += ` and approximate_term=${approximateterm}`
+      //year ***********************************************
+      if (year != undefined)
+        query += ` and year =${year} `
+
+      //sheetzero*****************************************
+      if (sheetzero)
+        query += ` and sheet>=0`
+    }
+
+    //last pages of each book****************************
+    if (lastPagesOfEachBook) {
+      query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
+    }
+
+
+    const page = request.input('page', 1)
+    const limit = 20
+
     const data = await Bookrecord.query()
-      .preload('bookrecords')
-      .where('typebooks_id', '=', body.id)
+      .where("companies_id", '=', params.companies_id)
+      .andWhere("typebooks_id", '=', params.typebooks_id)
+      .preload('indeximage')
+      .whereRaw(query).paginate(page, limit)
 
+    return response.send(data)
 
-    //*** PARA CRIAR QUERY ESPECÍFICA */
-    // const data = await Database.from('bookrecords').select(
-    //   'typebooks_id',
-    //   'books_id',
-    //   'cod',
-    //   'book',
-    //   'sheet',
-    //   'side',
-    //   'approximate_term',
-    //   'index',
-    //   'obs',
-    //   'letter',
-    //   'year',
-    //   'model',
-    // )
-
-    return response.send({ data })
   }
 
+
+  public async create({ request, params, response }: HttpContextContract) {
+
+    return "book record store"
+
+
+  }
+
+
   public async store({ request, params, response }: HttpContextContract) {
+
+    return "book record store"
+
     const body = request.only(Bookrecord.fillable)
     const id = params.id
 
