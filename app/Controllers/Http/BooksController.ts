@@ -20,13 +20,11 @@ export default class BooksController {
 
   public async index({ response }) {
 
-    return "estou aqui...."
-
     const books = await Book
     .query()
     .preload('typebooks')
 
-    return response.send({ books })
+    return response.send(books)
   }
 
 

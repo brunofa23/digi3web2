@@ -85,14 +85,6 @@ export default class BookrecordsController {
   }
 
 
-  public async create({ request, params, response }: HttpContextContract) {
-
-    return "book record store"
-
-
-  }
-
-
   public async store({ request, params, response }: HttpContextContract) {
 
     return "book record store"
@@ -193,6 +185,7 @@ export default class BookrecordsController {
         newRecord.push({
           typebooks_id: iterator.typebooks_id,
           books_id: iterator.books_id,
+          companies_id: iterator.companies_id,
           cod: iterator.cod,
           book: iterator.book,
           sheet: iterator.sheet,
@@ -209,6 +202,7 @@ export default class BookrecordsController {
           id: iterator.id,
           typebooks_id: iterator.typebooks_id,
           books_id: iterator.books_id,
+          companies_id: iterator.companies_id,
           cod: iterator.cod,
           book: iterator.book,
           sheet: iterator.sheet,
@@ -234,6 +228,7 @@ export default class BookrecordsController {
   }
 
 
+  //gera ou substitui um livro
   public async generateOrUpdateBookRecords({ request, response }) {
 
     // console.log(request.requestData)
@@ -337,32 +332,32 @@ export default class BookrecordsController {
 
 
   //Para geração de bookrecords (gerar novo livro)
-  public async fetchOrCreateMany({ request }) {
+  // public async fetchOrCreateMany({ request }) {
 
 
-    const { sheet, book, books_id, typebooks_id } = request.requestData
+  //   const { sheet, book, books_id, typebooks_id } = request.requestData
 
 
-    let cod = 1
-    let sheetCount = 1
+  //   let cod = 1
+  //   let sheetCount = 1
 
-    //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
-    console.log("Executei fetchorCreateMany")
-    if (!sheet || isNaN(sheet) || sheet < 0) {
-      return "erro"//status 400
-    }
+  //   //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
+  //   console.log("Executei fetchorCreateMany")
+  //   if (!sheet || isNaN(sheet) || sheet < 0) {
+  //     return "erro"//status 400
+  //   }
 
-    const booksRecordsToCreate: Object[] = []
-    while (sheetCount <= sheet) {
-      booksRecordsToCreate.push({ cod: cod++, book, sheet: sheetCount, books_id, typebooks_id })
-      sheetCount++
-    }
+  //   const booksRecordsToCreate: Object[] = []
+  //   while (sheetCount <= sheet) {
+  //     booksRecordsToCreate.push({ cod: cod++, book, sheet: sheetCount, books_id, typebooks_id })
+  //     sheetCount++
+  //   }
 
-    //const data = await Bookrecord.fetchOrCreateMany(['cod', 'book'], booksRecordsToCreate)
-    console.log("EXECUTEI fetchOrCreateMany")
-    //return data.length
+  //   //const data = await Bookrecord.fetchOrCreateMany(['cod', 'book'], booksRecordsToCreate)
+  //   console.log("EXECUTEI fetchOrCreateMany")
+  //   //return data.length
 
-  }
+  // }
 
 
 
