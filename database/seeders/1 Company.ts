@@ -9,6 +9,7 @@ export default class extends BaseSeeder {
         {
           "id": 1,
           "name": "Digi3",
+          "shortname": "Digi3",
           "address": "Rua Maria Magalhães de Souza",
           "number": 180,
           "complement": "Casa",
@@ -27,6 +28,7 @@ export default class extends BaseSeeder {
         {
           "id": 2,
           "name": "Cartório de Registro Civil Sete Lagoas",
+          "shortname": "Sete Lagoas",
           "address": "Rua Teste",
           "number": 200,
           "complement": "",
@@ -45,6 +47,7 @@ export default class extends BaseSeeder {
         {
           "id": 3,
           "name": "Cartório Empresa Teste",
+          "shortname": "Empresa Teste",
           "address": "Rua Hum",
           "number": 250,
           "complement": "",

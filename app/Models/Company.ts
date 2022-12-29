@@ -8,6 +8,7 @@ export default class Company extends BaseModel {
     return[
       'id',
       'name',
+      'shortname',
       'address',
       'number',
       'complement',
@@ -37,6 +38,9 @@ export default class Company extends BaseModel {
 
   @column()
   public name:string
+
+  @column()
+  public shortname:string
 
   @column()
   public address:string

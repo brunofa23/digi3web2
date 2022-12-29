@@ -14,6 +14,9 @@ enabled: (request) => request.url().startsWith('/api'),
 5 - seed específica
 node ace db:seed --files "./database/seeders/1 Company.ts"
 
+6 - Criar uma classe de validação
+node ace make:validator CreateCompany
+
 abrir servidor
  node ace serve --watch
 

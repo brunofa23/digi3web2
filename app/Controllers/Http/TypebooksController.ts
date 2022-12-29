@@ -2,7 +2,9 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Typebook from 'App/Models/Typebook'
 import Company from 'App/Models/Company'
 import { Response } from '@adonisjs/core/build/standalone'
+import Schema from '@ioc:Adonis/Lucid/Schema'
 
+import {schema} from '@ioc:Adonis/Core/Validator'
 
 export default class TypebooksController {
 
