@@ -229,13 +229,10 @@ export default class BookrecordsController {
 
 
   //gera ou substitui um livro
-  public async generateOrUpdateBookRecords({ request, response }) {
-
-    // console.log(request.requestData)
-    console.log("EXECUTEI generateOrUpdateBookRecords")
+  //MODIFICAR ESSE MÉTODO >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+  public async generateOrUpdateBookrecords({ request, params }) {
 
     let {
-      generateTypeBook_id,
       generateBooks_id,
       generateBook,
       generateStartCode,
@@ -248,6 +245,8 @@ export default class BookrecordsController {
       generateApproximate_term,
       generateApproximate_termIncrement
     } = request.requestData
+
+
 
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
     // if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
@@ -317,8 +316,9 @@ export default class BookrecordsController {
         book: generateBook,
         sheet: contSheet,
         side: generateSideStart,
-        typebooks_id: generateTypeBook_id,
-        books_id: generateBooks_id
+        typebooks_id: params.typebooks_id,
+        books_id: generateBooks_id,
+        companies_id: params.companies_id
       })
 
     }
@@ -326,42 +326,8 @@ export default class BookrecordsController {
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book'], bookrecords)
     return data.length
 
-
-
   }
 
 
-  //Para geração de bookrecords (gerar novo livro)
-  // public async fetchOrCreateMany({ request }) {
-
-
-  //   const { sheet, book, books_id, typebooks_id } = request.requestData
-
-
-  //   let cod = 1
-  //   let sheetCount = 1
-
-  //   //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
-  //   console.log("Executei fetchorCreateMany")
-  //   if (!sheet || isNaN(sheet) || sheet < 0) {
-  //     return "erro"//status 400
-  //   }
-
-  //   const booksRecordsToCreate: Object[] = []
-  //   while (sheetCount <= sheet) {
-  //     booksRecordsToCreate.push({ cod: cod++, book, sheet: sheetCount, books_id, typebooks_id })
-  //     sheetCount++
-  //   }
-
-  //   //const data = await Bookrecord.fetchOrCreateMany(['cod', 'book'], booksRecordsToCreate)
-  //   console.log("EXECUTEI fetchOrCreateMany")
-  //   //return data.length
-
-  // }
-
-
-
-  //************************ */
-
-
+//********************************************************* */
 }

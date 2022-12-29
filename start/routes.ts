@@ -36,10 +36,18 @@ Route.group(() => {
   Route.resource("/companies", 'CompaniesController').apiOnly()
 
   //TYPEBOOKS
-  Route.resource("/companies/:companies_id/typebooks", 'TypebooksController').apiOnly()
+  Route.resource("/companies/:companies_id/typebooks", 'TypebooksController').apiOnly
+
 
   //BOOKRECORDS
   Route.resource("/companies/:companies_id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
+  Route.post("/companies/:companies_id/typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords')
+
+
+  //INDEXIMAGES
+  Route.post('/companies/:companies_id/typebooks/:typebooks_id/bookrecords/:id/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
+  //Route.post('typebooks/:id/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
+
 
   //Route.get("companies/:id/typebooks/:typebooks_id/bookrecords", 'TypebooksController.bookRecords').as('TypebooksController.bookRecords')
   //Route.post("companies/:id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.create')
@@ -49,13 +57,12 @@ Route.group(() => {
   // Route.delete("/bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords')
 
 
-  Route.resource("/typebooks", 'TypebooksController').apiOnly()
-  Route.resource("/bookrecords", 'BookrecordsController').apiOnly()
-  Route.patch("/indeximages/:id/:id2/:id3", "IndeximagesController.update");
-  Route.resource("/indeximages", 'IndeximagesController').apiOnly()
+  // Route.resource("/typebooks", 'TypebooksController').apiOnly()
+  // Route.resource("/bookrecords", 'BookrecordsController').apiOnly()
+  // Route.patch("/indeximages/:id/:id2/:id3", "IndeximagesController.update");
+  // Route.resource("/indeximages", 'IndeximagesController').apiOnly()
 
 
-  Route.post('typebooks/:id/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
 
 
   // Route.post('/indeximages/uploads', async ({ request }) => {

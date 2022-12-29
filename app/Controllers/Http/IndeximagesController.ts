@@ -81,13 +81,14 @@ export default class IndeximagesController {
   }
 
   public async uploads({ request, params}) {
-    //console.log("UPLOADS SERVIDOR");
+
 
     const images = request.files('images', {
       size: '6mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf']
     })
 
+    return images
 
     const files = await FileRename.transformFilesNameToId(images, params.id)
 
