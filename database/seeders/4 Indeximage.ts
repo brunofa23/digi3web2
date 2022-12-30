@@ -7,6 +7,7 @@ export default class extends BaseSeeder {
       {
         bookrecords_id: 3,
         typebooks_id: 8,
+        companies_id: 1,
         seq: 0,
         ext: 'jgp',
         file_name: 'teste',
@@ -17,6 +18,7 @@ export default class extends BaseSeeder {
       {
         bookrecords_id: 4,
         typebooks_id: 8,
+        companies_id: 1,
         seq: 0,
         ext: 'jgp',
         file_name: 'teste 1',
@@ -27,6 +29,7 @@ export default class extends BaseSeeder {
       {
         bookrecords_id: 5,
         typebooks_id: 6,
+        companies_id: 1,
         seq: 0,
         ext: 'jgp',
         file_name: 'teste 2',
@@ -37,6 +40,7 @@ export default class extends BaseSeeder {
       {
         bookrecords_id: 5,
         typebooks_id: 6,
+        companies_id: 1,
         seq: 1,
         ext: 'jgp',
         file_name: 'teste 2',
@@ -47,6 +51,7 @@ export default class extends BaseSeeder {
       {
         bookrecords_id: 6,
         typebooks_id: 6,
+        companies_id: 1,
         seq: 0,
         ext: 'jgp',
         file_name: 'teste 2',
@@ -57,6 +62,7 @@ export default class extends BaseSeeder {
       {
         bookrecords_id: 6,
         typebooks_id: 6,
+        companies_id: 1,
         seq: 1,
         ext: 'jgp',
         file_name: 'teste 2',

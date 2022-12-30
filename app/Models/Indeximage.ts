@@ -8,6 +8,7 @@ export default class Indeximage extends BaseModel {
     return [
       'bookrecords_id',
       'typebooks_id',
+      'companies_id',
       'seq',
       'ext',
       'file_name',
@@ -29,6 +30,9 @@ export default class Indeximage extends BaseModel {
 
   @column({isPrimary:true})
   public typebooks_id:number
+
+  @column({isPrimary:true})
+  public companies_id:number
 
   @column({isPrimary:true})
   public seq:number

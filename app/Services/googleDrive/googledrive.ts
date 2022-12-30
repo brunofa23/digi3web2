@@ -145,11 +145,11 @@ const drive = google.drive({ version: 'v3', auth: authClient });
 
 }
 
-async function createFolder(authClient) {
+async function createFolder(authClient, folderName) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   const fileMetadata = {
-    name: 'Nascimento',
+    name: folderName,
     mimeType: 'application/vnd.google-apps.folder',
   };
 
@@ -235,8 +235,9 @@ async function sendUploadFiles(parent, fileName){
   //authorize().then(uploadFiles).catch(console.error)
 }
 
-async function sendCreateFolder() {
-  authorize().then(createFolder).catch(console.error)
+async function sendCreateFolder(folderName) {
+  const auth = await authorize()
+  createFolder(auth, folderName)
 }
 
 async function sendSearchFile(fileName) {

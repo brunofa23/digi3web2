@@ -24,10 +24,6 @@ import { Ignitor } from '@adonisjs/core/build/standalone'
 //authorize.sendUploadFiles()
 //authorize.sendListFiles()
 
-
-
-
-
 sourceMapSupport.install({ handleUncaughtExceptions: false })
 
 new Ignitor(__dirname)
