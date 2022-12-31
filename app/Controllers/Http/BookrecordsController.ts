@@ -246,8 +246,6 @@ export default class BookrecordsController {
       generateApproximate_termIncrement
     } = request.requestData
 
-
-
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
     // if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
     //   console.log("ERRRRRROR:", response.status(401))
@@ -323,7 +321,7 @@ export default class BookrecordsController {
 
     }
 
-    const data = await Bookrecord.updateOrCreateMany(['cod', 'book'], bookrecords)
+    const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'companies_id'], bookrecords)
     return data.length
 
   }

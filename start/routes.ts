@@ -45,7 +45,7 @@ Route.group(() => {
 
 
   //INDEXIMAGES
-  Route.post('/companies/:companies_id/typebooks/:typebooks_id/bookrecords/:id/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
+  Route.post('/companies/:companies_id/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
   //Route.post('typebooks/:id/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
 
 

@@ -114,9 +114,9 @@ async function authorize() {
 
 // }
 
-async function uploadFiles(authClient, parents, fileName) {
+async function uploadFiles(authClient, parents, folderPath, fileName) {
 
-const drive = google.drive({ version: 'v3', auth: authClient });
+  const drive = google.drive({ version: 'v3', auth: authClient });
 
   const parent = [parents]
 
@@ -126,7 +126,8 @@ const drive = google.drive({ version: 'v3', auth: authClient });
   };
   const media = {
     mimeType: 'image/jpeg',
-    body: fs.createReadStream(`tmp/uploads/${fileName}`),
+    body: fs.createReadStream(`${folderPath}/${fileName}`),
+    //body: fs.createReadStream(`${filePath}`),
   };
   try {
     const file = await drive.files.create({
@@ -167,23 +168,23 @@ async function createFolder(authClient, folderName) {
 
 }
 
-async function searchFile(authClient, fileName){
+async function searchFile(authClient, fileName) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   console.log("CHEGUEI NA PESQUISA", fileName)
-  const files:Object[] = []
+  const files: Object[] = []
 
 
   try {
     const res = await drive.files.list({
-      q:`name ='${fileName}' `,
+      q: `name ='${fileName}' `,
       //q: "name = 'Nascimento' "
     });
     Array.prototype.push.apply(files, res.files);
 
-    res.data.files.forEach(function(file) {
+    res.data.files.forEach(function (file) {
       console.log('Found file:', file.name, file.id);
-      files.push({name: file.name,id: file.id})
+      files.push({ name: file.name, id: file.id })
     });
 
     return res.data.files
@@ -219,18 +220,18 @@ async function listFiles(authClient) {
 
 
 //****************************************************************** */
-async function sendAuthorize(){
-   await authorize()
-   return true
+async function sendAuthorize() {
+  await authorize()
+  return true
 }
 
-async function sendListFiles(){
+async function sendListFiles() {
   authorize().then(listFiles).catch(console.error);
 }
 
-async function sendUploadFiles(parent, fileName){
+async function sendUploadFiles(parent, folderPath, fileName) {
   const auth = await authorize()
-  uploadFiles(auth, parent, fileName)
+  uploadFiles(auth, parent, folderPath, fileName)
 
   //authorize().then(uploadFiles).catch(console.error)
 }
@@ -247,4 +248,4 @@ async function sendSearchFile(fileName) {
 }
 
 //export default {sendListFiles, sendUploadFiles, sendAuthorize}
-module.exports = {sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile}
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile }

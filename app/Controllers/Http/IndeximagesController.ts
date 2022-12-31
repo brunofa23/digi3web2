@@ -88,10 +88,10 @@ export default class IndeximagesController {
       extnames: ['jpg', 'png', 'jpeg', 'pdf']
     })
 
-
-    //return {aqui: "aqui",path: Application.tmpPath('uploads1')}
+        //return {aqui: "aqui",path: Application.tmpPath('uploads1')}
     const files = await FileRename.transformFilesNameToId(images, params)
 
+    return files
     console.log("FINALIZADO!!!");
 
     //return images
