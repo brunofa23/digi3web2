@@ -16,12 +16,17 @@ export default class CompaniesController {
   //inserir
   public async store({ request, response }: HttpContextContract) {
 
+    console.log("Entrei no store");
     const body = request.only(Company.fillable)
-    await request.validate(CreateCompanyValidator)
+    //await request.validate(CreateCompanyValidator)
+    console.log("Passei pelo validator");
     try {
 
       const data = await Company.create(body)
       response.status(201)
+
+      console.log("Entrei no try");
+
       return {
         message: "Criado com sucesso",
         data: data

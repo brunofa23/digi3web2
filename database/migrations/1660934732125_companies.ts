@@ -11,7 +11,7 @@ export default class extends BaseSchema {
       table.string('address', 70)
       table.string('number')
       table.string('complement',45)
-      table.string('cep', 8)
+      table.string('postalcode', 8)
       table.string('district', 70)
       table.string('city', 45)
       table.string('state', 2)

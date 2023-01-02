@@ -12,7 +12,7 @@ export default class Company extends BaseModel {
       'address',
       'number',
       'complement',
-      'cep',
+      'postalcode',
       'district',
       'city',
       'state',
@@ -52,7 +52,7 @@ export default class Company extends BaseModel {
   public complement:string
 
   @column()
-  public cep:string
+  public postalcode:string
 
   @column()
   public district:string
