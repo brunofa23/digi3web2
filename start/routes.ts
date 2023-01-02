@@ -21,6 +21,10 @@
 import Route from '@ioc:Adonis/Core/Route'
 
 import Application from '@ioc:Adonis/Core/Application'
+import User from 'App/Models/User'
+import Hash from '@ioc:Adonis/Core/Hash'
+
+
 
 
 Route.group(() => {
@@ -43,54 +47,33 @@ Route.group(() => {
   Route.resource("/companies/:companies_id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
   Route.post("/companies/:companies_id/typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords')
 
-
   //INDEXIMAGES
   Route.post('/companies/:companies_id/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
-  //Route.post('typebooks/:id/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
+
+  //USER LOGIN
+  Route.post('login', async ({ auth, request, response }) => {
+    const email = request.input('email')
+    const password = request.input('password')
+
+    try {
+      const token = await auth.use('api').attempt(email, password)
+      return token
+    } catch {
+      return response.unauthorized('Invalid credentials')
+    }
 
 
-  //Route.get("companies/:id/typebooks/:typebooks_id/bookrecords", 'TypebooksController.bookRecords').as('TypebooksController.bookRecords')
-  //Route.post("companies/:id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.create')
-  // Route.patch("/bookrecords/createorupdatebookrecord", 'BookrecordsController.createorupdatebookrecord')
-  // Route.patch("/bookrecords/fetchorcreatemany", 'BookrecordsController.fetchOrCreateMany')
-  // Route.put("/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookRecords')
-  // Route.delete("/bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords')
+  })
 
 
-  // Route.resource("/typebooks", 'TypebooksController').apiOnly()
-  // Route.resource("/bookrecords", 'BookrecordsController').apiOnly()
-  // Route.patch("/indeximages/:id/:id2/:id3", "IndeximagesController.update");
-  // Route.resource("/indeximages", 'IndeximagesController').apiOnly()
+  Route.get('dashboard', async ({ auth }) => {
+    //return "dash"
+    await auth.use('api').authenticate()
+    return "autenticado"
+    console.log(auth.use('api').user!)
+  })
 
 
-
-
-  // Route.post('/indeximages/uploads', async ({ request }) => {
-  //   console.log("UPLOADS");
-
-  //   const images = request.files('images',{
-  //     size: '2mb',
-  //     extnames:['jpg', 'png', 'jpeg', 'pdf']
-  //   })
-
-  //   let cont = 1
-  //   for (let image of images) {
-
-  //     if(!image){
-  //       console.log("não é imagem")
-  //     }
-  //     if(!image.isValid){
-  //       console.log("Error", image.errors);
-
-  //     }
-
-  //     await image.move(Application.tmpPath('uploads'),{name:`cont${cont}.${image.extname}`,overwrite:true})
-  //     cont++
-  //     console.log("Name:",image.fieldName, ' ClienteName', image.clientName, 'tamanho:', image.size, 'path:', image.tmpPath, 'ext', image.extname);
-
-  //   }
-
-  // })
 
 
 }).prefix('/api')
