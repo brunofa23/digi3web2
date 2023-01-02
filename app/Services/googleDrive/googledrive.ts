@@ -60,19 +60,24 @@ async function saveCredentials(client) {
  *
  */
 async function authorize() {
+
   let client = await loadSavedCredentialsIfExist();
+
+  console.log("CLIENTE:", client);
+
   if (client) {
     return client;
   }
+
   client = await authenticate({
     scopes: SCOPES,
     keyfilePath: CREDENTIALS_PATH,
   });
+
   if (client.credentials) {
     await saveCredentials(client);
   }
 
-  console.log("cliente::::", client);
   return client;
 }
 
@@ -81,38 +86,6 @@ async function authorize() {
  * @param {OAuth2Client} authClient An authorized OAuth2 client.
  */
 
-// async function uploadFilesBackup(authClient) {
-//   const drive = google.drive({ version: 'v3', auth: authClient });
-
-//   let parents = ['1SUx-ExjG-qpltDCCaXV_OWgCs-tQZuEr']
-//   //parents[0] = '1E5-xpRXwImV6QZdPv-amoGYV8MZqfZp4'
-
-//   const fileMetadata = {
-//     name: 'photo.jpg',
-//     parents: parents
-//   };
-//   const media = {
-//     mimeType: 'image/jpeg',
-//     body: fs.createReadStream(path.join(process.cwd(), 'config/files/photo.jpg')),
-//   };
-//   console.log("MEDIA", media)
-//   try {
-//     const file = await drive.files.create({
-//       resource: fileMetadata,
-//       media: media,
-//       fields: 'id'
-
-//     });
-//     console.log("CAMINHO IMAGEM::", path.join(process.cwd(), 'config/files/photo.jpg'));
-//     console.log('File Id:', file.data.id);
-//     return file.data.id;
-//   } catch (err) {
-//     // TODO(developer) - Handle error
-//     console.log("ERRO:::::", err);
-//     throw err;
-//   }
-
-// }
 
 async function uploadFiles(authClient, parents, folderPath, fileName) {
 

@@ -31,7 +31,6 @@ async function transformFilesNameToId(images, params) {
   let result: Object[] = []
   let query = ""
 
-  console.log("passei aqui...")
 
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${params.companies_id}`)
@@ -51,12 +50,14 @@ async function transformFilesNameToId(images, params) {
     .andWhere('companies_id', '=', params.companies_id).first()
 
     if(!directoryParent || directoryParent==undefined)
-      return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
+    return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
+
+    //console.log("passei aqui antes do authorize...")
 
 
-  authorize.sendAuthorize()
-  //verifica se existe essa pasta no Google e retorna o id do google
-  let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+    await authorize.sendAuthorize()
+    //verifica se existe essa pasta no Google e retorna o id do google
+    let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
 
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
