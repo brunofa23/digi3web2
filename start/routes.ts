@@ -27,6 +27,7 @@ import Hash from '@ioc:Adonis/Core/Hash'
 
 
 
+
 Route.group(() => {
 
   Route.get('/', async () => {
@@ -50,27 +51,41 @@ Route.group(() => {
   //INDEXIMAGES
   Route.post('/companies/:companies_id/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
 
+  //USERS
+  Route.resource("/companies/:companies_id/users", "UsersController").apiOnly()
+
+
+
   //USER LOGIN
   Route.post('login', async ({ auth, request, response }) => {
     const email = request.input('email')
     const password = request.input('password')
 
-    try {
-      const token = await auth.use('api').attempt(email, password)
-      return token
-    } catch {
-      return response.unauthorized('Invalid credentials')
-    }
+    const passwordHash = await Hash.make(password)
 
+    //return
+    const user = await User
+    .query()
+    .where('email', email)
+    //.where('tenant_id', getTenantIdFromSomewhere)
+    //.whereNull('is_deleted')
+    .firstOrFail()
+
+  // Verify password
+  if (!(await Hash.verify(user.password, password))) {
+    return response.unauthorized('Invalid credentials')
+  }
+  const token = await auth.use('api').generate(user, {expiresIn: '1 mins'})
+  return token
 
   })
 
 
   Route.get('dashboard', async ({ auth }) => {
-    //return "dash"
+    //return auth
     await auth.use('api').authenticate()
-    return "autenticado"
     console.log(auth.use('api').user!)
+    return "autenticado"
   })
 
 

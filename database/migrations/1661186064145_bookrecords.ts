@@ -6,9 +6,13 @@ export default class extends BaseSchema {
   public async up () {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
+
+      table.foreign(['books_id','typebooks_id'])
+
       table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id')
       table.integer('books_id').notNullable().unsigned().references('typebooks.books_id').onDelete('CASCADE')
       table.integer('companies_id').notNullable().unsigned().references('companies.id').onDelete('CASCADE')
+
       table.integer('cod')
       table.integer('book')
       table.integer('sheet')
