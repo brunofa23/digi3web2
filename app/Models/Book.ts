@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, HasMany, hasMany, hasManyThrough,
+  HasManyThrough } from '@ioc:Adonis/Lucid/Orm'
 
 import Typebook from './Typebook'
 import Bookrecord from './Bookrecord'
@@ -29,8 +30,6 @@ export default class Book extends BaseModel {
   })
   public bookrecords: HasMany<typeof Bookrecord>
 
-
-
   @column({ isPrimary: true })
   public id: number
 
@@ -45,4 +44,12 @@ export default class Book extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+
+  @hasManyThrough([
+    () => Bookrecord,
+    () => Typebook,
+  ])
+  public posts: HasManyThrough<typeof Bookrecord>
+
 }

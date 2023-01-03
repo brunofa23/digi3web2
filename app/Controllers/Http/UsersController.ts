@@ -6,7 +6,7 @@ import Company from 'App/Models/Company'
 
 export default class UsersController {
 
-  public async index({ request, params, response }: HttpContextContract) {
+  public async index({ params, response }: HttpContextContract) {
 
       const data = await User.query()
       .where("companies_id", params.companies_id)
@@ -18,11 +18,10 @@ export default class UsersController {
   public async store({ request, params, response }: HttpContextContract) {
 
     const body = request.only(User.fillable)
-    const companies_id = params.companies_id
-    body.password = await Hash.make(body.password)
+    body.companies_id = params.companies_id
+    //body.password = await Hash.make(body.password)
+    body.password = await Hash.make("12345")
 
-    //Verificar se existe o codigo passado pelo parâmetro
-    await Company.findOrFail(companies_id)
     const data = await User.create(body)
 
     response.status(201)
@@ -32,6 +31,22 @@ export default class UsersController {
     }
   }
 
+
+  public async update({request, params }:HttpContextContract){
+
+    const body = request.only(User.fillable)
+    body.companies_id = params.companies_id
+    body.id = params.id
+
+    const data = await User.query()
+    .where("companies_id","=", params.companies_id)
+    .andWhere('id',"=",params.id).update(body)
+
+    return data
+
+
+
+  }
 
 
 

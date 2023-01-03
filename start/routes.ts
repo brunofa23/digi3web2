@@ -58,25 +58,37 @@ Route.group(() => {
 
   //USER LOGIN
   Route.post('login', async ({ auth, request, response }) => {
-    const email = request.input('email')
+    const username = request.input('username')
+    const shortname = request.input('shortname')
     const password = request.input('password')
 
-    const passwordHash = await Hash.make(password)
 
-    //return
     const user = await User
     .query()
-    .where('email', email)
-    //.where('tenant_id', getTenantIdFromSomewhere)
-    //.whereNull('is_deleted')
+    .preload('company')
+    .innerJoin('companies',`companies_id`, 'companies'+'.'+'id')
+    .where('username', username)
+    .andWhere('companies.shortname', shortname)//.toQuery()
     .firstOrFail()
 
-  // Verify password
-  if (!(await Hash.verify(user.password, password))) {
-    return response.unauthorized('Invalid credentials')
-  }
-  const token = await auth.use('api').generate(user, {expiresIn: '1 mins'})
-  return token
+    user.password = await Hash.make("12345")
+
+    const testeResult = await Hash.verify("$argon2id$v=19$t=3,m=4096,p=1$jN8gat6WY4nJ0NcUaLqqtg$TaQ98qNrmbRAEvTdYJ1g5PWyQk7Ec4EC9OAUdaVQ6hw", "12345")
+    return {testeResult, user, password: user.password}
+
+  //   const teste = "12345"
+  //   const testehash =  await Hash.make(teste)
+
+  //   return {testeResult, user: testehash, teste}
+
+  //   // Verify password
+  //   if (!(await Hash.verify(user.password, password))) {
+  //     return response.unauthorized('Invalid credentials')
+  //   }
+
+  //   return "deu certo"
+  // const token = await auth.use('api').generate(user, {expiresIn: '1 mins'})
+  // return token
 
   })
 
