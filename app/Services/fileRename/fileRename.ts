@@ -35,7 +35,7 @@ async function transformFilesNameToId(images, params) {
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${params.companies_id}`)
 
-  
+
 
   try {
     if (!fs.existsSync(folderPath)) {
@@ -53,10 +53,6 @@ async function transformFilesNameToId(images, params) {
 
     if(!directoryParent || directoryParent==undefined)
     return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
-
-    //console.log("passei aqui antes do authorize...")
-
-
     await authorize.sendAuthorize()
     //verifica se existe essa pasta no Google e retorna o id do google
     let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)

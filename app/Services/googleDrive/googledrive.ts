@@ -13,24 +13,19 @@ const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
-// The file token.json stores the user's access and refresh tokens, and is
-// created automatically when the authorization flow completes for the first
-// time.
 
 //const TOKEN_PATH = path.join(process.cwd(), 'config/tokens/token.json');
 //const CREDENTIALS_PATH = path.join(process.cwd(), 'config/credentials/credentials.json');
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH =Application.configPath('/credentials/credentials.json')
 
-
-
 console.log("TOKEN_PATH>>", TOKEN_PATH);
 
-/**
- * Reads previously authorized credentials from the save file.
- *
- * @return {Promise<OAuth2Client|null>}
- */
+function TOKEN_PATH_CLIENT(client) {
+  return Application.configPath(`tokens/token${client}.json`)
+}
+
+
 async function loadSavedCredentialsIfExist() {
   try {
     const content = await fsPromises.readFile(TOKEN_PATH);
@@ -85,11 +80,6 @@ async function authorize() {
 
   return client;
 }
-
-/**
- * Lists the names and IDs of up to 10 files.
- * @param {OAuth2Client} authClient An authorized OAuth2 client.
- */
 
 
 async function uploadFiles(authClient, parents, folderPath, fileName) {
