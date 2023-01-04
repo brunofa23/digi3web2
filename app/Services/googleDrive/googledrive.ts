@@ -1,3 +1,4 @@
+import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
 
@@ -16,8 +17,12 @@ const SCOPES = ['https://www.googleapis.com/auth/drive'];
 // created automatically when the authorization flow completes for the first
 // time.
 
-const TOKEN_PATH = path.join(process.cwd(), 'config/tokens/token.json');
-const CREDENTIALS_PATH = path.join(process.cwd(), 'config/credentials/credentials.json');
+//const TOKEN_PATH = path.join(process.cwd(), 'config/tokens/token.json');
+//const CREDENTIALS_PATH = path.join(process.cwd(), 'config/credentials/credentials.json');
+const TOKEN_PATH = Application.configPath('tokens/token.json')
+const CREDENTIALS_PATH =Application.configPath('/credentials/credentials.json')
+
+
 
 console.log("TOKEN_PATH>>", TOKEN_PATH);
 

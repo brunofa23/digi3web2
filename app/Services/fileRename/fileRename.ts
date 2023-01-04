@@ -35,6 +35,8 @@ async function transformFilesNameToId(images, params) {
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${params.companies_id}`)
 
+  
+
   try {
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath)

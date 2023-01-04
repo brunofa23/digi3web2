@@ -1,23 +1,3 @@
-/*
-|--------------------------------------------------------------------------
-| Routes
-|--------------------------------------------------------------------------
-|
-| This file is dedicated for defining HTTP routes. A single file is enough
-| for majority of projects, however you can define routes in different
-| files and just make sure to import them inside this file. For example
-|
-| Define routes in following two files
-| ├── start/routes/cart.ts
-| ├── start/routes/customer.ts
-|
-| and then import them inside `start/routes.ts` as follows
-|
-| import './routes/cart'
-| import './routes/customer'
-|
-*/
-
 import Route from '@ioc:Adonis/Core/Route'
 
 import Application from '@ioc:Adonis/Core/Application'
@@ -38,7 +18,6 @@ Route.group(() => {
 
   //TYPEBOOKS
   Route.resource("/companies/:companies_id/typebooks", 'TypebooksController').apiOnly
-
 
   //BOOKRECORDS
   Route.resource("/companies/:companies_id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
@@ -61,6 +40,12 @@ Route.group(() => {
     await auth.use('api').authenticate()
     console.log(auth.use('api').user!)
     return "autenticado"
+  })
+
+  Route.get('/test', async () => {
+    //return { hello: 'world' }
+    return Application.configPath('tokens/token.json')
+
   })
 
 }).prefix('/api')
