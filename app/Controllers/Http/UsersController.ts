@@ -10,7 +10,6 @@ export default class UsersController {
 
       const data = await User.query()
       .where("companies_id", params.companies_id)
-
       return response.send(data)
 
   }
@@ -20,7 +19,7 @@ export default class UsersController {
     const body = request.only(User.fillable)
     body.companies_id = params.companies_id
     //body.password = await Hash.make(body.password)
-    body.password = await Hash.make("12345")
+    //body.password = await Hash.make("12345")
 
     const data = await User.create(body)
 
