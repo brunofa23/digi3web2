@@ -1,6 +1,8 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import User from 'App/Models/User'
 import Hash from '@ioc:Adonis/Core/Hash'
+import Database from '@ioc:Adonis/Lucid/Database'
+import Company from 'App/Models/Company'
 
 export default class AuthenticationController {
 
@@ -13,7 +15,7 @@ export default class AuthenticationController {
 
     const user = await User
       .query()
-      .select('users.*')
+      .select(' users.* ',)
       .preload('company')
       .join('companies', `companies_id`, '=', 'companies.id')
       .where('username', username)
@@ -25,16 +27,20 @@ export default class AuthenticationController {
       return response.unauthorized('Invalid credentials')
     }
 
-     // Generate token
+    // Generate token
     const token = await auth.use('api').generate(user, {
-      expiresIn: '30 mins'
+      expiresIn: '60 mins',
+      name: 'For the CLI app'
+
     })
+    console.log(token);
+
     return token
 
   }
 
 
-  public async logout({ auth, response }: HttpContextContract) {
+  public async logout({ auth, response }:HttpContextContract) {
 
     await auth.use('api').revoke()
     return {
@@ -45,8 +51,5 @@ export default class AuthenticationController {
 
 
 
-
-
-
-
 }
+

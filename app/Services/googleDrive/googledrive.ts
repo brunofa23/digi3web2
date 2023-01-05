@@ -21,13 +21,14 @@ const CREDENTIALS_PATH =Application.configPath('/credentials/credentials.json')
 
 console.log("TOKEN_PATH>>", TOKEN_PATH);
 
-function TOKEN_PATH_CLIENT(client) {
-  return Application.configPath(`tokens/token${client}.json`)
+function TOKEN_PATH_COMPANY(companies_id) {
+  return Application.configPath(`tokens/token_${companies_id}.json`)
 }
 
 
 async function loadSavedCredentialsIfExist() {
   try {
+    
     const content = await fsPromises.readFile(TOKEN_PATH);
     const credentials = JSON.parse(content);
     return google.auth.fromJSON(credentials);
@@ -189,6 +190,7 @@ async function listFiles(authClient) {
 
 //****************************************************************** */
 async function sendAuthorize() {
+  const companies_id=1
   await authorize()
   return true
 }

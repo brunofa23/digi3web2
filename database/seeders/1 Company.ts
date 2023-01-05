@@ -18,7 +18,7 @@ export default class extends BaseSeeder {
           "city": "Belo Horizonte",
           "state": "MG",
           "cnpj": 1111111111111111,
-          "responsablename": "Bruno",
+          "responsablename": "Vandir",
           "phoneresponsable": 31985228619,
           "email": "sistemasdigi3@gmail.com",
           "status": 1,

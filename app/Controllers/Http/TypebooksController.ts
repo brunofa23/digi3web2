@@ -1,22 +1,25 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Typebook from 'App/Models/Typebook'
 import Company from 'App/Models/Company'
+import AuthenticationController from './AuthenticationController'
 import { Response } from '@adonisjs/core/build/standalone'
 import Schema from '@ioc:Adonis/Lucid/Schema'
 
 import {schema} from '@ioc:Adonis/Core/Validator'
+import { authenticate } from '@google-cloud/local-auth'
 
 export default class TypebooksController {
 
 
   //inserir livro
-  public async store({ request, params, response }: HttpContextContract) {
+  public async store({ auth, request, response }: HttpContextContract) {
 
+    const authenticate = await auth.use('api').authenticate()
     const body = request.only(Typebook.fillable)
-    body.companies_id = params.companies_id
+    body.companies_id = authenticate.companies_id
 
     try {
-      await Company.findByOrFail('id', params.companies_id)
+      await Company.findByOrFail('id',  authenticate.companies_id)
       const data = await Typebook.create(body)
       response.status(201)
       return {
@@ -30,16 +33,17 @@ export default class TypebooksController {
 
   }
 
-  //listar livro
-  public async index({ request, params, response }) {
 
+  //listar livro
+  public async index({ auth, request, response }) {
+    const {authenticate, companies_id} = await auth.use('api').authenticate()
     const { name, status, books_id } = request.requestData
 
-    if (!params.companies_id)
+    if (!companies_id)
       return "error"
 
     if (!name && !status && !books_id) {
-      const data = await Typebook.query().where("companies_id", '=', params.companies_id)
+      const data = await Typebook.query().where("companies_id", '=', companies_id)
       return response.send(data)
     }
     else {
@@ -63,7 +67,7 @@ export default class TypebooksController {
       }
 
       const data
-        = await Typebook.query().where("companies_id", '=', params.companies_id)
+        = await Typebook.query().where("companies_id", '=', companies_id)
           .preload('bookrecords').preload('book')
           .whereRaw(query)
 
@@ -75,20 +79,47 @@ export default class TypebooksController {
   }
 
 //retorna um registro
-  public async show({ params, response }: HttpContextContract) {
+  public async show({auth, params, response }: HttpContextContract) {
 
+    const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
-                .where("companies_id","=",params.companies_id)
+                .where("companies_id","=",authenticate.companies_id)
                 .andWhere('id',"=",params.id).firstOrFail()
 
     return response.send(data)
 
   }
 
+
+
+ //patch ou put
+ public async update({auth, request, params }: HttpContextContract) {
+
+  const authenticate = await auth.use('api').authenticate()
+  const body = request.only(Typebook.fillable)
+
+  body.id = params.id
+  body.companies_id = authenticate.companies_id
+
+  const data = await Typebook.query()
+  .where("companies_id","=",authenticate.companies_id)
+  .andWhere('id',"=",params.id).update(body)
+
+  return {
+    message: 'Tipo de Livro atualizado com sucesso!!',
+    data: data,
+    body: body,
+    params: params.id
+  }
+
+}
+
   //delete
-  public async destroy({ params }: HttpContextContract) {
+  public async destroy({auth, params }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
     const data = await Typebook.query()
-    .where("companies_id","=",params.companies_id)
+    .where("companies_id","=",authenticate.companies_id)
     .andWhere('id',"=",params.id).delete()
 
     return {
@@ -98,25 +129,6 @@ export default class TypebooksController {
 
   }
 
-  //patch ou put
-  public async update({ request, params }: HttpContextContract) {
 
-    const body = request.only(Typebook.fillable)
-
-    body.id = params.id
-    body.companies_id = params.companies_id
-
-    const data = await Typebook.query()
-    .where("companies_id","=",params.companies_id)
-    .andWhere('id',"=",params.id).update(body)
-
-    return {
-      message: 'Tipo de Livro cadastrado com sucesso!!',
-      data: data,
-      body: body,
-      params: params.id
-    }
-
-  }
 
 }

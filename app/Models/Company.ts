@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
 import Typebook from './Typebook'
+import User from './User'
 
 export default class Company extends BaseModel {
 
@@ -32,6 +33,11 @@ export default class Company extends BaseModel {
   })
   public typebooks: HasMany<typeof Typebook>
 
+  @hasMany(()=>User, {
+    foreignKey: 'companies_id',
+    localKey:'id'
+  })
+  public user: HasMany<typeof User>
 
   @column({ isPrimary: true })
   public id: number

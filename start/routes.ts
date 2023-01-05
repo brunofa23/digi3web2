@@ -17,7 +17,7 @@ Route.group(() => {
   Route.resource("/companies", 'CompaniesController').apiOnly()
 
   //TYPEBOOKS
-  Route.resource("/companies/:companies_id/typebooks", 'TypebooksController').apiOnly
+  Route.resource("/typebooks", 'TypebooksController').apiOnly
 
   //BOOKRECORDS
   Route.resource("/companies/:companies_id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
@@ -38,8 +38,8 @@ Route.group(() => {
   Route.get('dashboard', async ({ auth }) => {
     //return auth
     await auth.use('api').authenticate()
-    console.log(auth.use('api').user!)
-    return "autenticado"
+    //console.log(auth.use('api').user!)
+    return auth.use('api').user!
   })
 
   Route.get('/test', async () => {
