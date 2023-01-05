@@ -8,11 +8,9 @@ import Indeximage from 'App/Models/Indeximage'
 export default class BookrecordsController {
 
   //Listar Bookrecords
-  public async index({ request, params, response }: HttpContextContract) {
+  public async index({auth, request, params, response }: HttpContextContract) {
 
-    if (!params.companies_id || !params.typebooks_id)
-      return "erro"
-
+    const authenticate = await auth.use('api').authenticate()
     const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
 
     let query = " 1=1 "
@@ -75,36 +73,37 @@ export default class BookrecordsController {
     const limit = 20
 
     const data = await Bookrecord.query()
-      .where("companies_id", '=', params.companies_id)
+      .where("companies_id", '=', authenticate.companies_id)
       .andWhere("typebooks_id", '=', params.typebooks_id)
       .preload('indeximage')
-      .whereRaw(query).paginate(page, limit)
+      .whereRaw(query)
+      .paginate(page, limit)
 
     return response.send(data)
 
   }
 
 
-  public async store({ request, params, response }: HttpContextContract) {
+  // public async store({ request, params, response }: HttpContextContract) {
 
-    return "book record store"
+  //   return "book record store"
 
-    const body = request.only(Bookrecord.fillable)
-    const id = params.id
+  //   const body = request.only(Bookrecord.fillable)
+  //   const id = params.id
 
-    //Verificar se existe o codigo passado pelo parâmetro
-    //await Book.findByOrFail(id)
+  //   //Verificar se existe o codigo passado pelo parâmetro
+  //   //await Book.findByOrFail(id)
 
-    body.id = id
+  //   body.id = id
 
-    const data = await Bookrecord.create(body)
+  //   const data = await Bookrecord.create(body)
 
-    response.status(201)
-    return {
-      message: 'Criado com sucesso',
-      data: data,
-    }
-  }
+  //   response.status(201)
+  //   return {
+  //     message: 'Criado com sucesso',
+  //     data: data,
+  //   }
+  // }
 
 
   public async show({ params }: HttpContextContract) {
@@ -115,7 +114,9 @@ export default class BookrecordsController {
     }
   }
 
-  public async destroyManyBookRecords({ request }: HttpContextContract) {
+  public async destroyManyBookRecords({auth, request }: HttpContextContract) {
+
+    const authenticate = await auth.use('api').authenticate()
 
     const { typebook_id, book, codIni, codFim } = request.requestBody
     let query = '1 = 1'
@@ -170,67 +171,71 @@ export default class BookrecordsController {
   }
 
 
-  public async createorupdatebookrecord({ request }) {
+  // public async createorupdatebookrecord({ request }) {
 
 
-    console.log(request.requestBody)
+  //   console.log(request.requestBody)
 
-    const _request = request.requestBody
-    let newRecord: Object[] = []
-    let updateRecord: Object[] = []
+  //   const _request = request.requestBody
+  //   let newRecord: Object[] = []
+  //   let updateRecord: Object[] = []
 
-    for (const iterator of _request) {
+  //   for (const iterator of _request) {
 
-      if (!iterator.id)
-        newRecord.push({
-          typebooks_id: iterator.typebooks_id,
-          books_id: iterator.books_id,
-          companies_id: iterator.companies_id,
-          cod: iterator.cod,
-          book: iterator.book,
-          sheet: iterator.sheet,
-          side: iterator.side,
-          approximate_term: iterator.approximate_term,
-          index: iterator.index,
-          obs: iterator.obs,
-          letter: iterator.letter,
-          year: iterator.year,
-          model: iterator.model
-        })
-      else
-        updateRecord.push({
-          id: iterator.id,
-          typebooks_id: iterator.typebooks_id,
-          books_id: iterator.books_id,
-          companies_id: iterator.companies_id,
-          cod: iterator.cod,
-          book: iterator.book,
-          sheet: iterator.sheet,
-          side: iterator.side,
-          approximate_term: iterator.approximate_term,
-          index: iterator.index,
-          obs: iterator.obs,
-          letter: iterator.letter,
-          year: iterator.year,
-          model: iterator.model
-        })
+  //     if (!iterator.id)
+  //       newRecord.push({
+  //         typebooks_id: iterator.typebooks_id,
+  //         books_id: iterator.books_id,
+  //         companies_id: iterator.companies_id,
+  //         cod: iterator.cod,
+  //         book: iterator.book,
+  //         sheet: iterator.sheet,
+  //         side: iterator.side,
+  //         approximate_term: iterator.approximate_term,
+  //         index: iterator.index,
+  //         obs: iterator.obs,
+  //         letter: iterator.letter,
+  //         year: iterator.year,
+  //         model: iterator.model
+  //       })
+  //     else
+  //       updateRecord.push({
+  //         id: iterator.id,
+  //         typebooks_id: iterator.typebooks_id,
+  //         books_id: iterator.books_id,
+  //         companies_id: iterator.companies_id,
+  //         cod: iterator.cod,
+  //         book: iterator.book,
+  //         sheet: iterator.sheet,
+  //         side: iterator.side,
+  //         approximate_term: iterator.approximate_term,
+  //         index: iterator.index,
+  //         obs: iterator.obs,
+  //         letter: iterator.letter,
+  //         year: iterator.year,
+  //         model: iterator.model
+  //       })
 
-    }
+  //   }
 
-    console.log("NEW iterator:::", newRecord)
-    console.log("UPDATE iterator:::", updateRecord)
+  //   console.log("NEW iterator:::", newRecord)
+  //   console.log("UPDATE iterator:::", updateRecord)
 
-    await Bookrecord.createMany(newRecord)
-    await Bookrecord.updateOrCreateMany('id', updateRecord)
-    return "sucesso!!"
+  //   await Bookrecord.createMany(newRecord)
+  //   await Bookrecord.updateOrCreateMany('id', updateRecord)
+  //   return "sucesso!!"
 
 
-  }
+  // }
 
 
   //gera ou substitui um livro
+
+
   //MODIFICAR ESSE MÉTODO >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  public async generateOrUpdateBookrecords({ request, params }) {
+  public async generateOrUpdateBookrecords({auth, request, params }: HttpContextContract) {
+
+    const authenticate = await auth.use('api').authenticate()
 
     let {
       generateBooks_id,
@@ -316,7 +321,7 @@ export default class BookrecordsController {
         side: generateSideStart,
         typebooks_id: params.typebooks_id,
         books_id: generateBooks_id,
-        companies_id: params.companies_id
+        companies_id: authenticate.companies_id
       })
 
     }

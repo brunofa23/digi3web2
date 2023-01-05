@@ -6,20 +6,22 @@ import Company from 'App/Models/Company'
 
 export default class UsersController {
 
-  public async index({ params, response }: HttpContextContract) {
+  public async index({auth, response }: HttpContextContract) {
+
+    const authenticate = await auth.use('api').authenticate()
 
       const data = await User.query()
-      .where("companies_id", params.companies_id)
+      .where("companies_id", authenticate.companies_id)
       return response.send(data)
 
   }
 
-  public async store({ request, params, response }: HttpContextContract) {
+  public async store({auth, request, response }: HttpContextContract) {
+
+    const authenticate = await auth.use('api').authenticate()
 
     const body = request.only(User.fillable)
-    body.companies_id = params.companies_id
-    //body.password = await Hash.make(body.password)
-    //body.password = await Hash.make("12345")
+    body.companies_id =  authenticate.companies_id
 
     const data = await User.create(body)
 
@@ -31,14 +33,15 @@ export default class UsersController {
   }
 
 
-  public async update({request, params }:HttpContextContract){
+  public async update({auth, request, params }:HttpContextContract){
 
+    const authenticate = await auth.use('api').authenticate()
     const body = request.only(User.fillable)
-    body.companies_id = params.companies_id
+    body.companies_id = authenticate.companies_id
     body.id = params.id
 
     const data = await User.query()
-    .where("companies_id","=", params.companies_id)
+    .where("companies_id","=", authenticate.companies_id)
     .andWhere('id',"=",params.id).update(body)
 
     return data

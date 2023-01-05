@@ -20,14 +20,14 @@ Route.group(() => {
   Route.resource("/typebooks", 'TypebooksController').apiOnly
 
   //BOOKRECORDS
-  Route.resource("/companies/:companies_id/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
-  Route.post("/companies/:companies_id/typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords')
+  Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
+  Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords')
 
   //INDEXIMAGES
-  Route.post('/companies/:companies_id/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
+  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
 
   //USERS
-  Route.resource("/companies/:companies_id/users", "UsersController").apiOnly()
+  Route.resource("/users", "UsersController").apiOnly()
 
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")
