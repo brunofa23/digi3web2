@@ -29,7 +29,7 @@ export default class AuthenticationController {
 
     // Generate token
     const token = await auth.use('api').generate(user, {
-      expiresIn: '60 mins',
+      expiresIn: '30 days',
       name: 'For the CLI app'
 
     })

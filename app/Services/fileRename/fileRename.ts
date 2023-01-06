@@ -26,15 +26,13 @@ function deleteImage(folderPath) {
   });
 }
 
-async function transformFilesNameToId(images, params) {
+async function transformFilesNameToId(images, params, companies_id) {
 
   let result: Object[] = []
   let query = ""
 
-
   //Verificar se existe o caminho da pasta com as imagens
-  const folderPath = Application.tmpPath(`/uploads/Client_${params.companies_id}`)
-
+  const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
 
 
   try {
@@ -49,13 +47,19 @@ async function transformFilesNameToId(images, params) {
   const directoryParent = await Bookrecord.query()
     .preload('typebooks')
     .where('typebooks_id', '=', params.typebooks_id)
-    .andWhere('companies_id', '=', params.companies_id).first()
+    .andWhere('companies_id', '=', companies_id).first()
 
-    if(!directoryParent || directoryParent==undefined)
+
+
+  if (!directoryParent || directoryParent == undefined)
     return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
-    await authorize.sendAuthorize()
-    //verifica se existe essa pasta no Google e retorna o id do google
-    let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+
+   const authorizeGoogle = await authorize.sendAuthorize()
+   return authorizeGoogle
+
+  //verifica se existe essa pasta no Google e retorna o id do google
+  let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+
 
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
@@ -93,7 +97,7 @@ async function transformFilesNameToId(images, params) {
         const name = await Bookrecord.query()
           .preload('typebooks')
           .where('typebooks_id', '=', params.typebooks_id)
-          .andWhere('companies_id', '=', params.companies_id)
+          .andWhere('companies_id', '=', this.companies_id)
           .whereRaw(query)
 
 
@@ -101,7 +105,7 @@ async function transformFilesNameToId(images, params) {
         const data = await Indeximage.query()
           .where('bookrecords_id', name[0].id)
           .andWhere('typebooks_id', '=', params.typebooks_id)
-          .andWhere('companies_id', '=', params.companies_id)
+          .andWhere('companies_id', '=', this.companies_id)
           .orderBy('seq', 'desc').first()
 
         //return { teste: "teste", data }
@@ -115,7 +119,7 @@ async function transformFilesNameToId(images, params) {
         const fileName = `id${name[0].id}_${this.seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}_.${image.extname}`
         const bookrecords_id = name[0].id
         const typebooks_id = params.typebooks_id
-        const companies_id = params.companies_id
+        const companies_id = this.companies_id
         const seq = this.seq
         const ext = image.extname
         const file_name = fileName

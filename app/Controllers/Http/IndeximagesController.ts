@@ -80,8 +80,9 @@ export default class IndeximagesController {
 
   }
 
-  public async uploads({ request, params}) {
+  public async uploads({auth, request, params}:HttpContextContract) {
 
+    const authenticate = await auth.use('api').authenticate()
 
     const images = request.files('images', {
       size: '6mb',
@@ -89,7 +90,7 @@ export default class IndeximagesController {
     })
 
     console.log("passei pelo Upload...")
-    const files = await FileRename.transformFilesNameToId(images, params)
+    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
 
     return files
     console.log("FINALIZADO!!!");

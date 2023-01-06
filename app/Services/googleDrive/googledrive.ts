@@ -14,8 +14,6 @@ const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
-//const TOKEN_PATH = path.join(process.cwd(), 'config/tokens/token.json');
-//const CREDENTIALS_PATH = path.join(process.cwd(), 'config/credentials/credentials.json');
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH =Application.configPath('/credentials/credentials.json')
 
@@ -28,7 +26,7 @@ function TOKEN_PATH_COMPANY(companies_id) {
 
 async function loadSavedCredentialsIfExist() {
   try {
-    
+
     const content = await fsPromises.readFile(TOKEN_PATH);
     const credentials = JSON.parse(content);
     return google.auth.fromJSON(credentials);
@@ -43,6 +41,7 @@ async function loadSavedCredentialsIfExist() {
  * @param {OAuth2Client} client
  * @return {Promise<void>}
  */
+
 async function saveCredentials(client) {
   const content = await fsPromises.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
