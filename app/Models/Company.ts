@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
+import { afterFind, afterSave, BaseModel, beforeSave, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
 import Typebook from './Typebook'
 import User from './User'
 
@@ -10,6 +10,7 @@ export default class Company extends BaseModel {
       'id',
       'name',
       'shortname',
+      'foldername',
       'address',
       'number',
       'complement',
@@ -47,6 +48,10 @@ export default class Company extends BaseModel {
 
   @column()
   public shortname:string
+
+  @column()
+  public foldername:string
+
 
   @column()
   public address:string
@@ -89,4 +94,17 @@ export default class Company extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+
+  @afterSave()
+  public static async afterSaveHook(company: Company) {
+    //const companyIdLast = await Company.query().max('id as max')
+    console.log(company.id);
+    company.foldername = `Client_${company.id.toString()}`
+    await company.save()
+
+
+
+  }
+
 }

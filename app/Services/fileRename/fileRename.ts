@@ -28,6 +28,13 @@ function deleteImage(folderPath) {
 
 async function transformFilesNameToId(images, params, companies_id) {
 
+
+  // const folder = await authorize.sendCreateFolder("1")
+  // //let parent1 = await authorize.sendSearchFile("subTESTE")
+  // return folder
+
+
+
   let result: Object[] = []
   let query = ""
 
@@ -55,10 +62,9 @@ async function transformFilesNameToId(images, params, companies_id) {
     return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
 
    const authorizeGoogle = await authorize.sendAuthorize()
-   return authorizeGoogle
 
-  //verifica se existe essa pasta no Google e retorna o id do google
-  let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+   //verifica se existe essa pasta no Google e retorna o id do google
+   let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
 
 
   //se não tiver a pasta vai criar

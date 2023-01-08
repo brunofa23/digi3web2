@@ -8,6 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.string('name',120).notNullable()
       table.string('shortname', 45).notNullable().unique()
+      table.string('foldername', 45).notNullable().unique().defaultTo("1")
       table.string('address', 70)
       table.string('number')
       table.string('complement',45)

@@ -120,6 +120,7 @@ async function createFolder(authClient, folderName) {
   const fileMetadata = {
     name: folderName,
     mimeType: 'application/vnd.google-apps.folder',
+    //parents: ["1R7NFKUKH1058KT93Iz_Polkfkm5-RFeI"],
   };
 
   try {

@@ -47,18 +47,7 @@ export default class CompaniesController {
 
   }
 
-  // //delete
-  // public async destroy({ params }: HttpContextContract) {
-  //   const data = await Typebook.query()
-  //   .where("companies_id","=",params.companies_id)
-  //   .andWhere('id',"=",params.id).delete()
 
-  //   return {
-  //     message: "Livro excluido com sucesso.",
-  //     data: data
-  //   }
-
-  // }
 
   //patch ou put
   public async update({ request, params }: HttpContextContract) {
@@ -67,6 +56,7 @@ export default class CompaniesController {
     await request.validate(CreateCompanyValidator)
 
     body.id = params.id
+    body.foldername = "1"
     const data = await Company.findOrFail(body.id)
     await data.fill(body).save()
 
