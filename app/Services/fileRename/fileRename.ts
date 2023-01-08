@@ -65,8 +65,6 @@ async function transformFilesNameToId(images, params, companies_id) {
 
    //verifica se existe essa pasta no Google e retorna o id do google
    let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
-
-
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
     //criar a pasta

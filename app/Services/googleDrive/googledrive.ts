@@ -19,9 +19,12 @@ const CREDENTIALS_PATH =Application.configPath('/credentials/credentials.json')
 
 console.log("TOKEN_PATH>>", TOKEN_PATH);
 
-function TOKEN_PATH_COMPANY(companies_id) {
-  return Application.configPath(`tokens/token_${companies_id}.json`)
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
 }
+
 
 
 async function loadSavedCredentialsIfExist() {
@@ -115,7 +118,20 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
 }
 
 async function createFolder(authClient, folderName) {
+
+
+
   const drive = google.drive({ version: 'v3', auth: authClient });
+
+  //verificar se já existe a pasta com esse nome
+  let parent = await sendSearchFile(folderName)
+  //se não tiver a pasta vai criar
+  if (parent.length > 0) {
+    //criar a pasta
+    //await authorize.sendCreateFolder(directoryParent?.typebooks.path)
+    return parent.id
+
+  }
 
   const fileMetadata = {
     name: folderName,
@@ -123,7 +139,9 @@ async function createFolder(authClient, folderName) {
     //parents: ["1R7NFKUKH1058KT93Iz_Polkfkm5-RFeI"],
   };
 
+
   try {
+    console.log("entrei create folder")
     const file = await drive.files.create({
       resource: fileMetadata,
       fields: 'id',

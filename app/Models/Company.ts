@@ -1,12 +1,13 @@
 import { DateTime } from 'luxon'
-import { afterFind, afterSave, BaseModel, beforeSave, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
+import { afterSave, BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
 import Typebook from './Typebook'
 import User from './User'
 
+
 export default class Company extends BaseModel {
 
-  public static get fillable(){
-    return[
+  public static get fillable() {
+    return [
       'id',
       'name',
       'shortname',
@@ -28,15 +29,15 @@ export default class Company extends BaseModel {
     ]
   }
 
-  @hasMany(()=>Typebook, {
+  @hasMany(() => Typebook, {
     foreignKey: 'companies_id',
-    localKey:'id'
+    localKey: 'id'
   })
   public typebooks: HasMany<typeof Typebook>
 
-  @hasMany(()=>User, {
+  @hasMany(() => User, {
     foreignKey: 'companies_id',
-    localKey:'id'
+    localKey: 'id'
   })
   public user: HasMany<typeof User>
 
@@ -44,50 +45,50 @@ export default class Company extends BaseModel {
   public id: number
 
   @column()
-  public name:string
+  public name: string
 
   @column()
-  public shortname:string
+  public shortname: string
 
   @column()
-  public foldername:string
+  public foldername: string
 
 
   @column()
-  public address:string
+  public address: string
 
   @column()
-  public number:string
+  public number: string
 
   @column()
-  public complement:string
+  public complement: string
 
   @column()
-  public postalcode:string
+  public postalcode: string
 
   @column()
-  public district:string
+  public district: string
 
   @column()
-  public city:string
+  public city: string
 
   @column()
-  public state:string
+  public state: string
 
   @column()
-  public cnpj:string
+  public cnpj: string
 
   @column()
-  public responsablename:string
+  public responsablename: string
 
   @column()
-  public phoneresponsable:string
+  public phoneresponsable: string
 
   @column()
-  public email:string
+  public email: string
 
   @column()
-  public status:Boolean
+  public status: Boolean
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
@@ -98,13 +99,11 @@ export default class Company extends BaseModel {
 
   @afterSave()
   public static async afterSaveHook(company: Company) {
-    //const companyIdLast = await Company.query().max('id as max')
-    console.log(company.id);
     company.foldername = `Client_${company.id.toString()}`
     await company.save()
-
-
-
   }
 
 }
+
+
+

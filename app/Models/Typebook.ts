@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
 import {
+  afterSave,
   BaseModel,
   column,
   HasMany,
@@ -76,6 +77,13 @@ export default class Typebook extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+  @afterSave()
+  public static async afterSaveHook(typebook: Typebook) {
+    typebook.path = `Book_${typebook.companies_id}.${typebook.id.toString()}.${typebook.name}`
+    await typebook.save()
+  }
+
 
   /**
    * Relatioship
