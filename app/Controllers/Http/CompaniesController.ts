@@ -20,21 +20,16 @@ export default class CompaniesController {
     //await request.validate(CreateCompanyValidator)
     console.log("Passei pelo validator");
     try {
-
       const data = await Company.create(body)
-      //verifica se existe essa pasta no Google e retorna o id do google
-      let parent = await authorize.sendSearchFile(data.foldername)
-      //se não tiver a pasta vai criar
-      if (parent.length == 0) {
-        //criar a pasta
-        console.log("entrei no createAfterSave")
-        await authorize.sendCreateFolder(data.foldername)
-      }
+      let parent = await authorize.sendSearchOrCreateFolder(data.foldername)
+
+      let parent1 = await authorize.sendSearchOrCreateFolder("teste", data.foldername)
 
       response.status(201)
       return {
         message: "Criado com sucesso",
-        data: data
+        data: data,
+        idfolder: parent
       }
 
     } catch (error) {

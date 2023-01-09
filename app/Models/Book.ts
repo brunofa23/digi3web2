@@ -11,6 +11,7 @@ export default class Book extends BaseModel {
     return[
       'id',
       'name',
+      'namefolder'
       'status',
       'createdAt',
       'updatedAt'
@@ -35,6 +36,11 @@ export default class Book extends BaseModel {
 
   @column()
   public name: string
+
+
+  @column()
+  public namefolder: string
+
 
   @column()
   public status: Boolean

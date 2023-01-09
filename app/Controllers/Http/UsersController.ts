@@ -18,9 +18,19 @@ export default class UsersController {
 
   public async store({auth, request, response }: HttpContextContract) {
 
+    const body = request.only(User.fillable)
+
+    //********APENAS PARA USUÁRIO ADMIN NA EMPRESA 1 */
+    if(body.username =='admin')
+    {
+      body.companies_id = 1
+      const dataAdmin = await User.create(body)
+      return dataAdmin
+
+    }
+
     const authenticate = await auth.use('api').authenticate()
 
-    const body = request.only(User.fillable)
     body.companies_id =  authenticate.companies_id
 
     const data = await User.create(body)

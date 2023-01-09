@@ -12,7 +12,7 @@ export default class extends BaseSchema {
       table.string('path',120)
       table.integer('books_id').notNullable().unsigned().references('books.id').onDelete('CASCADE')
 
-      table.primary(['id','companies_id'])
+      table.primary(['id', 'companies_id'])
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */

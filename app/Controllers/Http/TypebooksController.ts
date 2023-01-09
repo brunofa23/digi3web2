@@ -8,6 +8,9 @@ import Schema from '@ioc:Adonis/Lucid/Schema'
 import {schema} from '@ioc:Adonis/Core/Validator'
 import { authenticate } from '@google-cloud/local-auth'
 
+const authorize = require('App/Services/googleDrive/googledrive')
+
+
 export default class TypebooksController {
 
 
@@ -21,6 +24,10 @@ export default class TypebooksController {
     try {
       await Company.findByOrFail('id',  authenticate.companies_id)
       const data = await Typebook.create(body)
+
+      //let parent = await authorize.sendSearchFile(data.path)
+
+
       response.status(201)
       return {
         message: "Criado com sucesso",

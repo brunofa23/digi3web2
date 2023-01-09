@@ -15,7 +15,7 @@ const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 
 const TOKEN_PATH = Application.configPath('tokens/token.json')
-const CREDENTIALS_PATH =Application.configPath('/credentials/credentials.json')
+const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 
 console.log("TOKEN_PATH>>", TOKEN_PATH);
 
@@ -118,9 +118,6 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
 }
 
 async function createFolder(authClient, folderName) {
-
-
-
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   //verificar se já existe a pasta com esse nome
@@ -208,7 +205,7 @@ async function listFiles(authClient) {
 
 //****************************************************************** */
 async function sendAuthorize() {
-  const companies_id=1
+
   await authorize()
   return true
 }
@@ -235,5 +232,26 @@ async function sendSearchFile(fileName) {
   //authorize().then(searchFile).catch(console.error)
 }
 
+
+async function sendSearchOrCreateFolder(folderName, parent=undefined) {
+
+  const auth = await authorize()
+  let findFolder = await searchFile(auth, folderName)
+
+  if (findFolder.length > 0)
+    return findFolder
+    else
+    {
+      await createFolder(auth, folderName)
+      findFolder = await searchFile(auth, folderName)
+      return findFolder
+    }
+
+
+}
+
+
+
+
 //export default {sendListFiles, sendUploadFiles, sendAuthorize}
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile }
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder }

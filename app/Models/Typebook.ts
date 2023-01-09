@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import {
   afterSave,
   BaseModel,
+  beforeSave,
   column,
   HasMany,
   hasMany,
@@ -18,11 +19,11 @@ export default class Typebook extends BaseModel {
   public static get fillable() {
     return [
       'id',
-      'companies_id',
       'name',
       'status',
       'path',
       'books_id',
+      'companies_id',
       'createdAt',
       'updatedAt',
     ]
@@ -53,11 +54,10 @@ export default class Typebook extends BaseModel {
   public company: HasOne<typeof Company>
 
 
-
   @column({ isPrimary: true })
   public id: number
 
-  @column({isPrimary:true})
+  @column()
   public companies_id: number
 
   @column()
@@ -80,9 +80,13 @@ export default class Typebook extends BaseModel {
 
   @afterSave()
   public static async afterSaveHook(typebook: Typebook) {
-    typebook.path = `Book_${typebook.companies_id}.${typebook.id.toString()}.${typebook.name}`
+    const book = await Book.find(typebook.books_id)
+    typebook.path = `Client_${typebook.companies_id}.Book_${typebook.id}.${book?.namefolder}`
     await typebook.save()
+
   }
+
+
 
 
   /**

@@ -17,7 +17,7 @@ export default class extends BaseSeeder {
       {
         "companies_id": 1,
         "name": "Bruno",
-        "username": "bruno",
+        "username": "admin",
         "email": "teste@teste.br",
         "password":"12345",
         "remember_me_token": "bruno",
@@ -36,11 +36,11 @@ export default class extends BaseSeeder {
 
       {
         "companies_id": 2,
-        "name": "Carlos",
-        "username": "carlos",
+        "name": "Bruno",
+        "username": "admin",
         "email": "teste@teste.br",
         "password":"12345",
-        "remember_me_token": "12345",
+        "remember_me_token": "bruno",
         "status": 1,
       },
       {
