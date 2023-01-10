@@ -14,6 +14,7 @@ export default class User extends BaseModel {
       'email',
       'password',
       'remember_me_token',
+      'permission_level',
       'status',
       'createdAt',
       'updatedAt'
@@ -48,6 +49,9 @@ export default class User extends BaseModel {
 
   @column()
   public rememberMeToken: string | null
+
+  @column()
+  public permission_level: number
 
   @column()
   public status: Boolean

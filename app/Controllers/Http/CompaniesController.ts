@@ -23,8 +23,9 @@ export default class CompaniesController {
       const data = await Company.create(body)
       let parent = await authorize.sendSearchOrCreateFolder(data.foldername)
 
-      let parent1 = await authorize.sendSearchOrCreateFolder("teste", data.foldername)
+      //let parent1 = await authorize.sendSearchFile("ipva.pdf")
 
+      //return parent1
       response.status(201)
       return {
         message: "Criado com sucesso",

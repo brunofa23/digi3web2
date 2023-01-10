@@ -12,6 +12,7 @@ export default class extends BaseSeeder {
         "email": "teste@teste.br",
         "password":"12345",
         "remember_me_token": "12345",
+        "permission_level":1,
         "status": 1,
       },
       {
@@ -21,6 +22,7 @@ export default class extends BaseSeeder {
         "email": "teste@teste.br",
         "password":"12345",
         "remember_me_token": "bruno",
+        "permission_level" 5,
         "status": 1,
       },
       {
@@ -30,6 +32,7 @@ export default class extends BaseSeeder {
         "email": "teste@teste.br",
         "password":"12345",
         "remember_me_token": "12345",
+        "permission_level":5,
         "status": 1,
       },
 
@@ -41,6 +44,7 @@ export default class extends BaseSeeder {
         "email": "teste@teste.br",
         "password":"12345",
         "remember_me_token": "bruno",
+        "permission_level":5,
         "status": 1,
       },
       {
@@ -50,6 +54,7 @@ export default class extends BaseSeeder {
         "email": "teste@teste.br",
         "password":"12345",
         "remember_me_token": "12345",
+        "permission_level":5,
         "status": 1,
       }
 

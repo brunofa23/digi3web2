@@ -16,6 +16,7 @@ export default class extends BaseSchema {
       table.string('email', 255).notNullable()
       table.string('password', 180).notNullable()
       table.string('remember_me_token').nullable()
+      table.integer('permission_level').unsigned()
       table.boolean('status')
       /**
        * Uses timestampz for PostgreSQL and DATETIME2 for MSSQL

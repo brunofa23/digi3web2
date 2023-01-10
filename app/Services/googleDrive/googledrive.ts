@@ -158,11 +158,16 @@ async function searchFile(authClient, fileName) {
   console.log("CHEGUEI NA PESQUISA", fileName)
   const files: Object[] = []
 
+  const query = `name ='${fileName}' `
+
 
   try {
     const res = await drive.files.list({
-      q: `name ='${fileName}' `,
-      //q: "name = 'Nascimento' "
+      q: query //`name ='${fileName}' and name = 'ipva.pdf' 'teste' in parents `
+      //q: " name = 'Client_9' "
+      //q: " mimeType = 'application/vnd.google-apps.folder' and 'teste' in parents  "
+      //q: "parents in '1eX3jQ0dfKC5-X-YksRjeDePk4YOSWyX8' and name ='ipva.pdf' "
+      //q: "name = '12211ipva.pdf' "
     });
     Array.prototype.push.apply(files, res.files);
 

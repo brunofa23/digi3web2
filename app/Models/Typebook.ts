@@ -2,7 +2,6 @@ import { DateTime } from 'luxon'
 import {
   afterSave,
   BaseModel,
-  beforeSave,
   column,
   HasMany,
   hasMany,
