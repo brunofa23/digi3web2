@@ -25,6 +25,8 @@ export default class TypebooksController {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(body)
 
+      console.log(">>>typebook folder");
+
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
 
