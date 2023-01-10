@@ -326,7 +326,7 @@ export default class BookrecordsController {
 
     }
 
-    const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'companies_id'], bookrecords)
+    const data = await Bookrecord.updateOrCreateMany(['cod', 'book','books_id', 'companies_id'], bookrecords)
     return data.length
 
   }

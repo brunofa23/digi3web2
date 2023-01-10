@@ -17,8 +17,6 @@ const SCOPES = ['https://www.googleapis.com/auth/drive'];
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 
-console.log("TOKEN_PATH>>", TOKEN_PATH);
-
 function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);

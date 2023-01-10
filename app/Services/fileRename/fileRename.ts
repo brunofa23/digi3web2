@@ -28,12 +28,7 @@ function deleteImage(folderPath) {
 
 async function transformFilesNameToId(images, params, companies_id) {
 
-
-  // const folder = await authorize.sendCreateFolder("1")
-  // //let parent1 = await authorize.sendSearchFile("subTESTE")
-  // return folder
-
-
+  const _companies_id = companies_id
 
   let result: Object[] = []
   let query = ""
@@ -56,21 +51,21 @@ async function transformFilesNameToId(images, params, companies_id) {
     .where('typebooks_id', '=', params.typebooks_id)
     .andWhere('companies_id', '=', companies_id).first()
 
-
-
   if (!directoryParent || directoryParent == undefined)
     return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
 
-   const authorizeGoogle = await authorize.sendAuthorize()
 
-   //verifica se existe essa pasta no Google e retorna o id do google
-   let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+  const authorizeGoogle = await authorize.sendAuthorize()
+
+  //verifica se existe essa pasta no Google e retorna o id do google
+  let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
     //criar a pasta
-    await authorize.sendCreateFolder(directoryParent?.typebooks.path)
-
+    //await authorize.sendCreateFolder(directoryParent?.typebooks.path)
+    return "Erro: Esta pasta não existe no GoogleDrive"
   }
+
   await sleep(1000);
   const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
 
@@ -92,38 +87,40 @@ async function transformFilesNameToId(images, params, companies_id) {
       console.log("Error", image.errors);
     }
 
+
     if (image.clientName.toUpperCase().startsWith('L')) {
       let separators = ["L", '\'', '(', ')', '|', '-'];
       let arrayFileName = image.clientName.split(new RegExp('([' + separators.join('') + '])'));
       query = ` cod =${arrayFileName[4]} and book = ${arrayFileName[2]} `
 
+
       try {
         const name = await Bookrecord.query()
-          .preload('typebooks')
-          .where('typebooks_id', '=', params.typebooks_id)
-          .andWhere('companies_id', '=', this.companies_id)
-          .whereRaw(query)
+        .preload('typebooks')
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('companies_id', '=', _companies_id)
+        .whereRaw(query)
 
+        //return {teste:"cheguei aqui...", name, image: image.clientName}
 
-        //retorna o ultimo seq
-        const data = await Indeximage.query()
+          //retorna o ultimo seq
+          const data = await Indeximage.query()
           .where('bookrecords_id', name[0].id)
           .andWhere('typebooks_id', '=', params.typebooks_id)
-          .andWhere('companies_id', '=', this.companies_id)
+          .andWhere('companies_id', '=', _companies_id)
           .orderBy('seq', 'desc').first()
 
-        //return { teste: "teste", data }
+          console.log("passei aqui...")
 
         if (!data)
           this.seq = 0
         else
           this.seq = data.seq + 1
 
-
-        const fileName = `id${name[0].id}_${this.seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}_.${image.extname}`
+        const fileName = `id${name[0].id}_${this.seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}.${image.extname}`
         const bookrecords_id = name[0].id
         const typebooks_id = params.typebooks_id
-        const companies_id = this.companies_id
+        const companies_id = _companies_id
         const seq = this.seq
         const ext = image.extname
         const file_name = fileName
@@ -138,8 +135,6 @@ async function transformFilesNameToId(images, params, companies_id) {
           file_name,
           previous_file_name
         }
-
-        console.log("passei aqui...")
 
         if (image && image.isValid) {
           //copia o arquivo para servidor
@@ -164,8 +159,5 @@ async function transformFilesNameToId(images, params, companies_id) {
   return result.length
 
 }
-
-
-
 
 module.exports = { transformFilesNameToId }
