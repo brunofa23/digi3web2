@@ -5,7 +5,7 @@ import AuthenticationController from './AuthenticationController'
 import { Response } from '@adonisjs/core/build/standalone'
 import Schema from '@ioc:Adonis/Lucid/Schema'
 
-import {schema} from '@ioc:Adonis/Core/Validator'
+import { schema } from '@ioc:Adonis/Core/Validator'
 import { authenticate } from '@google-cloud/local-auth'
 
 const authorize = require('App/Services/googleDrive/googledrive')
@@ -22,14 +22,11 @@ export default class TypebooksController {
     body.companies_id = authenticate.companies_id
 
     try {
-      const company = await Company.findByOrFail('id',  authenticate.companies_id)
+      const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(body)
 
-      const idFolderCompany = await authorize.sendSearchOrCreateFolder(company.foldername)
-      await authorize.sendSearchOrCreateFolder(data.path,idFolderCompany )
-
-      //let parent = await authorize.sendSearchFile(data.path)
-
+      const idFolderCompany = await authorize.sendSearchFile(company.foldername)
+      await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
 
       response.status(201)
       return {
@@ -46,7 +43,7 @@ export default class TypebooksController {
 
   //listar livro
   public async index({ auth, request, response }) {
-    const {authenticate, companies_id} = await auth.use('api').authenticate()
+    const { authenticate, companies_id } = await auth.use('api').authenticate()
     const { name, status, books_id } = request.requestData
 
     if (!companies_id)
@@ -88,13 +85,13 @@ export default class TypebooksController {
 
   }
 
-//retorna um registro
-  public async show({auth, params, response }: HttpContextContract) {
+  //retorna um registro
+  public async show({ auth, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
-                .where("companies_id","=",authenticate.companies_id)
-                .andWhere('id',"=",params.id).firstOrFail()
+      .where("companies_id", "=", authenticate.companies_id)
+      .andWhere('id', "=", params.id).firstOrFail()
 
     return response.send(data)
 
@@ -102,35 +99,35 @@ export default class TypebooksController {
 
 
 
- //patch ou put
- public async update({auth, request, params }: HttpContextContract) {
+  //patch ou put
+  public async update({ auth, request, params }: HttpContextContract) {
 
-  const authenticate = await auth.use('api').authenticate()
-  const body = request.only(Typebook.fillable)
+    const authenticate = await auth.use('api').authenticate()
+    const body = request.only(Typebook.fillable)
 
-  body.id = params.id
-  body.companies_id = authenticate.companies_id
+    body.id = params.id
+    body.companies_id = authenticate.companies_id
 
-  const data = await Typebook.query()
-  .where("companies_id","=",authenticate.companies_id)
-  .andWhere('id',"=",params.id).update(body)
+    const data = await Typebook.query()
+      .where("companies_id", "=", authenticate.companies_id)
+      .andWhere('id', "=", params.id).update(body)
 
-  return {
-    message: 'Tipo de Livro atualizado com sucesso!!',
-    data: data,
-    body: body,
-    params: params.id
+    return {
+      message: 'Tipo de Livro atualizado com sucesso!!',
+      data: data,
+      body: body,
+      params: params.id
+    }
+
   }
 
-}
-
   //delete
-  public async destroy({auth, params }: HttpContextContract) {
+  public async destroy({ auth, params }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
     const data = await Typebook.query()
-    .where("companies_id","=",authenticate.companies_id)
-    .andWhere('id',"=",params.id).delete()
+      .where("companies_id", "=", authenticate.companies_id)
+      .andWhere('id', "=", params.id).delete()
 
     return {
       message: "Livro excluido com sucesso.",

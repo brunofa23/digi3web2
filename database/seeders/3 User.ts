@@ -7,22 +7,23 @@ export default class extends BaseSeeder {
     await User.createMany([
       {
         "companies_id": 1,
-        "name": "João",
-        "username": "joao",
-        "email": "teste@teste.br",
+        "name": "Administrador",
+        "username": "admin",
+        "email": "admin@digi3.com.br",
         "password":"12345",
         "remember_me_token": "12345",
-        "permission_level":1,
-        "status": 1,
+        "permission_level":5,
+        "superuser":1,
+        "status": 1
       },
-      {
+      /*{
         "companies_id": 1,
         "name": "Bruno",
         "username": "admin",
         "email": "teste@teste.br",
         "password":"12345",
         "remember_me_token": "bruno",
-        "permission_level" 5,
+        "permission_level": 5,
         "status": 1,
       },
       {
@@ -56,7 +57,7 @@ export default class extends BaseSeeder {
         "remember_me_token": "12345",
         "permission_level":5,
         "status": 1,
-      }
+      }*/
 
     ])
   }

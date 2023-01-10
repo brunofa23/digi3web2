@@ -5,7 +5,13 @@ const authorize = require('App/Services/googleDrive/googledrive')
 
 export default class CompaniesController {
 
-  public async index({ response }) {
+  public async index({auth, response }) {
+
+    const authenticate = await auth.use('api').authenticate()
+    if(!authenticate.superuser)
+      return "Não Possui privilégios para cadastrar empresa"
+
+
     const data = await Company
       .query()
       .preload('typebooks')
@@ -14,8 +20,11 @@ export default class CompaniesController {
 
 
   //inserir
-  public async store({ request, response }: HttpContextContract) {
+  public async store({auth, request, response }: HttpContextContract) {
 
+    const authenticate = await auth.use('api').authenticate()
+    if(!authenticate.superuser)
+      return "Não Possui privilégios para cadastrar empresa"
 
     const body = request.only(Company.fillable)
     //await request.validate(CreateCompanyValidator)
