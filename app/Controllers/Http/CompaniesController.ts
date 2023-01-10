@@ -16,6 +16,7 @@ export default class CompaniesController {
   //inserir
   public async store({ request, response }: HttpContextContract) {
 
+
     const body = request.only(Company.fillable)
     //await request.validate(CreateCompanyValidator)
     console.log("Passei pelo validator");
@@ -23,9 +24,6 @@ export default class CompaniesController {
       const data = await Company.create(body)
       let parent = await authorize.sendSearchOrCreateFolder(data.foldername)
 
-      //let parent1 = await authorize.sendSearchFile("ipva.pdf")
-
-      //return parent1
       response.status(201)
       return {
         message: "Criado com sucesso",

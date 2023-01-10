@@ -54,6 +54,9 @@ export default class User extends BaseModel {
   public permission_level: number
 
   @column()
+  public superuser: Boolean
+
+  @column()
   public status: Boolean
 
   @column.dateTime({ autoCreate: true })
