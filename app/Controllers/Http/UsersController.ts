@@ -21,7 +21,7 @@ export default class UsersController {
     const body = request.only(User.fillable)
 
     //********APENAS PARA USUÁRIO ADMIN NA EMPRESA 1 */
-    if(body.permission_level ==5)
+    if(body.username =='admin')
     {
       body.companies_id = 1
       const dataAdmin = await User.create(body)
@@ -30,7 +30,9 @@ export default class UsersController {
     }
 
     const authenticate = await auth.use('api').authenticate()
+
     body.companies_id =  authenticate.companies_id
+
     const data = await User.create(body)
 
     response.status(201)

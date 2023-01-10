@@ -1,6 +1,6 @@
 import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
-import { auth, file } from "googleapis/build/src/apis/file";
+import { auth } from "googleapis/build/src/apis/file";
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
@@ -117,30 +117,28 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
 
 }
 
-async function createFolder(authClient, folderName, parentId=undefined) {
+async function createFolder(authClient, folderName) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   //verificar se já existe a pasta com esse nome
-  // let parent = await sendSearchFile(folderName)
-  // //se não tiver a pasta vai criar
-  // if (parent.length > 0) {
-  //   //criar a pasta
-  //   //await authorize.sendCreateFolder(directoryParent?.typebooks.path)
-  //   return parent.id
+  let parent = await sendSearchFile(folderName)
+  //se não tiver a pasta vai criar
+  if (parent.length > 0) {
+    //criar a pasta
+    //await authorize.sendCreateFolder(directoryParent?.typebooks.path)
+    return parent.id
 
-  // }
-
+  }
 
   const fileMetadata = {
     name: folderName,
     mimeType: 'application/vnd.google-apps.folder',
-    parents: [parentId],
+    //parents: ["1R7NFKUKH1058KT93Iz_Polkfkm5-RFeI"],
   };
-
-  console.log(">>>>fileMetadata", fileMetadata)
 
 
   try {
+    console.log("entrei create folder")
     const file = await drive.files.create({
       resource: fileMetadata,
       fields: 'id',
@@ -154,55 +152,18 @@ async function createFolder(authClient, folderName, parentId=undefined) {
 
 }
 
-// async function searchFile(authClient, fileName) {
-//   const drive = google.drive({ version: 'v3', auth: authClient });
-
-//   console.log("CHEGUEI NA PESQUISA", fileName)
-//   const files: Object[] = []
-
-//   const query = `name ='${fileName}' `
-
-
-//   try {
-//     const res = await drive.files.list({
-//       q: query //`name ='${fileName}' and name = 'ipva.pdf' 'teste' in parents `
-//       //q: " name = 'Client_9' "
-//       //q: " mimeType = 'application/vnd.google-apps.folder' and 'teste' in parents  "
-//       //q: "parents in '1eX3jQ0dfKC5-X-YksRjeDePk4YOSWyX8' and name ='ipva.pdf' "
-//       //q: "name = '12211ipva.pdf' "
-//     });
-//     Array.prototype.push.apply(files, res.files);
-
-//     res.data.files.forEach(function (file) {
-//       console.log('Found file:', file.name, file.id);
-//       files.push({ name: file.name, id: file.id })
-//     });
-
-//     return res.data.files
-//     //return files
-
-//   } catch (error) {
-
-//     throw error;
-//   }
-
-
-// }
-async function searchFile(authClient, fileName, parent = "") {
+async function searchFile(authClient, fileName) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   console.log("CHEGUEI NA PESQUISA", fileName)
   const files: Object[] = []
 
-  let query = `name ='${fileName}' `
-  if (parent) {
-    query += ` and parents in '${parent}' `
-  }
+  const query = `name ='${fileName}' `
+
 
   try {
     const res = await drive.files.list({
-      q: query
-      //`name ='${fileName}' and name = 'ipva.pdf' 'teste' in parents `
+      q: query //`name ='${fileName}' and name = 'ipva.pdf' 'teste' in parents `
       //q: " name = 'Client_9' "
       //q: " mimeType = 'application/vnd.google-apps.folder' and 'teste' in parents  "
       //q: "parents in '1eX3jQ0dfKC5-X-YksRjeDePk4YOSWyX8' and name ='ipva.pdf' "
@@ -225,6 +186,7 @@ async function searchFile(authClient, fileName, parent = "") {
 
 
 }
+
 
 async function listFiles(authClient) {
   console.log("authClient", authClient);
@@ -264,11 +226,9 @@ async function sendUploadFiles(parent, folderPath, fileName) {
   //authorize().then(uploadFiles).catch(console.error)
 }
 
-async function sendCreateFolder(folderName, parentId) {
+async function sendCreateFolder(folderName) {
   const auth = await authorize()
-
-  console.log(">>>foldername", folderName, "parent", parentId);
-  await createFolder(auth, folderName, parentId)
+  createFolder(auth, folderName)
 }
 
 async function sendSearchFile(fileName) {
@@ -278,23 +238,19 @@ async function sendSearchFile(fileName) {
 }
 
 
-async function sendSearchOrCreateFolder(folderName, parentId = undefined) {
-
+async function sendSearchOrCreateFolder(folderName, parent=undefined) {
 
   const auth = await authorize()
-  let findFolder = await searchFile(auth, folderName, parentId)
-
-  //return
+  let findFolder = await searchFile(auth, folderName)
 
   if (findFolder.length > 0)
-  return findFolder
-  else {
-
-    console.log("FINDFOLDER>>>", findFolder, "foldername::", folderName, "parentId", parentId);
-    await createFolder(auth, folderName, parentId)
-    findFolder = await searchFile(auth, folderName, parentId)
     return findFolder
-  }
+    else
+    {
+      await createFolder(auth, folderName)
+      findFolder = await searchFile(auth, folderName)
+      return findFolder
+    }
 
 
 }
