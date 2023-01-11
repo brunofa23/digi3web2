@@ -115,7 +115,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
 
 }
 
-async function createFolder(authClient, folderName, parentId=undefined) {
+async function createFolder(authClient, folderName, parentId = undefined) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   //verificar se já existe a pasta com esse nome
@@ -129,8 +129,8 @@ async function createFolder(authClient, folderName, parentId=undefined) {
   // }
 
   var _parentId = []
-  if(parentId)
-     _parentId = [parentId]
+  if (parentId)
+    _parentId = [parentId]
 
   const fileMetadata = {
     name: folderName,
@@ -154,17 +154,17 @@ async function createFolder(authClient, folderName, parentId=undefined) {
 
 }
 
-async function searchFile(authClient, fileName, parentId=undefined) {
+async function searchFile(authClient, fileName, parentId = undefined) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
-  console.log("CHEGUEI NA PESQUISA searcfile", fileName,"parent", parentId)
+  console.log("CHEGUEI NA PESQUISA searcfile", fileName, "parent", parentId)
   const files: Object[] = []
 
   let query = `name ='${fileName}' `
-  if(parentId)
-    query +=` and parents in '${parentId}'`
+  if (parentId)
+    query += ` and parents in '${parentId}'`
 
-   console.log(">>>QUERY", query);
+  console.log(">>>QUERY", query);
 
 
   try {
@@ -214,6 +214,29 @@ async function listFiles(authClient) {
 }
 
 
+async function downloadFile(authClient, fileId) {
+
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  //fileId = realFileId;
+  console.log(">>>>>>DOWNLOAD");
+
+  try {
+    const file = await drive.files.get({
+      fileId: fileId,
+      alt: 'media',
+    });
+
+    console.log(">>FILE:",file);
+    return file;
+  } catch (err) {
+    // TODO(developer) - Handle error
+    throw err;
+  }
+}
+
+
+
 //****************************************************************** */
 async function sendAuthorize() {
 
@@ -232,37 +255,40 @@ async function sendUploadFiles(parent, folderPath, fileName) {
   //authorize().then(uploadFiles).catch(console.error)
 }
 
-async function sendCreateFolder(folderName, parentId=undefined) {
+async function sendCreateFolder(folderName, parentId = undefined) {
   const auth = await authorize()
   createFolder(auth, folderName, parentId)
 }
 
-async function sendSearchFile(fileName, parentId=undefined) {
+async function sendSearchFile(fileName, parentId = undefined) {
   const auth = await authorize()
   return searchFile(auth, fileName, parentId)
   //authorize().then(searchFile).catch(console.error)
 }
 
 
-async function sendSearchOrCreateFolder(folderName, parent=undefined) {
+async function sendSearchOrCreateFolder(folderName, parent = undefined) {
 
   const auth = await authorize()
   let findFolder = await searchFile(auth, folderName)
 
   if (findFolder.length > 0)
     return findFolder
-    else
-    {
-      await createFolder(auth, folderName)
-      findFolder = await searchFile(auth, folderName)
-      return findFolder
-    }
+  else {
+    await createFolder(auth, folderName)
+    findFolder = await searchFile(auth, folderName)
+    return findFolder
+  }
 
 
+}
+
+async function sendDownloadFile(fileId) {
+  const auth = await authorize()
+  return downloadFile(auth, fileId)
 }
 
 
 
 
-//export default {sendListFiles, sendUploadFiles, sendAuthorize}
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder }
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile }

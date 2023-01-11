@@ -7,6 +7,8 @@ import Typebook from "App/Models/Typebook";
 import { file } from "googleapis/build/src/apis/file";
 import Application from '@ioc:Adonis/Core/Application'
 import { Auth } from "googleapis";
+import Company from 'App/Models/Company'
+
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -54,16 +56,18 @@ async function transformFilesNameToId(images, params, companies_id) {
   if (!directoryParent || directoryParent == undefined)
     return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
 
-
-  const authorizeGoogle = await authorize.sendAuthorize()
+  //const authorizeGoogle = await authorize.sendAuthorize()
 
   //verifica se existe essa pasta no Google e retorna o id do google
   let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
     //criar a pasta
-    //await authorize.sendCreateFolder(directoryParent?.typebooks.path)
-    return "Erro: Esta pasta não existe no GoogleDrive"
+    const company = await Company.findByOrFail('id', _companies_id)
+    const idFolderCompany = await authorize.sendSearchFile(company.foldername)
+    await authorize.sendCreateFolder(directoryParent?.typebooks.path, idFolderCompany[0].id )
+    await sleep(2000)
+    //return "Erro: Esta pasta não existe no GoogleDrive"
   }
 
   await sleep(1000);
@@ -100,8 +104,6 @@ async function transformFilesNameToId(images, params, companies_id) {
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('companies_id', '=', _companies_id)
         .whereRaw(query)
-
-        //return {teste:"cheguei aqui...", name, image: image.clientName}
 
           //retorna o ultimo seq
           const data = await Indeximage.query()
@@ -160,4 +162,12 @@ async function transformFilesNameToId(images, params, companies_id) {
 
 }
 
-module.exports = { transformFilesNameToId }
+async function downloadImage(fileName, companies_id)
+{
+  const fileId = await authorize.sendSearchFile(fileName)
+  console.log(fileId)
+  const download = await authorize.sendDownloadFile(fileId[0].id)
+  return download
+}
+
+module.exports = { transformFilesNameToId, downloadImage }

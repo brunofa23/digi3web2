@@ -5,7 +5,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import { Response } from '@adonisjs/core/build/standalone'
 import Bookrecord from 'App/Models/Bookrecord'
 
-const FileRename = require ('../../Services/fileRename/fileRename')
+const FileRename = require('../../Services/fileRename/fileRename')
 
 export default class IndeximagesController {
 
@@ -80,7 +80,7 @@ export default class IndeximagesController {
 
   }
 
-  public async uploads({auth, request, params}:HttpContextContract) {
+  public async uploads({ auth, request, params }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
 
@@ -95,10 +95,20 @@ export default class IndeximagesController {
     return files
     console.log("FINALIZADO!!!");
 
-    //return images
-    //return {files, length: files.length}
 
-   }
+  }
 
 
+  public async download({ auth, request, params }: HttpContextContract) {
+
+    const imageName = "id1051_1(51)_6_1_25__F_3.jpeg"
+
+    const authenticate = await auth.use('api').authenticate()
+    const download = await FileRename.downloadImage(imageName, authenticate.companies_id)
+
+    return download
+
+  }
+
+  //*************************************************************** */
 }
