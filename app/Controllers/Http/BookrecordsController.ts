@@ -8,6 +8,8 @@ import Indeximage from 'App/Models/Indeximage'
 export default class BookrecordsController {
 
   //Listar Bookrecords
+  console.log(">>>entrei bookrecord");
+
   public async index({auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
@@ -79,6 +81,7 @@ export default class BookrecordsController {
       .whereRaw(query)
       .paginate(page, limit)
 
+      console.log(">>>sai bookrecord");
     return response.send(data)
 
   }

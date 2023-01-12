@@ -35,7 +35,7 @@ export default class AuthenticationController {
     })
     console.log(token);
 
-    return token
+    return token//{token, user}
 
   }
 
