@@ -15,7 +15,7 @@ export default class AuthenticationController {
 
     const user = await User
       .query()
-      .select(' users.* ',)
+
       .preload('company')
       .join('companies', `companies_id`, '=', 'companies.id')
       .where('username', username)
@@ -35,7 +35,7 @@ export default class AuthenticationController {
     })
     console.log(token);
 
-    return token//{token, user}
+    return {token, user}
 
   }
 

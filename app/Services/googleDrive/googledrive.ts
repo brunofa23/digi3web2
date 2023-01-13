@@ -220,14 +220,34 @@ async function downloadFile(authClient, fileId) {
 
   //fileId = realFileId;
   console.log(">>>>>>DOWNLOAD");
-
   try {
     const file = await drive.files.get({
       fileId: fileId,
-      alt: 'media',
-    });
+      //mimeType: "text/plain",
+      alt: 'media'
+    },
+      {
+        responseType: 'arraybuffer',
+        encoding: null
+      }
 
-    console.log(">>FILE:",file);
+    );
+
+
+    //console.log(base64)
+    //return base64
+
+
+    var imageType = file.headers['content-type'];
+    const base64 = Buffer.from(file.data, "utf8").toString("base64")
+    var dataURI = 'data:' + imageType + ';base64,' + base64;
+
+    return dataURI
+    //console.log(dataURI);
+
+
+
+    //console.log(">>FILE:",file);
     return file;
   } catch (err) {
     // TODO(developer) - Handle error
