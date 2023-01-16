@@ -99,14 +99,15 @@ export default class IndeximagesController {
   }
 
 
-  public async download({ auth, request, params }: HttpContextContract) {
+  public async download({ auth, params }: HttpContextContract) {
 
-    const imageName = "id1051_1(51)_6_1_25__F_3.jpeg"
+    const fileName = params.id
 
     const authenticate = await auth.use('api').authenticate()
-    const download = await FileRename.downloadImage(imageName, authenticate.companies_id)
+    const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id)
 
-    return download
+    
+    return fileDownload
 
   }
 

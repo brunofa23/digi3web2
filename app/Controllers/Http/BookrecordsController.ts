@@ -8,9 +8,8 @@ import Indeximage from 'App/Models/Indeximage'
 export default class BookrecordsController {
 
   //Listar Bookrecords
-  console.log(">>>entrei bookrecord");
+  public async index({ auth, request, params, response }: HttpContextContract) {
 
-  public async index({auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
@@ -78,10 +77,10 @@ export default class BookrecordsController {
       .where("companies_id", '=', authenticate.companies_id)
       .andWhere("typebooks_id", '=', params.typebooks_id)
       .preload('indeximage')
-      .whereRaw(query)
+      .whereRaw(query)//.toQuery()
       .paginate(page, limit)
 
-      console.log(">>>sai bookrecord");
+    console.log(">>>sai bookrecord");
     return response.send(data)
 
   }
@@ -117,7 +116,7 @@ export default class BookrecordsController {
     }
   }
 
-  public async destroyManyBookRecords({auth, request }: HttpContextContract) {
+  public async destroyManyBookRecords({ auth, request }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
 
@@ -136,13 +135,13 @@ export default class BookrecordsController {
 
       //deleção tabela index images
       const dataIndexImages = await Indeximage.query().delete()
-          .whereIn("bookrecords_id",
-            Database.from('bookrecords').select('id').where('typebooks_id', '=', typebook_id).whereRaw(query)
-            )
+        .whereIn("bookrecords_id",
+          Database.from('bookrecords').select('id').where('typebooks_id', '=', typebook_id).whereRaw(query)
+        )
       //delete from indeximages where bookrecords_id in (select id from bookrecords where `typebooks_id` = 7 and 1 = 1 and book=1 and cod>=1 and cod <=3)
 
       const data = await Bookrecord.query().where('typebooks_id', '=', typebook_id).whereRaw(query).delete()
-      return {dataIndexImages, data }
+      return { dataIndexImages, data }
     }
   }
 
@@ -174,71 +173,78 @@ export default class BookrecordsController {
   }
 
 
-  // public async createorupdatebookrecord({ request }) {
+  public async createorupdatebookrecords({ auth, request, params }) {
+
+    
+    const authenticate = await auth.use('api').authenticate()
+
+    const _request = request.requestBody
+    let newRecord: Object[] = []
+    let updateRecord: Object[] = []
+
+    for (const iterator of _request) {
+
+      if (!iterator.id) {
+        newRecord.push({
+          typebooks_id: iterator.typebooks_id,
+          books_id: iterator.books_id,
+          companies_id: authenticate.companies_id,
+          cod: iterator.cod,
+          book: iterator.book,
+          sheet: iterator.sheet,
+          side: iterator.side,
+          approximate_term: iterator.approximate_term,
+          index: iterator.index,
+          obs: iterator.obs,
+          letter: iterator.letter,
+          year: iterator.year,
+          model: iterator.model
+        })
+        console.log("NEW iterator:::", newRecord)
+
+      }
+
+      else {
+        updateRecord.push({
+          id: iterator.id,
+          typebooks_id: iterator.typebooks_id,
+          books_id: iterator.books_id,
+          companies_id: authenticate.companies_id,
+          cod: iterator.cod,
+          book: iterator.book,
+          sheet: iterator.sheet,
+          side: iterator.side,
+          approximate_term: iterator.approximate_term,
+          index: iterator.index,
+          obs: iterator.obs,
+          letter: iterator.letter,
+          year: iterator.year,
+          model: iterator.model
+        })
+
+        console.log("UPDATE iterator:::", updateRecord)
+      }
 
 
-  //   console.log(request.requestBody)
-
-  //   const _request = request.requestBody
-  //   let newRecord: Object[] = []
-  //   let updateRecord: Object[] = []
-
-  //   for (const iterator of _request) {
-
-  //     if (!iterator.id)
-  //       newRecord.push({
-  //         typebooks_id: iterator.typebooks_id,
-  //         books_id: iterator.books_id,
-  //         companies_id: iterator.companies_id,
-  //         cod: iterator.cod,
-  //         book: iterator.book,
-  //         sheet: iterator.sheet,
-  //         side: iterator.side,
-  //         approximate_term: iterator.approximate_term,
-  //         index: iterator.index,
-  //         obs: iterator.obs,
-  //         letter: iterator.letter,
-  //         year: iterator.year,
-  //         model: iterator.model
-  //       })
-  //     else
-  //       updateRecord.push({
-  //         id: iterator.id,
-  //         typebooks_id: iterator.typebooks_id,
-  //         books_id: iterator.books_id,
-  //         companies_id: iterator.companies_id,
-  //         cod: iterator.cod,
-  //         book: iterator.book,
-  //         sheet: iterator.sheet,
-  //         side: iterator.side,
-  //         approximate_term: iterator.approximate_term,
-  //         index: iterator.index,
-  //         obs: iterator.obs,
-  //         letter: iterator.letter,
-  //         year: iterator.year,
-  //         model: iterator.model
-  //       })
-
-  //   }
-
-  //   console.log("NEW iterator:::", newRecord)
-  //   console.log("UPDATE iterator:::", updateRecord)
-
-  //   await Bookrecord.createMany(newRecord)
-  //   await Bookrecord.updateOrCreateMany('id', updateRecord)
-  //   return "sucesso!!"
+    }
 
 
-  // }
+    await Bookrecord.createMany(newRecord)
+    await Bookrecord.updateOrCreateMany('id', updateRecord)
+    return "sucesso!!"
+
+
+  }
 
 
   //gera ou substitui um livro
 
 
   //MODIFICAR ESSE MÉTODO >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-  public async generateOrUpdateBookrecords({auth, request, params }: HttpContextContract) {
+  public async generateOrUpdateBookrecords({ auth, request, params }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
+    //    return "generate"
 
     let {
       generateBooks_id,
@@ -329,11 +335,11 @@ export default class BookrecordsController {
 
     }
 
-    const data = await Bookrecord.updateOrCreateMany(['cod', 'book','books_id', 'companies_id'], bookrecords)
+    const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
     return data.length
 
   }
 
 
-//********************************************************* */
+  //********************************************************* */
 }
