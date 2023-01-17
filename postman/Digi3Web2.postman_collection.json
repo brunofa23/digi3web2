@@ -1,0 +1,1257 @@
+{
+	"info": {
+		"_postman_id": "4fd92cf4-ad6e-42cc-b2e5-22c2a26e31e3",
+		"name": "Digi3Web2",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "3074133"
+	},
+	"item": [
+		{
+			"name": "Books",
+			"item": [
+				{
+					"name": "Get",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"id\":4,\r\n    \"name\":\"ÓBITO\",\r\n    \"status\":0\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/books",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"books"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Typebooks",
+			"item": [
+				{
+					"name": "Get OK",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer Mw.OCbIkNQCY2bJ_Wfu3eVSPqWFowszlbML4dNW6k7WMHLj082fhEvelYqVkfSw",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Post OK",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer Mw.OCbIkNQCY2bJ_Wfu3eVSPqWFowszlbML4dNW6k7WMHLj082fhEvelYqVkfSw",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"LIVRO OBITO\",\r\n    \"status\": 1,\r\n    \"books_id\":4\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update OK",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer MTA.Bq4-sTdpx79UKu5Ikp_HXmfo3NV-lkwXxQPUsFLVzdW4Fkg0sIIuzCIiLdvn",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\": \"Livro E TOKEN\",\r\n    \"status\": 1,\r\n    \"path\": \"LIVROE\",\r\n    \"books_id\": 6\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks/1",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete OK",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer MTE.sc6YG_pvLdmk3GpyPlQ0dCV16qjF5VhHE4eUltkhrN-iMPXbCWzDxMDes9lU",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n            \"id\": 5,\r\n            \"name\": \"CASAMENTO\",\r\n            \"status\": 0\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks/3",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks",
+								"3"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Bookrecords",
+			"item": [
+				{
+					"name": "Get",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer Mg.H7lKvxdoqXE-ua18ugdy4vxJfft_v6-ZJBwKBF4r3L-zCusr94fDb8Ju0z6v",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks/4/bookrecords",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks",
+								"4",
+								"bookrecords"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Post",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"typebooks_id\": 6,\r\n    \"books_id\": 3,\r\n    \"cod\": 4,\r\n    \"book\": 1,\r\n    \"sheet\": 4,\r\n    \"side\": \"F\",\r\n    \"approximate_term\": null,\r\n    \"index\": 0,\r\n    \"obs\": null,\r\n    \"letter\": null,\r\n    \"year\": null,\r\n    \"model\": null,\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/companies/1/typebook/2/bookrecords",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"companies",
+								"1",
+								"typebook",
+								"2",
+								"bookrecords"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "generateOrUpdateBookRecords",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer Mzk.DNJgT1_YOFu6sZo0_XKFGEbV5o37LpxEJ-2iCnj8-fYkEjuhslg5s21UA_Wo",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"generateBooks_id\": 4,\r\n    \"generateBook\": 1,\r\n    \"generateStartCode\": 1,\r\n    \"generateEndCode\": 100,\r\n    \"generateStartSheetInCodReference\": 3,\r\n    \"generateEndSheetInCodReference\": 98,\r\n    \"generateSheetIncrement\": 2,\r\n    \"generateSideStart\": \"F\",\r\n    \"generateAlternateOfSides\": \"F\",\r\n    \"generateApproximate_term\": 1,\r\n    \"generateApproximate_termIncrement\": 1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks/1/bookrecords/generateorupdatebookrecords",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks",
+								"1",
+								"bookrecords",
+								"generateorupdatebookrecords"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete - destroyManyBookRecords",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"typebook_id\":6,\r\n    \"book\": 1,\r\n    \"codIni\":1,\r\n    \"codFim\":10\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/bookrecords/destroymanybookrecords",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"bookrecords",
+								"destroymanybookrecords"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Post Copy",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"typebooks_id\": 6,\r\n    \"books_id\": 3,\r\n    \"cod\": 4,\r\n    \"book\": 1,\r\n    \"sheet\": 4,\r\n    \"side\": \"F\",\r\n    \"approximate_term\": null,\r\n    \"index\": 0,\r\n    \"obs\": null,\r\n    \"letter\": null,\r\n    \"year\": null,\r\n    \"model\": null,\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://127.0.0.1:3333/api/bookrecords/updateorcreatemany",
+							"protocol": "http",
+							"host": [
+								"127",
+								"0",
+								"0",
+								"1"
+							],
+							"port": "3333",
+							"path": [
+								"api",
+								"bookrecords",
+								"updateorcreatemany"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "uploadGoogle",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"warning": "This is a duplicate header and will be overridden by the Content-Type header generated by Postman.",
+								"key": "Content-Type",
+								"value": "multipart/form-data",
+								"type": "text"
+							},
+							{
+								"key": "",
+								"value": "",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/C:/Users/Notebook-Bruno/OneDrive/Imagens/placaVGA - Copia.jpg"
+								}
+							]
+						},
+						"url": {
+							"raw": "https://www.googleapis.com/upload/drive/v3/files",
+							"protocol": "https",
+							"host": [
+								"www",
+								"googleapis",
+								"com"
+							],
+							"path": [
+								"upload",
+								"drive",
+								"v3",
+								"files"
+							],
+							"query": [
+								{
+									"key": "uploadType",
+									"value": "media",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Records",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "bearer NDE.ZFYXkHWULD6IwipUxfOJN4Qi37JTuhemepArodzNwBT7NeFAHMO8d2FJH6Km",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"id\": 2,\r\n    \"name\": \"CASAMENTO XXX(LIVRO B)\",\r\n    \"status\": 1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks/1/bookrecords/createorupdatebookrecords",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks",
+								"1",
+								"bookrecords",
+								"createorupdatebookrecords"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Indeximages",
+			"item": [
+				{
+					"name": "Get",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{URL}}/indeximages",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"indeximages"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"warning": "This is a duplicate header and will be overridden by the Content-Type header generated by Postman.",
+								"key": "Content-Type",
+								"value": "multipart/form-data",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "images",
+									"type": "file",
+									"src": [
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(1).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(2).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(3).jpeg"
+									]
+								},
+								{
+									"key": "",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks/7/indeximages/uploads",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks",
+								"7",
+								"indeximages",
+								"uploads"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "uploads",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"warning": "This is a duplicate header and will be overridden by the Content-Type header generated by Postman.",
+								"key": "Content-Type",
+								"value": "multipart/form-data",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer Mw.OCbIkNQCY2bJ_Wfu3eVSPqWFowszlbML4dNW6k7WMHLj082fhEvelYqVkfSw",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "images",
+									"type": "file",
+									"src": [
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(1).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(2).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(3).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(4).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(5).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(6).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(7).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(8).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(9).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(10).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(11).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(12).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(13).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(14).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(15).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(16).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(17).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(18).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(19).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(20).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(21).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(22).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(23).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(24).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(25).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(26).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(27).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(28).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(29).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(30).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(31).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(32).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(33).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(34).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(35).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(36).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(37).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(38).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(39).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(40).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(41).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(42).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(43).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(44).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(45).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(46).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(47).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(48).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(49).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(50).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(51).jpeg"
+									]
+								},
+								{
+									"key": "",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks/3/bookrecords/indeximages/uploads",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks",
+								"3",
+								"bookrecords",
+								"indeximages",
+								"uploads"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "uploads Copy",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"warning": "This is a duplicate header and will be overridden by the Content-Type header generated by Postman.",
+								"key": "Content-Type",
+								"value": "multipart/form-data",
+								"type": "text"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer NQ.AGcdON1fzlciR4aJUPuLUwPr5LxJA10aSJLENRy0KzAkIZ8ruMr26pX9KZgF",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "images",
+									"type": "file",
+									"src": [
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(1).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(2).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(3).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(4).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(5).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(6).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(7).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(8).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(9).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(10).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(11).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(12).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(13).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(14).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(15).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(16).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(17).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(18).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(19).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(20).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(21).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(22).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(23).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(24).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(25).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(26).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(27).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(28).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(29).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(30).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(31).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(32).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(33).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(34).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(35).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(36).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(37).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(38).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(39).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(40).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(41).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(42).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(43).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(44).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(45).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(46).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(47).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(48).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(49).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(50).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(51).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(52).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(53).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(54).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(55).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(56).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(57).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(58).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(59).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(60).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(61).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(62).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(63).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(64).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(65).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(66).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(67).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(68).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(69).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(70).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(71).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(72).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(73).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(74).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(75).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(76).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(77).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(78).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(79).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(80).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(81).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(82).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(83).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(84).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(85).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(86).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(87).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(88).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(89).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(90).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(91).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(92).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(93).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(94).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(95).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(96).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(97).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(98).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(99).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(100).jpeg",
+										"/C:/Users/Notebook-Bruno/OneDrive/Imagens/testePostman/L1(101).jpeg"
+									]
+								},
+								{
+									"key": "",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/typebooks/4/bookrecords/indeximages/uploads",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"typebooks",
+								"4",
+								"bookrecords",
+								"indeximages",
+								"uploads"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "download",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "multipart/form-data",
+								"type": "text",
+								"disabled": true
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer Mw.OCbIkNQCY2bJ_Wfu3eVSPqWFowszlbML4dNW6k7WMHLj082fhEvelYqVkfSw",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "images",
+									"type": "file",
+									"src": [],
+									"disabled": true
+								},
+								{
+									"key": "",
+									"value": "",
+									"type": "text",
+									"disabled": true
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/indeximages/download",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"indeximages",
+								"download"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    \"bookrecords_id\": 3,\r\n    \"typebooks_id\": 8,\r\n    \"seq\": 2,\r\n    \"ext\": \"jgp\",\r\n    \"file_name\": \"teste UPDATE\",\r\n    \"previous_file_name\": \"teste UPDATE\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/indeximages/3/3/2",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"indeximages",
+								"3",
+								"3",
+								"2"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Companies",
+			"item": [
+				{
+					"name": "Get",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "bearer MQ.fsXoZWvepQu5FGaldvU3-ABft4vKX-m9y5NVfBu1GI8tnBeGivIXaYhfJMBr",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{URL}}/companies",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"companies"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Post",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "bearer MjM.t6btb7Tlnrl1ka7EqB0QFbihImp1Db6NFRMdvdj-wV8fJnwMpIhFW1IwVwBZ",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \r\n    \"name\": \"Cartório DURVAL DE BARROS\",\r\n    \"shortname\": \"DURVAL\",\r\n    \"address\": \"Rua Hum\",\r\n    \"number\": \"250\",\r\n    \"complement\": \"\",\r\n    \"cep\": \"\",\r\n    \"district\": \"Centro\",\r\n    \"city\": \"Teste\",\r\n    \"state\": \"MG\",\r\n    \"cnpj\": 3232323211123232,\r\n    \"responsablename\": \"Maria\",\r\n    \"phoneresponsable\": \"\",\r\n    \"email\": \"teste@teste.com.br\",\r\n    \r\n    \"status\": 1\r\n    \r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/companies",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"companies"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update",
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "        {\r\n            \"id\": 2\r\n            \r\n        }\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/companies/2",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"companies",
+								"2"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "username",
+									"value": "admin1",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "12345",
+									"type": "text"
+								},
+								{
+									"key": "shortname",
+									"value": "setelagoas",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/login",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login Admin",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "username",
+									"value": "admin",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "12345",
+									"type": "text"
+								},
+								{
+									"key": "shortname",
+									"value": "digi3",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/login",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verificacao login",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer ",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Bruno",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "teste@teste.com.br",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "12345",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/dashboard",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"dashboard"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer Mg.COedjKNrq4cWH_RLUamvNux_erulgc4u667T9XO-m04aWdJ9gtUxcNvUvQ38",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Bruno",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "teste@teste.com.br",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "12345",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/logout",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get Users",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer Nw.uelXX4VmQVwEOgmdP4FnvTdpUe84MfPRWcLQY-KCGp1R7Nc2Um-FrnRW_6i5",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "name",
+									"value": "Bruno",
+									"type": "text"
+								},
+								{
+									"key": "email",
+									"value": "teste@teste.com.br",
+									"type": "text"
+								},
+								{
+									"key": "password",
+									"value": "12345",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{URL}}/users?",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"users"
+							],
+							"query": [
+								{
+									"key": "",
+									"value": null
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Post Users",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "bearer MjM.t6btb7Tlnrl1ka7EqB0QFbihImp1Db6NFRMdvdj-wV8fJnwMpIhFW1IwVwBZ",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\":\"DURVAL 1\",\r\n    \"username\":\"durval1\",\r\n    \"email\":\"teste@teste.br\",\r\n    \"password\":\"12345\",\r\n    \"remember_me_token\":\"12345\",\r\n    \"status\":1,\r\n    \"companies_id\":3\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/users",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"users"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Patch Users",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer ",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"companies_id\":1,\r\n    \"name\":\"Bruno\",\r\n    \"username\":\"bruno\",\r\n    \"email\":\"teste@teste.com.br\",\r\n    \"password\":\"12345678\",\r\n    \"remember_me_token\":\"12345678\",\r\n    \"status\":1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{URL}}/companies/1/users/10",
+							"host": [
+								"{{URL}}"
+							],
+							"path": [
+								"companies",
+								"1",
+								"users",
+								"10"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Test",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{URL}}/test",
+					"host": [
+						"{{URL}}"
+					],
+					"path": [
+						"test"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "URL",
+			"value": "http://127.0.0.1:3333/api",
+			"type": "string"
+		}
+	]
+}
