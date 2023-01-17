@@ -6,3 +6,5 @@ coverage
 .env
 tmp
 .history
+
+docker_volumes
