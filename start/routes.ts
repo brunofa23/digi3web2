@@ -17,7 +17,7 @@ Route.group(() => {
   Route.resource("/companies", 'CompaniesController').apiOnly()
 
   //TYPEBOOKS
-  Route.resource("/typebooks", 'TypebooksController').apiOnly
+  Route.resource("/typebooks", 'TypebooksController').apiOnly()
 
   //BOOKRECORDS
   Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
