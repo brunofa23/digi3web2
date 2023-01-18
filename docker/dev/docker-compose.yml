@@ -1,0 +1,19 @@
+version: "3.4"
+
+services:
+
+  mysql:
+    image: mysql:8.0.28
+    container_name: mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: DEV_DIGI3
+      MYSQL_USER: user_db
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_PASSWORD: password
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    volumes:
+      - ../../../docker_volumes_digi3/mysql:/var/lib/mysql
+    ports:
+      - 3306:3306

@@ -16,16 +16,17 @@ export default class extends BaseSeeder {
         "superuser":1,
         "status": 1
       },
-      /*{
+      {
         "companies_id": 1,
         "name": "Bruno",
-        "username": "admin",
+        "username": "admin2",
         "email": "teste@teste.br",
         "password":"12345",
         "remember_me_token": "bruno",
-        "permission_level": 5,
-        "status": 1,
+        "permission_level": 3,
+        "status": 0,
       },
+      /*
       {
         "companies_id": 1,
         "name": "Maria",

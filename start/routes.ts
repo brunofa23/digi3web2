@@ -53,4 +53,18 @@ Route.group(() => {
 }).prefix('/api')
 
 
+Route.get('/api/test/middleware/level', ({ response }) => {
+  return response.json({ ok: true })
+}).middleware('level_permission:3')
+
+
+Route.group(() => {
+  
+  Route.get('/test', ({ response }) => {
+    return response.json({ ok: true })
+  }).middleware('level_permission:4')
+
+}).prefix('/api/company/:company_id').middleware('company_permission')
+
+
 

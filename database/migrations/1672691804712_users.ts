@@ -12,7 +12,7 @@ export default class extends BaseSchema {
       table.increments('id').primary()
       table.integer('companies_id').notNullable().unsigned().references('companies.id')
       table.string('name' , 45)
-      table.string('username' , 45).notNullable()
+      table.string('username' , 45).notNullable().unique()
       table.string('email', 255).notNullable()
       table.string('password', 180).notNullable()
       table.string('remember_me_token').nullable()

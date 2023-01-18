@@ -15,11 +15,11 @@ export default class AuthenticationController {
 
     const user = await User
       .query()
-
       .preload('company')
-      .join('companies', `companies_id`, '=', 'companies.id')
       .where('username', username)
-      .andWhere('companies.shortname', shortname)
+      .whereHas('company', builder => {
+        builder.where('shortname', shortname)
+      })
       .firstOrFail()
 
     // Verify password
