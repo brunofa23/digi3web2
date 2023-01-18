@@ -20,5 +20,8 @@ node ace make:validator CreateCompany
 abrir servidor
  node ace serve --watch
 
+ iniciar docker
+ npm run docker:dev
+
 
 

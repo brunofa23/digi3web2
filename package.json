@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "node ace serve --watch",
+    "dev": "npm run docker:dev && node ace serve --watch",
     "build": "node ace build --production",
     "start": "node server.js",
     "docker:dev": "./scripts/docker-dev-start.sh"

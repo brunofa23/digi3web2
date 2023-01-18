@@ -16,4 +16,4 @@ services:
     volumes:
       - ../../../docker_volumes_digi3/mysql:/var/lib/mysql
     ports:
-      - 3306:3306
+      - 3307:3306
