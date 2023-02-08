@@ -16,6 +16,23 @@ export default class UsersController {
 
   }
 
+    //retorna um registro
+    public async show({ auth, params, response }: HttpContextContract) {
+
+      const authenticate = await auth.use('api').authenticate()
+      let query = ""
+
+      if(!authenticate.superuser)
+        query = ` companies_id=${authenticate.companies_id} `
+
+      const data = await User.query()
+        .whereRaw(query)
+        .andWhere('id', "=", params.id).firstOrFail()
+  
+      return response.send(data)
+  
+    }
+
   public async store({auth, request, response }: HttpContextContract) {
 
     const body = request.only(User.fillable)
@@ -48,8 +65,6 @@ export default class UsersController {
     .andWhere('id',"=",params.id).update(body)
 
     return data
-
-
 
   }
 

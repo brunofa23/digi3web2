@@ -21,6 +21,7 @@ abrir servidor
  node ace serve --watch
 
  iniciar docker
+ sudo service docker start
  npm run docker:dev
 
 
