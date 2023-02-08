@@ -10,8 +10,13 @@ export default class UsersController {
 
     const authenticate = await auth.use('api').authenticate()
 
+    let query = ` companies_id=${authenticate.companies_id}`
+    if(authenticate.superuser)
+        query = ""
+
       const data = await User.query()
-      .where("companies_id", authenticate.companies_id)
+      //.where("companies_id", authenticate.companies_id)
+      .whereRaw(query)
       return response.send(data)
 
   }

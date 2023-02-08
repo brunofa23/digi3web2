@@ -56,14 +56,19 @@ export default class CompaniesController {
   }
 
   //patch ou put
-  public async update({ request, params }: HttpContextContract) {
+  public async update({ auth, request, params }: HttpContextContract) {
+
+    const authenticate = await auth.use('api').authenticate()
+    if(!authenticate.superuser)
+      return "Não Possui privilégios para cadastrar empresa"
 
     const body = request.only(Company.fillable)
-    await request.validate(CreateCompanyValidator)
+    //await request.validate(CreateCompanyValidator)
 
     body.id = params.id
     const data = await Company.findOrFail(body.id)
     body.foldername = data.foldername
+    //return (body)
     await data.fill(body).save()
 
     return {
