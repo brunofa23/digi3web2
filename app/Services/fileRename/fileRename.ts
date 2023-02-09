@@ -165,6 +165,7 @@ async function transformFilesNameToId(images, params, companies_id) {
 
 async function downloadImage(fileName, companies_id)
 {
+  
   const fileId = await authorize.sendSearchFile(fileName)
   console.log(fileId)
   const download = await authorize.sendDownloadFile(fileId[0].id)

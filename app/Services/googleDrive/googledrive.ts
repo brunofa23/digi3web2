@@ -219,20 +219,21 @@ async function downloadFile(authClient, fileId) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   //fileId = realFileId;
-  console.log(">>>>>>DOWNLOAD");
   try {
     const file = await drive.files.get({
       fileId: fileId,
       //mimeType: "text/plain",
       alt: 'media'
     },
-      {
+    {
         responseType: 'arraybuffer',
         encoding: null
       }
-
-    );
-
+      
+      );
+      
+    console.log(">>>>>>DOWNLOAD", file);
+    
     var imageType = file.headers['content-type'];
     const base64 = Buffer.from(file.data, "utf8").toString("base64")
     var dataURI = 'data:' + imageType + ';base64,' + base64;

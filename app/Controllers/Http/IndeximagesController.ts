@@ -106,9 +106,11 @@ export default class IndeximagesController {
 
     const authenticate = await auth.use('api').authenticate()
     const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id)
+    //const fileInformation = await Indeximage.findBy('file_name', fileName)
 
+    console.log(">>>>>>>FILEINFORMATRION", fileName)
     
-    return fileDownload
+    return {fileDownload, fileName}//{fileDownload, ext: fileInformation.ext}
 
   }
 
