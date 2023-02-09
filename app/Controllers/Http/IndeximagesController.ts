@@ -26,7 +26,8 @@ export default class IndeximagesController {
 
   }
 
-  public async index({ response }) {
+  public async index({ auth, response }) {
+    const authenticate = await auth.use('api').authenticate()
     //const data = await Typebook.all()
     const data = await Indeximage.query()
     //.preload('bookrecords')
@@ -81,7 +82,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params }: HttpContextContract) {
-
+    
     const authenticate = await auth.use('api').authenticate()
 
     const images = request.files('images', {

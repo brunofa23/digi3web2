@@ -25,8 +25,10 @@ Route.group(() => {
   Route.post("typebooks/:typebooks_id/bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords')
 
   //INDEXIMAGES
-  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'indeximagesController.uploads').as('uploads')
+  Route.resource("/indeximages", "IndeximagesController").apiOnly()
+  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')
   Route.post('/indeximages/download/:id', 'indeximagesController.download').as('download')
+
 
   //USERS
   Route.resource("/users", "UsersController").apiOnly()
