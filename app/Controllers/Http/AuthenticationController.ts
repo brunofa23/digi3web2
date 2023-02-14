@@ -42,6 +42,7 @@ export default class AuthenticationController {
 
   public async logout({ auth, response }:HttpContextContract) {
 
+    
     await auth.use('api').revoke()
     return {
       revoked: true

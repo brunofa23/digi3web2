@@ -7,6 +7,8 @@
     "build": "node ace build --production",
     "start": "node server.js",
     "docker:dev": "./scripts/docker-dev-start.sh"
+    
+
   },
   "devDependencies": {
     "@adonisjs/assembler": "^5.8.1",
