@@ -26,3 +26,9 @@ abrir servidor
 
 
 
+enviar para o git via prompt
+git status
+git add .
+git status
+git commit -m 'seu comentário'
+git push origin master
