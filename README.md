@@ -26,21 +26,18 @@ abrir servidor
 
 ### DEPLOY
 0 - npm install
-1 - node ace build --production
+1 - node ace build --production --ignore-ts-errors
 2 - cd build
 3 - npm ci --production
 4 - 
 COPIAR A PASTA BUILD PARA BUILDCOPY
-cp -fR ~/digi3web2/digi3web2/build ~/digi3web2/digi3web2/deploy/
+cp -fR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
 OU
 ATUALIZAR APENAS OS NOVOS ARQUIVOS
-cp -uR ~/digi3web2/digi3web2/build ~/digi3web2/digi3web2/deploy/
-
-
-
+cp -uR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
 
 rodar na kinghost
-node server.js
+node server.js ou pm2 start
 
 enviar para o git via prompt
 git status
