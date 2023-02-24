@@ -39,6 +39,8 @@ cp -uR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
 rodar na kinghost
 node server.js ou pm2 start
 
+
+
 enviar para o git via prompt
 git status
 git add .
