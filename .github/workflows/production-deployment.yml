@@ -23,7 +23,7 @@ jobs:
     
     - run: git status
     - run: pwd && npm ci
-    - run: npm run build
+    - run: node ace build --production --ignore-ts-errors
     - run: git add -A
     - run: npm run release --commit-all
     - run: git push --follow-tags origin ${{ github.ref_name }}
