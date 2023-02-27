@@ -39,5 +39,12 @@
   },
   "testProviders": [
     "@japa/preset-adonis/TestsProvider"
+  ],
+  "metaFiles": [
+    "tmp/uploads/*",
+    ".env.example",
+    "config/credentials/*",
+    "config/tokens/*"
   ]
+
 }
