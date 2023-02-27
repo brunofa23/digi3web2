@@ -1,0 +1,30 @@
+name: Build and deploy api
+concurrency: deploy_production
+on:
+  push:
+    branches:
+      - main
+jobs:
+
+  build:
+    name: Build api typescript project and deploy it to server
+    runs-on: ubuntu-latest
+    steps:
+    
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - uses: actions/setup-node@v3
+      with:
+        node-version: 16
+
+    - run: git config --global user.email "brunofa23@gmail.com"
+    - run: git config --global user.name "Bruno Favato"
+    
+    - run: git status
+    - run: pwd && npm ci
+    - run: npm run build
+    - run: git add -A
+    - run: npm run release --commit-all
+    - run: git push --follow-tags origin ${{ github.ref_name }}
+      
