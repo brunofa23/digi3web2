@@ -12,7 +12,7 @@ class default_1 extends Schema_1.default {
     async up() {
         this.schema.createTable(this.tableName, (table) => {
             table.increments('id');
-            table.integer('companies_id').notNullable().unsigned().references('companies.id');
+            table.integer('companies_id').notNullable().unsigned().references('companies.id').onDelete('CASCADE');
             table.string('name');
             table.boolean('status');
             table.string('path', 120);
