@@ -7,7 +7,7 @@ const Route_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Route
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 Route_1.default.group(() => {
     Route_1.default.get('/', async () => {
-        return { hello: 'world' };
+        return { hello: 'Hello World v1' };
     });
     Route_1.default.resource("/books", 'BooksController').apiOnly();
     Route_1.default.resource("/companies", 'CompaniesController').apiOnly();

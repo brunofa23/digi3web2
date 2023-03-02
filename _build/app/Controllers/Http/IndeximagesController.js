@@ -57,8 +57,8 @@ class IndeximagesController {
             size: '6mb',
             extnames: ['jpg', 'png', 'jpeg', 'pdf']
         });
-        console.log("passei pelo Upload...");
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
+        console.log("passei pelo Upload...");
         return files;
         console.log("FINALIZADO!!!");
     }
