@@ -117,6 +117,8 @@ export default class BookrecordsController {
     }
   }
 
+
+  //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
