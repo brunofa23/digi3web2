@@ -71,7 +71,7 @@ export default class BookrecordsController {
 
 
     const page = request.input('page', 1)
-    const limit = 20
+    const limit = 100
 
     const data = await Bookrecord.query()
       .where("companies_id", '=', authenticate.companies_id)
@@ -175,13 +175,15 @@ export default class BookrecordsController {
 
   public async createorupdatebookrecords({ auth, request, params }) {
 
-    
+    // console.log("entrei na inclusão de um registro");
+    // return
     const authenticate = await auth.use('api').authenticate()
 
     const _request = request.requestBody
     let newRecord: Object[] = []
     let updateRecord: Object[] = []
 
+    //return _request
     for (const iterator of _request) {
 
       if (!iterator.id) {
