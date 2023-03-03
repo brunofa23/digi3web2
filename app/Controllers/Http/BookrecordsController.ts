@@ -71,6 +71,7 @@ export default class BookrecordsController {
 
 
     const page = request.input('page', 1)
+    //pagination paginação
     const limit = 100
 
     const data = await Bookrecord.query()
