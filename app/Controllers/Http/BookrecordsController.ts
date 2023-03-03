@@ -72,7 +72,7 @@ export default class BookrecordsController {
 
     const page = request.input('page', 1)
     //pagination paginação
-    const limit = 100
+    const limit = 40
 
     const data = await Bookrecord.query()
       .where("companies_id", '=', authenticate.companies_id)
