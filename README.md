@@ -39,17 +39,6 @@ cp -uR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
 rodar na kinghost
 node server.js ou pm2 start
 
-
-
-enviar para o git via prompt
-git status
-git add .
-git status
-git commit -m "seu comentário"
-git push -u origin master
-
-
-
 #####
 …or create a new repository on the command line
 echo "# digi3deploy" >> README.md
@@ -75,13 +64,18 @@ rm -rf ./*
 ####
 Erro:
 There isn't anything to compare. Nothing to compare, branches are entirely different commit histories
-
 Rodar os comandos abaixo
 git checkout master   
 git branch main master -f    
 git checkout main  
 git push origin main -f 
 
-____________________________________________________________________
-atual..
-21
+###
+Deletar uma branch
+git branch -D ou -d <nome da branch>
+
+Deletar um git add
+git restore --staged .
+
+chat.openai.com/chat
+node _build/ace migration:refresh --seed
