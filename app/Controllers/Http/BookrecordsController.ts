@@ -87,28 +87,6 @@ export default class BookrecordsController {
   }
 
 
-  // public async store({ request, params, response }: HttpContextContract) {
-
-  //   return "book record store"
-
-  //   const body = request.only(Bookrecord.fillable)
-  //   const id = params.id
-
-  //   //Verificar se existe o codigo passado pelo parâmetro
-  //   //await Book.findByOrFail(id)
-
-  //   body.id = id
-
-  //   const data = await Bookrecord.create(body)
-
-  //   response.status(201)
-  //   return {
-  //     message: 'Criado com sucesso',
-  //     data: data,
-  //   }
-  // }
-
-
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
     //console.log("SHOWWWW:", params)
@@ -123,27 +101,27 @@ export default class BookrecordsController {
 
     const authenticate = await auth.use('api').authenticate()
 
-    const { typebook_id, book, codIni, codFim } = request.requestBody
+    const { typebooks_id, Book, startCod, endCod } = request.requestBody
     let query = '1 = 1'
 
-    if (book == undefined)
+    if (Book == undefined)
       return
 
-    if (typebook_id != undefined) {
-      if (book != undefined) {
-        query += ` and book=${book} `
+    if (typebooks_id != undefined) {
+      if (Book != undefined) {
+        query += ` and book=${Book} `
       }
-      if (codIni != undefined && codFim != undefined)
-        query += ` and cod>=${codIni} and cod <=${codFim} `
+
+      if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
+        query += ` and cod>=${startCod} and cod <=${endCod} `
 
       //deleção tabela index images
       const dataIndexImages = await Indeximage.query().delete()
         .whereIn("bookrecords_id",
-          Database.from('bookrecords').select('id').where('typebooks_id', '=', typebook_id).whereRaw(query)
+          Database.from('bookrecords').select('id').where('typebooks_id', '=', typebooks_id).whereRaw(query)
         )
-      //delete from indeximages where bookrecords_id in (select id from bookrecords where `typebooks_id` = 7 and 1 = 1 and book=1 and cod>=1 and cod <=3)
+      const data = await Bookrecord.query().where('typebooks_id', '=', typebooks_id).whereRaw(query).delete()
 
-      const data = await Bookrecord.query().where('typebooks_id', '=', typebook_id).whereRaw(query).delete()
       return { dataIndexImages, data }
     }
   }
