@@ -23,6 +23,7 @@ Route.group(() => {
   Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords')
   Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords')
+  Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords')
   //Route.post("typebooks/:typebooks_id/bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords')
 
   //INDEXIMAGES
