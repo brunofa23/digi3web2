@@ -78,10 +78,8 @@ async function transformFilesNameToId(images, params, companies_id) {
   for (let image of images) {
 
     cont++
-    if (cont >= 5) {
-      console.log("Begin");
-      await sleep(4000);
-      console.log("End");
+    if (cont >= 6) {
+      await sleep(7000);
       cont = 0
     }
 
@@ -92,12 +90,10 @@ async function transformFilesNameToId(images, params, companies_id) {
       console.log("Error", image.errors);
     }
 
-
     if (image.clientName.toUpperCase().startsWith('L')) {
       let separators = ["L", '\'', '(', ')', '|', '-'];
       let arrayFileName = image.clientName.split(new RegExp('([' + separators.join('') + '])'));
       query = ` cod =${arrayFileName[4]} and book = ${arrayFileName[2]} `
-
 
       try {
         const name = await Bookrecord.query()
