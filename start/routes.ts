@@ -7,7 +7,7 @@ import Hash from '@ioc:Adonis/Core/Hash'
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v1' }
+    return { hello: 'Hello World v2' }
   })
 
   //BOOKS

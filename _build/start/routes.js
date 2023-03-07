@@ -14,7 +14,8 @@ Route_1.default.group(() => {
     Route_1.default.resource("/typebooks", 'TypebooksController').apiOnly();
     Route_1.default.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly();
     Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords');
-    Route_1.default.post("typebooks/:typebooks_id/bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords');
+    Route_1.default.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords');
+    Route_1.default.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords');
     Route_1.default.resource("/indeximages", "IndeximagesController").apiOnly();
     Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads');
     Route_1.default.post('/indeximages/download/:id', 'IndeximagesController.download').as('download');
