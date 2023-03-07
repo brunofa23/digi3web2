@@ -45,7 +45,7 @@ class BookrecordsController {
             query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
         }
         const page = request.input('page', 1);
-        const limit = 20;
+        const limit = 40;
         const data = await Bookrecord_1.default.query()
             .where("companies_id", '=', authenticate.companies_id)
             .andWhere("typebooks_id", '=', params.typebooks_id)
@@ -63,19 +63,19 @@ class BookrecordsController {
     }
     async destroyManyBookRecords({ auth, request }) {
         const authenticate = await auth.use('api').authenticate();
-        const { typebook_id, book, codIni, codFim } = request.requestBody;
+        const { typebooks_id, Book, startCod, endCod } = request.requestBody;
         let query = '1 = 1';
-        if (book == undefined)
+        if (Book == undefined)
             return;
-        if (typebook_id != undefined) {
-            if (book != undefined) {
-                query += ` and book=${book} `;
+        if (typebooks_id != undefined) {
+            if (Book != undefined) {
+                query += ` and book=${Book} `;
             }
-            if (codIni != undefined && codFim != undefined)
-                query += ` and cod>=${codIni} and cod <=${codFim} `;
+            if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
+                query += ` and cod>=${startCod} and cod <=${endCod} `;
             const dataIndexImages = await Indeximage_1.default.query().delete()
-                .whereIn("bookrecords_id", Database_1.default.from('bookrecords').select('id').where('typebooks_id', '=', typebook_id).whereRaw(query));
-            const data = await Bookrecord_1.default.query().where('typebooks_id', '=', typebook_id).whereRaw(query).delete();
+                .whereIn("bookrecords_id", Database_1.default.from('bookrecords').select('id').where('typebooks_id', '=', typebooks_id).whereRaw(query));
+            const data = await Bookrecord_1.default.query().where('typebooks_id', '=', typebooks_id).whereRaw(query).delete();
             return { dataIndexImages, data };
         }
     }
