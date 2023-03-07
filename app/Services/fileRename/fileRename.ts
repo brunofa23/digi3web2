@@ -1,14 +1,8 @@
 
-import { Request } from "@adonisjs/core/build/standalone";
 import Bookrecord from "App/Models/Bookrecord";
 import Indeximage from "App/Models/Indeximage";
-import Typebook from "App/Models/Typebook";
-
-import { file } from "googleapis/build/src/apis/file";
 import Application from '@ioc:Adonis/Core/Application'
-import { Auth } from "googleapis";
 import Company from 'App/Models/Company'
-
 
 
 const authorize = require('App/Services/googleDrive/googledrive')

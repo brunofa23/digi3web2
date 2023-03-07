@@ -1,8 +1,5 @@
 import Route from '@ioc:Adonis/Core/Route'
-
 import Application from '@ioc:Adonis/Core/Application'
-import User from 'App/Models/User'
-import Hash from '@ioc:Adonis/Core/Hash'
 
 Route.group(() => {
 
