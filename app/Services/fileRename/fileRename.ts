@@ -80,7 +80,7 @@ async function transformFilesNameToId(images, params, companies_id) {
     cont++
     if (cont >= 5) {
       console.log("Begin");
-      await sleep(2000);
+      await sleep(4000);
       console.log("End");
       cont = 0
     }
