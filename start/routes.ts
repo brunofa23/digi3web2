@@ -4,7 +4,7 @@ import Application from '@ioc:Adonis/Core/Application'
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v2' }
+    return { hello: 'Hello World v3' }
   })
 
   //BOOKS
