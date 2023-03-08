@@ -38,7 +38,11 @@ export default class AuthenticationController {
     })
     console.log(">>>Fez login...");
     logtail.error("Erro testando Logtrail.");
-    logtail.info("Info Logtrail",token);
+    logtail.info("Info Logtrail",{token});
+    logtail.debug("debug",{
+      "token":token,
+      "usuário:":user
+    })
     logtail.flush()
 
     return {token, user}
