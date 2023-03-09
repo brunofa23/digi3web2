@@ -50,7 +50,7 @@ async function transformFilesNameToId(images, params, companies_id) {
     .andWhere('companies_id', '=', companies_id).toQuery()//.first()
 
    console.log(">>>FolderPath>>", folderPath, "typebook_id",  ) 
-  return directoryParent
+  
 
   if (!directoryParent || directoryParent == undefined)
     return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
