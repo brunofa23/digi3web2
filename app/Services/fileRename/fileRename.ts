@@ -25,14 +25,15 @@ function deleteImage(folderPath) {
 
 async function transformFilesNameToId(images, params, companies_id) {
 
+  //return images
+  
   const _companies_id = companies_id
-
+  
   let result: Object[] = []
   let query = ""
 
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
-
 
   try {
     if (!fs.existsSync(folderPath)) {
@@ -46,12 +47,13 @@ async function transformFilesNameToId(images, params, companies_id) {
   const directoryParent = await Bookrecord.query()
     .preload('typebooks')
     .where('typebooks_id', '=', params.typebooks_id)
-    .andWhere('companies_id', '=', companies_id).first()
+    .andWhere('companies_id', '=', companies_id).toQuery()//.first()
+
+   console.log(">>>FolderPath>>", folderPath, "typebook_id",  ) 
+  return directoryParent
 
   if (!directoryParent || directoryParent == undefined)
     return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
-
-  //const authorizeGoogle = await authorize.sendAuthorize()
 
   //verifica se existe essa pasta no Google e retorna o id do google
   let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
@@ -102,8 +104,6 @@ async function transformFilesNameToId(images, params, companies_id) {
           .andWhere('typebooks_id', '=', params.typebooks_id)
           .andWhere('companies_id', '=', _companies_id)
           .orderBy('seq', 'desc').first()
-
-          console.log("passei aqui...")
 
         if (!data)
           this.seq = 0

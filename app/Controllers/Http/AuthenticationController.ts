@@ -36,13 +36,8 @@ export default class AuthenticationController {
       name: 'For the CLI app'
 
     })
-    console.log(">>>Fez login...");
-    logtail.error("Erro testando Logtrail.");
-    logtail.info("Info Logtrail",{token});
-    logtail.debug("debug",{
-      "token":token,
-      "usuário:":user
-    })
+    console.log(">>>Fez login...",{token});
+    logtail.debug("debug",{token,user})
     logtail.flush()
 
     return {token, user}

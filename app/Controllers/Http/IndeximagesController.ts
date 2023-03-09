@@ -1,12 +1,10 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Indeximage from 'App/Models/Indeximage'
 
-import Application from '@ioc:Adonis/Core/Application'
-import { Response } from '@adonisjs/core/build/standalone'
-import Bookrecord from 'App/Models/Bookrecord'
-
 const FileRename = require('../../Services/fileRename/fileRename')
+import Application from '@ioc:Adonis/Core/Application'
 
+const fs = require('fs')
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
@@ -27,11 +25,8 @@ export default class IndeximagesController {
   }
 
   public async index({ auth, response }) {
-    const authenticate = await auth.use('api').authenticate()
-    //const data = await Typebook.all()
+    await auth.use('api').authenticate()
     const data = await Indeximage.query()
-    //.preload('bookrecords')
-
     return response.send({ data })
   }
 
@@ -62,7 +57,6 @@ export default class IndeximagesController {
     body.typebooks_id = params.id2
     body.seq = params.id3
 
-
     const data = await Indeximage
       .query()
       .where('bookrecords_id', '=', body.bookrecords_id)
@@ -82,7 +76,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params }: HttpContextContract) {
-    
+
     const authenticate = await auth.use('api').authenticate()
 
     const images = request.files('images', {
@@ -94,11 +88,36 @@ export default class IndeximagesController {
     console.log("passei pelo Upload...")
 
     return files
-    console.log("FINALIZADO!!!");
-
 
   }
 
+  public async uploadCapture({ auth, request, params }) {
+    
+    const authenticate = await auth.use('api').authenticate()
+    const { imageCapture } = request.requestData
+
+    let base64Image = imageCapture.split(';base64,').pop();
+    const folderPath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`)
+    
+    try {
+      if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath)
+      }
+    } catch (error) {
+      return error
+    }
+    
+    fs.writeFile(`${folderPath}/L1(1).jpg`, base64Image, { encoding: 'base64' }, function (err) {
+      console.log('File created', folderPath);
+    });
+
+    console.log("companies id>>>",authenticate.companies_id)
+    const file = await FileRename.transformFilesNameToId(`${folderPath}/L1(1).jpg`, params, authenticate.companies_id)
+
+    //return {sucesso:"sucesso", file, typebook: params.typebooks_id, imageCapture }
+
+
+  }
 
   public async download({ auth, params }: HttpContextContract) {
 
@@ -109,8 +128,8 @@ export default class IndeximagesController {
     //const fileInformation = await Indeximage.findBy('file_name', fileName)
 
     console.log(">>>>>>>FILEINFORMATRION", fileName)
-    
-    return {fileDownload, fileName}//{fileDownload, ext: fileInformation.ext}
+
+    return { fileDownload, fileName }//{fileDownload, ext: fileInformation.ext}
 
   }
 
