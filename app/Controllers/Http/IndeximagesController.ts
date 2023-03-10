@@ -107,14 +107,14 @@ export default class IndeximagesController {
       return error
     }
     
-    fs.writeFile(`${folderPath}/L1(1).jpg`, base64Image, { encoding: 'base64' }, function (err) {
+    fs.writeFile(`${folderPath}/fileCapture.jpg`, base64Image, { encoding: 'base64' }, function (err) {
       console.log('File created', folderPath);
     });
 
-    console.log("companies id>>>",authenticate.companies_id)
-    const file = await FileRename.transformFilesNameToId(`${folderPath}/L1(1).jpg`, params, authenticate.companies_id)
+   
+    const file = await FileRename.transformFilesNameToId(`${folderPath}/L1(1).jpg`, params, authenticate.companies_id, true)
 
-    //return {sucesso:"sucesso", file, typebook: params.typebooks_id, imageCapture }
+    return {sucesso:"sucesso", file, typebook: params.typebooks_id, imageCapture }
 
 
   }

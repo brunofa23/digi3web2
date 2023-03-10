@@ -7,6 +7,8 @@ import Company from 'App/Models/Company'
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
+const path = require('path')
+
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -23,18 +25,13 @@ function deleteImage(folderPath) {
   });
 }
 
-async function transformFilesNameToId(images, params, companies_id) {
+async function transformFilesNameToId(images, params, companies_id, capture = false) {
 
-  //return images
-  
   const _companies_id = companies_id
-  
   let result: Object[] = []
   let query = ""
-
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
-
   try {
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath)
@@ -47,10 +44,7 @@ async function transformFilesNameToId(images, params, companies_id) {
   const directoryParent = await Bookrecord.query()
     .preload('typebooks')
     .where('typebooks_id', '=', params.typebooks_id)
-    .andWhere('companies_id', '=', companies_id).toQuery()//.first()
-
-   console.log(">>>FolderPath>>", folderPath, "typebook_id",  ) 
-  
+    .andWhere('companies_id', '=', companies_id).first()
 
   if (!directoryParent || directoryParent == undefined)
     return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
@@ -62,13 +56,33 @@ async function transformFilesNameToId(images, params, companies_id) {
     //criar a pasta
     const company = await Company.findByOrFail('id', _companies_id)
     const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-    await authorize.sendCreateFolder(directoryParent?.typebooks.path, idFolderCompany[0].id )
+    await authorize.sendCreateFolder(directoryParent?.typebooks.path, idFolderCompany[0].id)
     await sleep(2000)
     //return "Erro: Esta pasta não existe no GoogleDrive"
   }
 
   await sleep(1000);
   const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+
+  if (capture) {
+    //teste para captura
+    console.log(">>imagem valida", images)
+    console.log(">>CAMINHO DA PASTA>>", path.dirname(images))
+    console.log(">>CAMINHO DA folderPath>>", images)
+
+    fs.rename(images, `${path.dirname(images)}/teste.jpg`, function (err) {
+      //Caso a execução encontre algum erro
+      if (err) {
+        //A execução irá parar e mostrará o erro
+        throw err;
+      } else {
+        //Caso não tenha erro, apenas a mensagem será exibida no terminal
+        console.log('Arquivo renomeado');
+      }
+    });
+
+  }
+
 
   let cont = 0
   for (let image of images) {
@@ -93,13 +107,13 @@ async function transformFilesNameToId(images, params, companies_id) {
 
       try {
         const name = await Bookrecord.query()
-        .preload('typebooks')
-        .where('typebooks_id', '=', params.typebooks_id)
-        .andWhere('companies_id', '=', _companies_id)
-        .whereRaw(query)
+          .preload('typebooks')
+          .where('typebooks_id', '=', params.typebooks_id)
+          .andWhere('companies_id', '=', _companies_id)
+          .whereRaw(query)
 
-          //retorna o ultimo seq
-          const data = await Indeximage.query()
+        //retorna o ultimo seq
+        const data = await Indeximage.query()
           .where('bookrecords_id', name[0].id)
           .andWhere('typebooks_id', '=', params.typebooks_id)
           .andWhere('companies_id', '=', _companies_id)
@@ -153,13 +167,26 @@ async function transformFilesNameToId(images, params, companies_id) {
 
 }
 
-async function downloadImage(fileName, companies_id)
-{
-  
+async function downloadImage(fileName, companies_id) {
+
   const fileId = await authorize.sendSearchFile(fileName)
   console.log(fileId)
   const download = await authorize.sendDownloadFile(fileId[0].id)
   return download
 }
 
-module.exports = { transformFilesNameToId, downloadImage }
+async function fileRename(originalFileName){
+
+  if (originalFileName.toUpperCase().startsWith('L')) {
+    let updatedFileName
+
+    let separators = ["L", '\'', '(', ')', '|', '-'];
+    let arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+    updatedFileName = ` cod =${arrayFileName[4]} and book = ${arrayFileName[2]} `
+
+  
+
+  return updatedFileName
+}
+
+module.exports = { transformFilesNameToId, downloadImage, fileRename }
