@@ -92,13 +92,13 @@ export default class IndeximagesController {
   }
 
   public async uploadCapture({ auth, request, params }) {
-    
+
     const authenticate = await auth.use('api').authenticate()
     const { imageCapture } = request.requestData
 
     let base64Image = imageCapture.split(';base64,').pop();
     const folderPath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`)
-    
+
     try {
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath)
@@ -106,15 +106,14 @@ export default class IndeximagesController {
     } catch (error) {
       return error
     }
-    
+
     fs.writeFile(`${folderPath}/fileCapture.jpg`, base64Image, { encoding: 'base64' }, function (err) {
       console.log('File created', folderPath);
     });
 
-   
-    const file = await FileRename.transformFilesNameToId(`${folderPath}/L1(1).jpg`, params, authenticate.companies_id, true)
+    const file = await FileRename.transformFilesNameToId(`${folderPath}/fileCapture.jpg`, params, authenticate.companies_id, true)
 
-    return {sucesso:"sucesso", file, typebook: params.typebooks_id, imageCapture }
+    //return {sucesso:"sucesso", file, typebook: params.typebooks_id, imageCapture }
 
 
   }
