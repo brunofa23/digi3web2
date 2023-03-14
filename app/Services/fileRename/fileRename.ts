@@ -226,7 +226,11 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     console.log(">>CAMINHO DA PASTA>>", path.dirname(images))
     console.log(">>CAMINHO DA folderPath>>", images)
 
-    fs.rename(images, `${path.dirname(images)}/teste.jpg`, function (err) {
+    const file = await fileRename(images, params.typebooks_id, companies_id)
+
+    console.log("FILE>>>", file)
+    return
+    fs.rename(images, `${path.dirname(images)}`, function (err) {
       //Caso a execução encontre algum erro
       if (err) {
         //A execução irá parar e mostrará o erro
@@ -237,8 +241,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
       }
     });
 
-
-    return images
+    return "file"
   }
 
 
@@ -294,21 +297,37 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent) {
 async function fileRename(originalFileName, typebooks_id, companies_id) {
 
   let query
-  let arrayfileName
+  let objFileName
 
   //Format L1(1).jpg
   if (originalFileName.toUpperCase().startsWith('L')) {
 
     let separators = ["L", '\'', '(', ')', '|', '-'];
-    let arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
-    arrayfileName = {
+    const arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+    objFileName = {
       type: arrayFileName[1],
       book: arrayFileName[2],
       cod: arrayFileName[4],
       ext: arrayFileName[6]
     }
-    query = ` cod =${arrayfileName.cod} and book = ${arrayfileName.book} `
-    //return query
+    query = ` cod =${objFileName.cod} and book = ${objFileName.book} `
+  }
+
+
+  //ARQUIVOS QUE INICIAM COM ID
+  else if (path.basename(originalFileName).startsWith('Id')) {
+
+    const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
+    objFileName = {
+      id: arrayFileName[0].replace('Id', ''),
+      cod: arrayFileName[1].replace('(', '').replace(')', ''),
+      ext: `.${arrayFileName[4]}`
+    }
+
+    originalFileName = path.basename(originalFileName)
+    query = ` id=${objFileName.id} and cod=${objFileName.cod} `
+
+
   }
 
   const name = await Bookrecord.query()
@@ -326,17 +345,18 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
 
   const seq = (!_seq ? 0 : _seq.seq + 1)
 
-  console.log(">>>>NAME", `id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}${arrayfileName.ext}`)
-
+  //**FORMATO DE GRAVAÇÃO DOS ARQUIVOS (LAYOUT DE SAIDA)*************
+  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{approximate_term}_{side}_{books_id}.{extensão}
   const fileRename = {
-    file_name: `id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}${arrayfileName.ext}`,
+    file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}${objFileName.ext}`,
     bookrecords_id: name[0].id,
     typebooks_id,
     companies_id,
     seq,
-    ext: arrayfileName.ext,
+    ext: objFileName.ext,
     previous_file_name: originalFileName
   }
+
   return fileRename
 }
 

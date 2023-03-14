@@ -3,6 +3,9 @@ import Indeximage from 'App/Models/Indeximage'
 
 const FileRename = require('../../Services/fileRename/fileRename')
 import Application from '@ioc:Adonis/Core/Application'
+import { DateTime } from 'luxon'
+const Date = require('../../Services/Dates/format')
+
 
 const fs = require('fs')
 export default class IndeximagesController {
@@ -94,7 +97,7 @@ export default class IndeximagesController {
   public async uploadCapture({ auth, request, params }) {
 
     const authenticate = await auth.use('api').authenticate()
-    const { imageCapture } = request.requestData
+    const { imageCapture, id, cod } = request.requestData
 
     let base64Image = imageCapture.split(';base64,').pop();
     const folderPath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`)
@@ -107,11 +110,16 @@ export default class IndeximagesController {
       return error
     }
 
-    fs.writeFile(`${folderPath}/fileCapture.jpg`, base64Image, { encoding: 'base64' }, function (err) {
+    var dateNow = Date.format(DateTime.now())
+    console.log(">>>>DATA FULL", dateNow)
+
+    const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
+
+    fs.writeFile(`${folderPath}/${file_name}.jpg`, base64Image, { encoding: 'base64' }, function (err) {
       console.log('File created', folderPath);
     });
 
-    const file = await FileRename.transformFilesNameToId(`${folderPath}/fileCapture.jpg`, params, authenticate.companies_id, true)
+    const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpg`, params, authenticate.companies_id, true)
 
     //return {sucesso:"sucesso", file, typebook: params.typebooks_id, imageCapture }
 
