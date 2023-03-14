@@ -105,7 +105,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
       fields: 'id'
 
     });
-    console.log('File Id:', file.data.id);
+    console.log('>>>File Id:', file.data.id);
     return file.data.id;
   } catch (err) {
     // TODO(developer) - Handle error
@@ -225,15 +225,15 @@ async function downloadFile(authClient, fileId) {
       //mimeType: "text/plain",
       alt: 'media'
     },
-    {
+      {
         responseType: 'arraybuffer',
         encoding: null
       }
-      
-      );
-      
+
+    );
+
     console.log(">>>>>>DOWNLOAD", file);
-    
+
     var imageType = file.headers['content-type'];
     const base64 = Buffer.from(file.data, "utf8").toString("base64")
     var dataURI = 'data:' + imageType + ';base64,' + base64;

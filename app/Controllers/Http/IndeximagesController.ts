@@ -109,19 +109,16 @@ export default class IndeximagesController {
     } catch (error) {
       return error
     }
-
     var dateNow = Date.format(DateTime.now())
-    console.log(">>>>DATA FULL", dateNow)
-
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
 
-    fs.writeFile(`${folderPath}/${file_name}.jpg`, base64Image, { encoding: 'base64' }, function (err) {
+    fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
       console.log('File created', folderPath);
     });
+    const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true)
 
-    const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpg`, params, authenticate.companies_id, true)
 
-    //return {sucesso:"sucesso", file, typebook: params.typebooks_id, imageCapture }
+    return { sucesso: "sucesso", file, typebook: params.typebooks_id, imageCapture }
 
 
   }

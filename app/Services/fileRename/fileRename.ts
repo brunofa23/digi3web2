@@ -205,6 +205,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
   //verifica se existe essa pasta no Google e retorna o id do google
   let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
     //criar a pasta
@@ -217,31 +218,42 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
   await sleep(1000);
   const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+  //  console.log(">>>entrei no PARENT", idParent)
   //******************************************************************************** */
 
   //imagem única para upload
   if (capture) {
     //teste para captura
-    console.log(">>imagem valida", images)
-    console.log(">>CAMINHO DA PASTA>>", path.dirname(images))
-    console.log(">>CAMINHO DA folderPath>>", images)
+    const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
+    console.log("FILE>>>", _fileRename)
 
-    const file = await fileRename(images, params.typebooks_id, companies_id)
+    try {
+      //await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
+      fs.rename(images, `${path.dirname(images)}/${_fileRename.file_name}`, function (err) {
+        //Caso a execução encontre algum erro
+        if (err) {
+          //A execução irá parar e mostrará o erro
+          throw err;
+        } else {
+          //Caso não tenha erro, apenas a mensagem será exibida no terminal
+          console.log('Arquivo renomeado');
+        }
+      });
 
-    console.log("FILE>>>", file)
-    return
-    fs.rename(images, `${path.dirname(images)}`, function (err) {
-      //Caso a execução encontre algum erro
-      if (err) {
-        //A execução irá parar e mostrará o erro
-        throw err;
-      } else {
-        //Caso não tenha erro, apenas a mensagem será exibida no terminal
-        console.log('Arquivo renomeado');
-      }
-    });
+      //await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id)
+      await authorize.sendUploadFiles(idParent, folderPath, `${_fileRename.file_name}`)
+      //chamar função para inserir na tabela indeximages
+      await Indeximage.create(_fileRename)
+      //chamar função de exclusão da imagem
+      //await deleteImage(`${folderPath}/${_fileRename.file_name}`)
 
-    return "file"
+      console.log("UPLOAD COM SUCESSO!!!!")
+      return images
+    } catch (error) {
+      console.log(error);
+      return error
+    }
+
   }
 
 
@@ -278,7 +290,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent) {
 
   try {
-    console.log(">>>>FOLDER PATH ARGUMENTO", folderPath)
+    console.log(">>>>FOLDER PATH ARGUMENTO", folderPath, "IMAGE", image, "objfile", objfileRename)
     //copia o arquivo para servidor
     await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
     //copia o arquivo para o googledrive
