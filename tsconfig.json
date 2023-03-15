@@ -8,7 +8,7 @@
     "build"
   ],
   "compilerOptions": {
-    "outDir": "_build_old",
+    "outDir": "_build",
     "rootDir": "./",
     "sourceMap": true,
     "paths": {
@@ -23,7 +23,7 @@
       ],
       "Database/*": [
         "./database/*"
-      ]      
+      ]
     },
     "types": [
       "@adonisjs/core",

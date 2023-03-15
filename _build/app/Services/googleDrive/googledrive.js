@@ -73,7 +73,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
             media: media,
             fields: 'id'
         });
-        console.log('File Id:', file.data.id);
+        console.log('>>>File Id:', file.data.id);
         return file.data.id;
     }
     catch (err) {
