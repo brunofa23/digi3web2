@@ -1,12 +1,6 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Typebook from 'App/Models/Typebook'
 import Company from 'App/Models/Company'
-import AuthenticationController from './AuthenticationController'
-import { Response } from '@adonisjs/core/build/standalone'
-import Schema from '@ioc:Adonis/Lucid/Schema'
-
-import { schema } from '@ioc:Adonis/Core/Validator'
-import { authenticate } from '@google-cloud/local-auth'
 
 const authorize = require('App/Services/googleDrive/googledrive')
 

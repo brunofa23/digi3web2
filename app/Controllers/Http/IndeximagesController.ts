@@ -3,6 +3,11 @@ import Indeximage from 'App/Models/Indeximage'
 
 const FileRename = require('../../Services/fileRename/fileRename')
 import Application from '@ioc:Adonis/Core/Application'
+import { DateTime } from 'luxon'
+import { Logtail } from '@logtail/node'
+import Bookrecord from 'App/Models/Bookrecord'
+const Date = require('../../Services/Dates/format')
+
 
 const fs = require('fs')
 export default class IndeximagesController {
@@ -92,13 +97,13 @@ export default class IndeximagesController {
   }
 
   public async uploadCapture({ auth, request, params }) {
-    
-    const authenticate = await auth.use('api').authenticate()
-    const { imageCapture } = request.requestData
 
-    let base64Image = imageCapture.split(';base64,').pop();
+    const authenticate = await auth.use('api').authenticate()
+    const { imageCaptureBase64, cod, id } = request.requestData
+
+    let base64Image = imageCaptureBase64.split(';base64,').pop();
     const folderPath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`)
-    
+
     try {
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath)
@@ -106,15 +111,18 @@ export default class IndeximagesController {
     } catch (error) {
       return error
     }
-    
-    fs.writeFile(`${folderPath}/L1(1).jpg`, base64Image, { encoding: 'base64' }, function (err) {
+    var dateNow = Date.format(DateTime.now())
+    const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
+
+    fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
       console.log('File created', folderPath);
     });
 
-    console.log("companies id>>>",authenticate.companies_id)
-    const file = await FileRename.transformFilesNameToId(`${folderPath}/L1(1).jpg`, params, authenticate.companies_id)
+    const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true)
+    console.log(">>>FINAL NO UPLOAD CAPTURE")
 
-    //return {sucesso:"sucesso", file, typebook: params.typebooks_id, imageCapture }
+
+    return { sucesso: "sucesso", file, typebook: params.typebooks_id }
 
 
   }

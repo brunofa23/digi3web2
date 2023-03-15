@@ -24,6 +24,10 @@ abrir servidor
  sudo service docker start
  npm run docker:dev
 
+### FORMATO DE SAÍDA DO ARQUIVO
+  Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{data do arquivo}{extensão}
+
+
 ### DEPLOY
 0 - npm install
 1 - node ace build --production --ignore-ts-errors
