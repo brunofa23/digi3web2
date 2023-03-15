@@ -218,35 +218,16 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
   await sleep(1000);
   const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
-  //  console.log(">>>entrei no PARENT", idParent)
+
   //******************************************************************************** */
 
   //imagem única para upload
   if (capture) {
-    //teste para captura
+
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
-    console.log("FILE>>>", _fileRename)
 
     try {
-      //await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
-      fs.rename(images, `${path.dirname(images)}/${_fileRename.file_name}`, function (err) {
-        //Caso a execução encontre algum erro
-        if (err) {
-          //A execução irá parar e mostrará o erro
-          throw err;
-        } else {
-          //Caso não tenha erro, apenas a mensagem será exibida no terminal
-          console.log('Arquivo renomeado');
-        }
-      });
-
-      //await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id)
-      await authorize.sendUploadFiles(idParent, folderPath, `${_fileRename.file_name}`)
-      //chamar função para inserir na tabela indeximages
-      await Indeximage.create(_fileRename)
-      //chamar função de exclusão da imagem
-      //await deleteImage(`${folderPath}/${_fileRename.file_name}`)
-
+      await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, true)
       console.log("UPLOAD COM SUCESSO!!!!")
       return images
     } catch (error) {
@@ -287,12 +268,22 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 }
 
 
-async function pushImageToGoogle(image, folderPath, objfileRename, idParent) {
+async function pushImageToGoogle(image, folderPath, objfileRename, idParent, capture = false) {
 
   try {
-    console.log(">>>>FOLDER PATH ARGUMENTO", folderPath, "IMAGE", image, "objfile", objfileRename)
     //copia o arquivo para servidor
-    await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
+    if (capture) {
+      fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
+        if (err) {
+          throw err;
+        } else {
+          console.log('Arquivo renomeado');
+        }
+      });
+    }
+    else {
+      await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
+    }
     //copia o arquivo para o googledrive
     await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`)
     //chamar função para inserir na tabela indeximages
@@ -325,7 +316,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
     query = ` cod =${objFileName.cod} and book = ${objFileName.book} `
   }
 
-
   //ARQUIVOS QUE INICIAM COM ID
   else if (path.basename(originalFileName).startsWith('Id')) {
 
@@ -335,10 +325,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       cod: arrayFileName[1].replace('(', '').replace(')', ''),
       ext: `.${arrayFileName[4]}`
     }
-
     originalFileName = path.basename(originalFileName)
     query = ` id=${objFileName.id} and cod=${objFileName.cod} `
-
 
   }
 
