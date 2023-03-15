@@ -5,6 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const FileRename = require('../../Services/fileRename/fileRename');
+const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
+const luxon_1 = require("luxon");
+const Date = require('../../Services/Dates/format');
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+const fs = require('fs');
 class IndeximagesController {
     async store({ request, response }) {
         const body = request.only(Indeximage_1.default.fillable);
@@ -16,7 +22,7 @@ class IndeximagesController {
         };
     }
     async index({ auth, response }) {
-        const authenticate = await auth.use('api').authenticate();
+        await auth.use('api').authenticate();
         const data = await Indeximage_1.default.query();
         return response.send({ data });
     }
@@ -60,7 +66,32 @@ class IndeximagesController {
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
         console.log("passei pelo Upload...");
         return files;
-        console.log("FINALIZADO!!!");
+    }
+    async uploadCapture({ auth, request, params }) {
+        logtail.info("Entrei no upload capture");
+        const authenticate = await auth.use('api').authenticate();
+        const { imageCaptureBase64, cod, id } = request.requestData;
+        logtail.info('request>>>', { cod, id });
+        let base64Image = imageCaptureBase64.split(';base64,').pop();
+        const folderPath = Application_1.default.tmpPath(`/uploads/Client_${authenticate.companies_id}`);
+        try {
+            if (!fs.existsSync(folderPath)) {
+                fs.mkdirSync(folderPath);
+            }
+        }
+        catch (error) {
+            return error;
+        }
+        var dateNow = Date.format(luxon_1.DateTime.now());
+        const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`;
+        fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
+            console.log('File created', folderPath);
+            logtail.info('File created', { folderPath });
+        });
+        const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true);
+        console.log(">>>FINAL NO UPLOAD CAPTURE");
+        logtail.info('>>>FINAL NO UPLOAD CAPTURE');
+        return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }
     async download({ auth, params }) {
         const fileName = params.id;
