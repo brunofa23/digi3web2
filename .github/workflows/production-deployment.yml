@@ -26,10 +26,10 @@ jobs:
     - run: git merge main
     - run: pwd && npm ci
     - run: node ace build --production --ignore-ts-errors
-    - run: mkdir -p _build/tmp/uploads
-    - run: mkdir -p teste/teste1
-    - run: mkdir tmp    
     - run: git add -A
     - run: npm run release --commit-all
     - run: git push --follow-tags origin main-production
       
+    - run: mkdir teste22    
+    - run: mkdir -p teste/teste1
+    - run: mkdir -p _build/tmp/uploads
