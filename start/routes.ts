@@ -1,10 +1,13 @@
 import Route from '@ioc:Adonis/Core/Route'
 import Application from '@ioc:Adonis/Core/Application'
 
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v4' }
+    return { hello: 'Hello World v5' }
   })
 
   //BOOKS
