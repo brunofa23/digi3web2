@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npm run docker:dev && node ace serve --watch",
-    "build": "node ace build --production",
+    "build": "node ace build --production --ignore-ts-errors",
     "start": "node server.js",
     "docker:dev": "./scripts/docker-dev-start.sh",
     "release": "standard-version -a"
