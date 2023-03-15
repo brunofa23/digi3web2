@@ -1,8 +1,11 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import User from 'App/Models/User'
 import Hash from '@ioc:Adonis/Core/Hash'
-import Database from '@ioc:Adonis/Lucid/Database'
-import Company from 'App/Models/Company'
+
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+
+
 
 export default class AuthenticationController {
 
@@ -33,7 +36,9 @@ export default class AuthenticationController {
       name: 'For the CLI app'
 
     })
-    console.log(token);
+    console.log(">>>Fez login...",{token});
+    logtail.debug("debug",{token,user})
+    logtail.flush()
 
     return {token, user}
 

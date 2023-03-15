@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.3](https://github.com/brunofa23/digi3web2/compare/v1.1.2...v1.1.3) (2023-03-02)
+
+### [1.1.2](https://github.com/brunofa23/digi3web2/compare/v1.1.1...v1.1.2) (2023-02-28)
+
+
+### Bug Fixes
+
+* Fix seed ([6344599](https://github.com/brunofa23/digi3web2/commit/6344599de2ecf16f9b7bd97f21b32e3129fcd915))
+* github action ([bda2210](https://github.com/brunofa23/digi3web2/commit/bda22107c7556ce48bca4d4df840ef0d763b56f8))
+
 ### [1.1.1](https://github.com/brunofa23/digi3web2/compare/v1.1.0...v1.1.1) (2023-02-27)
 
 ## 1.1.0 (2023-02-27)

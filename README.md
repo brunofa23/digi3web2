@@ -24,6 +24,10 @@ abrir servidor
  sudo service docker start
  npm run docker:dev
 
+### FORMATO DE SAÍDA DO ARQUIVO
+  Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{data do arquivo}{extensão}
+
+
 ### DEPLOY
 0 - npm install
 1 - node ace build --production --ignore-ts-errors
@@ -79,3 +83,15 @@ git restore --staged .
 
 chat.openai.com/chat
 node _build/ace migration:refresh --seed
+
+### LOG TRAIL
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+
+logtail.error("Erro testando Logtrail.");
+logtail.info("Info Logtrail",token);
+logtail.debug("debug",{
+      "token":token,
+      "usuário:":user
+    })
+logtail.flush()

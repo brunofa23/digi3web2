@@ -11,7 +11,7 @@ export default class Book extends BaseModel {
     return[
       'id',
       'name',
-      'namefolder'
+      'namefolder',
       'status',
       'createdAt',
       'updatedAt'

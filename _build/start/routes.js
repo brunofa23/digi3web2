@@ -7,14 +7,15 @@ const Route_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Route
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 Route_1.default.group(() => {
     Route_1.default.get('/', async () => {
-        return { hello: 'world' };
+        return { hello: 'Hello World v1' };
     });
     Route_1.default.resource("/books", 'BooksController').apiOnly();
     Route_1.default.resource("/companies", 'CompaniesController').apiOnly();
     Route_1.default.resource("/typebooks", 'TypebooksController').apiOnly();
     Route_1.default.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly();
     Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords');
-    Route_1.default.post("typebooks/:typebooks_id/bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords');
+    Route_1.default.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords');
+    Route_1.default.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords');
     Route_1.default.resource("/indeximages", "IndeximagesController").apiOnly();
     Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads');
     Route_1.default.post('/indeximages/download/:id', 'IndeximagesController.download').as('download');

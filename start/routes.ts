@@ -1,13 +1,13 @@
 import Route from '@ioc:Adonis/Core/Route'
-
 import Application from '@ioc:Adonis/Core/Application'
-import User from 'App/Models/User'
-import Hash from '@ioc:Adonis/Core/Hash'
+
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v1' }
+    return { hello: 'Hello World v5' }
   })
 
   //BOOKS
@@ -22,12 +22,15 @@ Route.group(() => {
   //BOOKRECORDS
   Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords')
-  Route.post("typebooks/:typebooks_id/bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords')
+  Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords')
+  Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords')
+  //Route.post("typebooks/:typebooks_id/bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords')
 
   //INDEXIMAGES
   Route.resource("/indeximages", "IndeximagesController").apiOnly()
   Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')
   Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')
+  Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')
 
 
   //USERS
@@ -61,7 +64,7 @@ Route.get('/api/test/middleware/level', ({ response }) => {
 
 
 Route.group(() => {
-  
+
   Route.get('/test', ({ response }) => {
     return response.json({ ok: true })
   }).middleware('level_permission:4')
