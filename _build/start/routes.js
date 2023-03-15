@@ -5,9 +5,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const Route_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Route"));
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 Route_1.default.group(() => {
     Route_1.default.get('/', async () => {
-        return { hello: 'Hello World v1' };
+        return { hello: 'Hello World v5' };
     });
     Route_1.default.resource("/books", 'BooksController').apiOnly();
     Route_1.default.resource("/companies", 'CompaniesController').apiOnly();
@@ -19,6 +21,7 @@ Route_1.default.group(() => {
     Route_1.default.resource("/indeximages", "IndeximagesController").apiOnly();
     Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads');
     Route_1.default.post('/indeximages/download/:id', 'IndeximagesController.download').as('download');
+    Route_1.default.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture');
     Route_1.default.resource("/users", "UsersController").apiOnly();
     Route_1.default.post("/login", "AuthenticationController.login");
     Route_1.default.post("/logout", "AuthenticationController.logout");

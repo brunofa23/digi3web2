@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
 const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash"));
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 class AuthenticationController {
     async login({ auth, request, response }) {
         const username = request.input('username');
@@ -25,7 +27,9 @@ class AuthenticationController {
             expiresIn: '30 days',
             name: 'For the CLI app'
         });
-        console.log(token);
+        console.log(">>>Fez login...", { token });
+        logtail.debug("debug", { token, user });
+        logtail.flush();
         return { token, user };
     }
     async logout({ auth, response }) {
