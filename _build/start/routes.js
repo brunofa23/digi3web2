@@ -10,6 +10,7 @@ const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 Route_1.default.group(() => {
     Route_1.default.get('/', async () => {
         return { hello: 'Hello World v15' };
+
     });
     Route_1.default.resource("/books", 'BooksController').apiOnly();
     Route_1.default.resource("/companies", 'CompaniesController').apiOnly();
