@@ -4,21 +4,16 @@ import Indeximage from 'App/Models/Indeximage'
 const FileRename = require('../../Services/fileRename/fileRename')
 import Application from '@ioc:Adonis/Core/Application'
 import { DateTime } from 'luxon'
-import { Logtail } from '@logtail/node'
-import Bookrecord from 'App/Models/Bookrecord'
 const Date = require('../../Services/Dates/format')
 
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
 const fs = require('fs')
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
     const body = request.only(Indeximage.fillable)
-    //const id = params.id
-    //Verificar se existe o codigo passado pelo parâmetro
-    //await Book.findByOrFail(id)
-    //body.id = id
-
     const data = await Indeximage.create(body)
 
     response.status(201)
@@ -98,8 +93,11 @@ export default class IndeximagesController {
 
   public async uploadCapture({ auth, request, params }) {
 
+    logtail.info("Entrei no upload capture")
     const authenticate = await auth.use('api').authenticate()
     const { imageCaptureBase64, cod, id } = request.requestData
+
+    logtail.info('request>>>', { cod, id })
 
     let base64Image = imageCaptureBase64.split(';base64,').pop();
     const folderPath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`)
@@ -116,11 +114,12 @@ export default class IndeximagesController {
 
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
       console.log('File created', folderPath);
+      logtail.info('File created', { folderPath })
     });
 
     const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true)
     console.log(">>>FINAL NO UPLOAD CAPTURE")
-
+    logtail.info('>>>FINAL NO UPLOAD CAPTURE')
 
     return { sucesso: "sucesso", file, typebook: params.typebooks_id }
 

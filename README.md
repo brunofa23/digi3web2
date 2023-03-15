@@ -83,3 +83,15 @@ git restore --staged .
 
 chat.openai.com/chat
 node _build/ace migration:refresh --seed
+
+### LOG TRAIL
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+
+logtail.error("Erro testando Logtrail.");
+logtail.info("Info Logtrail",token);
+logtail.debug("debug",{
+      "token":token,
+      "usuário:":user
+    })
+logtail.flush()
