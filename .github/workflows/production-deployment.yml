@@ -27,6 +27,7 @@ jobs:
     - run: pwd && npm ci
     - run: node ace build --production --ignore-ts-errors
     - run: mkdir -p _build/tmp/uploads
+    - run: mkdir tmp    
     - run: git add -A
     - run: npm run release --commit-all
     - run: git push --follow-tags origin main-production
