@@ -28,7 +28,7 @@ class TypebooksController {
         }
     }
     async index({ auth, request, response }) {
-        const { authenticate, companies_id } = await auth.use('api').authenticate();
+        const { companies_id } = await auth.use('api').authenticate();
         const { name, status, books_id } = request.requestData;
         if (!companies_id)
             return "error";
