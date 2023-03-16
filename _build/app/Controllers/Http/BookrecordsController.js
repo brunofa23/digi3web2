@@ -147,8 +147,9 @@ class BookrecordsController {
         return "sucesso!!";
     }
     async generateOrUpdateBookrecords({ auth, request, params }) {
+        console.log(">>>>>PASSEI PELO generateOrUpdateBookrecords.....");
         const authenticate = await auth.use('api').authenticate();
-        let { generateBooks_id, generateBook, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement } = request.requestData;
+        let { generateBooks_id, generateBook, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateLetter, generateYear } = request.requestData;
         let contSheet = 0;
         let contIncrementSheet = 0;
         let contFirstSheet = false;
