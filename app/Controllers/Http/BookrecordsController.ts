@@ -219,15 +219,11 @@ export default class BookrecordsController {
 
   }
 
-
   //gera ou substitui um livro
-
-
-  //MODIFICAR ESSE MÉTODO >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
   public async generateOrUpdateBookrecords({ auth, request, params }: HttpContextContract) {
 
+    console.log(">>>>>PASSEI PELO generateOrUpdateBookrecords.....")
     const authenticate = await auth.use('api').authenticate()
-    //    return "generate"
 
     let {
       generateBooks_id,
@@ -240,8 +236,15 @@ export default class BookrecordsController {
       generateSideStart,
       generateAlternateOfSides,
       generateApproximate_term,
-      generateApproximate_termIncrement
+      generateApproximate_termIncrement,
+      generateIndex,
+      generateLetter,
+      generateYear
+
     } = request.requestData
+
+
+    //return { generateBooks_id, generateBook }
 
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
     // if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
@@ -273,6 +276,7 @@ export default class BookrecordsController {
       console.log("generateStartCode", generateStartCode, " - generateStartSheetInCodReference", generateStartSheetInCodReference,);
 
       if (generateStartCode >= generateStartSheetInCodReference) {
+
         if (contIncrementSheet < generateSheetIncrement) {
           contIncrementSheet++
           if (contFirstSheet == false) {
@@ -294,7 +298,8 @@ export default class BookrecordsController {
             contFirstSide = true
           }
           generateSideStart = (generateSideStart == "F" ? "V" : "F")
-        } else if (generateAlternateOfSides == "FFVV") {
+        }
+        else if (generateAlternateOfSides == "FFVV") {
           if (sideNow >= 2) {
             generateSideStart = (generateSideStart == "F" ? "V" : "F")
             sideNow = 0
@@ -303,6 +308,8 @@ export default class BookrecordsController {
         }
 
       }
+
+
       if (generateStartCode > generateEndSheetInCodReference)
         contSheet = 0
 
@@ -317,6 +324,8 @@ export default class BookrecordsController {
       })
 
     }
+
+    //return bookrecords
 
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
     return data.length
