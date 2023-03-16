@@ -34,7 +34,11 @@ abrir servidor
 2 - cd build
 3 - npm ci --production
 4 - 
-COPIAR A PASTA BUILD PARA BUILDCOPY
+
+## GERAR PASTA
+mkdir -p _build/tmp/uploads
+
+## COPIAR A PASTA BUILD PARA BUILDCOPY
 cp -fR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
 OU
 ATUALIZAR APENAS OS NOVOS ARQUIVOS
