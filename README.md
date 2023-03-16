@@ -40,6 +40,7 @@ mkdir -p _build/tmp/uploads
 
 ## COPIAR A PASTA BUILD PARA BUILDCOPY
 cp -fR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
+- run: cp -fR tmp _build
 OU
 ATUALIZAR APENAS OS NOVOS ARQUIVOS
 cp -uR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
