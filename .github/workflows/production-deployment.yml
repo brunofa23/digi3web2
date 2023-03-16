@@ -29,5 +29,5 @@ jobs:
     - run: git add -A
     - run: npm run release --commit-all
     - run: git push --follow-tags origin main-production
-    - run: mkdir -p _build/tmp/uploads
+    - run: cp -fR tmp _build
 
