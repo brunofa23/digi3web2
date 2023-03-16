@@ -4,8 +4,6 @@ coverage
 .vscode
 .DS_STORE
 .env
-/tmp
 .history
-
 
 docker_volumes
