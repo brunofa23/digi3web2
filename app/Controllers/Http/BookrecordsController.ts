@@ -4,6 +4,8 @@ import Database from '@ioc:Adonis/Lucid/Database'
 
 import Bookrecord from 'App/Models/Bookrecord'
 import Indeximage from 'App/Models/Indeximage'
+import Env from '@ioc:Adonis/Core/Env'
+
 
 export default class BookrecordsController {
 
@@ -72,13 +74,14 @@ export default class BookrecordsController {
 
     const page = request.input('page', 1)
     //pagination paginação
-    const limit = 40
+    const limit = Env.get('PAGINATION')
 
     const data = await Bookrecord.query()
       .where("companies_id", '=', authenticate.companies_id)
       .andWhere("typebooks_id", '=', params.typebooks_id)
       .preload('indeximage')
       .whereRaw(query)//.toQuery()
+      .orderBy("cod", "asc")
       .paginate(page, limit)
 
     console.log(">>>sai bookrecord");
@@ -273,8 +276,6 @@ export default class BookrecordsController {
 
     for (let index = 0; index < generateEndCode; index++) {
 
-      console.log("generateStartCode", generateStartCode, " - generateStartSheetInCodReference", generateStartSheetInCodReference,);
-
       if (generateStartCode >= generateStartSheetInCodReference) {
 
         if (contIncrementSheet < generateSheetIncrement) {
@@ -306,7 +307,6 @@ export default class BookrecordsController {
           }
           sideNow++
         }
-
       }
 
 
@@ -316,16 +316,20 @@ export default class BookrecordsController {
       bookrecords.push({
         cod: generateStartCode++,
         book: generateBook,
-        sheet: contSheet,
-        side: generateSideStart,
+        sheet: ((!generateStartSheetInCodReference && !generateEndSheetInCodReference) || (generateStartSheetInCodReference == 0 && generateEndSheetInCodReference == 0) ? undefined : contSheet),
+        side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
         typebooks_id: params.typebooks_id,
         books_id: generateBooks_id,
         companies_id: authenticate.companies_id
       })
 
+
     }
 
-    //return bookrecords
+
+    console.log(">>>>bookrecord", bookrecords)
+    //return
+
 
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
     return data.length
