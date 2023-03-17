@@ -38,13 +38,13 @@ export default class Bookrecord extends BaseModel {
   })
   public indeximage: HasMany<typeof Indeximage>
 
-  @hasOne(() => Typebook,{
+  @hasOne(() => Typebook, {
     foreignKey: 'id',
     localKey: 'typebooks_id'
   })
   public typebooks: HasOne<typeof Typebook>
 
-  @hasOne(() => Company,{
+  @hasOne(() => Company, {
     foreignKey: 'id',
     localKey: 'companies_id'
   })
@@ -58,7 +58,7 @@ export default class Bookrecord extends BaseModel {
   public typebooks_id: number
 
   @column()
-  public companies_id:number
+  public companies_id: number
 
   @column()
   public books_id: number
@@ -89,7 +89,7 @@ export default class Bookrecord extends BaseModel {
   public letter: string
 
   @column()
-  public year: number
+  public year: string
 
   @column()
   public model: string
