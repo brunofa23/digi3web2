@@ -19,7 +19,7 @@ export default class extends BaseSchema {
       table.integer('index')
       table.string('obs')
       table.string('letter')
-      table.integer('year')
+      table.string('year')
       table.string('model')
 
       /**
