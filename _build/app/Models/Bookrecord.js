@@ -117,7 +117,7 @@ __decorate([
 ], Bookrecord.prototype, "letter", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", String)
 ], Bookrecord.prototype, "year", void 0);
 __decorate([
     (0, Orm_1.column)(),
