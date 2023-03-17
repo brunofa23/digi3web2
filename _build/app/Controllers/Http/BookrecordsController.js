@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
+const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -45,12 +46,13 @@ class BookrecordsController {
             query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
         }
         const page = request.input('page', 1);
-        const limit = 40;
+        const limit = Env_1.default.get('PAGINATION');
         const data = await Bookrecord_1.default.query()
             .where("companies_id", '=', authenticate.companies_id)
             .andWhere("typebooks_id", '=', params.typebooks_id)
             .preload('indeximage')
             .whereRaw(query)
+            .orderBy("cod", "asc")
             .paginate(page, limit);
         console.log(">>>sai bookrecord");
         return response.send(data);
@@ -157,7 +159,6 @@ class BookrecordsController {
         let sideNow = 0;
         const bookrecords = [];
         for (let index = 0; index < generateEndCode; index++) {
-            console.log("generateStartCode", generateStartCode, " - generateStartSheetInCodReference", generateStartSheetInCodReference);
             if (generateStartCode >= generateStartSheetInCodReference) {
                 if (contIncrementSheet < generateSheetIncrement) {
                     contIncrementSheet++;
@@ -194,13 +195,14 @@ class BookrecordsController {
             bookrecords.push({
                 cod: generateStartCode++,
                 book: generateBook,
-                sheet: contSheet,
-                side: generateSideStart,
+                sheet: ((!generateStartSheetInCodReference && !generateEndSheetInCodReference) || (generateStartSheetInCodReference == 0 && generateEndSheetInCodReference == 0) ? undefined : contSheet),
+                side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
                 typebooks_id: params.typebooks_id,
                 books_id: generateBooks_id,
                 companies_id: authenticate.companies_id
             });
         }
+        console.log(">>>>bookrecord", bookrecords);
         const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
         return data.length;
     }
