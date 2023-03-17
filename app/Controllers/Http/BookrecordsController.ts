@@ -81,7 +81,9 @@ export default class BookrecordsController {
       .andWhere("typebooks_id", '=', params.typebooks_id)
       .preload('indeximage')
       .whereRaw(query)//.toQuery()
+      .orderBy("book", "asc")
       .orderBy("cod", "asc")
+      .orderBy("sheet", "asc")
       .paginate(page, limit)
 
     console.log(">>>sai bookrecord");
@@ -223,7 +225,7 @@ export default class BookrecordsController {
   }
 
   //gera ou substitui um livro
-  public async generateOrUpdateBookrecords({ auth, request, params }: HttpContextContract) {
+  public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
 
     console.log(">>>>>PASSEI PELO generateOrUpdateBookrecords.....")
     const authenticate = await auth.use('api').authenticate()
@@ -246,14 +248,13 @@ export default class BookrecordsController {
 
     } = request.requestData
 
-
     //return { generateBooks_id, generateBook }
 
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
-    // if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
-    //   console.log("ERRRRRROR:", response.status(401))
-    //   return response.status(401)
-    // }
+    if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
+      console.log("ERRRRRROR:", response.status(401))
+      return response.status(401)
+    }
 
     // const generateBook = 10
     // let generateStartCode = 1
@@ -272,7 +273,13 @@ export default class BookrecordsController {
     let contFirstSheet = false
     let contFirstSide = false
     let sideNow = 0
+    let approximate_term = generateApproximate_term
+    let approximate_termIncrement = 0
+
     const bookrecords: Object[] = []
+
+
+
 
     for (let index = 0; index < generateEndCode; index++) {
 
@@ -307,8 +314,25 @@ export default class BookrecordsController {
           }
           sideNow++
         }
-      }
 
+      }
+      if (generateApproximate_term > 0) {
+        if (index == 0) {
+          approximate_term = generateApproximate_term
+          approximate_termIncrement++
+          if (approximate_termIncrement >= generateApproximate_termIncrement && generateApproximate_termIncrement > 1) {
+            approximate_termIncrement = 0
+          }
+        }
+        else {
+
+          if (approximate_termIncrement >= generateApproximate_termIncrement) {
+            approximate_termIncrement = 0
+            approximate_term++
+          }
+          approximate_termIncrement++
+        }
+      }
 
       if (generateStartCode > generateEndSheetInCodReference)
         contSheet = 0
@@ -318,20 +342,21 @@ export default class BookrecordsController {
         book: generateBook,
         sheet: ((!generateStartSheetInCodReference && !generateEndSheetInCodReference) || (generateStartSheetInCodReference == 0 && generateEndSheetInCodReference == 0) ? undefined : contSheet),
         side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
+        approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
+        index: ((!generateIndex || generateIndex == 0) ? undefined : generateIndex),
+        letter: ((!generateLetter || !isNaN(generateLetter) ? undefined : generateLetter)),
+        year: ((!generateYear ? undefined : generateYear)),
         typebooks_id: params.typebooks_id,
         books_id: generateBooks_id,
         companies_id: authenticate.companies_id
+
       })
 
 
     }
 
-
-    console.log(">>>>bookrecord", bookrecords)
-    //return
-
-
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
+
     return data.length
 
   }
