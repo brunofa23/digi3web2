@@ -8,6 +8,21 @@ const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/B
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
 class BookrecordsController {
+    async teste({ auth, request, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const data = await Bookrecord_1.default.query()
+            .select('bookrecords.*').leftJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
+            .select(Database_1.default.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
+            .where("bookrecords.companies_id", '=', authenticate.companies_id)
+            .andWhere("bookrecords.typebooks_id", '=', params.typebooks_id)
+            .preload('indeximage')
+            .groupBy('bookrecords.id')
+            .orderBy("book", "asc")
+            .orderBy("cod", "asc")
+            .orderBy("sheet", "asc");
+        console.log(">>>>>pesquisa get", data);
+        return response.send(data);
+    }
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData;
@@ -56,7 +71,6 @@ class BookrecordsController {
             .orderBy("cod", "asc")
             .orderBy("sheet", "asc")
             .paginate(page, limit);
-        console.log(">>>sai bookrecord");
         return response.send(data);
     }
     async show({ params }) {
