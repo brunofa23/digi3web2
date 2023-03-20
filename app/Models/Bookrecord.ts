@@ -94,6 +94,7 @@ export default class Bookrecord extends BaseModel {
   @column()
   public model: string
 
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 

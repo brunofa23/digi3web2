@@ -9,6 +9,28 @@ import Env from '@ioc:Adonis/Core/Env'
 
 export default class BookrecordsController {
 
+
+  public async teste({ auth, request, params, response }: HttpContextContract) {
+
+    const authenticate = await auth.use('api').authenticate()
+
+    const data = await Bookrecord.query()
+      .select('bookrecords.*').leftJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
+      .select(Database.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
+      .where("bookrecords.companies_id", '=', authenticate.companies_id)
+      .andWhere("bookrecords.typebooks_id", '=', params.typebooks_id)
+      .preload('indeximage')
+      .groupBy('bookrecords.id')
+      .orderBy("book", "asc")
+      .orderBy("cod", "asc")
+      .orderBy("sheet", "asc")
+
+    console.log(">>>>>pesquisa get", data)
+    return response.send(data)
+
+  }
+
+
   //Listar Bookrecords
   public async index({ auth, request, params, response }: HttpContextContract) {
 
@@ -80,16 +102,28 @@ export default class BookrecordsController {
       .where("companies_id", '=', authenticate.companies_id)
       .andWhere("typebooks_id", '=', params.typebooks_id)
       .preload('indeximage')
-      .whereRaw(query)//.toQuery()
+      .whereRaw(query)
       .orderBy("book", "asc")
       .orderBy("cod", "asc")
       .orderBy("sheet", "asc")
       .paginate(page, limit)
 
-    console.log(">>>sai bookrecord");
+    // const data = await Bookrecord.query()
+    //   .select('bookrecords.*').leftOuterJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
+    //   .select(Database.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
+    //   .where("bookrecords.companies_id", '=', authenticate.companies_id)
+    //   .andWhere("bookrecords.typebooks_id", '=', params.typebooks_id)
+    //   .preload('indeximage')
+    //   .groupBy('bookrecords.id')
+    //   .orderBy("book", "asc")
+    //   .orderBy("cod", "asc")
+    //   .orderBy("sheet", "asc")
+    //   .paginate(page, limit)
+
     return response.send(data)
 
   }
+
 
 
   public async show({ params }: HttpContextContract) {
