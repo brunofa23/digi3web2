@@ -233,6 +233,7 @@ export default class BookrecordsController {
     let {
       generateBooks_id,
       generateBook,
+      generateBookdestination,
       generateStartCode,
       generateEndCode,
       generateStartSheetInCodReference,
@@ -247,6 +248,11 @@ export default class BookrecordsController {
       generateYear
 
     } = request.requestData
+
+
+    //para alteração de livro
+    const _startCode = generateStartCode
+    const _endCode = generateEndCode
 
     //return { generateBooks_id, generateBook }
 
@@ -280,9 +286,6 @@ export default class BookrecordsController {
     let indexIncrement = 0
 
     const bookrecords: Object[] = []
-
-
-
 
     for (let index = 0; index < generateEndCode; index++) {
 
@@ -376,6 +379,13 @@ export default class BookrecordsController {
     }
 
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
+
+    //SUBSTITUI O NUMERO DO LIVRO
+    if (generateBook > 0 && generateBookdestination > 0) {
+      await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
+        .andWhere('book', '=', generateBook)
+        .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination })
+    }
 
     return data.length
 
