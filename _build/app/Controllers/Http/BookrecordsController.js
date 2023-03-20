@@ -153,7 +153,9 @@ class BookrecordsController {
     async generateOrUpdateBookrecords({ auth, request, params, response }) {
         console.log(">>>>>PASSEI PELO generateOrUpdateBookrecords.....");
         const authenticate = await auth.use('api').authenticate();
-        let { generateBooks_id, generateBook, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear } = request.requestData;
+        let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear } = request.requestData;
+        const _startCode = generateStartCode;
+        const _endCode = generateEndCode;
         if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
             console.log("ERRRRRROR:", response.status(401));
             return response.status(401);
@@ -248,6 +250,11 @@ class BookrecordsController {
             });
         }
         const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
+        if (generateBook > 0 && generateBookdestination > 0) {
+            await Bookrecord_1.default.query().where("companies_id", "=", authenticate.companies_id)
+                .andWhere('book', '=', generateBook)
+                .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination });
+        }
         return data.length;
     }
 }
