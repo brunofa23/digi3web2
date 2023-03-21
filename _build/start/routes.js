@@ -9,7 +9,7 @@ const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 Route_1.default.group(() => {
     Route_1.default.get('/', async () => {
-        return { hello: 'Hello World v26' };
+        return { hello: 'Hello World v27' };
     });
     Route_1.default.resource("/books", 'BooksController').apiOnly();
     Route_1.default.resource("/companies", 'CompaniesController').apiOnly();
@@ -19,6 +19,7 @@ Route_1.default.group(() => {
     Route_1.default.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords');
     Route_1.default.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords');
     Route_1.default.resource("/indeximages", "IndeximagesController").apiOnly();
+    Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads');
     Route_1.default.post('/indeximages/download/:id', 'IndeximagesController.download').as('download');
     Route_1.default.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture');
     Route_1.default.resource("/users", "UsersController").apiOnly();
