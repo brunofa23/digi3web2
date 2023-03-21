@@ -14,6 +14,9 @@ export default class BookrecordsController {
 
     const authenticate = await auth.use('api').authenticate()
 
+
+    return request
+
     const data = await Bookrecord.query()
       .select('bookrecords.*').leftJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
       .select(Database.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
@@ -32,15 +35,20 @@ export default class BookrecordsController {
 
 
   //Listar Bookrecords
-  public async index({ auth, request, params, response }: HttpContextContract) {
+  public async index({ auth, request, params, response }) {
 
 
     const authenticate = await auth.use('api').authenticate()
-    const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
+    const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
+
+    console.log(">>>>request", request.requestData)
+    //return request
+    //return { "index": index, request: request }
 
     let query = " 1=1 "
-    if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
-      query = " sheet > 0  "
+    if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
+      return null
+    //query = " sheet > 0  "
     else {
 
       //cod**************************************************
@@ -79,9 +87,16 @@ export default class BookrecordsController {
       //aproximate_term **************************************
       if (approximateterm != undefined)
         query += ` and approximate_term=${approximateterm}`
+
+
+      //Index **************************************
+      if (indexbook != undefined)
+        query += ` and indexbook=${indexbook} `
+
+
       //year ***********************************************
       if (year != undefined)
-        query += ` and year =${year} `
+        query += ` and year like '${year}' `
 
       //sheetzero*****************************************
       if (sheetzero)
@@ -92,7 +107,6 @@ export default class BookrecordsController {
     if (lastPagesOfEachBook) {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
     }
-
 
     const page = request.input('page', 1)
     //pagination paginação
@@ -108,6 +122,10 @@ export default class BookrecordsController {
       .orderBy("sheet", "asc")
       .paginate(page, limit)
 
+
+    return response.send(data)
+
+
     // const data = await Bookrecord.query()
     //   .select('bookrecords.*').leftOuterJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
     //   .select(Database.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
@@ -120,7 +138,6 @@ export default class BookrecordsController {
     //   .orderBy("sheet", "asc")
     //   .paginate(page, limit)
 
-    return response.send(data)
 
   }
 
@@ -401,7 +418,7 @@ export default class BookrecordsController {
         sheet: ((!generateStartSheetInCodReference && !generateEndSheetInCodReference) || (generateStartSheetInCodReference == 0 && generateEndSheetInCodReference == 0) ? undefined : contSheet),
         side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
         approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
-        index: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
+        indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
         year: ((!generateYear ? undefined : generateYear)),
         typebooks_id: params.typebooks_id,
         books_id: generateBooks_id,
@@ -411,6 +428,10 @@ export default class BookrecordsController {
 
 
     }
+
+
+    console.log(">>>>>bookrecords>>>>>", bookrecords)
+
 
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
 
