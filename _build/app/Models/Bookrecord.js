@@ -29,7 +29,7 @@ class Bookrecord extends Orm_1.BaseModel {
             'sheet',
             'side',
             'approximate_term',
-            'index',
+            'indexbook',
             'obs',
             'letter',
             'year',
@@ -106,7 +106,7 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], Bookrecord.prototype, "index", void 0);
+], Bookrecord.prototype, "indexbook", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

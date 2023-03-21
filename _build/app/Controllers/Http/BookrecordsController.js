@@ -10,6 +10,7 @@ const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
 class BookrecordsController {
     async teste({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
+        return request;
         const data = await Bookrecord_1.default.query()
             .select('bookrecords.*').leftJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
             .select(Database_1.default.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
@@ -25,10 +26,11 @@ class BookrecordsController {
     }
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData;
+        console.log(">>>>request", request.requestData);
         let query = " 1=1 ";
-        if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
-            query = " sheet > 0  ";
+        if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
+            return null;
         else {
             if (codstart != undefined && codend == undefined)
                 query += ` and cod =${codstart} `;
@@ -52,8 +54,10 @@ class BookrecordsController {
                 query += ` and side = '${side}' `;
             if (approximateterm != undefined)
                 query += ` and approximate_term=${approximateterm}`;
+            if (indexbook != undefined)
+                query += ` and indexbook=${indexbook} `;
             if (year != undefined)
-                query += ` and year =${year} `;
+                query += ` and year like '${year}' `;
             if (sheetzero)
                 query += ` and sheet>=0`;
         }
@@ -256,13 +260,14 @@ class BookrecordsController {
                 sheet: ((!generateStartSheetInCodReference && !generateEndSheetInCodReference) || (generateStartSheetInCodReference == 0 && generateEndSheetInCodReference == 0) ? undefined : contSheet),
                 side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
                 approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
-                index: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
+                indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
                 year: ((!generateYear ? undefined : generateYear)),
                 typebooks_id: params.typebooks_id,
                 books_id: generateBooks_id,
                 companies_id: authenticate.companies_id
             });
         }
+        console.log(">>>>>bookrecords>>>>>", bookrecords);
         const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
         if (generateBook > 0 && generateBookdestination > 0) {
             await Bookrecord_1.default.query().where("companies_id", "=", authenticate.companies_id)
