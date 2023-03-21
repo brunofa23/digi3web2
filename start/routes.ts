@@ -7,7 +7,7 @@ const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v25' }
+    return { hello: 'Hello World v26' }
   })
 
   //BOOKS
@@ -21,8 +21,7 @@ Route.group(() => {
 
   //BOOKRECORDS
   Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
-
-  Route.post("/typebooks/:typebooks_id/bookrecords/teste", 'BookrecordsController.teste')
+  //Route.get("/typebooks/:typebooks_id/bookrecords/teste", 'BookrecordsController.teste')
 
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords')
   Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords')
@@ -31,7 +30,7 @@ Route.group(() => {
 
   //INDEXIMAGES
   Route.resource("/indeximages", "IndeximagesController").apiOnly()
-  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')
+  //Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')
   Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')
   Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')
 

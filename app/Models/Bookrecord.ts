@@ -16,7 +16,7 @@ export default class Bookrecord extends BaseModel {
       'sheet',
       'side',
       'approximate_term',
-      'index',
+      'indexbook',
       'obs',
       'letter',
       'year',
@@ -79,7 +79,7 @@ export default class Bookrecord extends BaseModel {
   public approximate_term: string
 
   @column()
-  public index: number
+  public indexbook: number
 
   @column()
   public obs: string
