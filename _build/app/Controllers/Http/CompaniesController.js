@@ -3,13 +3,15 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
+const CreateCompanyValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/CreateCompanyValidator"));
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 class CompaniesController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
         if (!authenticate.superuser)
-            return "Não Possui privilégios para cadastrar empresa";
+            throw new BadRequestException_1.default('not superuser', 401);
         const data = await Company_1.default
             .query()
             .preload('typebooks');
@@ -18,9 +20,14 @@ class CompaniesController {
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         if (!authenticate.superuser)
-            return "Não Possui privilégios para cadastrar empresa";
-        const body = request.only(Company_1.default.fillable);
-        console.log("Passei pelo validator");
+            throw new BadRequestException_1.default('not superuser', 401);
+        const body = await request.validate(CreateCompanyValidator_1.default);
+        const companyByName = await Company_1.default.findBy('name', body.name);
+        if (companyByName)
+            throw new BadRequestException_1.default('name already in use', 402);
+        const companyByShortname = await Company_1.default.findBy('shortname', body.shortname);
+        if (companyByShortname)
+            throw new BadRequestException_1.default('shortname already in use', 402);
         try {
             const data = await Company_1.default.create(body);
             let parent = await authorize.sendSearchOrCreateFolder(data.foldername);
@@ -32,7 +39,7 @@ class CompaniesController {
             };
         }
         catch (error) {
-            return error;
+            throw new BadRequestException_1.default('Bad Request', 401);
         }
     }
     async show({ params, response }) {
@@ -42,8 +49,8 @@ class CompaniesController {
     async update({ auth, request, params }) {
         const authenticate = await auth.use('api').authenticate();
         if (!authenticate.superuser)
-            return "Não Possui privilégios para cadastrar empresa";
-        const body = request.only(Company_1.default.fillable);
+            throw new BadRequestException_1.default('not superuser', 401);
+        const body = await request.validate(CreateCompanyValidator_1.default);
         body.id = params.id;
         const data = await Company_1.default.findOrFail(body.id);
         body.foldername = data.foldername;
