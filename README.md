@@ -101,3 +101,14 @@ logtail.debug("debug",{
       "usuário:":user
     })
 logtail.flush()
+
+
+## para pegar dados da request
+ex: const data = request.only(['name', 'status', 'books_id'])
+
+
+## executar uma determinada função de teste
+node ace test --tags="teste3" functional
+
+## serializar Json
+JSON.parse(JSON.stringify(body))

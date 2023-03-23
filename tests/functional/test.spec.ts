@@ -5,21 +5,24 @@ import { DateTime } from 'luxon'
 const BASE_URL = 'http://127.0.0.1:3333'
 
 const Date = require('../../app/Services/Dates/format')
+
 test.group('Data', (assert) => {
 
   test('Testando dates', async () => {
     const data = Date.format(DateTime.now())
     console.log(data)
-  })
-})
+  }).tags(['datas'])
 
-test.group('FileRename', () => {
-
-  test('Testando dates', async () => {
+  test('Testando sleep', async () => {
     const data = Date.format(DateTime.now())
-    console.log(data)
-  })
+    console.log("teste", data)
+  }).tags(['sleep'])
+
+
 })
+
+
+
 
 
 
