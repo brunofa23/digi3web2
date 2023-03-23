@@ -26,7 +26,6 @@ export default class CompaniesController {
     if (!authenticate.superuser)
       throw new BadRequest('not superuser', 401)
 
-    //const body = request.only(Company.fillable)
     const body = await request.validate(CreateCompanyValidator)
 
     const companyByName = await Company.findBy('name', body.name)
@@ -36,7 +35,6 @@ export default class CompaniesController {
     const companyByShortname = await Company.findBy('shortname', body.shortname)
     if (companyByShortname)
       throw new BadRequest('shortname already in use', 402)
-
 
     try {
       const data = await Company.create(body)
@@ -51,7 +49,7 @@ export default class CompaniesController {
 
     } catch (error) {
       //return response.status(401)
-      throw new BadRequest('not superuser', 401)
+      throw new BadRequest('Bad Request', 401)
     }
 
   }
@@ -69,15 +67,13 @@ export default class CompaniesController {
 
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser)
-      return "Não Possui privilégios para cadastrar empresa"
+      throw new BadRequest('not superuser', 401)
 
-    const body = request.only(Company.fillable)
-    //await request.validate(CreateCompanyValidator)
+    const body = await request.validate(CreateCompanyValidator)
 
     body.id = params.id
     const data = await Company.findOrFail(body.id)
     body.foldername = data.foldername
-    //return (body)
     await data.fill(body).save()
 
     return {
