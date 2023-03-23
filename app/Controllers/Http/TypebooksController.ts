@@ -40,6 +40,10 @@ export default class TypebooksController {
   //listar livro
   public async index({ auth, request, response }) {
     const { companies_id } = await auth.use('api').authenticate()
+
+    //
+    //const data = request.only(['name', 'status', 'books_id'])
+
     const { name, status, books_id } = request.requestData
 
     if (!companies_id)
