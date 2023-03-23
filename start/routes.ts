@@ -15,6 +15,7 @@ Route.group(() => {
 
   //COMPANIES
   Route.resource("/companies", 'CompaniesController').apiOnly()
+  //Route.get("/companies", 'CompaniesController.index')
 
   //TYPEBOOKS
   Route.resource("/typebooks", 'TypebooksController').apiOnly()
