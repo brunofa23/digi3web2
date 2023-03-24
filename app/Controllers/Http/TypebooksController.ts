@@ -95,15 +95,16 @@ export default class TypebooksController {
   public async update({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    const body = request.only(Typebook.fillable)
+    //const body = request.only(Typebook.fillable)
+    const typebookPayload = await request.validate(TypebookValidator)
 
-    body.id = params.id
-    body.companies_id = authenticate.companies_id
+    typebookPayload.id = params.id
+    typebookPayload.companies_id = authenticate.companies_id
 
-    const data = await Typebook.query()
+    await Typebook.query()
       .where("companies_id", "=", authenticate.companies_id)
-      .andWhere('id', "=", params.id).update(body)
-    return response.status(201).send(body)
+      .andWhere('id', "=", params.id).update(typebookPayload)
+    return response.status(201).send(typebookPayload)
 
   }
 
