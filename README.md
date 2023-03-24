@@ -112,3 +112,11 @@ node ace test --tags="teste3" functional
 
 ## serializar Json
 JSON.parse(JSON.stringify(body))
+
+## RELACIONAMENTO ENTRE TABELAS
+## no model fazer o relacionamento
+User(){
+  return this.belongsTo("App/Models/User")
+}
+const tweet = await Tweet.query().with('nome do relacionamento').fetch()
+
