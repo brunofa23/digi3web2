@@ -5,9 +5,9 @@ import supertest from 'supertest'
 const BASE_URL = 'http://127.0.0.1:3333/api'
 
 //CAREACU 
-//const token = 'MTA.EkuHcWEQST7-SO1Dv5_vszK33nCMS2AoHESOEfSrMUlFyul6m3o0QrON6cjK'
+const token = 'MTA.EkuHcWEQST7-SO1Dv5_vszK33nCMS2AoHESOEfSrMUlFyul6m3o0QrON6cjK'
 //DIGI3 
-const token = 'MTE.bohAV-lIRI496INqPgKLb4mstvJP1oieEN5useiyAqYYq8KIOCwAxXIHDFKP'
+//const token = 'MTE.bohAV-lIRI496INqPgKLb4mstvJP1oieEN5useiyAqYYq8KIOCwAxXIHDFKP'
 test.group('Companies', (group) => {
   test('Get Company', async ({ client }) => {
     const body = await supertest(BASE_URL).get('/companies')
@@ -73,4 +73,15 @@ test.group('Companies', (group) => {
 
 
   //*******final do grupo */
+})
+
+
+test.group('Users', (group) => {
+  test('Get User', async ({ client }) => {
+    const body = await supertest(BASE_URL).get('/users')
+      .set('Authorization', 'bearer ' + token)
+      .expect(200)
+    console.log(">>>CLIENT", body)
+  }).tags(['GetUser'])
+
 })
