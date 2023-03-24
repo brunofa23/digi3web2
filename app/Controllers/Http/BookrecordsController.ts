@@ -1,54 +1,23 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
-
-
 import Bookrecord from 'App/Models/Bookrecord'
 import Indeximage from 'App/Models/Indeximage'
 import Env from '@ioc:Adonis/Core/Env'
+import BadRequestException from 'App/Exceptions/BadRequestException'
 
 
 export default class BookrecordsController {
 
-
-  public async teste({ auth, request, params, response }: HttpContextContract) {
-
-    const authenticate = await auth.use('api').authenticate()
-
-
-    return request
-
-    const data = await Bookrecord.query()
-      .select('bookrecords.*').leftJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
-      .select(Database.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
-      .where("bookrecords.companies_id", '=', authenticate.companies_id)
-      .andWhere("bookrecords.typebooks_id", '=', params.typebooks_id)
-      .preload('indeximage')
-      .groupBy('bookrecords.id')
-      .orderBy("book", "asc")
-      .orderBy("cod", "asc")
-      .orderBy("sheet", "asc")
-
-    console.log(">>>>>pesquisa get", data)
-    return response.send(data)
-
-  }
-
-
   //Listar Bookrecords
-  public async index({ auth, request, params, response }) {
-
+  public async index({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
 
-    console.log(">>>>request", request.requestData)
-    //return request
-    //return { "index": index, request: request }
-
     let query = " 1=1 "
-    if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
+    if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook))
       return null
-    //query = " sheet > 0  "
     else {
 
       //cod**************************************************
@@ -121,9 +90,7 @@ export default class BookrecordsController {
       .orderBy("cod", "asc")
       .orderBy("sheet", "asc")
       .paginate(page, limit)
-
-
-    return response.send(data)
+    return response.status(200).send(data)
 
 
     // const data = await Bookrecord.query()
@@ -155,13 +122,13 @@ export default class BookrecordsController {
   //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request }: HttpContextContract) {
 
-    const authenticate = await auth.use('api').authenticate()
+    await auth.use('api').authenticate()
 
     const { typebooks_id, Book, startCod, endCod } = request.requestBody
     let query = '1 = 1'
 
     if (Book == undefined)
-      return
+      return null
 
     if (typebooks_id != undefined) {
       if (Book != undefined) {
@@ -210,75 +177,72 @@ export default class BookrecordsController {
   }
 
 
-  public async createorupdatebookrecords({ auth, request, params }) {
+  // public async createorupdatebookrecords({ auth, request, response }) {
 
-    // console.log("entrei na inclusão de um registro");
-    // return
-    const authenticate = await auth.use('api').authenticate()
+  //   // console.log("entrei na inclusão de um registro");
+  //   // return
+  //   const authenticate = await auth.use('api').authenticate()
 
-    const _request = request.requestBody
-    let newRecord: Object[] = []
-    let updateRecord: Object[] = []
+  //   const _request = request.requestBody
+  //   let newRecord: Object[] = []
+  //   let updateRecord: Object[] = []
 
-    //return _request
-    for (const iterator of _request) {
+  //   for (const iterator of _request) {
 
-      if (!iterator.id) {
-        newRecord.push({
-          typebooks_id: iterator.typebooks_id,
-          books_id: iterator.books_id,
-          companies_id: authenticate.companies_id,
-          cod: iterator.cod,
-          book: iterator.book,
-          sheet: iterator.sheet,
-          side: iterator.side,
-          approximate_term: iterator.approximate_term,
-          indexbook: iterator.indexbook,
-          obs: iterator.obs,
-          letter: iterator.letter,
-          year: iterator.year,
-          model: iterator.model
-        })
-        console.log("NEW iterator:::", newRecord)
+  //     if (!iterator.id) {
+  //       newRecord.push({
+  //         typebooks_id: iterator.typebooks_id,
+  //         books_id: iterator.books_id,
+  //         companies_id: authenticate.companies_id,
+  //         cod: iterator.cod,
+  //         book: iterator.book,
+  //         sheet: iterator.sheet,
+  //         side: iterator.side,
+  //         approximate_term: iterator.approximate_term,
+  //         indexbook: iterator.indexbook,
+  //         obs: iterator.obs,
+  //         letter: iterator.letter,
+  //         year: iterator.year,
+  //         model: iterator.model
+  //       })
+  //       console.log("NEW iterator:::", newRecord)
 
-      }
+  //     }
 
-      else {
-        updateRecord.push({
-          id: iterator.id,
-          typebooks_id: iterator.typebooks_id,
-          books_id: iterator.books_id,
-          companies_id: authenticate.companies_id,
-          cod: iterator.cod,
-          book: iterator.book,
-          sheet: iterator.sheet,
-          side: iterator.side,
-          approximate_term: iterator.approximate_term,
-          indexbook: iterator.indexbook,
-          obs: iterator.obs,
-          letter: iterator.letter,
-          year: iterator.year,
-          model: iterator.model
-        })
+  //     else {
+  //       updateRecord.push({
+  //         id: iterator.id,
+  //         typebooks_id: iterator.typebooks_id,
+  //         books_id: iterator.books_id,
+  //         companies_id: authenticate.companies_id,
+  //         cod: iterator.cod,
+  //         book: iterator.book,
+  //         sheet: iterator.sheet,
+  //         side: iterator.side,
+  //         approximate_term: iterator.approximate_term,
+  //         indexbook: iterator.indexbook,
+  //         obs: iterator.obs,
+  //         letter: iterator.letter,
+  //         year: iterator.year,
+  //         model: iterator.model
+  //       })
 
-        console.log("UPDATE iterator:::", updateRecord)
-      }
+  //     }
 
 
-    }
+  //   }
+
+  //   await Bookrecord.createMany(newRecord)
+  //   await Bookrecord.updateOrCreateMany('id', updateRecord)
+  //   return response.status(201).send({ "Mensage": "Sucess!" })
 
 
-    await Bookrecord.createMany(newRecord)
-    await Bookrecord.updateOrCreateMany('id', updateRecord)
-    return "sucesso!!"
-
-
-  }
+  // }
 
   //gera ou substitui um livro
+
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
 
-    console.log(">>>>>PASSEI PELO generateOrUpdateBookrecords.....")
     const authenticate = await auth.use('api').authenticate()
 
     let {
@@ -309,21 +273,14 @@ export default class BookrecordsController {
 
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
     if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
-      console.log("ERRRRRROR:", response.status(401))
-      return response.status(401)
+      throw new BadRequestException('Book invalid', 409)
     }
-
-    // const generateBook = 10
-    // let generateStartCode = 1
-    // const generateEndCode = 40
-    // const generateStartSheetInCodReference = 5
-    // const generateEndSheetInCodReference = 35
-    // const generateSheetIncrement = 2
-    // let generateSideStart = "F"
-    // const generateAlternateOfSides = "FV"
-    // const generateApproximate_term = 1
-    // const generateApproximate_termIncrement = 1
-
+    if (!generateStartCode || generateStartCode <= 0) {
+      throw new BadRequestException('StartCode invalid', 409)
+    }
+    if (!generateEndCode || generateEndCode <= 0) {
+      throw new BadRequestException('EndCode invalid', 409)
+    }
 
     let contSheet = 0
     let contIncrementSheet = 0
@@ -430,9 +387,6 @@ export default class BookrecordsController {
     }
 
 
-    console.log(">>>>>bookrecords>>>>>", bookrecords)
-
-
     const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
 
     //SUBSTITUI O NUMERO DO LIVRO
@@ -442,9 +396,12 @@ export default class BookrecordsController {
         .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination })
     }
 
-    return data.length
+    return response.status(201).send(data.length)
 
   }
+
+
+
 
 
   //********************************************************* */
