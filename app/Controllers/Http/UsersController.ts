@@ -1,21 +1,20 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import User from 'App/Models/User'
 import BadRequest from 'App/Exceptions/BadRequestException'
+import UserValidator from 'App/Validators/UserValidator'
 
 export default class UsersController {
 
   public async index({ auth, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequest('not superuser', 401)
-
     let query = ` companies_id=${authenticate.companies_id}`
     if (authenticate.superuser)
       query = ""
 
     const data = await User.query()
       .whereRaw(query)
+
     return response.status(200).send(data)
 
   }
@@ -38,33 +37,36 @@ export default class UsersController {
 
   public async store({ auth, request, response }: HttpContextContract) {
 
-    const body = request.only(User.fillable)
     const authenticate = await auth.use('api').authenticate()
+    const body = await request.validate(UserValidator)
+
+    const userByName = await User.query()
+      .where('username', '=', body.username)
+      .andWhere('companies_id', '=', body.companies_id).first()
+    if (userByName)
+      throw new BadRequest('Username already in use', 402)
 
     //********APENAS PARA USUÁRIO ADMIN NA EMPRESA 1 */
     if (!authenticate.superuser) {
       body.companies_id = authenticate.companies_id
     }
+
     const data = await User.create(body)
-
     response.status(201).send(data)
-
   }
 
 
   public async update({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    const body = request.only(User.fillable)
+    const body = await request.validate(UserValidator)
     body.companies_id = authenticate.companies_id
     body.id = params.id
-
-    const data = await User.query()
+    await User.query()
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).update(body)
 
-    //return data
-    return response.status(201).send(data)
+    return response.status(201).send(body)
 
   }
 
