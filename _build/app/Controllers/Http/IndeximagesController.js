@@ -44,7 +44,7 @@ class IndeximagesController {
         const body = request.only(Indeximage_1.default.fillable);
         body.bookrecords_id = params.id;
         body.typebooks_id = params.id2;
-        body.seq = params.id3;
+        body.seq = params.id;
         const data = await Indeximage_1.default
             .query()
             .where('bookrecords_id', '=', body.bookrecords_id)
@@ -64,7 +64,6 @@ class IndeximagesController {
             extnames: ['jpg', 'png', 'jpeg', 'pdf']
         });
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
-        console.log("passei pelo Upload...");
         return files;
     }
     async uploadCapture({ auth, request, params }) {
