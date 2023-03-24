@@ -3,6 +3,7 @@ import Bookrecord from "App/Models/Bookrecord";
 import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
+import BadRequestException from "App/Exceptions/BadRequestException";
 
 
 const authorize = require('App/Services/googleDrive/googledrive')
@@ -25,7 +26,7 @@ function deleteImage(folderPath) {
   });
 }
 
-async function downloadImage(fileName, companies_id) {
+async function downloadImage(fileName) {
 
   const fileId = await authorize.sendSearchFile(fileName)
   console.log(fileId)
@@ -47,7 +48,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
       fs.mkdirSync(folderPath)
     }
   } catch (error) {
-    return error
+    throw new BadRequestException('could not create client directory', 409)
   }
 
   //retorna o nome do diretório path em typebooks
@@ -57,7 +58,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     .andWhere('companies_id', '=', companies_id).first()
 
   if (!directoryParent || directoryParent == undefined)
-    return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS"
+    throw new BadRequestException('undefined book', 409)
 
   //verifica se existe essa pasta no Google e retorna o id do google
   let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
@@ -115,7 +116,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
       }
     } catch (error) {
-      console.log(error);
+      throw new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
 
@@ -146,7 +147,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
     //chamar função de exclusão da imagem
     await deleteImage(`${folderPath}/${objfileRename.file_name}`)
   } catch (error) {
-    return error
+    throw new BadRequestException(error + ' sendUploadFiles', 409)
   }
   return objfileRename.file_name
 

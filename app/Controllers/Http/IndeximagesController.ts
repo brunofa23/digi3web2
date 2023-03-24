@@ -55,7 +55,7 @@ export default class IndeximagesController {
     const body = request.only(Indeximage.fillable)
     body.bookrecords_id = params.id
     body.typebooks_id = params.id2
-    body.seq = params.id3
+    body.seq = params.id
 
     const data = await Indeximage
       .query()
@@ -85,7 +85,6 @@ export default class IndeximagesController {
     })
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
-    console.log("passei pelo Upload...")
 
     return files
 
