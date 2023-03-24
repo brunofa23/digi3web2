@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const runner_1 = require("@japa/runner");
 const supertest_1 = __importDefault(require("supertest"));
 const BASE_URL = 'http://127.0.0.1:3333/api';
-const token = 'MTE.bohAV-lIRI496INqPgKLb4mstvJP1oieEN5useiyAqYYq8KIOCwAxXIHDFKP';
+const token = 'MTA.EkuHcWEQST7-SO1Dv5_vszK33nCMS2AoHESOEfSrMUlFyul6m3o0QrON6cjK';
 runner_1.test.group('Companies', (group) => {
     (0, runner_1.test)('Get Company', async ({ client }) => {
         const body = await (0, supertest_1.default)(BASE_URL).get('/companies')
@@ -57,5 +57,13 @@ runner_1.test.group('Companies', (group) => {
         const body = await (0, supertest_1.default)(BASE_URL).put(`/companies/${id}`).set('Authorization', 'bearer ' + token)
             .send(companyPayload);
     }).tags(['updateCompany']);
+});
+runner_1.test.group('Users', (group) => {
+    (0, runner_1.test)('Get User', async ({ client }) => {
+        const body = await (0, supertest_1.default)(BASE_URL).get('/users')
+            .set('Authorization', 'bearer ' + token)
+            .expect(200);
+        console.log(">>>CLIENT", body);
+    }).tags(['GetUser']);
 });
 //# sourceMappingURL=test.spec.js.map
