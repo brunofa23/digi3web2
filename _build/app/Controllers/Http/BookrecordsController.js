@@ -7,29 +7,14 @@ const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/D
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 class BookrecordsController {
-    async teste({ auth, request, params, response }) {
-        const authenticate = await auth.use('api').authenticate();
-        return request;
-        const data = await Bookrecord_1.default.query()
-            .select('bookrecords.*').leftJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
-            .select(Database_1.default.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
-            .where("bookrecords.companies_id", '=', authenticate.companies_id)
-            .andWhere("bookrecords.typebooks_id", '=', params.typebooks_id)
-            .preload('indeximage')
-            .groupBy('bookrecords.id')
-            .orderBy("book", "asc")
-            .orderBy("cod", "asc")
-            .orderBy("sheet", "asc");
-        console.log(">>>>>pesquisa get", data);
-        return response.send(data);
-    }
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData;
-        console.log(">>>>request", request.requestData);
         let query = " 1=1 ";
-        if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
+        if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
+            (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook))
             return null;
         else {
             if (codstart != undefined && codend == undefined)
@@ -75,7 +60,7 @@ class BookrecordsController {
             .orderBy("cod", "asc")
             .orderBy("sheet", "asc")
             .paginate(page, limit);
-        return response.send(data);
+        return response.status(200).send(data);
     }
     async show({ params }) {
         const data = await Bookrecord_1.default.findOrFail(params.id);
@@ -84,11 +69,11 @@ class BookrecordsController {
         };
     }
     async destroyManyBookRecords({ auth, request }) {
-        const authenticate = await auth.use('api').authenticate();
+        await auth.use('api').authenticate();
         const { typebooks_id, Book, startCod, endCod } = request.requestBody;
         let query = '1 = 1';
         if (Book == undefined)
-            return;
+            return null;
         if (typebooks_id != undefined) {
             if (Book != undefined) {
                 query += ` and book=${Book} `;
@@ -120,63 +105,19 @@ class BookrecordsController {
             params: params.id
         };
     }
-    async createorupdatebookrecords({ auth, request, params }) {
-        const authenticate = await auth.use('api').authenticate();
-        const _request = request.requestBody;
-        let newRecord = [];
-        let updateRecord = [];
-        for (const iterator of _request) {
-            if (!iterator.id) {
-                newRecord.push({
-                    typebooks_id: iterator.typebooks_id,
-                    books_id: iterator.books_id,
-                    companies_id: authenticate.companies_id,
-                    cod: iterator.cod,
-                    book: iterator.book,
-                    sheet: iterator.sheet,
-                    side: iterator.side,
-                    approximate_term: iterator.approximate_term,
-                    indexbook: iterator.indexbook,
-                    obs: iterator.obs,
-                    letter: iterator.letter,
-                    year: iterator.year,
-                    model: iterator.model
-                });
-                console.log("NEW iterator:::", newRecord);
-            }
-            else {
-                updateRecord.push({
-                    id: iterator.id,
-                    typebooks_id: iterator.typebooks_id,
-                    books_id: iterator.books_id,
-                    companies_id: authenticate.companies_id,
-                    cod: iterator.cod,
-                    book: iterator.book,
-                    sheet: iterator.sheet,
-                    side: iterator.side,
-                    approximate_term: iterator.approximate_term,
-                    indexbook: iterator.indexbook,
-                    obs: iterator.obs,
-                    letter: iterator.letter,
-                    year: iterator.year,
-                    model: iterator.model
-                });
-                console.log("UPDATE iterator:::", updateRecord);
-            }
-        }
-        await Bookrecord_1.default.createMany(newRecord);
-        await Bookrecord_1.default.updateOrCreateMany('id', updateRecord);
-        return "sucesso!!";
-    }
     async generateOrUpdateBookrecords({ auth, request, params, response }) {
-        console.log(">>>>>PASSEI PELO generateOrUpdateBookrecords.....");
         const authenticate = await auth.use('api').authenticate();
         let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear } = request.requestData;
         const _startCode = generateStartCode;
         const _endCode = generateEndCode;
         if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
-            console.log("ERRRRRROR:", response.status(401));
-            return response.status(401);
+            throw new BadRequestException_1.default('Book invalid', 409);
+        }
+        if (!generateStartCode || generateStartCode <= 0) {
+            throw new BadRequestException_1.default('StartCode invalid', 409);
+        }
+        if (!generateEndCode || generateEndCode <= 0) {
+            throw new BadRequestException_1.default('EndCode invalid', 409);
         }
         let contSheet = 0;
         let contIncrementSheet = 0;
@@ -267,14 +208,13 @@ class BookrecordsController {
                 companies_id: authenticate.companies_id
             });
         }
-        console.log(">>>>>bookrecords>>>>>", bookrecords);
         const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
         if (generateBook > 0 && generateBookdestination > 0) {
             await Bookrecord_1.default.query().where("companies_id", "=", authenticate.companies_id)
                 .andWhere('book', '=', generateBook)
                 .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination });
         }
-        return data.length;
+        return response.status(201).send(data.length);
     }
 }
 exports.default = BookrecordsController;

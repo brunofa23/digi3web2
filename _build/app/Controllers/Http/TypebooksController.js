@@ -63,13 +63,13 @@ class TypebooksController {
     }
     async update({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const body = request.only(Typebook_1.default.fillable);
-        body.id = params.id;
-        body.companies_id = authenticate.companies_id;
-        const data = await Typebook_1.default.query()
+        const typebookPayload = await request.validate(TypebookValidator_1.default);
+        typebookPayload.id = params.id;
+        typebookPayload.companies_id = authenticate.companies_id;
+        await Typebook_1.default.query()
             .where("companies_id", "=", authenticate.companies_id)
-            .andWhere('id', "=", params.id).update(body);
-        return response.status(201).send(body);
+            .andWhere('id', "=", params.id).update(typebookPayload);
+        return response.status(201).send(typebookPayload);
     }
     async destroy({ auth, params }) {
         const authenticate = await auth.use('api').authenticate();
