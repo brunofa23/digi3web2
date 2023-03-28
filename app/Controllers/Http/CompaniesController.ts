@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import Company from 'App/Models/Company'
+import validations from 'App/Services/Validations/validations'
 import CompanyValidator from 'App/Validators/CompanyValidator'
 const authorize = require('App/Services/googleDrive/googledrive')
 
@@ -10,7 +11,7 @@ export default class CompaniesController {
 
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser)
-      throw new BadRequest('not superuser', 401)
+      throw new BadRequest('not superuser', 401, 'company_100')
 
     const data = await Company
       .query()
@@ -22,19 +23,30 @@ export default class CompaniesController {
   //inserir
   public async store({ auth, request, response }: HttpContextContract) {
 
+
+
+
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequest('not superuser', 401)
+    if (!authenticate.superuser) {
+      let errorValidation = await new validations().validations('book_100')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
 
     const body = await request.validate(CompanyValidator)
-
     const companyByName = await Company.findBy('name', body.name)
-    if (companyByName)
-      throw new BadRequest('name already in use', 402)
+
+
+    if (companyByName) {
+      let errorValidation = await new validations().validations('book_101')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
 
     const companyByShortname = await Company.findBy('shortname', body.shortname)
-    if (companyByShortname)
-      throw new BadRequest('shortname already in use', 402, '150')
+
+    if (companyByShortname) {
+      let errorValidation = await new validations().validations('book_102')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
 
     try {
       const data = await Company.create(body)
@@ -63,8 +75,10 @@ export default class CompaniesController {
   public async update({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequest('not superuser', 401)
+    if (!authenticate.superuser) {
+      let errorValidation = await new validations().validations('book_100')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
 
     const body = await request.validate(CompanyValidator)
 
