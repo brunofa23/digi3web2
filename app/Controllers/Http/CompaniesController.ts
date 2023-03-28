@@ -34,7 +34,7 @@ export default class CompaniesController {
 
     const companyByShortname = await Company.findBy('shortname', body.shortname)
     if (companyByShortname)
-      throw new BadRequest('shortname already in use', 402)
+      throw new BadRequest('shortname already in use', 402, '150')
 
     try {
       const data = await Company.create(body)
