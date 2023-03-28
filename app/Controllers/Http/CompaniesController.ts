@@ -1,5 +1,6 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import BadRequest from 'App/Exceptions/BadRequestException'
+import UnAuthorizedException from 'App/Exceptions/UnAuthorizedException'
 import Company from 'App/Models/Company'
 import CompanyValidator from 'App/Validators/CompanyValidator'
 const authorize = require('App/Services/googleDrive/googledrive')
@@ -30,8 +31,9 @@ export default class CompaniesController {
 
     const companyByName = await Company.findBy('name', body.name)
     if (companyByName)
-      //throw new BadRequest({ error: 'name already in use', code: 11 }, 402)
-      throw new BadRequest('name already in use', 402)
+      throw new BadRequest('name already in use', 402, '105')
+    //throw new BadRequest('name already in use', 402)
+    //throw new UnAuthorizedException("nome já utilizado", 402, "109")
 
     const companyByShortname = await Company.findBy('shortname', body.shortname)
     if (companyByShortname)
