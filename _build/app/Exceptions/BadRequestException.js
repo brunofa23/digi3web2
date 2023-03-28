@@ -2,10 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const standalone_1 = require("@adonisjs/core/build/standalone");
 class BadRequestException extends standalone_1.Exception {
-    constructor() {
-        super(...arguments);
-        this.code = 'BAD_REQUEST';
-    }
     async handle(error, ctx) {
         return ctx.response.status(error.status).send({
             code: error.code,

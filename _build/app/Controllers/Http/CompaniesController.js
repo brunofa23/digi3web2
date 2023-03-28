@@ -27,7 +27,7 @@ class CompaniesController {
             throw new BadRequestException_1.default('name already in use', 402);
         const companyByShortname = await Company_1.default.findBy('shortname', body.shortname);
         if (companyByShortname)
-            throw new BadRequestException_1.default('shortname already in use', 402);
+            throw new BadRequestException_1.default('shortname already in use', 402, '150');
         try {
             const data = await Company_1.default.create(body);
             let parent = await authorize.sendSearchOrCreateFolder(data.foldername);
