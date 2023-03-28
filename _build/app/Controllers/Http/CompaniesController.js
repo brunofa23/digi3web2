@@ -5,13 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
+const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const CompanyValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/CompanyValidator"));
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 class CompaniesController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
         if (!authenticate.superuser)
-            throw new BadRequestException_1.default('not superuser', 401);
+            throw new BadRequestException_1.default('not superuser', 401, 'company_100');
         const data = await Company_1.default
             .query()
             .preload('typebooks');
@@ -19,15 +20,21 @@ class CompaniesController {
     }
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        if (!authenticate.superuser)
-            throw new BadRequestException_1.default('not superuser', 401);
+        if (!authenticate.superuser) {
+            let errorValidation = await new validations_1.default().validations('book_100');
+            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        }
         const body = await request.validate(CompanyValidator_1.default);
         const companyByName = await Company_1.default.findBy('name', body.name);
-        if (companyByName)
-            throw new BadRequestException_1.default('name already in use', 402);
+        if (companyByName) {
+            let errorValidation = await new validations_1.default().validations('book_101');
+            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        }
         const companyByShortname = await Company_1.default.findBy('shortname', body.shortname);
-        if (companyByShortname)
-            throw new BadRequestException_1.default('shortname already in use', 402, '150');
+        if (companyByShortname) {
+            let errorValidation = await new validations_1.default().validations('book_102');
+            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        }
         try {
             const data = await Company_1.default.create(body);
             let parent = await authorize.sendSearchOrCreateFolder(data.foldername);
@@ -46,8 +53,10 @@ class CompaniesController {
     }
     async update({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        if (!authenticate.superuser)
-            throw new BadRequestException_1.default('not superuser', 401);
+        if (!authenticate.superuser) {
+            let errorValidation = await new validations_1.default().validations('book_100');
+            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        }
         const body = await request.validate(CompanyValidator_1.default);
         body['id'] = params.id;
         const data = await Company_1.default.findOrFail(body.id);

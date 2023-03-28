@@ -10,9 +10,10 @@ class ExceptionHandler extends HttpExceptionHandler_1.default {
         super(Logger_1.default);
     }
     async handle(error, ctx) {
+        console.log("EXCEPTION>>>", error.code);
         if (error.status === 422) {
             return ctx.response.status(error.status).send({
-                code: 'BAD_REQUEST',
+                code: '422',
                 message: error.message,
                 status: error.status,
                 errors: error['messages']?.errors ? error['messages'].errors : ''
