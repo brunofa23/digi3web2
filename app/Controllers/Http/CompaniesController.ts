@@ -30,6 +30,7 @@ export default class CompaniesController {
 
     const companyByName = await Company.findBy('name', body.name)
     if (companyByName)
+      //throw new BadRequest({ error: 'name already in use', code: 11 }, 402)
       throw new BadRequest('name already in use', 402)
 
     const companyByShortname = await Company.findBy('shortname', body.shortname)

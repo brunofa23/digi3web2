@@ -20,7 +20,7 @@ export default class BadRequestException extends Exception {
         return ctx.response.status(error.status).send({
             code: error.code,
             message: error.message,
-            status: error.status
+            status: error.status,
         })
     }
 
