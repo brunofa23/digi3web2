@@ -5,9 +5,9 @@ class CompanyValidator {
     constructor(ctx) {
         this.ctx = ctx;
         this.schema = Validator_1.schema.create({
-            name: Validator_1.schema.string({}, [Validator_1.rules.maxLength(50), Validator_1.rules.minLength(10),]),
+            name: Validator_1.schema.string({}, [Validator_1.rules.maxLength(50), Validator_1.rules.minLength(5),]),
             shortname: Validator_1.schema.string({}, [Validator_1.rules.maxLength(45)]),
-            address: Validator_1.schema.string({}, [Validator_1.rules.maxLength(70)]),
+            address: Validator_1.schema.string.optional({}, [Validator_1.rules.maxLength(70)]),
             number: Validator_1.schema.string.optional(),
             complement: Validator_1.schema.string.optional(),
             postalcode: Validator_1.schema.string.optional(),
