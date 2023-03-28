@@ -24,9 +24,11 @@ export default class ExceptionHandler extends HttpExceptionHandler {
   }
 
   public async handle(error: Exception, ctx: HttpContextContract) {
+
+    console.log("EXCEPTION>>>", error.code)
     if (error.status === 422) {
       return ctx.response.status(error.status).send({
-        code: 'BAD_REQUEST',
+        code: '422',
         message: error.message,
         status: error.status,
         errors: error['messages']?.errors ? error['messages'].errors : ''

@@ -1,0 +1,17 @@
+[
+    {
+        "code": "book_100",
+        "messages": "not superuser",
+        "status": 402
+    },
+    {
+        "code": "book_101",
+        "messages": "Name already in use",
+        "status": 402
+    },
+    {
+        "code": "book_102",
+        "messages": "Shortname already in use",
+        "status": 402
+    }
+]
