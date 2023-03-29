@@ -73,24 +73,22 @@ export default class CompaniesController {
       let errorValidation = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
-
     const body = await request.validate(CompanyValidator)
+
 
     try {
       body['id'] = params.id
       const data = await Company.findOrFail(body.id)
       body.foldername = data.foldername
       await data.fill(body).save()
-
       let successValidation = await new validations('company_success_101')
-
       return response.status(201).send({
         data,
         params: params.id,
         successValidation: successValidation.code
       })
     } catch (error) {
-      throw new BadRequest('Bad Request', 401)
+      throw new BadRequest('Bad Request update', 401)
     }
 
 
