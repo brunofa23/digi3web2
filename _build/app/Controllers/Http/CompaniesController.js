@@ -71,7 +71,7 @@ class CompaniesController {
             });
         }
         catch (error) {
-            throw new BadRequestException_1.default('Bad Request', 401);
+            throw new BadRequestException_1.default('Bad Request update', 401);
         }
     }
 }
