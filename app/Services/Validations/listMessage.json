@@ -13,5 +13,20 @@
         "code": "book_102",
         "messages": "Shortname already in use",
         "status": 402
+    },
+    {
+        "code": "user_103",
+        "messages": "Username already in use",
+        "status": 402
+    },
+    {
+        "code": "user_104",
+        "messages": "Invalid credentials",
+        "status": 401
+    },
+    {
+        "code": "user_105",
+        "messages": "Invalid password",
+        "status": 401
     }
 ]
