@@ -11,7 +11,7 @@ export default class CompaniesController {
 
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
-      let errorValidation = await new validations().validations('book_100')
+      let errorValidation = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
@@ -27,20 +27,20 @@ export default class CompaniesController {
 
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
-      let errorValidation = await new validations().validations('book_100')
+      let errorValidation = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
     const body = await request.validate(CompanyValidator)
     const companyByName = await Company.findBy('name', body.name)
     if (companyByName) {
-      let errorValidation = await new validations().validations('book_101')
-      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      let errorValidation = await new validations('company_error_101')
+      throw new BadRequest(errorValidation['messages'], errorValidation.status, errorValidation.code)
     }
 
     const companyByShortname = await Company.findBy('shortname', body.shortname)
     if (companyByShortname) {
-      let errorValidation = await new validations().validations('book_102')
+      let errorValidation = await new validations('company_error_102')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
@@ -48,10 +48,8 @@ export default class CompaniesController {
       const data = await Company.create(body)
       let parent = await authorize.sendSearchOrCreateFolder(data.foldername)
 
-      return response.status(201).send({
-        data,
-        idfoder: parent
-      })
+      let successValidation = await new validations('company_success_100')
+      return response.status(201).send({ data, idfoder: parent, successValidation: successValidation.code })
 
     } catch (error) {
       throw new BadRequest('Bad Request', 401)
@@ -72,7 +70,7 @@ export default class CompaniesController {
 
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
-      let errorValidation = await new validations().validations('book_100')
+      let errorValidation = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
@@ -84,9 +82,12 @@ export default class CompaniesController {
       body.foldername = data.foldername
       await data.fill(body).save()
 
+      let successValidation = await new validations('company_success_101')
+
       return response.status(201).send({
         data,
-        params: params.id
+        params: params.id,
+        successValidation: successValidation.code
       })
     } catch (error) {
       throw new BadRequest('Bad Request', 401)
