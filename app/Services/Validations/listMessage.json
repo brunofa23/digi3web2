@@ -78,5 +78,5 @@
         "code": "bookrecord_error_102",
         "messages": "Invalid or missing end code",
         "status": 409
-    },
+    }
 ]
