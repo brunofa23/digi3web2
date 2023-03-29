@@ -34,7 +34,7 @@ class UsersController {
             .where('username', '=', body.username)
             .andWhere('companies_id', '=', body.companies_id).first();
         if (userByName) {
-            let errorValidation = await new validations_1.default().validations('user_103');
+            let errorValidation = await new validations_1.default('user_error_103');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         if (!authenticate.superuser) {
@@ -42,7 +42,8 @@ class UsersController {
         }
         try {
             const data = await User_1.default.create(body);
-            response.status(201).send(data);
+            let successValidation = await new validations_1.default('user_success_100');
+            response.status(201).send(data, successValidation.code);
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 401);
@@ -57,7 +58,8 @@ class UsersController {
             await User_1.default.query()
                 .where("companies_id", "=", authenticate.companies_id)
                 .andWhere('id', "=", params.id).update(body);
-            return response.status(201).send(body);
+            let successValidation = await new validations_1.default('user_success_101');
+            return response.status(201).send(body, successValidation.code);
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 401);

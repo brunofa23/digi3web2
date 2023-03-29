@@ -23,11 +23,11 @@ class AuthenticationController {
         })
             .first();
         if (!user) {
-            let errorValidation = await new validations_1.default().validations('user_104');
+            let errorValidation = await new validations_1.default().validations('user_error_104');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         if (!(await Hash_1.default.verify(user.password, password))) {
-            let errorValidation = await new validations_1.default().validations('user_105');
+            let errorValidation = await new validations_1.default().validations('user_error_105');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         const token = await auth.use('api').generate(user, {

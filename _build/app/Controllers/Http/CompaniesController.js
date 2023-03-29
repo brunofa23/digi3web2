@@ -12,7 +12,7 @@ class CompaniesController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
         if (!authenticate.superuser) {
-            let errorValidation = await new validations_1.default().validations('book_100');
+            let errorValidation = await new validations_1.default('company_error_100');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         const data = await Company_1.default
@@ -23,27 +23,25 @@ class CompaniesController {
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         if (!authenticate.superuser) {
-            let errorValidation = await new validations_1.default().validations('book_100');
+            let errorValidation = await new validations_1.default('company_error_100');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         const body = await request.validate(CompanyValidator_1.default);
         const companyByName = await Company_1.default.findBy('name', body.name);
         if (companyByName) {
-            let errorValidation = await new validations_1.default().validations('book_101');
-            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+            let errorValidation = await new validations_1.default('company_error_101');
+            throw new BadRequestException_1.default(errorValidation['messages'], errorValidation.status, errorValidation.code);
         }
         const companyByShortname = await Company_1.default.findBy('shortname', body.shortname);
         if (companyByShortname) {
-            let errorValidation = await new validations_1.default().validations('book_102');
+            let errorValidation = await new validations_1.default('company_error_102');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         try {
             const data = await Company_1.default.create(body);
             let parent = await authorize.sendSearchOrCreateFolder(data.foldername);
-            return response.status(201).send({
-                data,
-                idfoder: parent
-            });
+            let successValidation = await new validations_1.default('company_success_100');
+            return response.status(201).send({ data, idfoder: parent, successValidation: successValidation.code });
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 401);
@@ -56,7 +54,7 @@ class CompaniesController {
     async update({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         if (!authenticate.superuser) {
-            let errorValidation = await new validations_1.default().validations('book_100');
+            let errorValidation = await new validations_1.default('company_error_100');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         const body = await request.validate(CompanyValidator_1.default);
@@ -65,9 +63,11 @@ class CompaniesController {
             const data = await Company_1.default.findOrFail(body.id);
             body.foldername = data.foldername;
             await data.fill(body).save();
+            let successValidation = await new validations_1.default('company_success_101');
             return response.status(201).send({
                 data,
-                params: params.id
+                params: params.id,
+                successValidation: successValidation.code
             });
         }
         catch (error) {

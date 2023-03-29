@@ -8,6 +8,7 @@ const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/B
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -111,13 +112,16 @@ class BookrecordsController {
         const _startCode = generateStartCode;
         const _endCode = generateEndCode;
         if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
-            throw new BadRequestException_1.default('Book invalid', 409);
+            let errorValidation = await new validations_1.default('bookrecord_error_100');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
         }
         if (!generateStartCode || generateStartCode <= 0) {
-            throw new BadRequestException_1.default('StartCode invalid', 409);
+            let errorValidation = await new validations_1.default('bookrecord_error_101');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
         }
         if (!generateEndCode || generateEndCode <= 0) {
-            throw new BadRequestException_1.default('EndCode invalid', 409);
+            let errorValidation = await new validations_1.default('bookrecord_error_102');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
         }
         let contSheet = 0;
         let contIncrementSheet = 0;
@@ -208,13 +212,19 @@ class BookrecordsController {
                 companies_id: authenticate.companies_id
             });
         }
-        const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
-        if (generateBook > 0 && generateBookdestination > 0) {
-            await Bookrecord_1.default.query().where("companies_id", "=", authenticate.companies_id)
-                .andWhere('book', '=', generateBook)
-                .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination });
+        try {
+            const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
+            if (generateBook > 0 && generateBookdestination > 0) {
+                await Bookrecord_1.default.query().where("companies_id", "=", authenticate.companies_id)
+                    .andWhere('book', '=', generateBook)
+                    .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination });
+            }
+            let successValidation = await new validations_1.default('bookrecord_success_100');
+            return response.status(201).send(data.length, successValidation.code);
         }
-        return response.status(201).send(data.length);
+        catch (error) {
+            throw new BadRequestException_1.default("Bad Request", 402);
+        }
     }
 }
 exports.default = BookrecordsController;

@@ -7,6 +7,7 @@ const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typ
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const TypebookValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/TypebookValidator"));
+const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 class TypebooksController {
     async store({ auth, request, response }) {
@@ -18,7 +19,8 @@ class TypebooksController {
             const data = await Typebook_1.default.create(typebookPayload);
             const idFolderCompany = await authorize.sendSearchFile(company.foldername);
             await authorize.sendCreateFolder(data.path, idFolderCompany[0].id);
-            return response.status(201).send(typebookPayload);
+            let successValidation = await new validations_1.default('typebook_success_100');
+            return response.status(201).send(typebookPayload, successValidation.code);
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request - Create Typebook', 401);
@@ -70,7 +72,8 @@ class TypebooksController {
             await Typebook_1.default.query()
                 .where("companies_id", "=", authenticate.companies_id)
                 .andWhere('id', "=", params.id).update(typebookPayload);
-            return response.status(201).send(typebookPayload);
+            let successValidation = await new validations_1.default('typebook_success_101');
+            return response.status(201).send(typebookPayload, successValidation.code);
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request - update', 401);
@@ -81,7 +84,8 @@ class TypebooksController {
         const data = await Typebook_1.default.query()
             .where("companies_id", "=", authenticate.companies_id)
             .andWhere('id', "=", params.id).delete();
-        return response.status(200).send(data);
+        let successValidation = await new validations_1.default('typebook_success_102');
+        return response.status(200).send(data, successValidation.code);
     }
 }
 exports.default = TypebooksController;
