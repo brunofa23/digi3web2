@@ -11,8 +11,10 @@ const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/google
 class CompaniesController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
-        if (!authenticate.superuser)
-            throw new BadRequestException_1.default('not superuser', 401, 'company_100');
+        if (!authenticate.superuser) {
+            let errorValidation = await new validations_1.default().validations('book_100');
+            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        }
         const data = await Company_1.default
             .query()
             .preload('typebooks');
@@ -58,14 +60,19 @@ class CompaniesController {
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         const body = await request.validate(CompanyValidator_1.default);
-        body['id'] = params.id;
-        const data = await Company_1.default.findOrFail(body.id);
-        body.foldername = data.foldername;
-        await data.fill(body).save();
-        return response.status(201).send({
-            data,
-            params: params.id
-        });
+        try {
+            body['id'] = params.id;
+            const data = await Company_1.default.findOrFail(body.id);
+            body.foldername = data.foldername;
+            await data.fill(body).save();
+            return response.status(201).send({
+                data,
+                params: params.id
+            });
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request', 401);
+        }
     }
 }
 exports.default = CompaniesController;

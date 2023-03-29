@@ -21,7 +21,7 @@ class TypebooksController {
             return response.status(201).send(typebookPayload);
         }
         catch (error) {
-            throw new BadRequestException_1.default('Error in TypebookStore', 401);
+            throw new BadRequestException_1.default('Bad Request - Create Typebook', 401);
         }
     }
     async index({ auth, response, request }) {
@@ -66,20 +66,22 @@ class TypebooksController {
         const typebookPayload = await request.validate(TypebookValidator_1.default);
         typebookPayload.id = params.id;
         typebookPayload.companies_id = authenticate.companies_id;
-        await Typebook_1.default.query()
-            .where("companies_id", "=", authenticate.companies_id)
-            .andWhere('id', "=", params.id).update(typebookPayload);
-        return response.status(201).send(typebookPayload);
+        try {
+            await Typebook_1.default.query()
+                .where("companies_id", "=", authenticate.companies_id)
+                .andWhere('id', "=", params.id).update(typebookPayload);
+            return response.status(201).send(typebookPayload);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request - update', 401);
+        }
     }
-    async destroy({ auth, params }) {
+    async destroy({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const data = await Typebook_1.default.query()
             .where("companies_id", "=", authenticate.companies_id)
             .andWhere('id', "=", params.id).delete();
-        return {
-            message: "Livro excluido com sucesso.",
-            data: data
-        };
+        return response.status(200).send(data);
     }
 }
 exports.default = TypebooksController;
