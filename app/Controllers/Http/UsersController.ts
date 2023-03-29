@@ -46,9 +46,8 @@ export default class UsersController {
       .where('username', '=', body.username)
       .andWhere('companies_id', '=', body.companies_id).first()
     if (userByName) {
-      let errorValidation = await new validations().validations('user_103')
+      let errorValidation = await new validations('user_error_103')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-
     }
 
     //********APENAS PARA USUÁRIO ADMIN NA EMPRESA 1 */
@@ -58,14 +57,12 @@ export default class UsersController {
 
     try {
       const data = await User.create(body)
-      response.status(201).send(data)
+      let successValidation = await new validations('user_success_100')
+      response.status(201).send(data, successValidation.code)
 
     } catch (error) {
       throw new BadRequest('Bad Request', 401)
     }
-
-
-
   }
 
 
@@ -81,7 +78,9 @@ export default class UsersController {
         .where("companies_id", "=", authenticate.companies_id)
         .andWhere('id', "=", params.id).update(body)
 
-      return response.status(201).send(body)
+      let successValidation = await new validations('user_success_101')
+
+      return response.status(201).send(body, successValidation.code)
     } catch (error) {
       throw new BadRequest('Bad Request', 401)
     }

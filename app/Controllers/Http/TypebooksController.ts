@@ -3,6 +3,7 @@ import Typebook from 'App/Models/Typebook'
 import Company from 'App/Models/Company'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import TypebookValidator from 'App/Validators/TypebookValidator'
+import validations from 'App/Services/Validations/validations'
 
 const authorize = require('App/Services/googleDrive/googledrive')
 
@@ -14,7 +15,6 @@ export default class TypebooksController {
   public async store({ auth, request, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    //const typebookPayload = request.only(Typebook.fillable)
     const typebookPayload = await request.validate(TypebookValidator)
 
     typebookPayload.companies_id = authenticate.companies_id
@@ -25,7 +25,8 @@ export default class TypebooksController {
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
 
-      return response.status(201).send(typebookPayload)
+      let successValidation = await new validations('typebook_success_100')
+      return response.status(201).send(typebookPayload, successValidation.code)
 
 
     } catch (error) {
@@ -105,7 +106,9 @@ export default class TypebooksController {
       await Typebook.query()
         .where("companies_id", "=", authenticate.companies_id)
         .andWhere('id', "=", params.id).update(typebookPayload)
-      return response.status(201).send(typebookPayload)
+
+      let successValidation = await new validations('typebook_success_101')
+      return response.status(201).send(typebookPayload, successValidation.code)
     } catch (error) {
       throw new BadRequest('Bad Request - update', 401)
     }
@@ -121,7 +124,9 @@ export default class TypebooksController {
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).delete()
 
-    return response.status(200).send(data)
+    let successValidation = await new validations('typebook_success_102')
+
+    return response.status(200).send(data, successValidation.code)
     // return {
     //   message: "Livro excluido com sucesso.",
     //   data: data

@@ -26,13 +26,13 @@ export default class AuthenticationController {
       .first()
 
     if (!user) {
-      let errorValidation = await new validations().validations('user_104')
+      let errorValidation = await new validations().validations('user_error_104')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
     // Verify password
     if (!(await Hash.verify(user.password, password))) {
-      let errorValidation = await new validations().validations('user_105')
+      let errorValidation = await new validations().validations('user_error_105')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
