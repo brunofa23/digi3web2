@@ -10,8 +10,10 @@ export default class CompaniesController {
   public async index({ auth, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequest('not superuser', 401, 'company_100')
+    if (!authenticate.superuser) {
+      let errorValidation = await new validations().validations('book_100')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
 
     const data = await Company
       .query()
@@ -23,9 +25,6 @@ export default class CompaniesController {
   //inserir
   public async store({ auth, request, response }: HttpContextContract) {
 
-
-
-
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
       let errorValidation = await new validations().validations('book_100')
@@ -34,15 +33,12 @@ export default class CompaniesController {
 
     const body = await request.validate(CompanyValidator)
     const companyByName = await Company.findBy('name', body.name)
-
-
     if (companyByName) {
       let errorValidation = await new validations().validations('book_101')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
     const companyByShortname = await Company.findBy('shortname', body.shortname)
-
     if (companyByShortname) {
       let errorValidation = await new validations().validations('book_102')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
@@ -82,15 +78,20 @@ export default class CompaniesController {
 
     const body = await request.validate(CompanyValidator)
 
-    body['id'] = params.id
-    const data = await Company.findOrFail(body.id)
-    body.foldername = data.foldername
-    await data.fill(body).save()
+    try {
+      body['id'] = params.id
+      const data = await Company.findOrFail(body.id)
+      body.foldername = data.foldername
+      await data.fill(body).save()
 
-    return response.status(201).send({
-      data,
-      params: params.id
-    })
+      return response.status(201).send({
+        data,
+        params: params.id
+      })
+    } catch (error) {
+      throw new BadRequest('Bad Request', 401)
+    }
+
 
 
   }
