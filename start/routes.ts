@@ -7,7 +7,7 @@ const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v27' }
+    return { hello: 'Hello World v32' }
   })
 
   //BOOKS
@@ -15,6 +15,7 @@ Route.group(() => {
 
   //COMPANIES
   Route.resource("/companies", 'CompaniesController').apiOnly()
+  //Route.get("/companies", 'CompaniesController.index')
 
   //TYPEBOOKS
   Route.resource("/typebooks", 'TypebooksController').apiOnly()
