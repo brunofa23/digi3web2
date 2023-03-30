@@ -7,7 +7,7 @@ const authorize = require('App/Services/googleDrive/googledrive')
 
 export default class CompaniesController {
 
-  public async index({ auth, response }: HttpContextContract) {
+  public async index({ auth, response, request }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
@@ -15,10 +15,21 @@ export default class CompaniesController {
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
-    const data = await Company
-      .query()
-      .preload('typebooks')
-    return response.status(200).send(data)
+    const { status } = request.only(['status'])
+    let query = " 1=1 "
+    if (status)
+      query += ` and status=${status} `
+
+    try {
+      const data = await Company
+        .query()
+        .preload('typebooks')
+        .whereRaw(query)
+      return response.status(200).send(data)
+    } catch (error) {
+      throw new BadRequest('Bad Request', 401, 'erro')
+    }
+
   }
 
 
@@ -88,7 +99,7 @@ export default class CompaniesController {
         successValidation: successValidation.code
       })
     } catch (error) {
-      throw new BadRequest('Bad Request update', 401)
+      throw new BadRequest('Bad Request update', 401, 'company_error_102')
     }
 
 
