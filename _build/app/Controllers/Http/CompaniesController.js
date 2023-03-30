@@ -9,16 +9,26 @@ const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const CompanyValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/CompanyValidator"));
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 class CompaniesController {
-    async index({ auth, response }) {
+    async index({ auth, response, request }) {
         const authenticate = await auth.use('api').authenticate();
         if (!authenticate.superuser) {
             let errorValidation = await new validations_1.default('company_error_100');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
-        const data = await Company_1.default
-            .query()
-            .preload('typebooks');
-        return response.status(200).send(data);
+        const { status } = request.only(['status']);
+        let query = " 1=1 ";
+        if (status)
+            query += ` and status=${status} `;
+        try {
+            const data = await Company_1.default
+                .query()
+                .preload('typebooks')
+                .whereRaw(query);
+            return response.status(200).send(data);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request', 401, 'erro');
+        }
     }
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -71,7 +81,7 @@ class CompaniesController {
             });
         }
         catch (error) {
-            throw new BadRequestException_1.default('Bad Request update', 401);
+            throw new BadRequestException_1.default('Bad Request update', 401, 'company_error_102');
         }
     }
 }
