@@ -15,6 +15,7 @@ export default class UsersController {
       query = ""
 
     const data = await User.query()
+      .preload('company')
       .whereRaw(query)
 
     return response.status(200).send(data)
@@ -61,7 +62,7 @@ export default class UsersController {
       response.status(201).send(data, successValidation.code)
 
     } catch (error) {
-      throw new BadRequest('Bad Request', 401)
+      throw new BadRequest('Bad Request', 401, error)
     }
   }
 
