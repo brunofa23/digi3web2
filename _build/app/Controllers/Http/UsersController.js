@@ -14,6 +14,7 @@ class UsersController {
         if (authenticate.superuser)
             query = "";
         const data = await User_1.default.query()
+            .preload('company')
             .whereRaw(query);
         return response.status(200).send(data);
     }
@@ -46,7 +47,7 @@ class UsersController {
             response.status(201).send(data, successValidation.code);
         }
         catch (error) {
-            throw new BadRequestException_1.default('Bad Request', 401);
+            throw new BadRequestException_1.default('Bad Request', 401, error);
         }
     }
     async update({ auth, request, params, response }) {

@@ -23,7 +23,7 @@ class TypebooksController {
             return response.status(201).send(typebookPayload, successValidation.code);
         }
         catch (error) {
-            throw new BadRequestException_1.default('Bad Request - Create Typebook', 401);
+            throw new BadRequestException_1.default('Bad Request - Create Typebook', 401, error);
         }
     }
     async index({ auth, response, request }) {
