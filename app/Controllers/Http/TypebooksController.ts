@@ -14,6 +14,8 @@ export default class TypebooksController {
   //inserir livro
   public async store({ auth, request, response }: HttpContextContract) {
 
+    //console.log("ENTREI GRAVACAO TYPEBOOK", request.body)
+
     const authenticate = await auth.use('api').authenticate()
     const typebookPayload = await request.validate(TypebookValidator)
 
@@ -21,8 +23,12 @@ export default class TypebooksController {
 
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
+
       const data = await Typebook.create(typebookPayload)
+
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
+
+      //return { ">>>>>aqui": idFolderCompany, "foldername": company.foldername }
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
 
       let successValidation = await new validations('typebook_success_100')
@@ -31,7 +37,7 @@ export default class TypebooksController {
 
     } catch (error) {
 
-      throw new BadRequest('Bad Request - Create Typebook', 401)
+      throw new BadRequest('Bad Request - Create Typebook', 401, error)
     }
 
   }
