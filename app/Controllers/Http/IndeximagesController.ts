@@ -86,7 +86,7 @@ export default class IndeximagesController {
 
   }
 
-  public async uploads({ auth, request, params }: HttpContextContract) {
+  public async uploads({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
 
@@ -96,7 +96,8 @@ export default class IndeximagesController {
     })
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
-    return files
+    console.log("FILES>>>", files)
+    return response.status(201).send(files)
 
   }
 
