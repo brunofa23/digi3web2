@@ -60,14 +60,15 @@ class IndeximagesController {
             throw new BadRequestException_1.default('Bad Request', 401);
         }
     }
-    async uploads({ auth, request, params }) {
+    async uploads({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const images = request.files('images', {
             size: '6mb',
             extnames: ['jpg', 'png', 'jpeg', 'pdf']
         });
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
-        return files;
+        console.log("FILES>>>", files);
+        return response.status(201).send(files);
     }
     async uploadCapture({ auth, request, params }) {
         logtail.info("Entrei no upload capture");
