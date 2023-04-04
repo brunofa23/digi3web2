@@ -118,13 +118,15 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     try {
       if (image && image.isValid) {
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
+        logtail.info("acert indexação", result)
       }
     } catch (error) {
-      logtail.info("erro indexação", error)
-      logtail.flush()
+      logtail.debug("DENTRO DO CATCH.", { error });
+      console.log(">>>erro indexação logtail")
       await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
+  logtail.flush()
 
   return result
 }
