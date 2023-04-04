@@ -10,6 +10,12 @@ const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 const fs = require('fs')
 
+
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+
+
+
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
@@ -97,6 +103,9 @@ export default class IndeximagesController {
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
     console.log("FILES INDEX>>>", files)
+    logtail.info("ARQUIVOS INDEXADOS>>>", files)
+    logtail.flush()
+
     return response.status(201).send(files)
 
   }

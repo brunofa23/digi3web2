@@ -11,6 +11,10 @@ const fs = require('fs');
 const path = require('path')
 
 
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+
+
 function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -116,6 +120,8 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
       }
     } catch (error) {
+      logtail.info("erro indexação", error)
+      logtail.flush()
       await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
