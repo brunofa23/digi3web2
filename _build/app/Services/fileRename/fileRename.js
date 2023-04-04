@@ -11,6 +11,8 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const fs = require('fs');
 const path = require('path');
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 function sleep(ms) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -89,6 +91,8 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
             }
         }
         catch (error) {
+            logtail.info("erro indexação", error);
+            logtail.flush();
             await new BadRequestException_1.default(error + 'pushImageToGoogle', 409);
         }
     }

@@ -12,6 +12,8 @@ const Date = require('../../Services/Dates/format');
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 const fs = require('fs');
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 class IndeximagesController {
     async store({ request, response }) {
         const body = request.only(Indeximage_1.default.fillable);
@@ -68,6 +70,8 @@ class IndeximagesController {
         });
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
         console.log("FILES INDEX>>>", files);
+        logtail.info("ARQUIVOS INDEXADOS>>>", files);
+        logtail.flush();
         return response.status(201).send(files);
     }
     async uploadCapture({ auth, request, params }) {
