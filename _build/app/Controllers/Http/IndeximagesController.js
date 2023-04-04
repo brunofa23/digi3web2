@@ -67,7 +67,7 @@ class IndeximagesController {
             extnames: ['jpg', 'png', 'jpeg', 'pdf']
         });
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
-        console.log("FILES>>>", files);
+        console.log("FILES INDEX>>>", files);
         return response.status(201).send(files);
     }
     async uploadCapture({ auth, request, params }) {

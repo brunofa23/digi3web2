@@ -89,7 +89,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
             }
         }
         catch (error) {
-            throw new BadRequestException_1.default(error + 'pushImageToGoogle', 409);
+            await new BadRequestException_1.default(error + 'pushImageToGoogle', 409);
         }
     }
     return result;
