@@ -44,7 +44,7 @@ const corsConfig: CorsConfig = {
   |                     one of the above values.
   |
   */
-  origin: true,
+  origin: '*',
 
   /*
   |--------------------------------------------------------------------------
@@ -129,7 +129,7 @@ const corsConfig: CorsConfig = {
   |
   */
   //maxAge: 90,
-  maxAge: null,
+  maxAge: 90,
 }
 
 export default corsConfig
