@@ -116,7 +116,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
       }
     } catch (error) {
-      throw new BadRequestException(error + 'pushImageToGoogle', 409)
+      await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
 
