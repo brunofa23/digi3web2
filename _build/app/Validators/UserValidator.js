@@ -10,7 +10,7 @@ class UserValidator {
             name: Validator_1.schema.string({}, [Validator_1.rules.maxLength(45)]),
             username: Validator_1.schema.string({}, [Validator_1.rules.maxLength(45)]),
             email: Validator_1.schema.string.optional({}, [Validator_1.rules.email(), Validator_1.rules.maxLength(255)]),
-            password: Validator_1.schema.string(),
+            password: Validator_1.schema.string.nullableAndOptional(),
             remember_me_token: Validator_1.schema.string.optional(),
             permission_level: Validator_1.schema.number(),
             superuser: Validator_1.schema.boolean(),

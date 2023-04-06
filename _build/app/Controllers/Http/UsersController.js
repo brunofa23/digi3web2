@@ -25,7 +25,7 @@ class UsersController {
             query = ` companies_id=${authenticate.companies_id} `;
         const data = await User_1.default.query()
             .whereRaw(query)
-            .andWhere('id', "=", params.id).firstOrFail();
+            .andWhere('id', "=", params.id).first();
         return response.status(200).send(data);
     }
     async store({ auth, request, response }) {
@@ -53,17 +53,18 @@ class UsersController {
     async update({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(UserValidator_1.default);
-        body.companies_id = authenticate.companies_id;
-        body.id = params.id;
+        body.id = request.param('id');
+        const user = await User_1.default.findOrFail(body.id);
+        if (!authenticate.superuser) {
+            body.companies_id = authenticate.companies_id;
+        }
         try {
-            await User_1.default.query()
-                .where("companies_id", "=", authenticate.companies_id)
-                .andWhere('id', "=", params.id).update(body);
+            const userUpdated = await user.merge(body).save();
             let successValidation = await new validations_1.default('user_success_101');
-            return response.status(201).send(body, successValidation.code);
+            return response.status(201).send(userUpdated, successValidation.code);
         }
         catch (error) {
-            throw new BadRequestException_1.default('Bad Request', 401);
+            console.log("ERRO UPDATE");
         }
     }
 }

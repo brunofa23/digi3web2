@@ -106,6 +106,53 @@ class BookrecordsController {
             params: params.id
         };
     }
+    async createorupdatebookrecords({ auth, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const _request = request.requestBody;
+        let newRecord = [];
+        let updateRecord = [];
+        for (const iterator of _request) {
+            if (!iterator.id) {
+                newRecord.push({
+                    typebooks_id: iterator.typebooks_id,
+                    books_id: iterator.books_id,
+                    companies_id: authenticate.companies_id,
+                    cod: iterator.cod,
+                    book: iterator.book,
+                    sheet: iterator.sheet,
+                    side: iterator.side,
+                    approximate_term: iterator.approximate_term,
+                    indexbook: iterator.indexbook,
+                    obs: iterator.obs,
+                    letter: iterator.letter,
+                    year: iterator.year,
+                    model: iterator.model
+                });
+                console.log("NEW iterator:::", newRecord);
+            }
+            else {
+                updateRecord.push({
+                    id: iterator.id,
+                    typebooks_id: iterator.typebooks_id,
+                    books_id: iterator.books_id,
+                    companies_id: authenticate.companies_id,
+                    cod: iterator.cod,
+                    book: iterator.book,
+                    sheet: iterator.sheet,
+                    side: iterator.side,
+                    approximate_term: iterator.approximate_term,
+                    indexbook: iterator.indexbook,
+                    obs: iterator.obs,
+                    letter: iterator.letter,
+                    year: iterator.year,
+                    model: iterator.model
+                });
+            }
+        }
+        await Bookrecord_1.default.createMany(newRecord);
+        await Bookrecord_1.default.updateOrCreateMany('id', updateRecord);
+        return response.status(201).send({ "Mensage": "Sucess!" });
+    }
     async generateOrUpdateBookrecords({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear } = request.requestData;
