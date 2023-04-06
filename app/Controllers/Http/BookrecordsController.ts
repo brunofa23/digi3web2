@@ -4,6 +4,7 @@ import Bookrecord from 'App/Models/Bookrecord'
 import Indeximage from 'App/Models/Indeximage'
 import Env from '@ioc:Adonis/Core/Env'
 import BadRequestException from 'App/Exceptions/BadRequestException'
+import validations from 'App/Services/Validations/validations'
 
 
 export default class BookrecordsController {
@@ -90,6 +91,7 @@ export default class BookrecordsController {
       .orderBy("cod", "asc")
       .orderBy("sheet", "asc")
       .paginate(page, limit)
+
     return response.status(200).send(data)
 
 
@@ -177,67 +179,67 @@ export default class BookrecordsController {
   }
 
 
-  // public async createorupdatebookrecords({ auth, request, response }) {
+  public async createorupdatebookrecords({ auth, request, response }) {
 
-  //   // console.log("entrei na inclusão de um registro");
-  //   // return
-  //   const authenticate = await auth.use('api').authenticate()
+    // console.log("entrei na inclusão de um registro");
+    // return
+    const authenticate = await auth.use('api').authenticate()
 
-  //   const _request = request.requestBody
-  //   let newRecord: Object[] = []
-  //   let updateRecord: Object[] = []
+    const _request = request.requestBody
+    let newRecord: Object[] = []
+    let updateRecord: Object[] = []
 
-  //   for (const iterator of _request) {
+    for (const iterator of _request) {
 
-  //     if (!iterator.id) {
-  //       newRecord.push({
-  //         typebooks_id: iterator.typebooks_id,
-  //         books_id: iterator.books_id,
-  //         companies_id: authenticate.companies_id,
-  //         cod: iterator.cod,
-  //         book: iterator.book,
-  //         sheet: iterator.sheet,
-  //         side: iterator.side,
-  //         approximate_term: iterator.approximate_term,
-  //         indexbook: iterator.indexbook,
-  //         obs: iterator.obs,
-  //         letter: iterator.letter,
-  //         year: iterator.year,
-  //         model: iterator.model
-  //       })
-  //       console.log("NEW iterator:::", newRecord)
+      if (!iterator.id) {
+        newRecord.push({
+          typebooks_id: iterator.typebooks_id,
+          books_id: iterator.books_id,
+          companies_id: authenticate.companies_id,
+          cod: iterator.cod,
+          book: iterator.book,
+          sheet: iterator.sheet,
+          side: iterator.side,
+          approximate_term: iterator.approximate_term,
+          indexbook: iterator.indexbook,
+          obs: iterator.obs,
+          letter: iterator.letter,
+          year: iterator.year,
+          model: iterator.model
+        })
+        console.log("NEW iterator:::", newRecord)
 
-  //     }
+      }
 
-  //     else {
-  //       updateRecord.push({
-  //         id: iterator.id,
-  //         typebooks_id: iterator.typebooks_id,
-  //         books_id: iterator.books_id,
-  //         companies_id: authenticate.companies_id,
-  //         cod: iterator.cod,
-  //         book: iterator.book,
-  //         sheet: iterator.sheet,
-  //         side: iterator.side,
-  //         approximate_term: iterator.approximate_term,
-  //         indexbook: iterator.indexbook,
-  //         obs: iterator.obs,
-  //         letter: iterator.letter,
-  //         year: iterator.year,
-  //         model: iterator.model
-  //       })
+      else {
+        updateRecord.push({
+          id: iterator.id,
+          typebooks_id: iterator.typebooks_id,
+          books_id: iterator.books_id,
+          companies_id: authenticate.companies_id,
+          cod: iterator.cod,
+          book: iterator.book,
+          sheet: iterator.sheet,
+          side: iterator.side,
+          approximate_term: iterator.approximate_term,
+          indexbook: iterator.indexbook,
+          obs: iterator.obs,
+          letter: iterator.letter,
+          year: iterator.year,
+          model: iterator.model
+        })
 
-  //     }
-
-
-  //   }
-
-  //   await Bookrecord.createMany(newRecord)
-  //   await Bookrecord.updateOrCreateMany('id', updateRecord)
-  //   return response.status(201).send({ "Mensage": "Sucess!" })
+      }
 
 
-  // }
+    }
+
+    await Bookrecord.createMany(newRecord)
+    await Bookrecord.updateOrCreateMany('id', updateRecord)
+    return response.status(201).send({ "Mensage": "Sucess!" })
+
+
+  }
 
   //gera ou substitui um livro
 
@@ -273,13 +275,16 @@ export default class BookrecordsController {
 
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
     if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
-      throw new BadRequestException('Book invalid', 409)
+      let errorValidation = await new validations('bookrecord_error_100')
+      throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
     }
     if (!generateStartCode || generateStartCode <= 0) {
-      throw new BadRequestException('StartCode invalid', 409)
+      let errorValidation = await new validations('bookrecord_error_101')
+      throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
     }
     if (!generateEndCode || generateEndCode <= 0) {
-      throw new BadRequestException('EndCode invalid', 409)
+      let errorValidation = await new validations('bookrecord_error_102')
+      throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
     }
 
     let contSheet = 0
@@ -387,16 +392,23 @@ export default class BookrecordsController {
     }
 
 
-    const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
+    try {
+      const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
+      if (generateBook > 0 && generateBookdestination > 0) {
+        await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
+          .andWhere('book', '=', generateBook)
+          .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination })
+      }
 
-    //SUBSTITUI O NUMERO DO LIVRO
-    if (generateBook > 0 && generateBookdestination > 0) {
-      await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
-        .andWhere('book', '=', generateBook)
-        .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination })
+      let successValidation = await new validations('bookrecord_success_100')
+      return response.status(201).send(data.length, successValidation.code)
+
+    } catch (error) {
+      throw new BadRequestException("Bad Request", 402)
     }
 
-    return response.status(201).send(data.length)
+    //SUBSTITUI O NUMERO DO LIVRO
+
 
   }
 

@@ -1,26 +1,34 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Indeximage from 'App/Models/Indeximage'
-
-const FileRename = require('../../Services/fileRename/fileRename')
 import Application from '@ioc:Adonis/Core/Application'
 import { DateTime } from 'luxon'
+import BadRequestException from 'App/Exceptions/BadRequestException'
+
+const FileRename = require('../../Services/fileRename/fileRename')
 const Date = require('../../Services/Dates/format')
+const fs = require('fs')
 
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
-const fs = require('fs')
+
+
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
     const body = request.only(Indeximage.fillable)
-    const data = await Indeximage.create(body)
 
-    response.status(201)
-    return {
-      message: "Criado com sucesso",
-      data: data,
+    try {
+      const data = await Indeximage.create(body)
+      return response.status(201).send(data)
+
+    } catch (error) {
+      throw new BadRequestException('Bad Request', 401)
     }
+    // return {
+    //   message: "Criado com sucesso",
+    //   data: data,
+    // }
 
   }
 
@@ -41,7 +49,6 @@ export default class IndeximagesController {
 
   public async destroy({ params }: HttpContextContract) {
     const data = await Indeximage.findOrFail(params.id)
-
     await data.delete()
 
     return {
@@ -51,31 +58,38 @@ export default class IndeximagesController {
 
   }
 
-  public async update({ request, params }: HttpContextContract) {
+  public async update({ request, params, response }: HttpContextContract) {
     const body = request.only(Indeximage.fillable)
     body.bookrecords_id = params.id
     body.typebooks_id = params.id2
     body.seq = params.id
 
-    const data = await Indeximage
-      .query()
-      .where('bookrecords_id', '=', body.bookrecords_id)
-      .where('typebooks_id', '=', body.typebooks_id)
-      .where('seq', '=', body.seq)
-    //const data = await Indeximage.findMany([3,10, 1] )
+    try {
+      const data = await Indeximage
+        .query()
+        .where('bookrecords_id', '=', body.bookrecords_id)
+        .where('typebooks_id', '=', body.typebooks_id)
+        .where('seq', '=', body.seq)
+      await data.fill(body).save()
+      return response.status(201).send(data)
 
-    await data.fill(body).save()
+      // return {
+      //   message: 'Tipo de Livro cadastrado com sucesso!!',
+      //   data: data,
+      //   //body: body,
+      //   params: params
+      // }
 
-    return {
-      message: 'Tipo de Livro cadastrado com sucesso!!',
-      data: data,
-      //body: body,
-      params: params
+    } catch (error) {
+
+      throw new BadRequestException('Bad Request', 401)
     }
+
+
 
   }
 
-  public async uploads({ auth, request, params }: HttpContextContract) {
+  public async uploads({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
 
@@ -85,8 +99,11 @@ export default class IndeximagesController {
     })
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
+    console.log("FILES INDEX>>>", files)
+    logtail.info("ARQUIVOS INDEXADOS>>>", files)
+    logtail.flush()
 
-    return files
+    return response.status(201).send(files)
 
   }
 

@@ -11,6 +11,10 @@ const fs = require('fs');
 const path = require('path')
 
 
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+
+
 function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -114,11 +118,15 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     try {
       if (image && image.isValid) {
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
+        logtail.info("acert indexação", result)
       }
     } catch (error) {
-      throw new BadRequestException(error + 'pushImageToGoogle', 409)
+      logtail.debug("DENTRO DO CATCH.", { error });
+      console.log(">>>erro indexação logtail")
+      await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
+  logtail.flush()
 
   return result
 }

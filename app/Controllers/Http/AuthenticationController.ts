@@ -1,14 +1,14 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import User from 'App/Models/User'
 import Hash from '@ioc:Adonis/Core/Hash'
+import BadRequest from 'App/Exceptions/BadRequestException'
+import validations from 'App/Services/Validations/validations'
+
 
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
-
-
 export default class AuthenticationController {
-
 
   public async login({ auth, request, response }: HttpContextContract) {
 
@@ -23,11 +23,17 @@ export default class AuthenticationController {
       .whereHas('company', builder => {
         builder.where('shortname', shortname)
       })
-      .firstOrFail()
+      .first()
+
+    if (!user) {
+      let errorValidation = await new validations().validations('user_error_104')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
 
     // Verify password
     if (!(await Hash.verify(user.password, password))) {
-      return response.unauthorized('Invalid credentials')
+      let errorValidation = await new validations().validations('user_error_105')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
     // Generate token
@@ -36,22 +42,20 @@ export default class AuthenticationController {
       name: 'For the CLI app'
 
     })
-    console.log(">>>Fez login...",{token});
-    logtail.debug("debug",{token,user})
+    console.log(">>>Fez login...", { token });
+    logtail.debug("debug", { token, user })
     logtail.flush()
 
-    return {token, user}
+    //return { token, user }
+    return response.status(200).send({ token, user })
 
   }
 
 
-  public async logout({ auth, response }:HttpContextContract) {
+  public async logout({ auth }: HttpContextContract) {
 
-    
     await auth.use('api').revoke()
-    return {
-      revoked: true
-    }
+    return { revoked: true }
 
   }
 
