@@ -10,7 +10,7 @@ export default class UserValidator {
     name: schema.string({}, [rules.maxLength(45)]),
     username: schema.string({}, [rules.maxLength(45)]),
     email: schema.string.optional({}, [rules.email(), rules.maxLength(255)]),
-    password: schema.string(),
+    password: schema.string.nullableAndOptional(),
     remember_me_token: schema.string.optional(),
     permission_level: schema.number(),
     superuser: schema.boolean(),
