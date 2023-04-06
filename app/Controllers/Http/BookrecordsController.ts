@@ -179,67 +179,67 @@ export default class BookrecordsController {
   }
 
 
-  // public async createorupdatebookrecords({ auth, request, response }) {
+  public async createorupdatebookrecords({ auth, request, response }) {
 
-  //   // console.log("entrei na inclusão de um registro");
-  //   // return
-  //   const authenticate = await auth.use('api').authenticate()
+    // console.log("entrei na inclusão de um registro");
+    // return
+    const authenticate = await auth.use('api').authenticate()
 
-  //   const _request = request.requestBody
-  //   let newRecord: Object[] = []
-  //   let updateRecord: Object[] = []
+    const _request = request.requestBody
+    let newRecord: Object[] = []
+    let updateRecord: Object[] = []
 
-  //   for (const iterator of _request) {
+    for (const iterator of _request) {
 
-  //     if (!iterator.id) {
-  //       newRecord.push({
-  //         typebooks_id: iterator.typebooks_id,
-  //         books_id: iterator.books_id,
-  //         companies_id: authenticate.companies_id,
-  //         cod: iterator.cod,
-  //         book: iterator.book,
-  //         sheet: iterator.sheet,
-  //         side: iterator.side,
-  //         approximate_term: iterator.approximate_term,
-  //         indexbook: iterator.indexbook,
-  //         obs: iterator.obs,
-  //         letter: iterator.letter,
-  //         year: iterator.year,
-  //         model: iterator.model
-  //       })
-  //       console.log("NEW iterator:::", newRecord)
+      if (!iterator.id) {
+        newRecord.push({
+          typebooks_id: iterator.typebooks_id,
+          books_id: iterator.books_id,
+          companies_id: authenticate.companies_id,
+          cod: iterator.cod,
+          book: iterator.book,
+          sheet: iterator.sheet,
+          side: iterator.side,
+          approximate_term: iterator.approximate_term,
+          indexbook: iterator.indexbook,
+          obs: iterator.obs,
+          letter: iterator.letter,
+          year: iterator.year,
+          model: iterator.model
+        })
+        console.log("NEW iterator:::", newRecord)
 
-  //     }
+      }
 
-  //     else {
-  //       updateRecord.push({
-  //         id: iterator.id,
-  //         typebooks_id: iterator.typebooks_id,
-  //         books_id: iterator.books_id,
-  //         companies_id: authenticate.companies_id,
-  //         cod: iterator.cod,
-  //         book: iterator.book,
-  //         sheet: iterator.sheet,
-  //         side: iterator.side,
-  //         approximate_term: iterator.approximate_term,
-  //         indexbook: iterator.indexbook,
-  //         obs: iterator.obs,
-  //         letter: iterator.letter,
-  //         year: iterator.year,
-  //         model: iterator.model
-  //       })
+      else {
+        updateRecord.push({
+          id: iterator.id,
+          typebooks_id: iterator.typebooks_id,
+          books_id: iterator.books_id,
+          companies_id: authenticate.companies_id,
+          cod: iterator.cod,
+          book: iterator.book,
+          sheet: iterator.sheet,
+          side: iterator.side,
+          approximate_term: iterator.approximate_term,
+          indexbook: iterator.indexbook,
+          obs: iterator.obs,
+          letter: iterator.letter,
+          year: iterator.year,
+          model: iterator.model
+        })
 
-  //     }
-
-
-  //   }
-
-  //   await Bookrecord.createMany(newRecord)
-  //   await Bookrecord.updateOrCreateMany('id', updateRecord)
-  //   return response.status(201).send({ "Mensage": "Sucess!" })
+      }
 
 
-  // }
+    }
+
+    await Bookrecord.createMany(newRecord)
+    await Bookrecord.updateOrCreateMany('id', updateRecord)
+    return response.status(201).send({ "Mensage": "Sucess!" })
+
+
+  }
 
   //gera ou substitui um livro
 
