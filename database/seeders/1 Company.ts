@@ -44,25 +44,7 @@ export default class extends BaseSeeder {
           "created_at": "",
           "updated_at": ""
         },
-        // {
-        //   "id": 3,
-        //   "name": "Cartório Empresa Teste",
-        //   "shortname": "Empresa Teste",
-        //   "address": "Rua Hum",
-        //   "number": 250,
-        //   "complement": "",
-        //   "postalcode": "",
-        //   "district": "Centro",
-        //   "city": "Teste",
-        //   "state": "MG",
-        //   "cnpj": 3232323232323232,
-        //   "responsablename": "Maria",
-        //   "phoneresponsable": "",
-        //   "email": "teste@teste",
-        //   "status": 1,
-        //   "created_at": "",
-        //   "updated_at": ""
-        // }
+       
       ]
 
 
