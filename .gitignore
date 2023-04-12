@@ -5,6 +5,4 @@ coverage
 .DS_STORE
 .env
 .history
-config/tokens
-
 docker_volumes
