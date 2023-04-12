@@ -13,6 +13,8 @@ const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
+//const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly'];
+
 
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
