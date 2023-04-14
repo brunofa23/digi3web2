@@ -20,6 +20,11 @@ class CompanyValidator {
             email: Validator_1.schema.string.optional({}, [Validator_1.rules.email(),]),
             status: Validator_1.schema.boolean()
         });
+        this.messages = {
+            required: 'The {{field}} is required to create a new company',
+            'shortname.unique': 'Username not available',
+            'email.email': "email inválido"
+        };
     }
 }
 exports.default = CompanyValidator;

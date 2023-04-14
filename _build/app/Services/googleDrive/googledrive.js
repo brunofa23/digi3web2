@@ -26,10 +26,12 @@ async function loadSavedCredentialsIfExist() {
         return google.auth.fromJSON(credentials);
     }
     catch (err) {
+        console.log(">>>>>ERRO NO TOKEN");
         return null;
     }
 }
 async function saveCredentials(client) {
+    console.log(">>>>SAVE CREDENTIALS");
     const content = await fsPromises.readFile(CREDENTIALS_PATH);
     const keys = JSON.parse(content);
     const key = keys.installed || keys.web;
@@ -43,7 +45,6 @@ async function saveCredentials(client) {
 }
 async function authorize() {
     let client = await loadSavedCredentialsIfExist();
-    console.log("CLIENTE:", client);
     if (client) {
         return client;
     }

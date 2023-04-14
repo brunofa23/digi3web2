@@ -38,10 +38,8 @@ class CompaniesController {
         }
         const body = await request.validate(CompanyValidator_1.default);
         const companyByName = await Company_1.default.findBy('name', body.name);
-        if (companyByName) {
-            let errorValidation = await new validations_1.default('company_error_101');
-            throw new BadRequestException_1.default(errorValidation['messages'], errorValidation.status, errorValidation.code);
-        }
+        if (companyByName)
+            throw new BadRequestException_1.default('name already in use', 402, '105');
         const companyByShortname = await Company_1.default.findBy('shortname', body.shortname);
         if (companyByShortname) {
             let errorValidation = await new validations_1.default('company_error_102');
