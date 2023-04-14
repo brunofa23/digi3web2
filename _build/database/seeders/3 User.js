@@ -20,9 +20,9 @@ class default_1 extends Seeder_1.default {
                 "status": 1
             },
             {
-                "companies_id": 1,
-                "name": "Bruno",
-                "username": "admin2",
+                "companies_id": 2,
+                "name": "vendanova",
+                "username": "admin",
                 "email": "teste@teste.br",
                 "password": "12345",
                 "remember_me_token": "bruno",

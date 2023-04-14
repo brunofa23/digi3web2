@@ -6,13 +6,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
+const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData;
         let query = " 1=1 ";
-        if (!codstart && !codend && !approximateterm && !year && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false'))
-            query = " sheet > 0  ";
+        if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
+            (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook))
+            return null;
         else {
             if (codstart != undefined && codend == undefined)
                 query += ` and cod =${codstart} `;
@@ -36,8 +40,10 @@ class BookrecordsController {
                 query += ` and side = '${side}' `;
             if (approximateterm != undefined)
                 query += ` and approximate_term=${approximateterm}`;
+            if (indexbook != undefined)
+                query += ` and indexbook=${indexbook} `;
             if (year != undefined)
-                query += ` and year =${year} `;
+                query += ` and year like '${year}' `;
             if (sheetzero)
                 query += ` and sheet>=0`;
         }
@@ -45,15 +51,17 @@ class BookrecordsController {
             query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
         }
         const page = request.input('page', 1);
-        const limit = 40;
+        const limit = Env_1.default.get('PAGINATION');
         const data = await Bookrecord_1.default.query()
             .where("companies_id", '=', authenticate.companies_id)
             .andWhere("typebooks_id", '=', params.typebooks_id)
             .preload('indeximage')
             .whereRaw(query)
+            .orderBy("book", "asc")
+            .orderBy("cod", "asc")
+            .orderBy("sheet", "asc")
             .paginate(page, limit);
-        console.log(">>>sai bookrecord");
-        return response.send(data);
+        return response.status(200).send(data);
     }
     async show({ params }) {
         const data = await Bookrecord_1.default.findOrFail(params.id);
@@ -62,11 +70,11 @@ class BookrecordsController {
         };
     }
     async destroyManyBookRecords({ auth, request }) {
-        const authenticate = await auth.use('api').authenticate();
+        await auth.use('api').authenticate();
         const { typebooks_id, Book, startCod, endCod } = request.requestBody;
         let query = '1 = 1';
         if (Book == undefined)
-            return;
+            return null;
         if (typebooks_id != undefined) {
             if (Book != undefined) {
                 query += ` and book=${Book} `;
@@ -98,7 +106,7 @@ class BookrecordsController {
             params: params.id
         };
     }
-    async createorupdatebookrecords({ auth, request, params }) {
+    async createorupdatebookrecords({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const _request = request.requestBody;
         let newRecord = [];
@@ -114,7 +122,7 @@ class BookrecordsController {
                     sheet: iterator.sheet,
                     side: iterator.side,
                     approximate_term: iterator.approximate_term,
-                    index: iterator.index,
+                    indexbook: iterator.indexbook,
                     obs: iterator.obs,
                     letter: iterator.letter,
                     year: iterator.year,
@@ -133,30 +141,46 @@ class BookrecordsController {
                     sheet: iterator.sheet,
                     side: iterator.side,
                     approximate_term: iterator.approximate_term,
-                    index: iterator.index,
+                    indexbook: iterator.indexbook,
                     obs: iterator.obs,
                     letter: iterator.letter,
                     year: iterator.year,
                     model: iterator.model
                 });
-                console.log("UPDATE iterator:::", updateRecord);
             }
         }
         await Bookrecord_1.default.createMany(newRecord);
         await Bookrecord_1.default.updateOrCreateMany('id', updateRecord);
-        return "sucesso!!";
+        return response.status(201).send({ "Mensage": "Sucess!" });
     }
-    async generateOrUpdateBookrecords({ auth, request, params }) {
+    async generateOrUpdateBookrecords({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        let { generateBooks_id, generateBook, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement } = request.requestData;
+        let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear } = request.requestData;
+        const _startCode = generateStartCode;
+        const _endCode = generateEndCode;
+        if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
+            let errorValidation = await new validations_1.default('bookrecord_error_100');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
+        }
+        if (!generateStartCode || generateStartCode <= 0) {
+            let errorValidation = await new validations_1.default('bookrecord_error_101');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
+        }
+        if (!generateEndCode || generateEndCode <= 0) {
+            let errorValidation = await new validations_1.default('bookrecord_error_102');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
+        }
         let contSheet = 0;
         let contIncrementSheet = 0;
         let contFirstSheet = false;
         let contFirstSide = false;
         let sideNow = 0;
+        let approximate_term = generateApproximate_term;
+        let approximate_termIncrement = 0;
+        let indexBook = generateIndex;
+        let indexIncrement = 0;
         const bookrecords = [];
         for (let index = 0; index < generateEndCode; index++) {
-            console.log("generateStartCode", generateStartCode, " - generateStartSheetInCodReference", generateStartSheetInCodReference);
             if (generateStartCode >= generateStartSheetInCodReference) {
                 if (contIncrementSheet < generateSheetIncrement) {
                     contIncrementSheet++;
@@ -188,20 +212,66 @@ class BookrecordsController {
                     sideNow++;
                 }
             }
+            if (generateApproximate_term > 0) {
+                if (index == 0) {
+                    approximate_term = generateApproximate_term;
+                    approximate_termIncrement++;
+                    if (approximate_termIncrement >= generateApproximate_termIncrement && generateApproximate_termIncrement > 1) {
+                        approximate_termIncrement = 0;
+                    }
+                }
+                else {
+                    if (approximate_termIncrement >= generateApproximate_termIncrement) {
+                        approximate_termIncrement = 0;
+                        approximate_term++;
+                    }
+                    approximate_termIncrement++;
+                }
+            }
+            if (generateIndex > 0) {
+                if (index == 0) {
+                    indexBook = generateIndex;
+                    indexIncrement++;
+                    if (indexIncrement >= generateIndexIncrement && generateIndexIncrement > 1) {
+                        indexIncrement = 0;
+                    }
+                }
+                else {
+                    if (indexIncrement >= generateIndexIncrement) {
+                        indexIncrement = 0;
+                        indexBook++;
+                    }
+                    indexIncrement++;
+                }
+            }
             if (generateStartCode > generateEndSheetInCodReference)
                 contSheet = 0;
             bookrecords.push({
                 cod: generateStartCode++,
                 book: generateBook,
-                sheet: contSheet,
-                side: generateSideStart,
+                sheet: ((!generateStartSheetInCodReference && !generateEndSheetInCodReference) || (generateStartSheetInCodReference == 0 && generateEndSheetInCodReference == 0) ? undefined : contSheet),
+                side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
+                approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
+                indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
+                year: ((!generateYear ? undefined : generateYear)),
                 typebooks_id: params.typebooks_id,
                 books_id: generateBooks_id,
                 companies_id: authenticate.companies_id
             });
         }
-        const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
-        return data.length;
+        try {
+            const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
+            if (generateBook > 0 && generateBookdestination > 0) {
+                await Bookrecord_1.default.query().where("companies_id", "=", authenticate.companies_id)
+                    .andWhere('book', '=', generateBook)
+                    .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination });
+            }
+            let successValidation = await new validations_1.default('bookrecord_success_100');
+            return response.status(201).send(data.length, successValidation.code);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default("Bad Request", 402);
+        }
     }
 }
 exports.default = BookrecordsController;

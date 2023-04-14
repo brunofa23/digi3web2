@@ -20,10 +20,10 @@ class default_1 extends Schema_1.default {
             table.integer('sheet');
             table.string('side');
             table.string('approximate_term');
-            table.integer('index');
+            table.integer('indexbook');
             table.string('obs');
             table.string('letter');
-            table.integer('year');
+            table.string('year');
             table.string('model');
             table.timestamp('created_at', { useTz: true });
             table.timestamp('updated_at', { useTz: true });
