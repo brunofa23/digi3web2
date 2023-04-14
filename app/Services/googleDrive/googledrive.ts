@@ -13,6 +13,8 @@ const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
+//const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly'];
+
 
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
@@ -27,11 +29,11 @@ function sleep(ms) {
 
 async function loadSavedCredentialsIfExist() {
   try {
-
     const content = await fsPromises.readFile(TOKEN_PATH);
     const credentials = JSON.parse(content);
     return google.auth.fromJSON(credentials);
   } catch (err) {
+    console.log(">>>>>ERRO NO TOKEN")
     return null;
   }
 }
@@ -44,6 +46,7 @@ async function loadSavedCredentialsIfExist() {
  */
 
 async function saveCredentials(client) {
+  console.log(">>>>SAVE CREDENTIALS")
   const content = await fsPromises.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
   const key = keys.installed || keys.web;
@@ -60,27 +63,45 @@ async function saveCredentials(client) {
  * Load or request or authorization to call APIs.
  *
  */
+// async function authorize() {
+
+
+
+//   let client = await loadSavedCredentialsIfExist();
+
+//   console.log("CLIENTE:", client);
+
+//   if (client) {
+//     return client;
+//   }
+
+//   client = await authenticate({
+//     scopes: SCOPES,
+//     keyfilePath: CREDENTIALS_PATH,
+//   });
+
+//   if (client.credentials) {
+//     await saveCredentials(client);
+//   }
+
+//   return client;
+// }
+
 async function authorize() {
-
   let client = await loadSavedCredentialsIfExist();
-
-  console.log("CLIENTE:", client);
-
   if (client) {
     return client;
   }
-
   client = await authenticate({
     scopes: SCOPES,
     keyfilePath: CREDENTIALS_PATH,
   });
-
   if (client.credentials) {
     await saveCredentials(client);
   }
-
   return client;
 }
+
 
 
 async function uploadFiles(authClient, parents, folderPath, fileName) {
@@ -117,16 +138,6 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
 
 async function createFolder(authClient, folderName, parentId = undefined) {
   const drive = google.drive({ version: 'v3', auth: authClient });
-
-  //verificar se já existe a pasta com esse nome
-  // let parent = await sendSearchFile(folderName)
-  // //se não tiver a pasta vai criar
-  // if (parent.length > 0) {
-  //   //criar a pasta
-  //   //await authorize.sendCreateFolder(directoryParent?.typebooks.path)
-  //   return parent.id
-
-  // }
 
   var _parentId = []
   if (parentId)
