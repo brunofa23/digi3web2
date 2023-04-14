@@ -80,7 +80,7 @@ git branch main master -f
 git checkout main  
 git push origin main -f 
 
-###
+### GIT 
 Deletar uma branch
 git branch -D ou -d <nome da branch>
 
