@@ -28,12 +28,19 @@ export default class ExceptionHandler extends HttpExceptionHandler {
     console.log("EXCEPTION>>>", error.code)
     if (error.status === 422) {
       return ctx.response.status(error.status).send({
+<<<<<<< HEAD
+        code: 'BAD_REQUEST 422',
+=======
         code: '422',
+>>>>>>> main
         message: error.message,
         status: error.status,
         errors: error['messages']?.errors ? error['messages'].errors : ''
       })
     }
+
+
+    console.log("ERROR HANDLE", error)
     return super.handle(error, ctx)
   }
 

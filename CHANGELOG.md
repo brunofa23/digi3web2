@@ -2,6 +2,102 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.61](https://github.com/brunofa23/digi3web2/compare/v1.1.60...v1.1.61) (2023-04-14)
+
+### [1.1.60](https://github.com/brunofa23/digi3web2/compare/v1.1.59...v1.1.60) (2023-04-12)
+
+### [1.1.59](https://github.com/brunofa23/digi3web2/compare/v1.1.58...v1.1.59) (2023-04-12)
+
+### [1.1.58](https://github.com/brunofa23/digi3web2/compare/v1.1.57...v1.1.58) (2023-04-12)
+
+### [1.1.57](https://github.com/brunofa23/digi3web2/compare/v1.1.56...v1.1.57) (2023-04-12)
+
+### [1.1.56](https://github.com/brunofa23/digi3web2/compare/v1.1.55...v1.1.56) (2023-04-12)
+
+### [1.1.55](https://github.com/brunofa23/digi3web2/compare/v1.1.54...v1.1.55) (2023-04-12)
+
+### [1.1.54](https://github.com/brunofa23/digi3web2/compare/v1.1.53...v1.1.54) (2023-04-10)
+
+### [1.1.53](https://github.com/brunofa23/digi3web2/compare/v1.1.52...v1.1.53) (2023-04-06)
+
+### [1.1.52](https://github.com/brunofa23/digi3web2/compare/v1.1.51...v1.1.52) (2023-04-04)
+
+### [1.1.51](https://github.com/brunofa23/digi3web2/compare/v1.1.50...v1.1.51) (2023-04-04)
+
+### [1.1.50](https://github.com/brunofa23/digi3web2/compare/v1.1.49...v1.1.50) (2023-04-04)
+
+### [1.1.49](https://github.com/brunofa23/digi3web2/compare/v1.1.48...v1.1.49) (2023-04-04)
+
+### [1.1.48](https://github.com/brunofa23/digi3web2/compare/v1.1.47...v1.1.48) (2023-04-04)
+
+### [1.1.47](https://github.com/brunofa23/digi3web2/compare/v1.1.46...v1.1.47) (2023-04-03)
+
+### [1.1.46](https://github.com/brunofa23/digi3web2/compare/v1.1.45...v1.1.46) (2023-03-31)
+
+### [1.1.45](https://github.com/brunofa23/digi3web2/compare/v1.1.44...v1.1.45) (2023-03-31)
+
+### [1.1.44](https://github.com/brunofa23/digi3web2/compare/v1.1.43...v1.1.44) (2023-03-30)
+
+### [1.1.43](https://github.com/brunofa23/digi3web2/compare/v1.1.42...v1.1.43) (2023-03-30)
+
+### [1.1.42](https://github.com/brunofa23/digi3web2/compare/v1.1.41...v1.1.42) (2023-03-30)
+
+### [1.1.41](https://github.com/brunofa23/digi3web2/compare/v1.1.40...v1.1.41) (2023-03-29)
+
+### [1.1.40](https://github.com/brunofa23/digi3web2/compare/v1.1.39...v1.1.40) (2023-03-29)
+
+### [1.1.39](https://github.com/brunofa23/digi3web2/compare/v1.1.38...v1.1.39) (2023-03-29)
+
+### [1.1.38](https://github.com/brunofa23/digi3web2/compare/v1.1.37...v1.1.38) (2023-03-28)
+
+### [1.1.37](https://github.com/brunofa23/digi3web2/compare/v1.1.36...v1.1.37) (2023-03-28)
+
+### [1.1.36](https://github.com/brunofa23/digi3web2/compare/v1.1.35...v1.1.36) (2023-03-28)
+
+### [1.1.35](https://github.com/brunofa23/digi3web2/compare/v1.1.34...v1.1.35) (2023-03-24)
+
+### [1.1.34](https://github.com/brunofa23/digi3web2/compare/v1.1.33...v1.1.34) (2023-03-24)
+
+### [1.1.33](https://github.com/brunofa23/digi3web2/compare/v1.1.32...v1.1.33) (2023-03-24)
+
+### [1.1.32](https://github.com/brunofa23/digi3web2/compare/v1.1.31...v1.1.32) (2023-03-24)
+
+### [1.1.31](https://github.com/brunofa23/digi3web2/compare/v1.1.30...v1.1.31) (2023-03-23)
+
+### [1.1.30](https://github.com/brunofa23/digi3web2/compare/v1.1.29...v1.1.30) (2023-03-23)
+
+### [1.1.29](https://github.com/brunofa23/digi3web2/compare/v1.1.28...v1.1.29) (2023-03-21)
+
+### [1.1.28](https://github.com/brunofa23/digi3web2/compare/v1.1.27...v1.1.28) (2023-03-21)
+
+### [1.1.27](https://github.com/brunofa23/digi3web2/compare/v1.1.26...v1.1.27) (2023-03-20)
+
+### [1.1.26](https://github.com/brunofa23/digi3web2/compare/v1.1.25...v1.1.26) (2023-03-20)
+
+### [1.1.25](https://github.com/brunofa23/digi3web2/compare/v1.1.24...v1.1.25) (2023-03-20)
+
+### [1.1.24](https://github.com/brunofa23/digi3web2/compare/v1.1.23...v1.1.24) (2023-03-17)
+
+### [1.1.23](https://github.com/brunofa23/digi3web2/compare/v1.1.22...v1.1.23) (2023-03-17)
+
+### [1.1.22](https://github.com/brunofa23/digi3web2/compare/v1.1.21...v1.1.22) (2023-03-17)
+
+### [1.1.21](https://github.com/brunofa23/digi3web2/compare/v1.1.20...v1.1.21) (2023-03-17)
+
+### [1.1.20](https://github.com/brunofa23/digi3web2/compare/v1.1.19...v1.1.20) (2023-03-16)
+
+### [1.1.19](https://github.com/brunofa23/digi3web2/compare/v1.1.18...v1.1.19) (2023-03-16)
+
+### [1.1.18](https://github.com/brunofa23/digi3web2/compare/v1.1.17...v1.1.18) (2023-03-16)
+
+### [1.1.17](https://github.com/brunofa23/digi3web2/compare/v1.1.16...v1.1.17) (2023-03-16)
+
+### [1.1.16](https://github.com/brunofa23/digi3web2/compare/v1.1.15...v1.1.16) (2023-03-16)
+
+### [1.1.15](https://github.com/brunofa23/digi3web2/compare/v1.1.14...v1.1.15) (2023-03-16)
+
+### [1.1.14](https://github.com/brunofa23/digi3web2/compare/v1.1.13...v1.1.14) (2023-03-15)
+
 ### [1.1.13](https://github.com/brunofa23/digi3web2/compare/v1.1.12...v1.1.13) (2023-03-15)
 
 ### [1.1.12](https://github.com/brunofa23/digi3web2/compare/v1.1.11...v1.1.12) (2023-03-15)

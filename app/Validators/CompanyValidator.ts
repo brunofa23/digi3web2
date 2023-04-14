@@ -1,4 +1,8 @@
+<<<<<<< HEAD
+import { schema, CustomMessages, rules, validator } from '@ioc:Adonis/Core/Validator'
+=======
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
+>>>>>>> main
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
 export default class CompanyValidator {
@@ -21,9 +25,14 @@ export default class CompanyValidator {
     status: schema.boolean()
   })
 
-  // public messages: CustomMessages = {
-  //   //required: 'The {{field}} is required to create a new company',
-  //   //'shortname.unique': 'Username not available',
-  //   //'email.email': "email inválido"
-  // }
+
+
+  public messages: CustomMessages = {
+
+    required: 'The {{field}} is required to create a new company',
+    'shortname.unique': 'Username not available',
+    'email.email': "email inválido"
+  }
+
+
 }
