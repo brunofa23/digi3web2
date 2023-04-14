@@ -15,6 +15,7 @@ export default class UsersController {
       query = ""
 
     const data = await User.query()
+      .preload('company')
       .whereRaw(query)
 
     return response.status(200).send(data)
@@ -31,7 +32,7 @@ export default class UsersController {
 
     const data = await User.query()
       .whereRaw(query)
-      .andWhere('id', "=", params.id).firstOrFail()
+      .andWhere('id', "=", params.id).first()
 
     return response.status(200).send(data)
 
@@ -45,6 +46,7 @@ export default class UsersController {
     const userByName = await User.query()
       .where('username', '=', body.username)
       .andWhere('companies_id', '=', body.companies_id).first()
+
     if (userByName) {
       let errorValidation = await new validations('user_error_103')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
@@ -61,28 +63,29 @@ export default class UsersController {
       response.status(201).send(data, successValidation.code)
 
     } catch (error) {
-      throw new BadRequest('Bad Request', 401)
+      throw new BadRequest('Bad Request', 401, error)
     }
   }
-
 
   public async update({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(UserValidator)
-    body.companies_id = authenticate.companies_id
-    body.id = params.id
+    body.id = request.param('id')
+    const user = await User.findOrFail(body.id)
+
+    if (!authenticate.superuser) {
+      body.companies_id = authenticate.companies_id
+    }
 
     try {
-      await User.query()
-        .where("companies_id", "=", authenticate.companies_id)
-        .andWhere('id', "=", params.id).update(body)
-
+      const userUpdated = await user.merge(body).save()
       let successValidation = await new validations('user_success_101')
-
-      return response.status(201).send(body, successValidation.code)
+      return response.status(201).send(userUpdated, successValidation.code)
     } catch (error) {
-      throw new BadRequest('Bad Request', 401)
+      //throw new BadRequest('Bad Request', 401)
+      console.log("ERRO UPDATE")
+
     }
 
 

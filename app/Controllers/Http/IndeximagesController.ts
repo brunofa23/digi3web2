@@ -6,9 +6,12 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 
 const FileRename = require('../../Services/fileRename/fileRename')
 const Date = require('../../Services/Dates/format')
+const fs = require('fs')
+
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
-const fs = require('fs')
+
+
 
 export default class IndeximagesController {
 
@@ -86,7 +89,7 @@ export default class IndeximagesController {
 
   }
 
-  public async uploads({ auth, request, params }: HttpContextContract) {
+  public async uploads({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
 
@@ -96,7 +99,11 @@ export default class IndeximagesController {
     })
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
-    return files
+    console.log("FILES INDEX>>>", files)
+    logtail.info("ARQUIVOS INDEXADOS>>>", files)
+    logtail.flush()
+
+    return response.status(201).send(files)
 
   }
 

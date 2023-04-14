@@ -21,8 +21,11 @@ export default class TypebooksController {
 
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
+
       const data = await Typebook.create(typebookPayload)
+
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
+
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
 
       let successValidation = await new validations('typebook_success_100')
@@ -31,7 +34,7 @@ export default class TypebooksController {
 
     } catch (error) {
 
-      throw new BadRequest('Bad Request - Create Typebook', 401)
+      throw new BadRequest('Bad Request - Create Typebook', 401, error)
     }
 
   }

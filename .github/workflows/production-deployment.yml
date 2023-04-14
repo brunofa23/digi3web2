@@ -27,6 +27,7 @@ jobs:
     - run: pwd && npm ci
     - run: node ace build --production --ignore-ts-errors
     - run: cp -fR tmp _build
+    - run: cp -fR app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json
     - run: git add -A
     - run: npm run release --commit-all
     - run: git push --follow-tags origin main-production

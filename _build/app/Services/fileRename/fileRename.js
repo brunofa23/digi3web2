@@ -7,9 +7,12 @@ const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/B
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const fs = require('fs');
 const path = require('path');
+const { Logtail } = require("@logtail/node");
+const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 function sleep(ms) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -23,7 +26,7 @@ function deleteImage(folderPath) {
         console.log("Delete File successfully.");
     });
 }
-async function downloadImage(fileName, companies_id) {
+async function downloadImage(fileName) {
     const fileId = await authorize.sendSearchFile(fileName);
     console.log(fileId);
     const download = await authorize.sendDownloadFile(fileId[0].id);
@@ -39,14 +42,14 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         }
     }
     catch (error) {
-        return error;
+        throw new BadRequestException_1.default('could not create client directory', 409);
     }
     const directoryParent = await Bookrecord_1.default.query()
         .preload('typebooks')
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('companies_id', '=', companies_id).first();
     if (!directoryParent || directoryParent == undefined)
-        return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS";
+        throw new BadRequestException_1.default('undefined book', 409);
     let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path);
     if (parent.length == 0) {
         const company = await Company_1.default.findByOrFail('id', _companies_id);
@@ -85,12 +88,16 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         try {
             if (image && image.isValid) {
                 result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id));
+                logtail.info("acert indexação", result);
             }
         }
         catch (error) {
-            console.log(error);
+            logtail.debug("DENTRO DO CATCH.", { error });
+            console.log(">>>erro indexação logtail");
+            await new BadRequestException_1.default(error + 'pushImageToGoogle', 409);
         }
     }
+    logtail.flush();
     return result;
 }
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, capture = false) {
@@ -113,7 +120,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
         await deleteImage(`${folderPath}/${objfileRename.file_name}`);
     }
     catch (error) {
-        return error;
+        throw new BadRequestException_1.default(error + ' sendUploadFiles', 409);
     }
     return objfileRename.file_name;
 }

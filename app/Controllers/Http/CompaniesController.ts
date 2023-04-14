@@ -43,6 +43,7 @@ export default class CompaniesController {
     }
 
     const body = await request.validate(CompanyValidator)
+
     const companyByName = await Company.findBy('name', body.name)
     if (companyByName) {
       let errorValidation = await new validations('company_error_101')
@@ -84,6 +85,7 @@ export default class CompaniesController {
       let errorValidation = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
+
     const body = await request.validate(CompanyValidator)
 
 
