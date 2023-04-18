@@ -176,8 +176,6 @@ async function searchFile(authClient, fileName, parentId = undefined) {
     query += ` and parents in '${parentId}'`
 
   console.log(">>>QUERY", query);
-
-
   try {
     const res = await drive.files.list({
       q: query //`name ='${fileName}' and name = 'ipva.pdf' 'teste' in parents `
@@ -201,6 +199,17 @@ async function searchFile(authClient, fileName, parentId = undefined) {
     throw error;
   }
 
+
+}
+
+async function deleteFile(authClient, fileId) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const request = drive.files.delete({
+    'fileId': fileId
+  })
+
+  return request
 
 }
 
@@ -287,6 +296,10 @@ async function sendSearchFile(fileName, parentId = undefined) {
   //authorize().then(searchFile).catch(console.error)
 }
 
+async function sendDeleteFile(fileId) {
+  const auth = await authorize()
+  return deleteFile(auth, fileId)
+}
 
 async function sendSearchOrCreateFolder(folderName, parent = undefined) {
 
@@ -312,4 +325,4 @@ async function sendDownloadFile(fileId) {
 
 
 
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile }
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile }

@@ -25,10 +25,6 @@ export default class IndeximagesController {
     } catch (error) {
       throw new BadRequestException('Bad Request', 401)
     }
-    // return {
-    //   message: "Criado com sucesso",
-    //   data: data,
-    // }
 
   }
 

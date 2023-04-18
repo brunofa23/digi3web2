@@ -5,11 +5,9 @@ import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 
-
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
 const path = require('path')
-
 
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
@@ -232,4 +230,24 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
 
 }
 
-module.exports = { transformFilesNameToId, downloadImage, fileRename }
+
+
+async function deleteFile(listFiles) {
+
+  const teste = await authorize.sendSearchFile('Id333_0(1)_1_1____3.jpeg')
+  const listFilesId = []
+  // for (let item of listFiles) {
+  //   listFilesId.push(await authorize.sendSearchFile(item))
+  // }
+
+  console.log(listFiles[0], "teste", teste)
+
+  //const fileId = await authorize.sendSearchFile(fileName)
+
+  // for (let index = 0; index < listFiles.length; index++) {
+
+  // }
+
+}
+
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile }
