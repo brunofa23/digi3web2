@@ -182,8 +182,10 @@ async function searchFile(authClient, fileName, parentId = undefined) {
       //q: " name = 'Client_9' "
       //q: " mimeType = 'application/vnd.google-apps.folder' and 'teste' in parents  "
       //q: "parents in '1eX3jQ0dfKC5-X-YksRjeDePk4YOSWyX8' and name ='ipva.pdf' "
-      //q: "name = '12211ipva.pdf' "
+      //q: "name = 'Id333_0(1)_1_1____3.jpeg' "
     });
+
+
     Array.prototype.push.apply(files, res.files);
 
     res.data.files.forEach(function (file) {
@@ -191,6 +193,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
       files.push({ name: file.name, id: file.id })
     });
 
+    console.log("res>>>>", res.data.files)
     return res.data.files
     //return files
 
@@ -201,6 +204,9 @@ async function searchFile(authClient, fileName, parentId = undefined) {
 
 
 }
+
+
+
 
 async function deleteFile(authClient, fileId) {
   const drive = google.drive({ version: 'v3', auth: authClient });

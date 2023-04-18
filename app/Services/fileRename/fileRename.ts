@@ -234,7 +234,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
 
 async function deleteFile(listFiles) {
 
-  const teste = await authorize.sendSearchFile('Id333_0(1)_1_1____3.jpeg')
+
+  console.log("listfiles>>>", listFiles)
+  const teste = await authorize.sendSearchFile('Id334_1(2)_1_1____3.jpg')
+
+  console.log("ID DOS ARQUIVOS>>", teste[0].id)
+  await authorize.sendDeleteFile(teste[0].id)
+  return
   const listFilesId = []
   // for (let item of listFiles) {
   //   listFilesId.push(await authorize.sendSearchFile(item))

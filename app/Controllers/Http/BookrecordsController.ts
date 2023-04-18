@@ -146,12 +146,14 @@ export default class BookrecordsController {
 
       //deleção tabela index images
 
-      const listFiles = ['Id212_0(1)_1_2____3.jpeg', 'Id213_0(2)_1_2____3.jpeg', 'Id214_0(3)_1_2____3.jpeg', 'Id215_0(4)_1_2____3.jpeg']
+      //const listFiles = ['Id212_0(1)_1_2____3.jpeg', 'Id213_0(2)_1_2____3.jpeg', 'Id214_0(3)_1_2____3.jpeg', 'Id215_0(4)_1_2____3.jpeg']
+      //const listFiles = ['Id333_0(1)_1_1____3.jpeg', 'Id334_0(2)_1_1____3.jpeg', 'Id41_8(1)_1_1_1__F_3.jpeg']
+
       try {
 
         //deletar imagem no gdrive
-        console.log("pasei no deleter.....")
-        fileRename.deleteFile(listFiles)
+        //console.log("pasei no deleter.....")
+        //fileRename.deleteFile(listFiles)
 
         const dataIndexImages = await Indeximage
           .query()
