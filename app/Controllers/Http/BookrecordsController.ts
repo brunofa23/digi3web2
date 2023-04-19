@@ -7,7 +7,6 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
 
-
 const fileRename = require('../../Services/fileRename/fileRename')
 
 export default class BookrecordsController {
