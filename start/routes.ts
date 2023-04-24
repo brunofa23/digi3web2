@@ -22,6 +22,7 @@ Route.group(() => {
 
   //BOOKRECORDS
   Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
+  //Route.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update')
 
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords')
   Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords')

@@ -5,7 +5,9 @@ import Indeximage from 'App/Models/Indeximage'
 import Env from '@ioc:Adonis/Core/Env'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
+import BadRequest from 'App/Exceptions/BadRequestException'
 
+const fileRename = require('../../Services/fileRename/fileRename')
 
 export default class BookrecordsController {
 
@@ -121,12 +123,47 @@ export default class BookrecordsController {
   }
 
 
+  public async store({ auth, request, params, response }: HttpContextContract) {
+
+    const companies_id = await auth.use('api').authenticate()
+
+    const body = request.only(Bookrecord.fillable)
+    body.companies_id = companies_id.id
+
+    try {
+      const data = await Bookrecord.create(body)
+      return response.status(201).send(data)
+
+    } catch (error) {
+      throw new BadRequestException('Bad Request', 401, error)
+    }
+
+
+  }
+
+  public async update({ auth, request, params, response }: HttpContextContract) {
+
+    const companies_id = await auth.use('api').authenticate()
+    const body = request.only(Bookrecord.fillable)
+    body.id = params.id
+    body.companies_id = companies_id.id
+
+    try {
+      const data = await Bookrecord.findOrFail(body.id)
+      await data.fill(body).save()
+      return response.status(201).send({ data, params: params.id })
+    } catch (error) {
+      throw new BadRequestException('Bad Request', 401, error)
+    }
+
+  }
+
   //EXCLUSÃO EM LOTES
-  public async destroyManyBookRecords({ auth, request }: HttpContextContract) {
+  public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
 
     await auth.use('api').authenticate()
+    const { typebooks_id, Book, startCod, endCod } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod'])
 
-    const { typebooks_id, Book, startCod, endCod } = request.requestBody
     let query = '1 = 1'
 
     if (Book == undefined)
@@ -140,14 +177,39 @@ export default class BookrecordsController {
       if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
         query += ` and cod>=${startCod} and cod <=${endCod} `
 
-      //deleção tabela index images
-      const dataIndexImages = await Indeximage.query().delete()
-        .whereIn("bookrecords_id",
-          Database.from('bookrecords').select('id').where('typebooks_id', '=', typebooks_id).whereRaw(query)
-        )
-      const data = await Bookrecord.query().where('typebooks_id', '=', typebooks_id).whereRaw(query).delete()
 
-      return { dataIndexImages, data }
+      //deleção tabela index images
+
+      //const listFiles = ['Id212_0(1)_1_2____3.jpeg', 'Id213_0(2)_1_2____3.jpeg', 'Id214_0(3)_1_2____3.jpeg', 'Id215_0(4)_1_2____3.jpeg']
+      //const listFiles = ['Id333_0(1)_1_1____3.jpeg', 'Id334_0(2)_1_1____3.jpeg', 'Id41_8(1)_1_1_1__F_3.jpeg']
+
+      try {
+
+        //deletar imagem no gdrive
+        //console.log("pasei no deleter.....")
+        //fileRename.deleteFile(listFiles)
+
+        const dataIndexImages = await Indeximage
+          .query()
+          .delete()
+          .whereIn("bookrecords_id",
+            Database.from('bookrecords')
+              .select('id')
+              .where('typebooks_id', '=', typebooks_id)
+              .whereRaw(query))
+
+        const data = await Bookrecord
+          .query()
+          .where('typebooks_id', '=', typebooks_id)
+          .whereRaw(query)
+          .delete()
+
+        return response.status(201).send({ dataIndexImages, data })
+
+      } catch (error) {
+        throw new BadRequest('Bad Request update', 401, 'bookrecord_error_102')
+      }
+
     }
   }
 
@@ -165,20 +227,9 @@ export default class BookrecordsController {
   }
 
 
-  public async update({ request, params }: HttpContextContract) {
-    const body = request.only(Bookrecord.fillable)
-    body.id = params.id
-    const data = await Bookrecord.findOrFail(body.id)
-    await data.fill(body).save()
-    return {
-      message: 'Tipo de Livro cadastrado com sucesso!!',
-      data: data,
-      params: params.id
-    }
-
-  }
 
 
+  //Cria uma linha 
   public async createorupdatebookrecords({ auth, request, response }) {
 
     // console.log("entrei na inclusão de um registro");
@@ -242,7 +293,6 @@ export default class BookrecordsController {
   }
 
   //gera ou substitui um livro
-
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()

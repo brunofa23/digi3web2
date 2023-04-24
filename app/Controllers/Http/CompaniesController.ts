@@ -1,6 +1,5 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import BadRequest from 'App/Exceptions/BadRequestException'
-import UnAuthorizedException from 'App/Exceptions/UnAuthorizedException'
 import Company from 'App/Models/Company'
 import validations from 'App/Services/Validations/validations'
 import CompanyValidator from 'App/Validators/CompanyValidator'
@@ -46,17 +45,11 @@ export default class CompaniesController {
     const body = await request.validate(CompanyValidator)
 
     const companyByName = await Company.findBy('name', body.name)
-<<<<<<< HEAD
-    if (companyByName)
-      throw new BadRequest('name already in use', 402, '105')
-    //throw new BadRequest('name already in use', 402)
-    //throw new UnAuthorizedException("nome já utilizado", 402, "109")
-=======
+
     if (companyByName) {
       let errorValidation = await new validations('company_error_101')
       throw new BadRequest(errorValidation['messages'], errorValidation.status, errorValidation.code)
     }
->>>>>>> main
 
     const companyByShortname = await Company.findBy('shortname', body.shortname)
     if (companyByShortname) {
