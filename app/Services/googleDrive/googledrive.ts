@@ -176,16 +176,16 @@ async function searchFile(authClient, fileName, parentId = undefined) {
     query += ` and parents in '${parentId}'`
 
   console.log(">>>QUERY", query);
-
-
   try {
     const res = await drive.files.list({
       q: query //`name ='${fileName}' and name = 'ipva.pdf' 'teste' in parents `
       //q: " name = 'Client_9' "
       //q: " mimeType = 'application/vnd.google-apps.folder' and 'teste' in parents  "
       //q: "parents in '1eX3jQ0dfKC5-X-YksRjeDePk4YOSWyX8' and name ='ipva.pdf' "
-      //q: "name = '12211ipva.pdf' "
+      //q: "name = 'Id333_0(1)_1_1____3.jpeg' "
     });
+
+
     Array.prototype.push.apply(files, res.files);
 
     res.data.files.forEach(function (file) {
@@ -193,6 +193,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
       files.push({ name: file.name, id: file.id })
     });
 
+    console.log("res>>>>", res.data.files)
     return res.data.files
     //return files
 
@@ -201,6 +202,20 @@ async function searchFile(authClient, fileName, parentId = undefined) {
     throw error;
   }
 
+
+}
+
+
+
+
+async function deleteFile(authClient, fileId) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const request = drive.files.delete({
+    'fileId': fileId
+  })
+
+  return request
 
 }
 
@@ -287,6 +302,10 @@ async function sendSearchFile(fileName, parentId = undefined) {
   //authorize().then(searchFile).catch(console.error)
 }
 
+async function sendDeleteFile(fileId) {
+  const auth = await authorize()
+  return deleteFile(auth, fileId)
+}
 
 async function sendSearchOrCreateFolder(folderName, parent = undefined) {
 
@@ -312,4 +331,4 @@ async function sendDownloadFile(fileId) {
 
 
 
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile }
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile }
