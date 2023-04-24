@@ -123,6 +123,25 @@ export default class BookrecordsController {
   }
 
 
+  public async store({ auth, request, params, response }: HttpContextContract) {
+
+    const companies_id = await auth.use('api').authenticate()
+
+    const body = request.only(Bookrecord.fillable)
+    body.companies_id = companies_id.id
+
+    try {
+      const data = await Bookrecord.create(body)
+      return response.status(201).send(data)
+
+    } catch (error) {
+      throw new BadRequestException('Bad Request', 401, error)
+    }
+
+
+  }
+
+
   //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
 
@@ -193,6 +212,7 @@ export default class BookrecordsController {
 
 
   public async update({ request, params }: HttpContextContract) {
+
     const body = request.only(Bookrecord.fillable)
     body.id = params.id
     const data = await Bookrecord.findOrFail(body.id)
@@ -205,7 +225,7 @@ export default class BookrecordsController {
 
   }
 
-
+  //Cria uma linha 
   public async createorupdatebookrecords({ auth, request, response }) {
 
     // console.log("entrei na inclusão de um registro");
@@ -269,7 +289,6 @@ export default class BookrecordsController {
   }
 
   //gera ou substitui um livro
-
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
