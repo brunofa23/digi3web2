@@ -9,6 +9,8 @@ const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/I
 const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
+const BadRequestException_2 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -69,9 +71,35 @@ class BookrecordsController {
             data: data,
         };
     }
-    async destroyManyBookRecords({ auth, request }) {
+    async store({ auth, request, params, response }) {
+        const companies_id = await auth.use('api').authenticate();
+        const body = request.only(Bookrecord_1.default.fillable);
+        body.companies_id = companies_id.id;
+        try {
+            const data = await Bookrecord_1.default.create(body);
+            return response.status(201).send(data);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request', 401, error);
+        }
+    }
+    async update({ auth, request, params, response }) {
+        const companies_id = await auth.use('api').authenticate();
+        const body = request.only(Bookrecord_1.default.fillable);
+        body.id = params.id;
+        body.companies_id = companies_id.id;
+        try {
+            const data = await Bookrecord_1.default.findOrFail(body.id);
+            await data.fill(body).save();
+            return response.status(201).send({ data, params: params.id });
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request', 401, error);
+        }
+    }
+    async destroyManyBookRecords({ auth, request, response }) {
         await auth.use('api').authenticate();
-        const { typebooks_id, Book, startCod, endCod } = request.requestBody;
+        const { typebooks_id, Book, startCod, endCod } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod']);
         let query = '1 = 1';
         if (Book == undefined)
             return null;
@@ -81,10 +109,24 @@ class BookrecordsController {
             }
             if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
                 query += ` and cod>=${startCod} and cod <=${endCod} `;
-            const dataIndexImages = await Indeximage_1.default.query().delete()
-                .whereIn("bookrecords_id", Database_1.default.from('bookrecords').select('id').where('typebooks_id', '=', typebooks_id).whereRaw(query));
-            const data = await Bookrecord_1.default.query().where('typebooks_id', '=', typebooks_id).whereRaw(query).delete();
-            return { dataIndexImages, data };
+            try {
+                const dataIndexImages = await Indeximage_1.default
+                    .query()
+                    .delete()
+                    .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
+                    .select('id')
+                    .where('typebooks_id', '=', typebooks_id)
+                    .whereRaw(query));
+                const data = await Bookrecord_1.default
+                    .query()
+                    .where('typebooks_id', '=', typebooks_id)
+                    .whereRaw(query)
+                    .delete();
+                return response.status(201).send({ dataIndexImages, data });
+            }
+            catch (error) {
+                throw new BadRequestException_2.default('Bad Request update', 401, 'bookrecord_error_102');
+            }
         }
     }
     async destroy({ params }) {
@@ -93,17 +135,6 @@ class BookrecordsController {
         return {
             message: "Livro excluido com sucesso.",
             data: data
-        };
-    }
-    async update({ request, params }) {
-        const body = request.only(Bookrecord_1.default.fillable);
-        body.id = params.id;
-        const data = await Bookrecord_1.default.findOrFail(body.id);
-        await data.fill(body).save();
-        return {
-            message: 'Tipo de Livro cadastrado com sucesso!!',
-            data: data,
-            params: params.id
         };
     }
     async createorupdatebookrecords({ auth, request, response }) {

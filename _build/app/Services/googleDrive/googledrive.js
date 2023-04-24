@@ -123,11 +123,19 @@ async function searchFile(authClient, fileName, parentId = undefined) {
             console.log('Found file:', file.name, file.id);
             files.push({ name: file.name, id: file.id });
         });
+        console.log("res>>>>", res.data.files);
         return res.data.files;
     }
     catch (error) {
         throw error;
     }
+}
+async function deleteFile(authClient, fileId) {
+    const drive = google.drive({ version: 'v3', auth: authClient });
+    const request = drive.files.delete({
+        'fileId': fileId
+    });
+    return request;
 }
 async function listFiles(authClient) {
     console.log("authClient", authClient);
@@ -185,6 +193,10 @@ async function sendSearchFile(fileName, parentId = undefined) {
     const auth = await authorize();
     return searchFile(auth, fileName, parentId);
 }
+async function sendDeleteFile(fileId) {
+    const auth = await authorize();
+    return deleteFile(auth, fileId);
+}
 async function sendSearchOrCreateFolder(folderName, parent = undefined) {
     const auth = await authorize();
     let findFolder = await searchFile(auth, folderName);
@@ -200,5 +212,5 @@ async function sendDownloadFile(fileId) {
     const auth = await authorize();
     return downloadFile(auth, fileId);
 }
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile };
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile };
 //# sourceMappingURL=googledrive.js.map
