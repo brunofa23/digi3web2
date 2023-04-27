@@ -33,6 +33,14 @@ class BooksController {
             params: params.id
         };
     }
+    async destroy({ params }) {
+        const data = await Book_1.default.findOrFail(params.id);
+        await data.delete();
+        return {
+            message: "Livro excluido com sucesso.",
+            data: data
+        };
+    }
 }
 exports.default = BooksController;
 //# sourceMappingURL=BooksController.js.map
