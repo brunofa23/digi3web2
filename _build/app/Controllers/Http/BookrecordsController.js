@@ -84,6 +84,7 @@ class BookrecordsController {
         }
     }
     async update({ auth, request, params, response }) {
+        console.log("AUTH", auth);
         const companies_id = await auth.use('api').authenticate();
         const body = request.only(Bookrecord_1.default.fillable);
         body.id = params.id;
@@ -95,6 +96,24 @@ class BookrecordsController {
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 401, error);
+        }
+    }
+    async destroy({ auth, request, params, response }) {
+        const { companies_id } = await auth.use('api').authenticate();
+        console.log("AUTH", companies_id);
+        try {
+            await Indeximage_1.default.query()
+                .where('typebooks_id', '=', params.typebooks_id)
+                .andWhere('bookrecords_id', "=", params.id)
+                .andWhere('companies_id', "=", companies_id).delete();
+            const data = await Bookrecord_1.default.query()
+                .where('id', "=", params.id)
+                .andWhere('typebooks_id', '=', params.typebooks_id)
+                .andWhere('companies_id', "=", companies_id).delete();
+            return response.status(201).send({ data, message: "Excluido com sucesso!!" });
+        }
+        catch (error) {
+            return error;
         }
     }
     async destroyManyBookRecords({ auth, request, response }) {
@@ -128,14 +147,6 @@ class BookrecordsController {
                 throw new BadRequestException_2.default('Bad Request update', 401, 'bookrecord_error_102');
             }
         }
-    }
-    async destroy({ params }) {
-        const data = await Bookrecord_1.default.findOrFail(params.id);
-        await data.delete();
-        return {
-            message: "Livro excluido com sucesso.",
-            data: data
-        };
     }
     async createorupdatebookrecords({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
