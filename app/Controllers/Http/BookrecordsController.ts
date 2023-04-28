@@ -143,6 +143,7 @@ export default class BookrecordsController {
 
   public async update({ auth, request, params, response }: HttpContextContract) {
 
+    console.log("AUTH", auth)
     const companies_id = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
     body.id = params.id
@@ -158,6 +159,30 @@ export default class BookrecordsController {
 
   }
 
+  public async destroy({ auth, request, params, response }: HttpContextContract) {
+
+    const { companies_id } = await auth.use('api').authenticate()
+    console.log("AUTH", companies_id)
+
+    try {
+
+      await Indeximage.query()
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('bookrecords_id', "=", params.id)
+        .andWhere('companies_id', "=", companies_id).delete()
+
+      const data = await Bookrecord.query()
+        .where('id', "=", params.id)
+        .andWhere('typebooks_id', '=', params.typebooks_id)
+        .andWhere('companies_id', "=", companies_id).delete()
+
+      return response.status(201).send({ data, message: "Excluido com sucesso!!" })
+    } catch (error) {
+      return error
+
+    }
+
+  }
   //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
 
@@ -214,17 +239,7 @@ export default class BookrecordsController {
   }
 
 
-  public async destroy({ params }: HttpContextContract) {
-    const data = await Bookrecord.findOrFail(params.id)
 
-    await data.delete()
-
-    return {
-      message: "Livro excluido com sucesso.",
-      data: data
-    }
-
-  }
 
 
 
