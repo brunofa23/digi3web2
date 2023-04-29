@@ -184,10 +184,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
       //q: "parents in '1eX3jQ0dfKC5-X-YksRjeDePk4YOSWyX8' and name ='ipva.pdf' "
       //q: "name = 'Id333_0(1)_1_1____3.jpeg' "
     });
-
-
     Array.prototype.push.apply(files, res.files);
-
     res.data.files.forEach(function (file) {
       console.log('Found file:', file.name, file.id);
       files.push({ name: file.name, id: file.id })

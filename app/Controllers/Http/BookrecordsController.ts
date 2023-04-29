@@ -166,6 +166,22 @@ export default class BookrecordsController {
 
     try {
 
+      //excluir imagens do google drive
+      const listOfImagesToDeleteGDrive = await Indeximage.query()
+        .preload('typebooks')
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('bookrecords_id', "=", params.id)
+        .andWhere('companies_id', "=", companies_id)
+
+      var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+        return item.file_name   //retorna o item original elevado ao quadrado
+      });
+
+      fileRename.deleteFile(file_name, listOfImagesToDeleteGDrive[0].typebooks.path)
+
+      return
+
+
       await Indeximage.query()
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('bookrecords_id', "=", params.id)
