@@ -174,13 +174,10 @@ export default class BookrecordsController {
         .andWhere('companies_id', "=", companies_id)
 
       var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-        return item.file_name   //retorna o item original elevado ao quadrado
+        return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
       });
 
-      fileRename.deleteFile(file_name, listOfImagesToDeleteGDrive[0].typebooks.path)
-
-      return
-
+      fileRename.deleteFile(file_name)
 
       await Indeximage.query()
         .where('typebooks_id', '=', params.typebooks_id)
@@ -217,12 +214,6 @@ export default class BookrecordsController {
 
       if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
         query += ` and cod>=${startCod} and cod <=${endCod} `
-
-
-      //deleção tabela index images
-
-      //const listFiles = ['Id212_0(1)_1_2____3.jpeg', 'Id213_0(2)_1_2____3.jpeg', 'Id214_0(3)_1_2____3.jpeg', 'Id215_0(4)_1_2____3.jpeg']
-      //const listFiles = ['Id333_0(1)_1_1____3.jpeg', 'Id334_0(2)_1_1____3.jpeg', 'Id41_8(1)_1_1_1__F_3.jpeg']
 
       try {
 

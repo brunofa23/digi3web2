@@ -232,27 +232,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
 
 
 
-async function deleteFile(listFiles, path) {
+async function deleteFile(listFiles: [{}]) {
 
-  console.log("listfiles>>>", listFiles, path)
-  const teste = await authorize.sendSearchFile(listFiles[0], path)
-
-  console.log("ID DOS ARQUIVOS>>", teste[0].id)
-
-  //await authorize.sendDeleteFile(teste[0].id)
-  return
-  const listFilesId = []
-  // for (let item of listFiles) {
-  //   listFilesId.push(await authorize.sendSearchFile(item))
-  // }
-
-  console.log(listFiles[0], "teste", teste)
-
-  //const fileId = await authorize.sendSearchFile(fileName)
-
-  // for (let index = 0; index < listFiles.length; index++) {
-
-  // }
+  const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
+  let idFile
+  for (const file of listFiles) {
+    idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id)
+    await authorize.sendDeleteFile(idFile[0].id)
+  }
+  return "excluido!!!"
 
 }
 

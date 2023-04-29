@@ -196,7 +196,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
 
   } catch (error) {
 
-    throw error;
+    return error;
   }
 
 
