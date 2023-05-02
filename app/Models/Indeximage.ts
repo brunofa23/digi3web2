@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import Bookrecord from './Bookrecord'
+import Typebook from './Typebook'
 
 export default class Indeximage extends BaseModel {
 
@@ -18,33 +19,39 @@ export default class Indeximage extends BaseModel {
     ]
   }
 
-  @hasOne(() => Bookrecord,{
+  @hasOne(() => Bookrecord, {
     foreignKey: 'id',
     localKey: 'bookrecords_id'
   })
   public bookrecord: HasOne<typeof Bookrecord>
 
+  @hasOne(() => Typebook, {
+    foreignKey: 'id',
+    localKey: 'typebooks_id'
+  })
+  public typebooks: HasOne<typeof Typebook>
 
-  @column({isPrimary:true})
+
+  @column({ isPrimary: true })
   public bookrecords_id: number
 
-  @column({isPrimary:true})
-  public typebooks_id:number
+  @column({ isPrimary: true })
+  public typebooks_id: number
 
-  @column({isPrimary:true})
-  public companies_id:number
+  @column({ isPrimary: true })
+  public companies_id: number
 
-  @column({isPrimary:true})
-  public seq:number
-
-  @column()
-  public ext:string
+  @column({ isPrimary: true })
+  public seq: number
 
   @column()
-  public file_name:string
+  public ext: string
 
   @column()
-  public previous_file_name:string
+  public file_name: string
+
+  @column()
+  public previous_file_name: string
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
