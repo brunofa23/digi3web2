@@ -162,9 +162,22 @@ export default class BookrecordsController {
   public async destroy({ auth, request, params, response }: HttpContextContract) {
 
     const { companies_id } = await auth.use('api').authenticate()
-    console.log("AUTH", companies_id)
-
     try {
+
+      //excluir imagens do google drive
+      const listOfImagesToDeleteGDrive = await Indeximage.query()
+        .preload('typebooks')
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('bookrecords_id', "=", params.id)
+        .andWhere('companies_id', "=", companies_id)
+
+
+      if (listOfImagesToDeleteGDrive.length > 0) {
+        var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+          return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+        });
+        fileRename.deleteFile(file_name)
+      }
 
       await Indeximage.query()
         .where('typebooks_id', '=', params.typebooks_id)
@@ -186,7 +199,7 @@ export default class BookrecordsController {
   //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
 
-    await auth.use('api').authenticate()
+    const { companies_id } = await auth.use('api').authenticate()
     const { typebooks_id, Book, startCod, endCod } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod'])
 
     let query = '1 = 1'
@@ -202,17 +215,25 @@ export default class BookrecordsController {
       if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
         query += ` and cod>=${startCod} and cod <=${endCod} `
 
-
-      //deleção tabela index images
-
-      //const listFiles = ['Id212_0(1)_1_2____3.jpeg', 'Id213_0(2)_1_2____3.jpeg', 'Id214_0(3)_1_2____3.jpeg', 'Id215_0(4)_1_2____3.jpeg']
-      //const listFiles = ['Id333_0(1)_1_1____3.jpeg', 'Id334_0(2)_1_1____3.jpeg', 'Id41_8(1)_1_1_1__F_3.jpeg']
-
       try {
 
         //deletar imagem no gdrive
-        //console.log("pasei no deleter.....")
-        //fileRename.deleteFile(listFiles)
+        const listOfImagesToDeleteGDrive = await Indeximage
+          .query()
+          .preload('typebooks')
+          .whereIn("bookrecords_id",
+            Database.from('bookrecords')
+              .select('id')
+              .where('typebooks_id', '=', typebooks_id)
+              .andWhere('companies_id', '=', companies_id)
+              .whereRaw(query))
+
+        if (listOfImagesToDeleteGDrive.length > 0) {
+          var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+            return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+          });
+          fileRename.deleteFile(file_name)
+        }
 
         const dataIndexImages = await Indeximage
           .query()
@@ -221,11 +242,13 @@ export default class BookrecordsController {
             Database.from('bookrecords')
               .select('id')
               .where('typebooks_id', '=', typebooks_id)
+              .andWhere('companies_id', '=', companies_id)
               .whereRaw(query))
 
         const data = await Bookrecord
           .query()
           .where('typebooks_id', '=', typebooks_id)
+          .andWhere('companies_id', '=', companies_id)
           .whereRaw(query)
           .delete()
 
