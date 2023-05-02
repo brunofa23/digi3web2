@@ -226,8 +226,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
     return error
   }
 
-
-
 }
 
 
