@@ -176,13 +176,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
     }
 }
 async function deleteFile(listFiles) {
-    console.log("listfiles>>>", listFiles);
-    const teste = await authorize.sendSearchFile('Id334_1(2)_1_1____3.jpg');
-    console.log("ID DOS ARQUIVOS>>", teste[0].id);
-    await authorize.sendDeleteFile(teste[0].id);
-    return;
-    const listFilesId = [];
-    console.log(listFiles[0], "teste", teste);
+    const idFolder = await authorize.sendSearchFile(listFiles[0]['path']);
+    let idFile;
+    for (const file of listFiles) {
+        idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id);
+        await authorize.sendDeleteFile(idFile[0].id);
+    }
+    return "excluido!!!";
 }
 module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile };
 //# sourceMappingURL=fileRename.js.map

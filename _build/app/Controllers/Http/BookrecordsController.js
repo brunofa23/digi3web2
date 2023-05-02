@@ -100,8 +100,18 @@ class BookrecordsController {
     }
     async destroy({ auth, request, params, response }) {
         const { companies_id } = await auth.use('api').authenticate();
-        console.log("AUTH", companies_id);
         try {
+            const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()
+                .preload('typebooks')
+                .where('typebooks_id', '=', params.typebooks_id)
+                .andWhere('bookrecords_id', "=", params.id)
+                .andWhere('companies_id', "=", companies_id);
+            if (listOfImagesToDeleteGDrive.length > 0) {
+                var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+                    return { file_name: item.file_name, path: item.typebooks.path };
+                });
+                fileRename.deleteFile(file_name);
+            }
             await Indeximage_1.default.query()
                 .where('typebooks_id', '=', params.typebooks_id)
                 .andWhere('bookrecords_id', "=", params.id)
@@ -117,7 +127,7 @@ class BookrecordsController {
         }
     }
     async destroyManyBookRecords({ auth, request, response }) {
-        await auth.use('api').authenticate();
+        const { companies_id } = await auth.use('api').authenticate();
         const { typebooks_id, Book, startCod, endCod } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod']);
         let query = '1 = 1';
         if (Book == undefined)
@@ -129,16 +139,32 @@ class BookrecordsController {
             if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
                 query += ` and cod>=${startCod} and cod <=${endCod} `;
             try {
+                const listOfImagesToDeleteGDrive = await Indeximage_1.default
+                    .query()
+                    .preload('typebooks')
+                    .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
+                    .select('id')
+                    .where('typebooks_id', '=', typebooks_id)
+                    .andWhere('companies_id', '=', companies_id)
+                    .whereRaw(query));
+                if (listOfImagesToDeleteGDrive.length > 0) {
+                    var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+                        return { file_name: item.file_name, path: item.typebooks.path };
+                    });
+                    fileRename.deleteFile(file_name);
+                }
                 const dataIndexImages = await Indeximage_1.default
                     .query()
                     .delete()
                     .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
                     .select('id')
                     .where('typebooks_id', '=', typebooks_id)
+                    .andWhere('companies_id', '=', companies_id)
                     .whereRaw(query));
                 const data = await Bookrecord_1.default
                     .query()
                     .where('typebooks_id', '=', typebooks_id)
+                    .andWhere('companies_id', '=', companies_id)
                     .whereRaw(query)
                     .delete();
                 return response.status(201).send({ dataIndexImages, data });

@@ -127,7 +127,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
         return res.data.files;
     }
     catch (error) {
-        throw error;
+        return error;
     }
 }
 async function deleteFile(authClient, fileId) {
