@@ -138,18 +138,13 @@ export default class IndeximagesController {
 
   }
 
-  public async download({ auth, request, response }: HttpContextContract) {
+  public async download({ auth, params }: HttpContextContract) {
 
+    const fileName = params.id
     const authenticate = await auth.use('api').authenticate()
-    const fileName = request.only(['fileName'])
     const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id)
-    return fileDownload
-
-    //const fileInformation = await Indeximage.findBy('file_name', fileName)
-
     console.log(">>>>>>>FILEINFORMATRION", fileName)
-
-    return { fileDownload, fileName }//{fileDownload, ext: fileInformation.ext}
+    return { fileDownload, fileName }
 
   }
 

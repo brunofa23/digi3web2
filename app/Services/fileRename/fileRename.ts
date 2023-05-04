@@ -30,13 +30,12 @@ function deleteImage(folderPath) {
 
 
 async function downloadImage(fileName) {
-
-  const fileId = await authorize.sendSearchFile(fileName.fileName)
+  const fileId = await authorize.sendSearchFile(fileName)
   console.log(fileId)
   const download = await authorize.sendDownloadFile(fileId[0].id)
-
   return download
 }
+
 
 
 async function transformFilesNameToId(images, params, companies_id, capture = false) {
