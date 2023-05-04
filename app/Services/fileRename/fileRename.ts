@@ -28,11 +28,13 @@ function deleteImage(folderPath) {
   });
 }
 
+
 async function downloadImage(fileName) {
 
-  const fileId = await authorize.sendSearchFile(fileName)
+  const fileId = await authorize.sendSearchFile(fileName.fileName)
   console.log(fileId)
   const download = await authorize.sendDownloadFile(fileId[0].id)
+
   return download
 }
 

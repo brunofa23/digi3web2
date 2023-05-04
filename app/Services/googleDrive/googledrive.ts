@@ -65,28 +65,6 @@ async function saveCredentials(client) {
  */
 // async function authorize() {
 
-
-
-//   let client = await loadSavedCredentialsIfExist();
-
-//   console.log("CLIENTE:", client);
-
-//   if (client) {
-//     return client;
-//   }
-
-//   client = await authenticate({
-//     scopes: SCOPES,
-//     keyfilePath: CREDENTIALS_PATH,
-//   });
-
-//   if (client.credentials) {
-//     await saveCredentials(client);
-//   }
-
-//   return client;
-// }
-
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
   if (client) {

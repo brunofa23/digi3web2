@@ -129,7 +129,7 @@ const corsConfig: CorsConfig = {
   |
   */
   //maxAge: 90,
-  maxAge: 90,
+  maxAge: 86400,
 }
 
 export default corsConfig
