@@ -10,6 +10,7 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const FileRename = require('../../Services/fileRename/fileRename');
 const Date = require('../../Services/Dates/format');
 const fs = require('fs');
+const path = require('path');
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 class IndeximagesController {
@@ -102,8 +103,7 @@ class IndeximagesController {
         const fileName = params.id;
         const authenticate = await auth.use('api').authenticate();
         const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id);
-        console.log(">>>>>>>FILEINFORMATRION", fileName);
-        return { fileDownload, fileName };
+        return { fileDownload, fileName, extension: path.extname(fileName) };
     }
 }
 exports.default = IndeximagesController;

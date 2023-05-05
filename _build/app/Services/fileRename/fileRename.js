@@ -27,9 +27,9 @@ function deleteImage(folderPath) {
     });
 }
 async function downloadImage(fileName) {
+    const extension = path.extname(fileName);
     const fileId = await authorize.sendSearchFile(fileName);
-    console.log(fileId);
-    const download = await authorize.sendDownloadFile(fileId[0].id);
+    const download = await authorize.sendDownloadFile(fileId[0].id, extension);
     return download;
 }
 async function transformFilesNameToId(images, params, companies_id, capture = false) {

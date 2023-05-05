@@ -154,7 +154,7 @@ async function listFiles(authClient) {
         console.log(`${file.name} (${file.id})`);
     });
 }
-async function downloadFile(authClient, fileId) {
+async function downloadFile(authClient, fileId, extension) {
     const drive = google.drive({ version: 'v3', auth: authClient });
     try {
         const file = await drive.files.get({
@@ -164,8 +164,11 @@ async function downloadFile(authClient, fileId) {
             responseType: 'arraybuffer',
             encoding: null
         });
-        console.log(">>>>>>DOWNLOAD", file);
-        var imageType = file.headers['content-type'];
+        var imageType;
+        if (extension == ".jpeg" || extension == ".jpg" || extension == ".gif" || extension == ".bmp")
+            imageType = file.headers['content-type'];
+        else if (extension == ".pdf")
+            imageType = "application/pdf";
         const base64 = Buffer.from(file.data, "utf8").toString("base64");
         var dataURI = 'data:' + imageType + ';base64,' + base64;
         return dataURI;
@@ -208,9 +211,9 @@ async function sendSearchOrCreateFolder(folderName, parent = undefined) {
         return findFolder;
     }
 }
-async function sendDownloadFile(fileId) {
+async function sendDownloadFile(fileId, extension) {
     const auth = await authorize();
-    return downloadFile(auth, fileId);
+    return downloadFile(auth, fileId, extension);
 }
 module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile };
 //# sourceMappingURL=googledrive.js.map

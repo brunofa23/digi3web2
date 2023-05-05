@@ -14,7 +14,7 @@ const corsConfig = {
         'pragma',
     ],
     credentials: true,
-    maxAge: 90,
+    maxAge: 86400,
 };
 exports.default = corsConfig;
 //# sourceMappingURL=cors.js.map
