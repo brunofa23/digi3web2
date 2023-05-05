@@ -7,7 +7,7 @@ const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v48' }
+    return { hello: 'Hello World v49' }
   })
 
   //BOOKS
