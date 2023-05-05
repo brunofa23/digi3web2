@@ -7,9 +7,11 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 const FileRename = require('../../Services/fileRename/fileRename')
 const Date = require('../../Services/Dates/format')
 const fs = require('fs')
+const path = require('path')
 
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+
 
 
 
@@ -141,14 +143,9 @@ export default class IndeximagesController {
   public async download({ auth, params }: HttpContextContract) {
 
     const fileName = params.id
-
     const authenticate = await auth.use('api').authenticate()
     const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id)
-    //const fileInformation = await Indeximage.findBy('file_name', fileName)
-
-    console.log(">>>>>>>FILEINFORMATRION", fileName)
-
-    return { fileDownload, fileName }//{fileDownload, ext: fileInformation.ext}
+    return { fileDownload, fileName, extension: path.extname(fileName) }
 
   }
 

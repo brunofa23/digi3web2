@@ -65,28 +65,6 @@ async function saveCredentials(client) {
  */
 // async function authorize() {
 
-
-
-//   let client = await loadSavedCredentialsIfExist();
-
-//   console.log("CLIENTE:", client);
-
-//   if (client) {
-//     return client;
-//   }
-
-//   client = await authenticate({
-//     scopes: SCOPES,
-//     keyfilePath: CREDENTIALS_PATH,
-//   });
-
-//   if (client.credentials) {
-//     await saveCredentials(client);
-//   }
-
-//   return client;
-// }
-
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
   if (client) {
@@ -237,15 +215,14 @@ async function listFiles(authClient) {
 }
 
 
-async function downloadFile(authClient, fileId) {
+async function downloadFile(authClient, fileId, extension) {
 
   const drive = google.drive({ version: 'v3', auth: authClient });
 
-  //fileId = realFileId;
   try {
     const file = await drive.files.get({
       fileId: fileId,
-      //mimeType: "text/plain",
+      //mimeType: 'application/pdf',
       alt: 'media'
     },
       {
@@ -255,9 +232,12 @@ async function downloadFile(authClient, fileId) {
 
     );
 
-    console.log(">>>>>>DOWNLOAD", file);
+    var imageType
+    if (extension == ".jpeg" || extension == ".jpg" || extension == ".gif" || extension == ".bmp")
+      imageType = file.headers['content-type'];
+    else if (extension == ".pdf")
+      imageType = "application/pdf"
 
-    var imageType = file.headers['content-type'];
     const base64 = Buffer.from(file.data, "utf8").toString("base64")
     var dataURI = 'data:' + imageType + ';base64,' + base64;
 
@@ -320,9 +300,9 @@ async function sendSearchOrCreateFolder(folderName, parent = undefined) {
 
 }
 
-async function sendDownloadFile(fileId) {
+async function sendDownloadFile(fileId, extension) {
   const auth = await authorize()
-  return downloadFile(auth, fileId)
+  return downloadFile(auth, fileId, extension)
 }
 
 
