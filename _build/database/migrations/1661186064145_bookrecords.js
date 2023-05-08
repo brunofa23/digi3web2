@@ -11,6 +11,7 @@ class default_1 extends Schema_1.default {
     }
     async up() {
         this.schema.createTable(this.tableName, (table) => {
+            table.primary(['id', 'typebooks_id', 'books_id', 'companies_id']);
             table.increments('id');
             table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id');
             table.integer('books_id').notNullable().unsigned().references('typebooks.books_id').onDelete('CASCADE');
