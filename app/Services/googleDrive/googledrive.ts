@@ -26,7 +26,6 @@ function sleep(ms) {
 }
 
 
-
 async function loadSavedCredentialsIfExist() {
   try {
     const content = await fsPromises.readFile(TOKEN_PATH);
@@ -83,9 +82,7 @@ async function authorize() {
 
 
 async function uploadFiles(authClient, parents, folderPath, fileName) {
-
   const drive = google.drive({ version: 'v3', auth: authClient });
-
   const parent = [parents]
 
   const fileMetadata = {
@@ -95,13 +92,12 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
   const media = {
     mimeType: 'image/jpeg',
     body: fs.createReadStream(`${folderPath}/${fileName}`),
-    //body: fs.createReadStream(`${filePath}`),
   };
   try {
     const file = await drive.files.create({
       resource: fileMetadata,
       media: media,
-      fields: 'id'
+      fields: 'id',
 
     });
     console.log('>>>File Id:', file.data.id);
