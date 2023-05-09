@@ -26,7 +26,6 @@ function sleep(ms) {
 }
 
 
-
 async function loadSavedCredentialsIfExist() {
   try {
     const content = await fsPromises.readFile(TOKEN_PATH);
@@ -81,36 +80,108 @@ async function authorize() {
 }
 
 
+//UPLOAD ORIGINAL
+// async function uploadFiles(authClient, parents, folderPath, fileName) {
+//   const drive = google.drive({ version: 'v3', auth: authClient });
+//   const parent = [parents]
+
+//   const fileMetadata = {
+//     name: fileName,
+//     parents: parent
+//   };
+//   const media = {
+//     mimeType: 'image/jpeg',
+//     body: fs.createReadStream(`${folderPath}/${fileName}`),
+//   };
+//   try {
+//     const file = await drive.files.create({
+//       resource: fileMetadata,
+//       media: media,
+//       fields: 'id',
+
+//     });
+//     console.log('>>>File Id:', file.data.id);
+//     return file.data.id;
+//   } catch (err) {
+//     // TODO(developer) - Handle error
+//     console.log("ERRO:::::", err);
+//     throw err;
+//   }
+
+// }
 
 async function uploadFiles(authClient, parents, folderPath, fileName) {
-
   const drive = google.drive({ version: 'v3', auth: authClient });
-
   const parent = [parents]
 
-  const fileMetadata = {
-    name: fileName,
-    parents: parent
-  };
-  const media = {
-    mimeType: 'image/jpeg',
-    body: fs.createReadStream(`${folderPath}/${fileName}`),
-    //body: fs.createReadStream(`${filePath}`),
-  };
-  try {
-    const file = await drive.files.create({
-      resource: fileMetadata,
-      media: media,
-      fields: 'id'
+  // Crie uma instância de ResumableUpload para o arquivo
+  const resumableUpload = drive.files.create({
+    requestBody: {
+      name: fileName,
+      parents: parent, // opcional
+    },
+    media: {
+      mimeType: 'image/jpeg',
+      body: fs.createReadStream(`${folderPath}/${fileName}`),
+    },
+    fields: 'id, name, size',
+    supportsTeamDrives: true,
+    useResumableUpload: true,
+  }, {
+    onUploadProgress: (event) => {
+      const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
+      console.log(`Progresso: ${progress}%`);
+    },
+    onError: (err) => {
+      console.error(`Ocorreu um erro durante o upload: ${err}`);
 
-    });
-    console.log('>>>File Id:', file.data.id);
-    return file.data.id;
-  } catch (err) {
-    // TODO(developer) - Handle error
-    console.log("ERRO:::::", err);
-    throw err;
-  }
+      // Verifica se o erro foi causado por uma falha na conexão
+      if (err.statusCode === 408) {
+        console.log('Tentando reconectar o upload...');
+        resumableUpload.start();
+      } else {
+        console.error('Não é possível reconectar o upload. Erro irreparável.');
+      }
+    },
+
+  });
+
+  // Inicie o upload
+  const response = await resumableUpload;
+  console.log(`Arquivo carregado com sucesso! ID do arquivo: ${response.data.id}`);
+
+
+  /************* */
+  // const fileMetadata = {
+  //   name: fileName,
+  //   parents: parent
+  // };
+  // const media = {
+  //   mimeType: 'image/jpeg',
+  //   body: fs.createReadStream(`${folderPath}/${fileName}`),
+  // };
+  // try {
+  //   const file = await drive.files.create({
+  //     resource: fileMetadata,
+  //     media: media,
+  //     fields: 'id',
+  //     supportsTeamDrives: true,
+  //     useResumableUpload: true,
+
+  //     onUploadProgress: (event) => {
+  //       const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
+  //       console.log(`>>>>>>>>Progresso: ${progress}%`);
+  //     }
+
+
+  //   });
+  //   console.log('>>>File Id:', file.data.id);
+  //   return file.data.id;
+  // } catch (err) {
+  //   // TODO(developer) - Handle error
+  //   console.log("ERRO:::::", err);
+  //   throw err;
+  // }
 
 }
 
