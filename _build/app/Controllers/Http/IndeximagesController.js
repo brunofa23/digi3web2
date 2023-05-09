@@ -68,7 +68,6 @@ class IndeximagesController {
             extnames: ['jpg', 'png', 'jpeg', 'pdf']
         });
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
-        console.log("FILES INDEX>>>", files);
         logtail.info("ARQUIVOS INDEXADOS>>>", files);
         logtail.flush();
         return response.status(201).send(files);

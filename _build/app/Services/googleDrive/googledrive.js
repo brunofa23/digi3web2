@@ -60,27 +60,36 @@ async function authorize() {
 async function uploadFiles(authClient, parents, folderPath, fileName) {
     const drive = google.drive({ version: 'v3', auth: authClient });
     const parent = [parents];
-    const fileMetadata = {
-        name: fileName,
-        parents: parent
-    };
-    const media = {
-        mimeType: 'image/jpeg',
-        body: fs.createReadStream(`${folderPath}/${fileName}`),
-    };
-    try {
-        const file = await drive.files.create({
-            resource: fileMetadata,
-            media: media,
-            fields: 'id'
-        });
-        console.log('>>>File Id:', file.data.id);
-        return file.data.id;
-    }
-    catch (err) {
-        console.log("ERRO:::::", err);
-        throw err;
-    }
+    const resumableUpload = drive.files.create({
+        requestBody: {
+            name: fileName,
+            parents: parent,
+        },
+        media: {
+            mimeType: 'image/jpeg',
+            body: fs.createReadStream(`${folderPath}/${fileName}`),
+        },
+        fields: 'id, name, size',
+        supportsTeamDrives: true,
+        useResumableUpload: true,
+    }, {
+        onUploadProgress: (event) => {
+            const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
+            console.log(`Progresso: ${progress}%`);
+        },
+        onError: (err) => {
+            console.error(`Ocorreu um erro durante o upload: ${err}`);
+            if (err.statusCode === 408) {
+                console.log('Tentando reconectar o upload...');
+                resumableUpload.start();
+            }
+            else {
+                console.error('Não é possível reconectar o upload. Erro irreparável.');
+            }
+        },
+    });
+    const response = await resumableUpload;
+    console.log(`Arquivo carregado com sucesso! ID do arquivo: ${response.data.id}`);
 }
 async function createFolder(authClient, folderName, parentId = undefined) {
     const drive = google.drive({ version: 'v3', auth: authClient });
