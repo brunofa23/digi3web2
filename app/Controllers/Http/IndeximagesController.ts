@@ -93,7 +93,7 @@ export default class IndeximagesController {
 
     const images = request.files('images', {
       size: '6mb',
-      extnames: ['jpg', 'png', 'jpeg', 'pdf']
+      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
