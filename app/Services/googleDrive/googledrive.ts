@@ -121,7 +121,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
       parents: parent, // opcional
     },
     media: {
-      mimeType: 'image/jpeg',
+      mimeType: 'image/jpeg|image/png|image/jpg',
       body: fs.createReadStream(`${folderPath}/${fileName}`),
     },
     fields: 'id, name, size',
@@ -129,6 +129,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
     useResumableUpload: true,
   }, {
     onUploadProgress: (event) => {
+      console.log("event", event)
       const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
       console.log(`Progresso: ${progress}%`);
     },
