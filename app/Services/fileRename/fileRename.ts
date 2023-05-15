@@ -4,6 +4,8 @@ import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
+import { books } from "googleapis/build/src/apis/books";
+import { sheets } from "googleapis/build/src/apis/sheets";
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -37,8 +39,6 @@ async function downloadImage(fileName) {
 
   return download
 }
-
-
 
 async function transformFilesNameToId(images, params, companies_id, capture = false) {
 
@@ -245,4 +245,55 @@ async function deleteFile(listFiles: [{}]) {
 
 }
 
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile }
+async function indeximagesinitial(folderName) {
+
+  const idFolder = await authorize.sendSearchFile(folderName?.path)
+  const listFiles = await authorize.sendListFiles(idFolder)
+
+  const objlistFiles = listFiles.map((file) => {
+    const fileSplit = file.split("_")
+    const id = fileSplit[0].match(/\d+/g)[0];
+    const seq = fileSplit[1].match(/^(\d+)/)[0];
+    const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
+    const typebook_id = fileSplit[2]
+    const book = fileSplit[3]
+    const sheet = fileSplit[4]
+    const approximate_termo = fileSplit[5]
+    const side = fileSplit[6]
+    const book_id = fileSplit[7].match(/\d+/g)[0];
+    return { file, id, seq, cod, typebook_id, book, sheet, approximate_termo, side, book_id }
+  });
+  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{data do arquivo}{extensão}
+  // id
+  // typebooks_id
+  // books_id
+  // companies_idcod
+  // book
+  // sheet
+  // side
+
+  const arr = [{ id: 391, seq: 0 }, { id: 392, seq: 1 }, { id: 391, seq: 0 }];
+  const uniqueIds = {};
+
+  const result = objlistFiles.filter(obj => {
+    if (!uniqueIds[obj.id]) {
+      uniqueIds[obj.id] = true;
+      return true;
+    }
+    return false;
+  });
+
+  result.sort((a, b) => a.id - b.id);
+  console.log(result); // Output: [{id: 391, seq: 0}, {id: 392, seq: 1}]
+  return result
+
+
+
+
+
+
+  return objlistFiles
+
+}
+
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial }

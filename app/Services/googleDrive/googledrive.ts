@@ -267,11 +267,13 @@ async function deleteFile(authClient, fileId) {
 }
 
 
-async function listFiles(authClient) {
-  console.log("authClient", authClient);
+async function listFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
+
+  console.log("entrei no listFiles...", folderId[0].id);
   const res = await drive.files.list({
-    pageSize: 10,
+    q: `'${folderId[0].id}' in parents`,
+    //pageSize: 10,
     fields: 'nextPageToken, files(id, name)',
   });
 
@@ -281,9 +283,12 @@ async function listFiles(authClient) {
     return;
   }
   console.log('Files:');
-  files.map((file) => {
-    console.log(`${file.name} (${file.id})`);
+  const listFiles = files.map((file) => {
+    //return (`${file.name} (${file.id})`);
+    return file.name
   });
+
+  return listFiles
 }
 
 
@@ -329,15 +334,16 @@ async function sendAuthorize() {
   return true
 }
 
-async function sendListFiles() {
-  authorize().then(listFiles).catch(console.error);
+async function sendListFiles(folderId = "") {
+  //authorize().then(listFiles(folderId)).catch(console.error);
+  const auth = await authorize()
+  return listFiles(auth, folderId)
+
 }
 
 async function sendUploadFiles(parent, folderPath, fileName) {
   const auth = await authorize()
   uploadFiles(auth, parent, folderPath, fileName)
-
-  //authorize().then(uploadFiles).catch(console.error)
 }
 
 async function sendCreateFolder(folderName, parentId = undefined) {

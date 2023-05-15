@@ -29,9 +29,9 @@ Route.group(() => {
   //INDEXIMAGES
   Route.resource("/indeximages", "IndeximagesController").apiOnly()
   Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')
-  //Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')
   Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')
   Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')
+  Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'IndeximagesController.indeximagesinitial')
 
 
   //USERS
