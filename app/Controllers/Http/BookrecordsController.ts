@@ -6,8 +6,8 @@ import Env from '@ioc:Adonis/Core/Env'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
-
-const fileRename = require('../../Services/fileRename/fileRename')
+import Typebook from 'App/Models/Typebook'
+const FileRename = require('../../Services/fileRename/fileRename')
 
 export default class BookrecordsController {
 
@@ -261,12 +261,6 @@ export default class BookrecordsController {
     }
   }
 
-
-
-
-
-
-
   //Cria uma linha 
   public async createorupdatebookrecords({ auth, request, response }) {
 
@@ -501,7 +495,29 @@ export default class BookrecordsController {
   }
 
 
+  public async indeximagesinitial({ auth, params }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    //1 - pegar o id da pasta do livro
+    try {
+      const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
+      const listFiles = await FileRename.indeximagesinitial(foldername)
 
+      //const bookRecord = listFiles[0];
+      //const objlistFiles = listFiles[1];
+
+      return listFiles.bookRecord
+      console.log("foldername", foldername)
+
+    } catch (error) {
+
+    }
+
+    //2 - buscar a listagem de arquivos relacionados
+
+    //3 - inserir no bookrecord
+    return "indeximages......"
+
+  }
 
 
   //********************************************************* */

@@ -250,6 +250,7 @@ async function indeximagesinitial(folderName) {
   const idFolder = await authorize.sendSearchFile(folderName?.path)
   const listFiles = await authorize.sendListFiles(idFolder)
 
+  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{data do arquivo}{extensão}
   const objlistFiles = listFiles.map((file) => {
     const fileSplit = file.split("_")
     const id = fileSplit[0].match(/\d+/g)[0];
@@ -263,29 +264,18 @@ async function indeximagesinitial(folderName) {
     const book_id = fileSplit[7].match(/\d+/g)[0];
     return { file, id, seq, cod, typebook_id, book, sheet, approximate_termo, side, book_id }
   });
-  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{data do arquivo}{extensão}
-  // id
-  // typebooks_id
-  // books_id
-  // companies_idcod
-  // book
-  // sheet
-  // side
 
-  const arr = [{ id: 391, seq: 0 }, { id: 392, seq: 1 }, { id: 391, seq: 0 }];
   const uniqueIds = {};
-
-  const result = objlistFiles.filter(obj => {
+  const bookRecord = objlistFiles.filter(obj => {
     if (!uniqueIds[obj.id]) {
       uniqueIds[obj.id] = true;
       return true;
     }
     return false;
   });
-
-  result.sort((a, b) => a.id - b.id);
-  console.log(result); // Output: [{id: 391, seq: 0}, {id: 392, seq: 1}]
-  return result
+  bookRecord.sort((a, b) => a.id - b.id);
+  objlistFiles.sort((a, b) => a.id - b.id);
+  return { bookRecord, objlistFiles }
 
 
 

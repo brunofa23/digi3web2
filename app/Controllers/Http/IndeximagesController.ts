@@ -141,25 +141,7 @@ export default class IndeximagesController {
   }
 
 
-  public async indeximagesinitial({ auth, params }: HttpContextContract) {
-    const authenticate = await auth.use('api').authenticate()
-    //1 - pegar o id da pasta do livro
-    try {
-      const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
-      const listFiles = FileRename.indeximagesinitial(foldername)
-      return listFiles
-      console.log("foldername", foldername)
 
-    } catch (error) {
-
-    }
-
-    //2 - buscar a listagem de arquivos relacionados
-
-    //3 - inserir no bookrecord
-    return "indeximages......"
-
-  }
 
 
 
