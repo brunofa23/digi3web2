@@ -253,16 +253,17 @@ async function indeximagesinitial(folderName) {
   //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{data do arquivo}{extensão}
   const objlistFiles = listFiles.map((file) => {
     const fileSplit = file.split("_")
+
+    const typebooks_id = fileSplit[2]
     const id = fileSplit[0].match(/\d+/g)[0];
-    const seq = fileSplit[1].match(/^(\d+)/)[0];
+    const books_id = fileSplit[7].match(/\d+/g)[0];
     const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
-    const typebook_id = fileSplit[2]
     const book = fileSplit[3]
     const sheet = fileSplit[4]
-    const approximate_termo = fileSplit[5]
     const side = fileSplit[6]
-    const book_id = fileSplit[7].match(/\d+/g)[0];
-    return { file, id, seq, cod, typebook_id, book, sheet, approximate_termo, side, book_id }
+    const approximate_termo = fileSplit[5]
+    const seq = fileSplit[1].match(/^(\d+)/)[0];
+    return { typebooks_id, books_id, file, id, seq, cod, book, sheet, approximate_termo, side }
   });
 
   const uniqueIds = {};
