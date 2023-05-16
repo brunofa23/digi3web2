@@ -499,78 +499,13 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     //1 - pegar o id da pasta do livro
     try {
-      //const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
-      //const listFiles = await FileRename.indeximagesinitial(foldername)
-
-      //return listFiles.bookRecord
+      const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
+      const listFiles = await FileRename.indeximagesinitial(foldername, authenticate.companies_id)
 
       console.log("entrei>>>>>>")
-      // const bookRecord = await Bookrecord.create({
-      //   "typebooks_id": 1,
-      //   "books_id": 3,
-      //   "companies_id": 2,
-      //   "cod": 1,
-      //   "book": 1,
-      //   "sheet": 1,
-      //   "side": "F",
-      //   "approximate_term": null,
-      //   "indexbook": 0,
-      //   "obs": null,
-      //   "letter": null,
-      //   "year": null,
-      //   "model": null
-      // })
-
-      const bookRecord = await Bookrecord.createMany([
-        {
-          "id": 5,
-          "typebooks_id": 1,
-          "books_id": 3,
-          "companies_id": 2,
-          "cod": 1,
-          "book": 1,
-          "sheet": 1,
-          "side": "F",
-          "approximate_term": null,
-          "indexbook": 0,
-          "obs": null,
-          "letter": null,
-          "year": null,
-          "model": null
-        },
-        {
-          "id": 6,
-          "typebooks_id": 1,
-          "books_id": 3,
-          "companies_id": 2,
-          "cod": 2,
-          "book": 1,
-          "sheet": 2,
-          "side": "F",
-          "approximate_term": null,
-          "indexbook": 0,
-          "obs": null,
-          "letter": null,
-          "year": null,
-          "model": null
-        }
-      ])
+      await Bookrecord.createMany(listFiles.bookRecord)
       console.log("executei")
-      return bookRecord
-
-
-      // const bookRecord = await Bookrecord.createMany([
-      //   {
-      //     email: 'virk@adonisjs.com',
-      //     password: 'secret',
-      //   },
-      //   {
-      //     email: 'romain@adonisjs.com',
-      //     password: 'secret',
-      //   },
-      // ])
-
-
+      return listFiles.bookRecord
 
     } catch (error) {
       return error
