@@ -272,16 +272,15 @@ async function indeximagesinitial(folderName, companies_id) {
   const indexImages = listFiles.map((file) => {
     const fileSplit = file.split("_")
 
+    const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
     const typebooks_id = fileSplit[2]
-    const id = fileSplit[0].match(/\d+/g)[0];
-    const books_id = fileSplit[7].match(/\d+/g)[0];
-    const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
-    const book = fileSplit[3]
-    const sheet = fileSplit[4]
-    const side = fileSplit[6]
-    const approximate_termo = fileSplit[5]
     const seq = fileSplit[1].match(/^(\d+)/)[0];
-    return { id, typebooks_id, books_id, file, id, seq, cod, book, sheet, approximate_termo, side }
+    const ext = path.extname(file);
+
+    return {
+      bookrecords_id, typebooks_id, companies_id, seq,
+      ext, file_name: file, previous_file_name: file
+    }
   });
 
   const uniqueIds = {};
@@ -292,6 +291,8 @@ async function indeximagesinitial(folderName, companies_id) {
     }
     return false;
   });
+
+
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
   return { bookRecord, indexImages }

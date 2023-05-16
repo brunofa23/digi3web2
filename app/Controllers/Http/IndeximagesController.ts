@@ -27,7 +27,7 @@ export default class IndeximagesController {
       return response.status(201).send(data)
 
     } catch (error) {
-      throw new BadRequestException('Bad Request', 401)
+      throw new BadRequestException('Bad Request', 401, error)
     }
 
   }

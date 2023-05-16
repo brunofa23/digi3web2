@@ -224,6 +224,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
   let query = `name ='${fileName}' `
   if (parentId)
     query += ` and parents in '${parentId}'`
+  query += " and trashed=false "
 
   console.log(">>>QUERY", query);
   try {
@@ -239,10 +240,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
       console.log('Found file:', file.name, file.id);
       files.push({ name: file.name, id: file.id })
     });
-
-    console.log("res>>>>", res.data.files)
     return res.data.files
-    //return files
 
   } catch (error) {
 
@@ -257,22 +255,18 @@ async function searchFile(authClient, fileName, parentId = undefined) {
 
 async function deleteFile(authClient, fileId) {
   const drive = google.drive({ version: 'v3', auth: authClient });
-
   const request = drive.files.delete({
     'fileId': fileId
   })
-
   return request
-
 }
 
 
 async function listFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
-  console.log("entrei no listFiles...", folderId[0].id);
   const res = await drive.files.list({
-    q: `'${folderId[0].id}' in parents`,
+    q: `'${folderId[0].id}' in parents and trashed=false`,
     //pageSize: 10,
     fields: 'nextPageToken, files(id, name)',
   });
@@ -284,7 +278,6 @@ async function listFiles(authClient, folderId = "") {
   }
   console.log('Files:');
   const listFiles = files.map((file) => {
-    //return (`${file.name} (${file.id})`);
     return file.name
   });
 

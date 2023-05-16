@@ -497,24 +497,20 @@ export default class BookrecordsController {
 
   public async indeximagesinitial({ auth, params }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    //1 - pegar o id da pasta do livro
     try {
       const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
       const listFiles = await FileRename.indeximagesinitial(foldername, authenticate.companies_id)
-
-      console.log("entrei>>>>>>")
+      // console.log("entrei>>>>>>")
       await Bookrecord.createMany(listFiles.bookRecord)
-      console.log("executei")
-      return listFiles.bookRecord
+      // console.log("executei bookrecord")
+      await Indeximage.createMany(listFiles.indexImages)
+      // console.log("executei indeximages")
+      return "sucesso!!"
 
     } catch (error) {
       return error
     }
 
-    //2 - buscar a listagem de arquivos relacionados
-
-    //3 - inserir no bookrecord
-    return "indeximages......"
 
   }
 
