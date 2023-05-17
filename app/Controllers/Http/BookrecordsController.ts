@@ -7,7 +7,7 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import Typebook from 'App/Models/Typebook'
-const FileRename = require('../../Services/fileRename/fileRename')
+const fileRename = require('../../Services/fileRename/fileRename')
 
 export default class BookrecordsController {
 
@@ -200,7 +200,7 @@ export default class BookrecordsController {
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
 
     const { companies_id } = await auth.use('api').authenticate()
-    const { typebooks_id, Book, startCod, endCod } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod'])
+    const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages'])
 
     let query = '1 = 1'
 
@@ -212,28 +212,34 @@ export default class BookrecordsController {
         query += ` and book=${Book} `
       }
 
+
       if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
         query += ` and cod>=${startCod} and cod <=${endCod} `
 
+
       try {
-
         //deletar imagem no gdrive
-        const listOfImagesToDeleteGDrive = await Indeximage
-          .query()
-          .preload('typebooks')
-          .whereIn("bookrecords_id",
-            Database.from('bookrecords')
-              .select('id')
-              .where('typebooks_id', '=', typebooks_id)
-              .andWhere('companies_id', '=', companies_id)
-              .whereRaw(query))
+        if (deleteImages) {
+          console.log("entrei no deleteImages")
+          const listOfImagesToDeleteGDrive = await Indeximage
+            .query()
+            .preload('typebooks')
+            .whereIn("bookrecords_id",
+              Database.from('bookrecords')
+                .select('id')
+                .where('typebooks_id', '=', typebooks_id)
+                .andWhere('companies_id', '=', companies_id)
+                .whereRaw(query))
 
-        if (listOfImagesToDeleteGDrive.length > 0) {
-          var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-            return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
-          });
-          fileRename.deleteFile(file_name)
+          if (listOfImagesToDeleteGDrive.length > 0) {
+            var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+              return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+            });
+            fileRename.deleteFile(file_name)
+          }
+
         }
+
 
         const dataIndexImages = await Indeximage
           .query()
@@ -244,6 +250,7 @@ export default class BookrecordsController {
               .where('typebooks_id', '=', typebooks_id)
               .andWhere('companies_id', '=', companies_id)
               .whereRaw(query))
+
 
         const data = await Bookrecord
           .query()
