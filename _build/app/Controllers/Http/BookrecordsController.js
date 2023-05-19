@@ -10,6 +10,7 @@ const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const BadRequestException_2 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
@@ -128,7 +129,7 @@ class BookrecordsController {
     }
     async destroyManyBookRecords({ auth, request, response }) {
         const { companies_id } = await auth.use('api').authenticate();
-        const { typebooks_id, Book, startCod, endCod } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod']);
+        const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages']);
         let query = '1 = 1';
         if (Book == undefined)
             return null;
@@ -139,19 +140,22 @@ class BookrecordsController {
             if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
                 query += ` and cod>=${startCod} and cod <=${endCod} `;
             try {
-                const listOfImagesToDeleteGDrive = await Indeximage_1.default
-                    .query()
-                    .preload('typebooks')
-                    .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
-                    .select('id')
-                    .where('typebooks_id', '=', typebooks_id)
-                    .andWhere('companies_id', '=', companies_id)
-                    .whereRaw(query));
-                if (listOfImagesToDeleteGDrive.length > 0) {
-                    var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-                        return { file_name: item.file_name, path: item.typebooks.path };
-                    });
-                    fileRename.deleteFile(file_name);
+                if (deleteImages) {
+                    console.log("entrei no deleteImages");
+                    const listOfImagesToDeleteGDrive = await Indeximage_1.default
+                        .query()
+                        .preload('typebooks')
+                        .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
+                        .select('id')
+                        .where('typebooks_id', '=', typebooks_id)
+                        .andWhere('companies_id', '=', companies_id)
+                        .whereRaw(query));
+                    if (listOfImagesToDeleteGDrive.length > 0) {
+                        var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+                            return { file_name: item.file_name, path: item.typebooks.path };
+                        });
+                        fileRename.deleteFile(file_name);
+                    }
                 }
                 const dataIndexImages = await Indeximage_1.default
                     .query()
@@ -340,6 +344,34 @@ class BookrecordsController {
         catch (error) {
             throw new BadRequestException_1.default("Bad Request", 402);
         }
+    }
+    async indeximagesinitial({ auth, params }) {
+        const authenticate = await auth.use('api').authenticate();
+        let listFiles;
+        try {
+            const foldername = await Typebook_1.default.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first();
+            listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id);
+        }
+        catch (error) {
+            return error;
+        }
+        for (const item of listFiles.bookRecord) {
+            try {
+                await Bookrecord_1.default.create(item);
+            }
+            catch (error) {
+                console.log("ERRO BOOKRECORD::", error);
+            }
+        }
+        for (const item of listFiles.indexImages) {
+            try {
+                await Indeximage_1.default.create(item);
+            }
+            catch (error) {
+                console.log("ERRO indeximage::", error);
+            }
+        }
+        return "sucesso!!";
     }
 }
 exports.default = BookrecordsController;
