@@ -3,11 +3,13 @@ import Indeximage from 'App/Models/Indeximage'
 import Application from '@ioc:Adonis/Core/Application'
 import { DateTime } from 'luxon'
 import BadRequestException from 'App/Exceptions/BadRequestException'
+import Typebook from 'App/Models/Typebook'
 
 const FileRename = require('../../Services/fileRename/fileRename')
 const Date = require('../../Services/Dates/format')
 const fs = require('fs')
 const path = require('path')
+const authorize = require('App/Services/googleDrive/googledrive')
 
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
@@ -25,7 +27,7 @@ export default class IndeximagesController {
       return response.status(201).send(data)
 
     } catch (error) {
-      throw new BadRequestException('Bad Request', 401)
+      throw new BadRequestException('Bad Request', 401, error)
     }
 
   }
@@ -70,20 +72,10 @@ export default class IndeximagesController {
         .where('seq', '=', body.seq)
       await data.fill(body).save()
       return response.status(201).send(data)
-
-      // return {
-      //   message: 'Tipo de Livro cadastrado com sucesso!!',
-      //   data: data,
-      //   //body: body,
-      //   params: params
-      // }
-
     } catch (error) {
 
       throw new BadRequestException('Bad Request', 401)
     }
-
-
 
   }
 
@@ -93,7 +85,7 @@ export default class IndeximagesController {
 
     const images = request.files('images', {
       size: '6mb',
-      extnames: ['jpg', 'png', 'jpeg', 'pdf']
+      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
@@ -147,6 +139,11 @@ export default class IndeximagesController {
     return { fileDownload, fileName, extension: path.extname(fileName) }
 
   }
+
+
+
+
+
 
   //*************************************************************** */
 }

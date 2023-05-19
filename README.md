@@ -120,3 +120,10 @@ User(){
 }
 const tweet = await Tweet.query().with('nome do relacionamento').fetch()
 
+## Rodar migration e executar seed
+node ace migration:fresh --seed
+
+# excluir um branch no local
+git branch -d nomeDoBranchLocal
+# excluir um branch remoto
+git push origin --delete nomeDoBranchRemoto
