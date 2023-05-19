@@ -504,19 +504,41 @@ export default class BookrecordsController {
 
   public async indeximagesinitial({ auth, params }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
+    let listFiles
     try {
       const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
-      const listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
-      // console.log("entrei>>>>>>")
-      await Bookrecord.createMany(listFiles.bookRecord)
-      // console.log("executei bookrecord")
-      await Indeximage.createMany(listFiles.indexImages)
-      // console.log("executei indeximages")
-      return "sucesso!!"
-
+      listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
+      // console.log("entrei>>>>>>", listFiles.bookRecord)
     } catch (error) {
       return error
     }
+
+    for (const item of listFiles.bookRecord) {
+      try {
+        await Bookrecord.create(item)
+      } catch (error) {
+
+        console.log("ERRO BOOKRECORD::", error)
+      }
+    }
+
+    for (const item of listFiles.indexImages) {
+      try {
+        await Indeximage.create(item)
+      } catch (error) {
+        console.log("ERRO indeximage::", error)
+
+      }
+    }
+
+    // await Bookrecord.createMany(listFiles.bookRecord)
+    // console.log("executei bookrecord")
+    // await Indeximage.createMany(listFiles.indexImages)
+    // console.log("executei indeximages")
+    return "sucesso!!"
+
+
 
 
   }

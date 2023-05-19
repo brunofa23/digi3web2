@@ -259,7 +259,7 @@ async function indeximagesinitial(folderName, companies_id) {
     const books_id = fileSplit[7].match(/\d+/g)[0];
     const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
     const book = fileSplit[3]
-    const sheet = fileSplit[4]
+    const sheet = fileSplit[4] == '' ? null : fileSplit[4]
     const side = fileSplit[6]
     const approximate_term = fileSplit[5]
 
