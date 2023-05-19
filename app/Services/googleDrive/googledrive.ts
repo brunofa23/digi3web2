@@ -224,6 +224,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
   let query = `name ='${fileName}' `
   if (parentId)
     query += ` and parents in '${parentId}'`
+  query += " and trashed=false "
 
   console.log(">>>QUERY", query);
   try {
@@ -239,10 +240,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
       console.log('Found file:', file.name, file.id);
       files.push({ name: file.name, id: file.id })
     });
-
-    console.log("res>>>>", res.data.files)
     return res.data.files
-    //return files
 
   } catch (error) {
 
@@ -257,21 +255,19 @@ async function searchFile(authClient, fileName, parentId = undefined) {
 
 async function deleteFile(authClient, fileId) {
   const drive = google.drive({ version: 'v3', auth: authClient });
-
   const request = drive.files.delete({
     'fileId': fileId
   })
-
   return request
-
 }
 
 
-async function listFiles(authClient) {
-  console.log("authClient", authClient);
+async function listFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
+
   const res = await drive.files.list({
-    pageSize: 10,
+    q: `'${folderId[0].id}' in parents and trashed=false`,
+    //pageSize: 10,
     fields: 'nextPageToken, files(id, name)',
   });
 
@@ -281,9 +277,11 @@ async function listFiles(authClient) {
     return;
   }
   console.log('Files:');
-  files.map((file) => {
-    console.log(`${file.name} (${file.id})`);
+  const listFiles = files.map((file) => {
+    return file.name
   });
+
+  return listFiles
 }
 
 
@@ -329,15 +327,16 @@ async function sendAuthorize() {
   return true
 }
 
-async function sendListFiles() {
-  authorize().then(listFiles).catch(console.error);
+async function sendListFiles(folderId = "") {
+  //authorize().then(listFiles(folderId)).catch(console.error);
+  const auth = await authorize()
+  return listFiles(auth, folderId)
+
 }
 
 async function sendUploadFiles(parent, folderPath, fileName) {
   const auth = await authorize()
   uploadFiles(auth, parent, folderPath, fileName)
-
-  //authorize().then(uploadFiles).catch(console.error)
 }
 
 async function sendCreateFolder(folderName, parentId = undefined) {
