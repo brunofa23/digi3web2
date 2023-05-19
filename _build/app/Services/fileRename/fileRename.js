@@ -161,7 +161,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
             .orderBy('seq', 'desc').first();
         const seq = (!_seq ? 0 : _seq.seq + 1);
         const fileRename = {
-            file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext}`,
+            file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
             bookrecords_id: name[0].id,
             typebooks_id,
             companies_id,
@@ -184,5 +184,46 @@ async function deleteFile(listFiles) {
     }
     return "excluido!!!";
 }
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile };
+async function indeximagesinitial(folderName, companies_id) {
+    const idFolder = await authorize.sendSearchFile(folderName?.path);
+    const listFiles = await authorize.sendListFiles(idFolder);
+    const objlistFilesBookRecord = listFiles.map((file) => {
+        const fileSplit = file.split("_");
+        const id = fileSplit[0].match(/\d+/g)[0];
+        const typebooks_id = fileSplit[2];
+        const books_id = fileSplit[7].match(/\d+/g)[0];
+        const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
+        const book = fileSplit[3];
+        const sheet = fileSplit[4] == '' ? null : fileSplit[4];
+        const side = fileSplit[6];
+        const approximate_term = fileSplit[5];
+        return {
+            id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
+            approximate_term
+        };
+    });
+    const indexImages = listFiles.map((file) => {
+        const fileSplit = file.split("_");
+        const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
+        const typebooks_id = fileSplit[2];
+        const seq = fileSplit[1].match(/^(\d+)/)[0];
+        const ext = path.extname(file);
+        return {
+            bookrecords_id, typebooks_id, companies_id, seq,
+            ext, file_name: file, previous_file_name: file
+        };
+    });
+    const uniqueIds = {};
+    const bookRecord = objlistFilesBookRecord.filter(obj => {
+        if (!uniqueIds[obj.id]) {
+            uniqueIds[obj.id] = true;
+            return true;
+        }
+        return false;
+    });
+    bookRecord.sort((a, b) => a.id - b.id);
+    indexImages.sort((a, b) => a.id - b.id);
+    return { bookRecord, indexImages };
+}
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial };
 //# sourceMappingURL=fileRename.js.map

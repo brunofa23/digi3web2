@@ -123,6 +123,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
     let query = `name ='${fileName}' `;
     if (parentId)
         query += ` and parents in '${parentId}'`;
+    query += " and trashed=false ";
     console.log(">>>QUERY", query);
     try {
         const res = await drive.files.list({
@@ -133,7 +134,6 @@ async function searchFile(authClient, fileName, parentId = undefined) {
             console.log('Found file:', file.name, file.id);
             files.push({ name: file.name, id: file.id });
         });
-        console.log("res>>>>", res.data.files);
         return res.data.files;
     }
     catch (error) {
@@ -147,11 +147,10 @@ async function deleteFile(authClient, fileId) {
     });
     return request;
 }
-async function listFiles(authClient) {
-    console.log("authClient", authClient);
+async function listFiles(authClient, folderId = "") {
     const drive = google.drive({ version: 'v3', auth: authClient });
     const res = await drive.files.list({
-        pageSize: 10,
+        q: `'${folderId[0].id}' in parents and trashed=false`,
         fields: 'nextPageToken, files(id, name)',
     });
     const files = res.data.files;
@@ -160,9 +159,10 @@ async function listFiles(authClient) {
         return;
     }
     console.log('Files:');
-    files.map((file) => {
-        console.log(`${file.name} (${file.id})`);
+    const listFiles = files.map((file) => {
+        return file.name;
     });
+    return listFiles;
 }
 async function downloadFile(authClient, fileId, extension) {
     const drive = google.drive({ version: 'v3', auth: authClient });
@@ -191,8 +191,9 @@ async function sendAuthorize() {
     await authorize();
     return true;
 }
-async function sendListFiles() {
-    authorize().then(listFiles).catch(console.error);
+async function sendListFiles(folderId = "") {
+    const auth = await authorize();
+    return listFiles(auth, folderId);
 }
 async function sendUploadFiles(parent, folderPath, fileName) {
     const auth = await authorize();

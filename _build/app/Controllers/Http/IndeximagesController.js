@@ -11,6 +11,7 @@ const FileRename = require('../../Services/fileRename/fileRename');
 const Date = require('../../Services/Dates/format');
 const fs = require('fs');
 const path = require('path');
+const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 class IndeximagesController {
@@ -21,7 +22,7 @@ class IndeximagesController {
             return response.status(201).send(data);
         }
         catch (error) {
-            throw new BadRequestException_1.default('Bad Request', 401);
+            throw new BadRequestException_1.default('Bad Request', 401, error);
         }
     }
     async index({ auth, response }) {
@@ -65,7 +66,7 @@ class IndeximagesController {
         const authenticate = await auth.use('api').authenticate();
         const images = request.files('images', {
             size: '6mb',
-            extnames: ['jpg', 'png', 'jpeg', 'pdf']
+            extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
         });
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
         logtail.info("ARQUIVOS INDEXADOS>>>", files);
