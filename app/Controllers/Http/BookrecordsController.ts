@@ -506,7 +506,7 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     try {
       const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
-      const listFiles = await FileRename.indeximagesinitial(foldername, authenticate.companies_id)
+      const listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
       // console.log("entrei>>>>>>")
       await Bookrecord.createMany(listFiles.bookRecord)
       // console.log("executei bookrecord")
