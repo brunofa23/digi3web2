@@ -263,13 +263,14 @@ async function indeximagesinitial(folderName, companies_id) {
     const sheet = fileSplit[4] == '' ? null : fileSplit[4]
     const side = fileSplit[6]
     const approximate_term = fileSplit[5]
-    const obs = fileSplit[8]
-    const letter = fileSplit[9]
-    const year = fileSplit[10]
+    const indexbook = fileSplit[8]
+    const obs = fileSplit[9]
+    const letter = fileSplit[10]
+    const year = fileSplit[11]
 
     return {
       id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
-      approximate_term, obs, letter, year
+      approximate_term, indexbook, obs, letter, year
     }
   });
 
