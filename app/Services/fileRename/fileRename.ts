@@ -250,7 +250,8 @@ async function indeximagesinitial(folderName, companies_id) {
   const idFolder = await authorize.sendSearchFile(folderName?.path)
   const listFiles = await authorize.sendListFiles(idFolder)
 
-  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{data do arquivo}{extensão}
+
+  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{anotacao}_{letra}_{ano}{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
     const fileSplit = file.split("_")
 
@@ -262,10 +263,13 @@ async function indeximagesinitial(folderName, companies_id) {
     const sheet = fileSplit[4] == '' ? null : fileSplit[4]
     const side = fileSplit[6]
     const approximate_term = fileSplit[5]
+    const obs = fileSplit[8]
+    const letter = fileSplit[9]
+    const year = fileSplit[10]
 
     return {
       id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
-      approximate_term
+      approximate_term, obs, letter, year
     }
   });
 
