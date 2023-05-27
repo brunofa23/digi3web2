@@ -193,11 +193,11 @@ async function indeximagesinitial(folderName, companies_id) {
         const typebooks_id = fileSplit[2];
         const books_id = fileSplit[7].match(/\d+/g)[0];
         const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
-        const book = fileSplit[3];
+        const book = fileSplit[3] == '' ? null : fileSplit[3];
         const sheet = fileSplit[4] == '' ? null : fileSplit[4];
         const side = fileSplit[6];
         const approximate_term = fileSplit[5];
-        const indexbook = fileSplit[8];
+        const indexbook = fileSplit[8] == '' ? null : fileSplit[8];
         const obs = fileSplit[9];
         const letter = fileSplit[10];
         const year = fileSplit[11];
