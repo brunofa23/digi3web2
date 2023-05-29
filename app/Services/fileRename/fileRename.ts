@@ -4,8 +4,6 @@ import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
-import { books } from "googleapis/build/src/apis/books";
-import { sheets } from "googleapis/build/src/apis/sheets";
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -29,7 +27,6 @@ function deleteImage(folderPath) {
     console.log("Delete File successfully.");
   });
 }
-
 
 async function downloadImage(fileName) {
 
@@ -231,8 +228,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
 
 }
 
-
-
 async function deleteFile(listFiles: [{}]) {
 
   const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
@@ -245,11 +240,24 @@ async function deleteFile(listFiles: [{}]) {
 
 }
 
+async function totalFilesInFolder(folderName) {
+  try {
+    const idFolder = await authorize.sendSearchFile(folderName)
+    const listFiles = await authorize.sendListFiles(idFolder)
+    if (listFiles) {
+      return listFiles.length
+    }
+    else return 0
+  } catch (error) {
+    return 0
+  }
+
+
+}
 async function indeximagesinitial(folderName, companies_id) {
 
   const idFolder = await authorize.sendSearchFile(folderName?.path)
   const listFiles = await authorize.sendListFiles(idFolder)
-
 
   //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{anotacao}_{letra}_{ano}{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
@@ -305,4 +313,4 @@ async function indeximagesinitial(folderName, companies_id) {
 
 }
 
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial }
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder }

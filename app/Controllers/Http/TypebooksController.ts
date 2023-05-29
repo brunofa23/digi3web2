@@ -6,34 +6,25 @@ import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
 
 const authorize = require('App/Services/googleDrive/googledrive')
-
+const fileRename = require('App/Services/fileRename/fileRename')
 
 export default class TypebooksController {
 
-
   //inserir livro
   public async store({ auth, request, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
     const typebookPayload = await request.validate(TypebookValidator)
-
     typebookPayload.companies_id = authenticate.companies_id
 
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
-
       const data = await Typebook.create(typebookPayload)
-
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
-
       let successValidation = await new validations('typebook_success_100')
       return response.status(201).send(typebookPayload, successValidation.code)
 
-
     } catch (error) {
-
       throw new BadRequest('Bad Request - Create Typebook', 401, error)
     }
 
@@ -44,14 +35,15 @@ export default class TypebooksController {
   public async index({ auth, response, request }: HttpContextContract) {
 
     const { companies_id } = await auth.use('api').authenticate()
-    const typebookPayload = request.only(['name', 'status', 'books_id'])
+    const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
+    let data
 
     if (!companies_id)
       throw new BadRequest('company not exists', 401)
 
     if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
-      const data = await Typebook.query().where("companies_id", '=', companies_id)
-      return response.status(200).send(data)
+      data = await Typebook.query().where("companies_id", '=', companies_id)
+
     }
     else {
 
@@ -72,13 +64,20 @@ export default class TypebooksController {
       if (typebookPayload.books_id !== undefined) {
         query += ` and books_id = ${typebookPayload.books_id} `
       }
-      const data
+      data
         = await Typebook.query().where("companies_id", '=', companies_id)
           .preload('bookrecords').preload('book')
           .whereRaw(query)
 
-      return response.status(200).send(data)
     }
+
+    if (typebookPayload.totalfiles) {
+      for (let i = 0; i < data.length; i++) {
+        const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
+        data[i].totalFiles = totalFiles
+      }
+    }
+    return response.status(200).send(data)
 
 
   }
@@ -91,7 +90,7 @@ export default class TypebooksController {
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).firstOrFail()
 
-    return response.send(data)
+    return response.status(200).send(data)
 
   }
 
