@@ -9,6 +9,7 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const TypebookValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/TypebookValidator"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
+const fileRename = global[Symbol.for('ioc.use')]('App/Services/fileRename/fileRename');
 class TypebooksController {
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -28,12 +29,12 @@ class TypebooksController {
     }
     async index({ auth, response, request }) {
         const { companies_id } = await auth.use('api').authenticate();
-        const typebookPayload = request.only(['name', 'status', 'books_id']);
+        const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles']);
+        let data;
         if (!companies_id)
             throw new BadRequestException_1.default('company not exists', 401);
         if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
-            const data = await Typebook_1.default.query().where("companies_id", '=', companies_id);
-            return response.status(200).send(data);
+            data = await Typebook_1.default.query().where("companies_id", '=', companies_id);
         }
         else {
             let query = " 1=1 ";
@@ -50,18 +51,25 @@ class TypebooksController {
             if (typebookPayload.books_id !== undefined) {
                 query += ` and books_id = ${typebookPayload.books_id} `;
             }
-            const data = await Typebook_1.default.query().where("companies_id", '=', companies_id)
-                .preload('bookrecords').preload('book')
-                .whereRaw(query);
-            return response.status(200).send(data);
+            data
+                = await Typebook_1.default.query().where("companies_id", '=', companies_id)
+                    .preload('bookrecords').preload('book')
+                    .whereRaw(query);
         }
+        if (typebookPayload.totalfiles) {
+            for (let i = 0; i < data.length; i++) {
+                const totalFiles = await fileRename.totalFilesInFolder(data[i].path);
+                data[i].totalFiles = totalFiles;
+            }
+        }
+        return response.status(200).send(data);
     }
     async show({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const data = await Typebook_1.default.query()
             .where("companies_id", "=", authenticate.companies_id)
             .andWhere('id', "=", params.id).firstOrFail();
-        return response.send(data);
+        return response.status(200).send(data);
     }
     async update({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();

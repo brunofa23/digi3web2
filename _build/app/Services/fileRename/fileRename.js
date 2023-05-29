@@ -184,6 +184,20 @@ async function deleteFile(listFiles) {
     }
     return "excluido!!!";
 }
+async function totalFilesInFolder(folderName) {
+    try {
+        const idFolder = await authorize.sendSearchFile(folderName);
+        const listFiles = await authorize.sendListFiles(idFolder);
+        if (listFiles) {
+            return listFiles.length;
+        }
+        else
+            return 0;
+    }
+    catch (error) {
+        return 0;
+    }
+}
 async function indeximagesinitial(folderName, companies_id) {
     const idFolder = await authorize.sendSearchFile(folderName?.path);
     const listFiles = await authorize.sendListFiles(idFolder);
@@ -229,5 +243,5 @@ async function indeximagesinitial(folderName, companies_id) {
     indexImages.sort((a, b) => a.id - b.id);
     return { bookRecord, indexImages };
 }
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial };
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder };
 //# sourceMappingURL=fileRename.js.map

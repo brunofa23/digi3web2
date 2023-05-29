@@ -26,12 +26,10 @@ async function loadSavedCredentialsIfExist() {
         return google.auth.fromJSON(credentials);
     }
     catch (err) {
-        console.log(">>>>>ERRO NO TOKEN");
         return null;
     }
 }
 async function saveCredentials(client) {
-    console.log(">>>>SAVE CREDENTIALS");
     const content = await fsPromises.readFile(CREDENTIALS_PATH);
     const keys = JSON.parse(content);
     const key = keys.installed || keys.web;
@@ -74,7 +72,6 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
         useResumableUpload: true,
     }, {
         onUploadProgress: (event) => {
-            console.log("event", event);
             const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
             console.log(`Progresso: ${progress}%`);
         },
