@@ -23,6 +23,7 @@ export default class Typebook extends BaseModel {
       'path',
       'books_id',
       'companies_id',
+      'filesTot',
       'createdAt',
       'updatedAt',
     ]
@@ -40,13 +41,13 @@ export default class Typebook extends BaseModel {
   })
   public typebooks: HasMany<typeof Indeximage>
 
-  @hasOne(() => Book,{
+  @hasOne(() => Book, {
     foreignKey: 'id',
     localKey: 'books_id'
   })
   public book: HasOne<typeof Book>
 
-  @hasOne(() => Company,{
+  @hasOne(() => Company, {
     foreignKey: 'id',
     localKey: 'companies_id'
   })
@@ -76,6 +77,9 @@ export default class Typebook extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+  @column()
+  public totalFiles: number
 
   @afterSave()
   public static async afterSaveHook(typebook: Typebook) {
