@@ -259,7 +259,7 @@ async function indeximagesinitial(folderName, companies_id) {
 
   //const idFolder = await authorize.sendSearchFile(folderName?.path)
   //const listFiles = await authorize.sendListFiles(idFolder)
-  const listFiles = await totalFilesInFolder(folderName)
+  const listFiles = await totalFilesInFolder(folderName?.path)
 
   //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{anotacao}_{letra}_{ano}{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
