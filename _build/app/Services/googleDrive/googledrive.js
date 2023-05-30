@@ -161,6 +161,33 @@ async function listFiles(authClient, folderId = "") {
     });
     return listFiles;
 }
+async function listAllFiles(authClient, folderId = "") {
+    const drive = google.drive({ version: 'v3', auth: authClient });
+    try {
+        let allItems = [];
+        let pageToken = null;
+        const pageSize = 100;
+        do {
+            const response = await drive.files.list({
+                q: `'${folderId[0].id}' in parents and trashed=false`,
+                pageSize: pageSize,
+                pageToken: pageToken,
+                fields: 'nextPageToken, files(name)',
+            });
+            const items = response.data.files;
+            allItems = allItems.concat(items);
+            pageToken = response.data.nextPageToken;
+        } while (pageToken);
+        const listFiles = [];
+        await allItems.forEach(item => {
+            listFiles.push(item.name);
+        });
+        return listFiles;
+    }
+    catch (error) {
+        console.error('Erro ao listar os itens:', error);
+    }
+}
 async function downloadFile(authClient, fileId, extension) {
     const drive = google.drive({ version: 'v3', auth: authClient });
     try {
@@ -191,6 +218,10 @@ async function sendAuthorize() {
 async function sendListFiles(folderId = "") {
     const auth = await authorize();
     return listFiles(auth, folderId);
+}
+async function sendListAllFiles(folderId = "") {
+    const auth = await authorize();
+    return listAllFiles(auth, folderId);
 }
 async function sendUploadFiles(parent, folderPath, fileName) {
     const auth = await authorize();
@@ -223,5 +254,5 @@ async function sendDownloadFile(fileId, extension) {
     const auth = await authorize();
     return downloadFile(auth, fileId, extension);
 }
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile };
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles };
 //# sourceMappingURL=googledrive.js.map

@@ -187,9 +187,9 @@ async function deleteFile(listFiles) {
 async function totalFilesInFolder(folderName) {
     try {
         const idFolder = await authorize.sendSearchFile(folderName);
-        const listFiles = await authorize.sendListFiles(idFolder);
+        const listFiles = await authorize.sendListAllFiles(idFolder);
         if (listFiles) {
-            return listFiles.length;
+            return listFiles;
         }
         else
             return 0;
@@ -199,8 +199,7 @@ async function totalFilesInFolder(folderName) {
     }
 }
 async function indeximagesinitial(folderName, companies_id) {
-    const idFolder = await authorize.sendSearchFile(folderName?.path);
-    const listFiles = await authorize.sendListFiles(idFolder);
+    const listFiles = await totalFilesInFolder(folderName?.path);
     const objlistFilesBookRecord = listFiles.map((file) => {
         const fileSplit = file.split("_");
         const id = fileSplit[0].match(/\d+/g)[0];
