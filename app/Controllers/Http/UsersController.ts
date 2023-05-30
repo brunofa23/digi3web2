@@ -48,7 +48,7 @@ export default class UsersController {
       .andWhere('companies_id', '=', body.companies_id).first()
 
     if (userByName) {
-      let errorValidation = await new validations('user_error_103')
+      let errorValidation = await new validations('user_error_203')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
@@ -80,7 +80,7 @@ export default class UsersController {
 
     try {
       const userUpdated = await user.merge(body).save()
-      let successValidation = await new validations('user_success_101')
+      let successValidation = await new validations('user_success_201')
       return response.status(201).send(userUpdated, successValidation.code)
     } catch (error) {
       //throw new BadRequest('Bad Request', 401)
