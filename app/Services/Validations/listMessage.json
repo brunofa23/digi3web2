@@ -25,27 +25,32 @@
         "status": 201
     },
     {
-        "code": "user_error_103",
+        "code": "user_error_203",
         "messages": "Username already in use",
         "status": 402
     },
     {
-        "code": "user_error_104",
-        "messages": "Invalid credentials",
+        "code": "user_error_204",
+        "messages": "Invalid Company",
         "status": 401
     },
     {
-        "code": "user_error_105",
+        "code": "user_error_205",
+        "messages": "Invalid username",
+        "status": 401
+    },
+    {
+        "code": "user_error_206",
         "messages": "Invalid password",
         "status": 401
     },
     {
-        "code": "user_success_100",
+        "code": "user_success_200",
         "messages": "User created successfully",
         "status": 201
     },
     {
-        "code": "user_success_101",
+        "code": "user_success_201",
         "messages": "User updated successfully",
         "status": 201
     },
