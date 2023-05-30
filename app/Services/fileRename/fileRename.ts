@@ -243,9 +243,10 @@ async function deleteFile(listFiles: [{}]) {
 async function totalFilesInFolder(folderName) {
   try {
     const idFolder = await authorize.sendSearchFile(folderName)
-    const listFiles = await authorize.sendListFiles(idFolder)
+    const listFiles = await authorize.sendListAllFiles(idFolder)
     if (listFiles) {
-      return listFiles.length
+      //console.log("TOTAL DE ARQUIVOS::", listFiles.length)
+      return listFiles
     }
     else return 0
   } catch (error) {
@@ -256,8 +257,9 @@ async function totalFilesInFolder(folderName) {
 }
 async function indeximagesinitial(folderName, companies_id) {
 
-  const idFolder = await authorize.sendSearchFile(folderName?.path)
-  const listFiles = await authorize.sendListFiles(idFolder)
+  //const idFolder = await authorize.sendSearchFile(folderName?.path)
+  //const listFiles = await authorize.sendListFiles(idFolder)
+  const listFiles = await totalFilesInFolder(folderName)
 
   //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{anotacao}_{letra}_{ano}{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
