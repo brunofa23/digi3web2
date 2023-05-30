@@ -35,7 +35,7 @@ class UsersController {
             .where('username', '=', body.username)
             .andWhere('companies_id', '=', body.companies_id).first();
         if (userByName) {
-            let errorValidation = await new validations_1.default('user_error_103');
+            let errorValidation = await new validations_1.default('user_error_203');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         if (!authenticate.superuser) {
