@@ -284,6 +284,53 @@ async function listFiles(authClient, folderId = "") {
 }
 
 
+async function listAllFiles(authClient, folderId = "") {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  try {
+    let allItems = [];
+    // Variáveis de controle para paginação
+    let pageToken = null;
+    const pageSize = 100;
+
+    do {
+      // Solicite a lista de arquivos na pasta com base no token de página atual
+      const response = await drive.files.list({
+        q: `'${folderId[0].id}' in parents and trashed=false`,
+        pageSize: pageSize,
+        pageToken: pageToken,
+        fields: 'nextPageToken, files(name)',
+      });
+
+      // Obtenha os itens da resposta
+      const items = response.data.files;
+
+      // Adicione os itens à lista principal
+      allItems = allItems.concat(items);
+
+      // Atualize o token de página para a próxima página (se houver)
+      pageToken = response.data.nextPageToken;
+    } while (pageToken);
+
+    // Agora, a lista `allItems` contém todos os itens da pasta
+
+    // Faça o que for necessário com a lista completa
+
+    const listFiles = []
+    await allItems.forEach(item => {
+      listFiles.push(item.name)
+    });
+    return listFiles
+  }
+  catch (error) {
+    console.error('Erro ao listar os itens:', error);
+  }
+
+
+
+}
+
+
 async function downloadFile(authClient, fileId, extension) {
 
   const drive = google.drive({ version: 'v3', auth: authClient });
@@ -333,6 +380,13 @@ async function sendListFiles(folderId = "") {
 
 }
 
+async function sendListAllFiles(folderId = "") {
+  //authorize().then(listFiles(folderId)).catch(console.error);
+  const auth = await authorize()
+  return listAllFiles(auth, folderId)
+
+}
+
 async function sendUploadFiles(parent, folderPath, fileName) {
   const auth = await authorize()
   uploadFiles(auth, parent, folderPath, fileName)
@@ -379,4 +433,4 @@ async function sendDownloadFile(fileId, extension) {
 
 
 
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile }
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles }

@@ -112,8 +112,6 @@ export default class BookrecordsController {
 
   }
 
-
-
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
     //console.log("SHOWWWW:", params)
@@ -121,7 +119,6 @@ export default class BookrecordsController {
       data: data,
     }
   }
-
 
   public async store({ auth, request, params, response }: HttpContextContract) {
 
@@ -509,7 +506,6 @@ export default class BookrecordsController {
     try {
       const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
       listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
-      // console.log("entrei>>>>>>", listFiles.bookRecord)
     } catch (error) {
       return error
     }
@@ -532,14 +528,7 @@ export default class BookrecordsController {
       }
     }
 
-    // await Bookrecord.createMany(listFiles.bookRecord)
-    // console.log("executei bookrecord")
-    // await Indeximage.createMany(listFiles.indexImages)
-    // console.log("executei indeximages")
     return "sucesso!!"
-
-
-
 
   }
 

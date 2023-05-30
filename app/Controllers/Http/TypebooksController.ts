@@ -72,9 +72,10 @@ export default class TypebooksController {
     }
 
     if (typebookPayload.totalfiles) {
+      //const totalFiles = await fileRename.totalFilesInFolder('Client_3.Book_2.NASCIMENTO')
       for (let i = 0; i < data.length; i++) {
         const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
-        data[i].totalFiles = totalFiles
+        data[i].totalFiles = totalFiles.length
       }
     }
     return response.status(200).send(data)
