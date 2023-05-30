@@ -60,7 +60,7 @@ class UsersController {
         }
         try {
             const userUpdated = await user.merge(body).save();
-            let successValidation = await new validations_1.default('user_success_101');
+            let successValidation = await new validations_1.default('user_success_201');
             return response.status(201).send(userUpdated, successValidation.code);
         }
         catch (error) {
