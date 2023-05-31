@@ -117,7 +117,9 @@ async function searchFile(authClient, fileName, parentId = undefined) {
     const drive = google.drive({ version: 'v3', auth: authClient });
     console.log("CHEGUEI NA PESQUISA searcfile", fileName, "parent", parentId);
     const files = [];
-    let query = `name ='${fileName}' `;
+    const fileNamedecoded = decodeURIComponent(fileName);
+    console.log("QUERY", fileNamedecoded);
+    let query = `name ='${fileNamedecoded}' `;
     if (parentId)
         query += ` and parents in '${parentId}'`;
     query += " and trashed=false ";
