@@ -58,7 +58,9 @@ class BookrecordsController {
         const data = await Bookrecord_1.default.query()
             .where("companies_id", '=', authenticate.companies_id)
             .andWhere("typebooks_id", '=', params.typebooks_id)
-            .preload('indeximage')
+            .preload('indeximage', (queryIndex) => {
+            queryIndex.where("typebooks_id", '=', params.typebooks_id);
+        })
             .whereRaw(query)
             .orderBy("book", "asc")
             .orderBy("cod", "asc")

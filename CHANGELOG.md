@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.87](https://github.com/brunofa23/digi3web2/compare/v1.1.86...v1.1.87) (2023-05-31)
+
 ### [1.1.86](https://github.com/brunofa23/digi3web2/compare/v1.1.85...v1.1.86) (2023-05-31)
 
 ### [1.1.85](https://github.com/brunofa23/digi3web2/compare/v1.1.84...v1.1.85) (2023-05-31)
