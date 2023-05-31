@@ -98,13 +98,11 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
   let cont = 0
   for (let image of images) {
-
     cont++
     if (cont >= 6) {
       await sleep(4000);
       cont = 0
     }
-
     if (!image) {
       console.log("não é imagem")
     }
@@ -112,20 +110,15 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
       console.log("Error", image.errors);
     }
     const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id)
-
     try {
       if (image && image.isValid) {
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
-        logtail.info("acert indexação", result)
       }
     } catch (error) {
-      logtail.debug("DENTRO DO CATCH.", { error });
       console.log(">>>erro indexação logtail")
       await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
-  logtail.flush()
-
   return result
 }
 
@@ -257,11 +250,9 @@ async function totalFilesInFolder(folderName) {
 }
 async function indeximagesinitial(folderName, companies_id) {
 
-  //const idFolder = await authorize.sendSearchFile(folderName?.path)
-  //const listFiles = await authorize.sendListFiles(idFolder)
   const listFiles = await totalFilesInFolder(folderName?.path)
 
-  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{anotacao}_{letra}_{ano}{data do arquivo}{extensão}
+  //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
     const fileSplit = file.split("_")
 
