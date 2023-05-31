@@ -165,6 +165,7 @@ async function listFiles(authClient, folderId = "") {
 }
 async function listAllFiles(authClient, folderId = "") {
     const drive = google.drive({ version: 'v3', auth: authClient });
+    console.log("FOLDER ID>>>:::", folderId);
     try {
         let allItems = [];
         let pageToken = null;
@@ -231,7 +232,7 @@ async function sendUploadFiles(parent, folderPath, fileName) {
 }
 async function sendCreateFolder(folderName, parentId = undefined) {
     const auth = await authorize();
-    createFolder(auth, folderName, parentId);
+    createFolder(auth, folderName.trim(), parentId);
 }
 async function sendSearchFile(fileName, parentId = undefined) {
     const auth = await authorize();
