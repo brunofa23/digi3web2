@@ -249,9 +249,7 @@ async function totalFilesInFolder(folderName) {
 
 }
 async function indeximagesinitial(folderName, companies_id) {
-
   const listFiles = await totalFilesInFolder(folderName?.path)
-
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
     const fileSplit = file.split("_")
