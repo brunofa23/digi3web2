@@ -231,11 +231,7 @@ async function searchFile(authClient, fileName, parentId = undefined) {
   console.log(">>>QUERY", query);
   try {
     const res = await drive.files.list({
-      q: query //`name ='${fileName}' and name = 'ipva.pdf' 'teste' in parents `
-      //q: " name = 'Client_9' "
-      //q: " mimeType = 'application/vnd.google-apps.folder' and 'teste' in parents  "
-      //q: "parents in '1eX3jQ0dfKC5-X-YksRjeDePk4YOSWyX8' and name ='ipva.pdf' "
-      //q: "name = 'Id333_0(1)_1_1____3.jpeg' "
+      q: query
     });
     Array.prototype.push.apply(files, res.files);
     res.data.files.forEach(function (file) {
@@ -289,6 +285,8 @@ async function listFiles(authClient, folderId = "") {
 
 async function listAllFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
+
+  console.log("FOLDER ID>>>:::", folderId)
 
   try {
     let allItems = [];
@@ -397,7 +395,7 @@ async function sendUploadFiles(parent, folderPath, fileName) {
 
 async function sendCreateFolder(folderName, parentId = undefined) {
   const auth = await authorize()
-  createFolder(auth, folderName, parentId)
+  createFolder(auth, folderName.trim(), parentId)
 }
 
 async function sendSearchFile(fileName, parentId = undefined) {
