@@ -514,7 +514,6 @@ export default class BookrecordsController {
       try {
         await Bookrecord.create(item)
       } catch (error) {
-
         console.log("ERRO BOOKRECORD::", error)
       }
     }
