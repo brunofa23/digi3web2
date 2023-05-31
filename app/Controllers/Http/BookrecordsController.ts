@@ -80,14 +80,17 @@ export default class BookrecordsController {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
     }
 
-    const page = request.input('page', 1)
     //pagination paginação
+    const page = request.input('page', 1)
     const limit = Env.get('PAGINATION')
 
     const data = await Bookrecord.query()
       .where("companies_id", '=', authenticate.companies_id)
       .andWhere("typebooks_id", '=', params.typebooks_id)
-      .preload('indeximage')
+      //.preload('indeximage')
+      .preload('indeximage', (queryIndex) => {
+        queryIndex.where("typebooks_id", '=', params.typebooks_id)
+      })
       .whereRaw(query)
       .orderBy("book", "asc")
       .orderBy("cod", "asc")
@@ -95,7 +98,6 @@ export default class BookrecordsController {
       .paginate(page, limit)
 
     return response.status(200).send(data)
-
 
     // const data = await Bookrecord.query()
     //   .select('bookrecords.*').leftOuterJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
