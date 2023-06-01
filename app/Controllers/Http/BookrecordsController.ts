@@ -72,7 +72,10 @@ export default class BookrecordsController {
         query += ` and indexbook=${indexbook} `
       //year ***********************************************
       if (year != undefined)
-        query += ` and year like '${year}' `
+        query += ` and year like '${year}%' `
+      //letter ***********************************************
+      if (letter != undefined)
+        query += ` and letter like '${letter}' `
       //sheetzero*****************************************
       if (sheetzero)
         query += ` and sheet>=0`
