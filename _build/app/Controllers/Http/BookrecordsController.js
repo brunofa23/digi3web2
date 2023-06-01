@@ -47,7 +47,9 @@ class BookrecordsController {
             if (indexbook != undefined)
                 query += ` and indexbook=${indexbook} `;
             if (year != undefined)
-                query += ` and year like '${year}' `;
+                query += ` and year like '${year}%' `;
+            if (letter != undefined)
+                query += ` and letter like '${letter}' `;
             if (sheetzero)
                 query += ` and sheet>=0`;
         }
