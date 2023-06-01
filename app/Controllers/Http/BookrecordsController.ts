@@ -15,13 +15,23 @@ export default class BookrecordsController {
   public async index({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData
+    const { codstart, codend,
+      bookstart, bookend,
+      approximateterm,
+      indexbook,
+      year,
+      letter,
+      sheetstart, sheetend,
+      side, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData
+
+    console.log("request", request.requestData)
 
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook))
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false')
       return null
     else {
+
 
       //cod**************************************************
       if (codstart != undefined && codend == undefined)
@@ -51,25 +61,18 @@ export default class BookrecordsController {
 
       if (sheetend != undefined)
         query += ` and sheet <= ${sheetend}`
-
       //side *************************************************
       if (side != undefined)
         query += ` and side = '${side}' `
-
       //aproximate_term **************************************
       if (approximateterm != undefined)
         query += ` and approximate_term=${approximateterm}`
-
-
       //Index **************************************
       if (indexbook != undefined)
         query += ` and indexbook=${indexbook} `
-
-
       //year ***********************************************
       if (year != undefined)
         query += ` and year like '${year}' `
-
       //sheetzero*****************************************
       if (sheetzero)
         query += ` and sheet>=0`
@@ -84,18 +87,40 @@ export default class BookrecordsController {
     const page = request.input('page', 1)
     const limit = Env.get('PAGINATION')
 
-    const data = await Bookrecord.query()
-      .where("companies_id", '=', authenticate.companies_id)
-      .andWhere("typebooks_id", '=', params.typebooks_id)
-      //.preload('indeximage')
-      .preload('indeximage', (queryIndex) => {
-        queryIndex.where("typebooks_id", '=', params.typebooks_id)
-      })
-      .whereRaw(query)
-      .orderBy("book", "asc")
-      .orderBy("cod", "asc")
-      .orderBy("sheet", "asc")
-      .paginate(page, limit)
+
+    let data
+    if (noAttachment) {
+      console.log("SEM IMAGENS>>>>>>>>>>>>>>")
+      data = await Bookrecord.query()
+        .where('companies_id', '=', authenticate.companies_id)
+        .andWhere('typebooks_id', '=', params.typebooks_id)
+        .whereNotExists((subquery) => {
+          subquery
+            .select('id')
+            .from('indeximages')
+            .whereColumn('indeximages.bookrecords_id', '=', 'bookrecords.id')
+            .andWhere('indeximages.typebooks_id', '=', params.typebooks_id);
+        })
+        .whereRaw(query)
+        .orderBy("book", "asc")
+        .orderBy("cod", "asc")
+        .orderBy("sheet", "asc")
+        .paginate(page, limit)
+    } else {
+      console.log("completo")
+      data = await Bookrecord.query()
+        .where("companies_id", '=', authenticate.companies_id)
+        .andWhere("typebooks_id", '=', params.typebooks_id)
+        .preload('indeximage', (queryIndex) => {
+          queryIndex.where("typebooks_id", '=', params.typebooks_id)
+        })
+        .whereRaw(query)
+        .orderBy("book", "asc")
+        .orderBy("cod", "asc")
+        .orderBy("sheet", "asc")
+        .paginate(page, limit)
+
+    }
 
     return response.status(200).send(data)
 
