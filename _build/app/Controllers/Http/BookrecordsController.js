@@ -15,10 +15,11 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, lastPagesOfEachBook } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData;
+        console.log("request", request.requestData);
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-            (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook))
+            (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false')
             return null;
         else {
             if (codstart != undefined && codend == undefined)
@@ -55,17 +56,39 @@ class BookrecordsController {
         }
         const page = request.input('page', 1);
         const limit = Env_1.default.get('PAGINATION');
-        const data = await Bookrecord_1.default.query()
-            .where("companies_id", '=', authenticate.companies_id)
-            .andWhere("typebooks_id", '=', params.typebooks_id)
-            .preload('indeximage', (queryIndex) => {
-            queryIndex.where("typebooks_id", '=', params.typebooks_id);
-        })
-            .whereRaw(query)
-            .orderBy("book", "asc")
-            .orderBy("cod", "asc")
-            .orderBy("sheet", "asc")
-            .paginate(page, limit);
+        let data;
+        if (noAttachment) {
+            console.log("SEM IMAGENS>>>>>>>>>>>>>>");
+            data = await Bookrecord_1.default.query()
+                .where('companies_id', '=', authenticate.companies_id)
+                .andWhere('typebooks_id', '=', params.typebooks_id)
+                .whereNotExists((subquery) => {
+                subquery
+                    .select('id')
+                    .from('indeximages')
+                    .whereColumn('indeximages.bookrecords_id', '=', 'bookrecords.id')
+                    .andWhere('indeximages.typebooks_id', '=', params.typebooks_id);
+            })
+                .whereRaw(query)
+                .orderBy("book", "asc")
+                .orderBy("cod", "asc")
+                .orderBy("sheet", "asc")
+                .paginate(page, limit);
+        }
+        else {
+            console.log("completo");
+            data = await Bookrecord_1.default.query()
+                .where("companies_id", '=', authenticate.companies_id)
+                .andWhere("typebooks_id", '=', params.typebooks_id)
+                .preload('indeximage', (queryIndex) => {
+                queryIndex.where("typebooks_id", '=', params.typebooks_id);
+            })
+                .whereRaw(query)
+                .orderBy("book", "asc")
+                .orderBy("cod", "asc")
+                .orderBy("sheet", "asc")
+                .paginate(page, limit);
+        }
         return response.status(200).send(data);
     }
     async show({ params }) {
