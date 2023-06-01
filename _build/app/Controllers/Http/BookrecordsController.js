@@ -279,7 +279,7 @@ class BookrecordsController {
         let indexBook = generateIndex;
         let indexIncrement = 0;
         const bookrecords = [];
-        for (let index = 0; index < generateEndCode; index++) {
+        for (let index = generateStartCode; index <= generateEndCode; index++) {
             if (generateStartCode >= generateStartSheetInCodReference) {
                 if (contIncrementSheet < generateSheetIncrement) {
                     contIncrementSheet++;
