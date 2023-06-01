@@ -387,8 +387,6 @@ export default class BookrecordsController {
     const _startCode = generateStartCode
     const _endCode = generateEndCode
 
-    //return { generateBooks_id, generateBook }
-
     //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
     if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
       let errorValidation = await new validations('bookrecord_error_100')
@@ -410,13 +408,12 @@ export default class BookrecordsController {
     let sideNow = 0
     let approximate_term = generateApproximate_term
     let approximate_termIncrement = 0
-
     let indexBook = generateIndex
     let indexIncrement = 0
 
     const bookrecords: Object[] = []
 
-    for (let index = 0; index < generateEndCode; index++) {
+    for (let index = generateStartCode; index <= generateEndCode; index++) {
 
       if (generateStartCode >= generateStartSheetInCodReference) {
 
@@ -507,7 +504,6 @@ export default class BookrecordsController {
 
     }
 
-
     try {
       const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
       if (generateBook > 0 && generateBookdestination > 0) {
@@ -524,8 +520,6 @@ export default class BookrecordsController {
     }
 
     //SUBSTITUI O NUMERO DO LIVRO
-
-
   }
 
 
