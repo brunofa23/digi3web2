@@ -22,7 +22,7 @@ export default class BookrecordsController {
       year,
       letter,
       sheetstart, sheetend,
-      side, obs, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData
+      side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData
 
     console.log("request", request.requestData)
 
@@ -112,7 +112,15 @@ export default class BookrecordsController {
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
         .paginate(page, limit)
-    } else {
+    }
+    else if (codMax) {
+      data = await Database.from('bookrecords')
+        .where('companies_id', authenticate.companies_id)
+        .where('typebooks_id', params.typebooks_id)
+        .max('cod as codMax');
+    }
+
+    else {
       console.log("completo")
       data = await Bookrecord.query()
         .where("companies_id", '=', authenticate.companies_id)
