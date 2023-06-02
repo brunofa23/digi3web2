@@ -15,11 +15,11 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData;
         console.log("request", request.requestData);
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-            (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false')
+            (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
             return null;
         else {
             if (codstart != undefined && codend == undefined)
@@ -44,6 +44,8 @@ class BookrecordsController {
                 query += ` and side = '${side}' `;
             if (approximateterm != undefined)
                 query += ` and approximate_term=${approximateterm}`;
+            if (obs != undefined)
+                query += ` and obs like '${obs}%'`;
             if (indexbook != undefined)
                 query += ` and indexbook=${indexbook} `;
             if (year != undefined)
