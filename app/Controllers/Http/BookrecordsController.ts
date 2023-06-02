@@ -22,13 +22,13 @@ export default class BookrecordsController {
       year,
       letter,
       sheetstart, sheetend,
-      side, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData
+      side, obs, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData
 
     console.log("request", request.requestData)
 
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false')
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
       return null
     else {
 
@@ -67,6 +67,9 @@ export default class BookrecordsController {
       //aproximate_term **************************************
       if (approximateterm != undefined)
         query += ` and approximate_term=${approximateterm}`
+      //obs **************************************
+      if (obs != undefined)
+        query += ` and obs like '${obs}%'`
       //Index **************************************
       if (indexbook != undefined)
         query += ` and indexbook=${indexbook} `
