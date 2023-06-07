@@ -15,7 +15,7 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData;
         console.log("request", request.requestData);
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
@@ -52,9 +52,10 @@ class BookrecordsController {
                 query += ` and year like '${year}%' `;
             if (letter != undefined)
                 query += ` and letter like '${letter}' `;
-            if (sheetzero)
-                query += ` and sheet>=0`;
+            if (!sheetzero || (sheetzero == 'false'))
+                query += ` and sheet>0`;
         }
+        console.log("Query:::", query);
         if (lastPagesOfEachBook) {
             query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
         }
@@ -78,6 +79,12 @@ class BookrecordsController {
                 .orderBy("cod", "asc")
                 .orderBy("sheet", "asc")
                 .paginate(page, limit);
+        }
+        else if (codMax) {
+            data = await Database_1.default.from('bookrecords')
+                .where('companies_id', authenticate.companies_id)
+                .where('typebooks_id', params.typebooks_id)
+                .max('cod as codMax');
         }
         else {
             console.log("completo");
