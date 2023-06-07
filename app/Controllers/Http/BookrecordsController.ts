@@ -22,7 +22,7 @@ export default class BookrecordsController {
       year,
       letter,
       sheetstart, sheetend,
-      side, obs, sheetzero, noAttachment, lastPagesOfEachBook } = request.requestData
+      side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData
 
     console.log("request", request.requestData)
 
@@ -80,10 +80,11 @@ export default class BookrecordsController {
       if (letter != undefined)
         query += ` and letter like '${letter}' `
       //sheetzero*****************************************
-      if (sheetzero)
-        query += ` and sheet>=0`
+      if (!sheetzero || (sheetzero == 'false'))
+        query += ` and sheet>0`
     }
 
+    console.log("Query:::", query)
     //last pages of each book****************************
     if (lastPagesOfEachBook) {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
@@ -112,7 +113,15 @@ export default class BookrecordsController {
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
         .paginate(page, limit)
-    } else {
+    }
+    else if (codMax) {
+      data = await Database.from('bookrecords')
+        .where('companies_id', authenticate.companies_id)
+        .where('typebooks_id', params.typebooks_id)
+        .max('cod as codMax');
+    }
+
+    else {
       console.log("completo")
       data = await Bookrecord.query()
         .where("companies_id", '=', authenticate.companies_id)
