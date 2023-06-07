@@ -80,10 +80,11 @@ export default class BookrecordsController {
       if (letter != undefined)
         query += ` and letter like '${letter}' `
       //sheetzero*****************************************
-      if (sheetzero)
-        query += ` and sheet>=0`
+      if (!sheetzero || (sheetzero == 'false'))
+        query += ` and sheet>0`
     }
 
+    console.log("Query:::", query)
     //last pages of each book****************************
     if (lastPagesOfEachBook) {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
