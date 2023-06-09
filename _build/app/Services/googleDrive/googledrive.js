@@ -118,19 +118,16 @@ async function searchFile(authClient, fileName, parentId = undefined) {
     console.log("CHEGUEI NA PESQUISA searcfile", fileName, "parent", parentId);
     const files = [];
     const fileNamedecoded = decodeURIComponent(fileName);
-    console.log("QUERY", fileNamedecoded);
     let query = `name ='${fileNamedecoded}' `;
     if (parentId)
         query += ` and parents in '${parentId}'`;
     query += " and trashed=false ";
-    console.log(">>>QUERY", query);
     try {
         const res = await drive.files.list({
             q: query
         });
         Array.prototype.push.apply(files, res.files);
         res.data.files.forEach(function (file) {
-            console.log('Found file:', file.name, file.id);
             files.push({ name: file.name, id: file.id });
         });
         return res.data.files;
@@ -154,10 +151,8 @@ async function listFiles(authClient, folderId = "") {
     });
     const files = res.data.files;
     if (files.length === 0) {
-        console.log('No files found.');
         return;
     }
-    console.log('Files:');
     const listFiles = files.map((file) => {
         return file.name;
     });
@@ -165,7 +160,6 @@ async function listFiles(authClient, folderId = "") {
 }
 async function listAllFiles(authClient, folderId = "") {
     const drive = google.drive({ version: 'v3', auth: authClient });
-    console.log("FOLDER ID>>>:::", folderId);
     try {
         let allItems = [];
         let pageToken = null;
@@ -188,7 +182,6 @@ async function listAllFiles(authClient, folderId = "") {
         return listFiles;
     }
     catch (error) {
-        console.error('Erro ao listar os itens:', error);
     }
 }
 async function downloadFile(authClient, fileId, extension) {

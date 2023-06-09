@@ -124,9 +124,13 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
 async function fileRename(originalFileName, typebooks_id, companies_id) {
     let query;
     let objFileName;
-    if (originalFileName.toUpperCase().startsWith('L')) {
-        let separators = ["L", '\'', '(', ')', '|', '-'];
-        const arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+    let separators;
+    let arrayFileName;
+    const regexBookAndCod = /^L\d+\(\d+\).*$/;
+    const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
+    if (regexBookAndCod.test(originalFileName.toUpperCase())) {
+        separators = ["L", '\'', '(', ')', '|', '-'];
+        arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
         objFileName = {
             type: arrayFileName[1],
             book: arrayFileName[2],
@@ -134,6 +138,18 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
             ext: arrayFileName[6]
         };
         query = ` cod =${objFileName.cod} and book = ${objFileName.book} `;
+    }
+    else if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
+        separators = ["L", '_', '|', '-'];
+        arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+        objFileName = {
+            type: arrayFileName[1],
+            book: arrayFileName[2],
+            sheet: arrayFileName[4],
+            side: arrayFileName[6][0],
+            ext: path.extname(originalFileName).toLowerCase()
+        };
+        query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`;
     }
     else if (path.basename(originalFileName).startsWith('Id')) {
         const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/);
@@ -151,6 +167,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
             .where('typebooks_id', '=', typebooks_id)
             .andWhere('companies_id', '=', companies_id)
             .whereRaw(query);
+        console.log("name>>>>>", name);
         const _seq = await Indeximage_1.default.query()
             .where('bookrecords_id', name[0].id)
             .andWhere('typebooks_id', '=', typebooks_id)
@@ -166,6 +183,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
             ext: objFileName.ext,
             previous_file_name: originalFileName
         };
+        console.log("FILERENAME", fileRename);
         return fileRename;
     }
     catch (error) {
