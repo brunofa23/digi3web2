@@ -4,6 +4,7 @@ import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
+import Query from "mysql2/typings/mysql/lib/protocol/sequences/Query";
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -156,12 +157,17 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
 
   let query
   let objFileName
-
+  let separators
+  let arrayFileName
   //Format L1(1).jpg
-  if (originalFileName.toUpperCase().startsWith('L')) {
+  //if (originalFileName.toUpperCase().startsWith('L')) {
+  const regexBookAndCod = /^L\d+\(\d+\).*$/;
+  //const regexBookSheetSide = /^L\d_\d_[A-Za-z].*/;
+  const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
 
-    let separators = ["L", '\'', '(', ')', '|', '-'];
-    const arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+  if (regexBookAndCod.test(originalFileName.toUpperCase())) {
+    separators = ["L", '\'', '(', ')', '|', '-'];
+    arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
     objFileName = {
       type: arrayFileName[1],
       book: arrayFileName[2],
@@ -170,20 +176,32 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
     }
     query = ` cod =${objFileName.cod} and book = ${objFileName.book} `
   }
-
-  //ARQUIVOS QUE INICIAM COM ID
-  else if (path.basename(originalFileName).startsWith('Id')) {
-
-    const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
-    objFileName = {
-      id: arrayFileName[0].replace('Id', ''),
-      cod: arrayFileName[1].replace('(', '').replace(')', ''),
-      ext: `.${arrayFileName[4]}`
+  else
+    if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
+      separators = ["L", '_', '|', '-'];
+      arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+      objFileName = {
+        type: arrayFileName[1],
+        book: arrayFileName[2],
+        sheet: arrayFileName[4],
+        side: arrayFileName[6][0],
+        ext: path.extname(originalFileName).toLowerCase()
+      }
+      //console.log("ENTREI NO LIVRO FOLHA E LADO", arrayFileName, "livro:", objFileName.book, "folha:", objFileName.sheet, "side::", objFileName.side, "ext", objFileName.ext)
+      query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`
+      //console.log("BOOK SHEET SIDE", query)
     }
-    originalFileName = path.basename(originalFileName)
-    query = ` id=${objFileName.id} and cod=${objFileName.cod} `
-
-  }
+    //ARQUIVOS QUE INICIAM COM ID
+    else if (path.basename(originalFileName).startsWith('Id')) {
+      const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
+      objFileName = {
+        id: arrayFileName[0].replace('Id', ''),
+        cod: arrayFileName[1].replace('(', '').replace(')', ''),
+        ext: `.${arrayFileName[4]}`
+      }
+      originalFileName = path.basename(originalFileName)
+      query = ` id=${objFileName.id} and cod=${objFileName.cod} `
+    }
 
   try {
     const name = await Bookrecord.query()
@@ -191,6 +209,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query)
+    console.log("name>>>>>", name)
 
     //retorna o ultimo seq
     const _seq = await Indeximage.query()
@@ -213,6 +232,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       previous_file_name: originalFileName
     }
 
+    console.log("FILERENAME", fileRename)
     return fileRename
 
   } catch (error) {
