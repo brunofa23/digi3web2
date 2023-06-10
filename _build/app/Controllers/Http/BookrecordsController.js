@@ -348,12 +348,12 @@ class BookrecordsController {
                     indexIncrement++;
                 }
             }
-            if (generateStartCode > generateEndSheetInCodReference)
+            if ((!generateEndSheetInCodReference || generateEndSheetInCodReference == 0) && (generateSheetStart == 0))
                 contSheet = 0;
             bookrecords.push({
                 cod: generateStartCode++,
                 book: generateBook,
-                sheet: ((!generateStartSheetInCodReference && !generateEndSheetInCodReference) || (generateStartSheetInCodReference == 0 && generateEndSheetInCodReference == 0) ? undefined : contSheet),
+                sheet: contSheet,
                 side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
                 approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
                 indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
