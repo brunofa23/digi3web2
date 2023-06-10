@@ -63,7 +63,6 @@ class BookrecordsController {
         const limit = Env_1.default.get('PAGINATION');
         let data;
         if (noAttachment) {
-            console.log("SEM IMAGENS>>>>>>>>>>>>>>");
             data = await Bookrecord_1.default.query()
                 .where('companies_id', '=', authenticate.companies_id)
                 .andWhere('typebooks_id', '=', params.typebooks_id)
@@ -87,7 +86,6 @@ class BookrecordsController {
                 .max('cod as codMax');
         }
         else {
-            console.log("completo");
             data = await Bookrecord_1.default.query()
                 .where("companies_id", '=', authenticate.companies_id)
                 .andWhere("typebooks_id", '=', params.typebooks_id)
@@ -177,7 +175,6 @@ class BookrecordsController {
                 query += ` and cod>=${startCod} and cod <=${endCod} `;
             try {
                 if (deleteImages) {
-                    console.log("entrei no deleteImages");
                     const listOfImagesToDeleteGDrive = await Indeximage_1.default
                         .query()
                         .preload('typebooks')
@@ -236,7 +233,6 @@ class BookrecordsController {
                     year: iterator.year,
                     model: iterator.model
                 });
-                console.log("NEW iterator:::", newRecord);
             }
             else {
                 updateRecord.push({
@@ -263,7 +259,7 @@ class BookrecordsController {
     }
     async generateOrUpdateBookrecords({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear } = request.requestData;
+        let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetStart, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear, } = request.requestData;
         const _startCode = generateStartCode;
         const _endCode = generateEndCode;
         if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
@@ -278,7 +274,7 @@ class BookrecordsController {
             let errorValidation = await new validations_1.default('bookrecord_error_102');
             throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
         }
-        let contSheet = 0;
+        let contSheet = !generateSheetStart ? 0 : generateSheetStart;
         let contIncrementSheet = 0;
         let contFirstSheet = false;
         let contFirstSide = false;
