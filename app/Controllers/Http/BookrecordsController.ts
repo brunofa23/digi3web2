@@ -97,7 +97,6 @@ export default class BookrecordsController {
 
     let data
     if (noAttachment) {
-      console.log("SEM IMAGENS>>>>>>>>>>>>>>")
       data = await Bookrecord.query()
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('typebooks_id', '=', params.typebooks_id)
@@ -122,7 +121,6 @@ export default class BookrecordsController {
     }
 
     else {
-      console.log("completo")
       data = await Bookrecord.query()
         .where("companies_id", '=', authenticate.companies_id)
         .andWhere("typebooks_id", '=', params.typebooks_id)
@@ -156,16 +154,13 @@ export default class BookrecordsController {
 
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
-    //console.log("SHOWWWW:", params)
     return {
       data: data,
     }
   }
 
   public async store({ auth, request, params, response }: HttpContextContract) {
-
     const companies_id = await auth.use('api').authenticate()
-
     const body = request.only(Bookrecord.fillable)
     body.companies_id = companies_id.id
 
@@ -259,7 +254,6 @@ export default class BookrecordsController {
       try {
         //deletar imagem no gdrive
         if (deleteImages) {
-          console.log("entrei no deleteImages")
           const listOfImagesToDeleteGDrive = await Indeximage
             .query()
             .preload('typebooks')
@@ -310,16 +304,12 @@ export default class BookrecordsController {
   //Cria uma linha 
   public async createorupdatebookrecords({ auth, request, response }) {
 
-    // console.log("entrei na inclusão de um registro");
-    // return
     const authenticate = await auth.use('api').authenticate()
-
     const _request = request.requestBody
     let newRecord: Object[] = []
     let updateRecord: Object[] = []
 
     for (const iterator of _request) {
-
       if (!iterator.id) {
         newRecord.push({
           typebooks_id: iterator.typebooks_id,
@@ -336,7 +326,6 @@ export default class BookrecordsController {
           year: iterator.year,
           model: iterator.model
         })
-        console.log("NEW iterator:::", newRecord)
 
       }
 
@@ -383,6 +372,7 @@ export default class BookrecordsController {
       generateEndCode,
       generateStartSheetInCodReference,
       generateEndSheetInCodReference,
+      generateSheetStart,
       generateSheetIncrement,
       generateSideStart,
       generateAlternateOfSides,
@@ -390,7 +380,7 @@ export default class BookrecordsController {
       generateApproximate_termIncrement,
       generateIndex,
       generateIndexIncrement,
-      generateYear
+      generateYear,
 
     } = request.requestData
 
@@ -413,7 +403,7 @@ export default class BookrecordsController {
       throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
     }
 
-    let contSheet = 0
+    let contSheet = !generateSheetStart ? 0 : generateSheetStart
     let contIncrementSheet = 0
     let contFirstSheet = false
     let contFirstSide = false
