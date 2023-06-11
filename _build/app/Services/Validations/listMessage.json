@@ -1,5 +1,10 @@
 [
     {
+        "code": "error_10",
+        "messages": "not superuser",
+        "status": 402
+    },
+    {
         "code": "company_error_100",
         "messages": "not superuser",
         "status": 402

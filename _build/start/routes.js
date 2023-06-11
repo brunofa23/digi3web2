@@ -4,16 +4,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Route_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Route"));
-const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
-const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 Route_1.default.group(() => {
     Route_1.default.get('/', async () => {
         return { hello: 'Hello World v58' };
     });
-    Route_1.default.resource("/books", 'BooksController').apiOnly();
-    Route_1.default.resource("/companies", 'CompaniesController').apiOnly();
-    Route_1.default.resource("/typebooks", 'TypebooksController').apiOnly();
+    Route_1.default.get("/books", 'BooksController.index').middleware("level_permission:get");
+    Route_1.default.post("/books", 'BooksController.store').middleware("level_permission:post");
+    Route_1.default.patch("/books/:id", 'BooksController.update').middleware("level_permission:patch");
+    Route_1.default.delete("/books/:id", 'BooksController.destroy').middleware("level_permission:destroy");
+    Route_1.default.get('/typebooks', 'TypebooksController.index');
+    Route_1.default.get('/typebooks/:id', 'TypebooksController.show').middleware('typebook_permission:get');
+    Route_1.default.post('/typebooks', 'TypebooksController.store').middleware('typebook_permission:post');
+    Route_1.default.patch('/typebooks/:id', 'TypebooksController.update').middleware('typebook_permission:patch');
+    Route_1.default.delete('/typebooks/:id', 'TypebooksController.destroy').middleware('typebook_permission:destroy');
     Route_1.default.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly();
     Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords');
     Route_1.default.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords');
@@ -30,10 +33,10 @@ Route_1.default.group(() => {
         await auth.use('api').authenticate();
         return auth.use('api').user;
     });
-    Route_1.default.get('/test', async () => {
-        return Application_1.default.configPath('tokens/token.json');
-    });
 }).prefix('/api');
+Route_1.default.group(() => {
+    Route_1.default.resource("/companies", 'CompaniesController').apiOnly();
+}).prefix('/api').middleware('level_permission:superuser');
 Route_1.default.get('/api/test/middleware/level', ({ response }) => {
     return response.json({ ok: true });
 }).middleware('level_permission:3');

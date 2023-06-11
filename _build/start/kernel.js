@@ -33,6 +33,7 @@ Server_1.default.middleware.register([
 Server_1.default.middleware.registerNamed({
     auth: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/Auth'))),
     level_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/LevelPermission'))),
-    company_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/CompanyPermission')))
+    company_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/CompanyPermission'))),
+    typebook_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/TypebookPermission')))
 });
 //# sourceMappingURL=kernel.js.map

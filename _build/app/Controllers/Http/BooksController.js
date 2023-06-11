@@ -4,7 +4,20 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Book_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Book"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 class BooksController {
+    async index({ auth, response, request }) {
+        const authenticate = await auth.use('api').authenticate();
+        try {
+            const books = await Book_1.default
+                .query()
+                .preload('typebooks');
+            return response.status(200).send(books);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request', 401, 'erro');
+        }
+    }
     async store({ request, response }) {
         const body = request.only(Book_1.default.fillable);
         response.send(body);
@@ -14,12 +27,6 @@ class BooksController {
             message: "Criado com sucesso",
             data: data,
         };
-    }
-    async index({ response }) {
-        const books = await Book_1.default
-            .query()
-            .preload('typebooks');
-        return response.send(books);
     }
     async update({ request, params }) {
         const body = request.only(Book_1.default.fillable);
