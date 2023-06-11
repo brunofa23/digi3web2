@@ -1,8 +1,26 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Book from 'App/Models/Book'
+import BadRequest from 'App/Exceptions/BadRequestException'
 
 
 export default class BooksController {
+
+  public async index({ auth, response, request }) {
+
+    const authenticate = await auth.use('api').authenticate()
+
+    try {
+      const books = await Book
+        .query()
+        .preload('typebooks')
+      return response.status(200).send(books)
+    } catch (error) {
+      throw new BadRequest('Bad Request', 401, 'erro')
+    }
+
+  }
+
+
 
   public async store({ request, response }: HttpContextContract) {
     const body = request.only(Book.fillable)
@@ -17,14 +35,6 @@ export default class BooksController {
 
   }
 
-  public async index({ response }) {
-
-    const books = await Book
-      .query()
-      .preload('typebooks')
-
-    return response.send(books)
-  }
 
   public async update({ request, params }: HttpContextContract) {
     const body = request.only(Book.fillable)

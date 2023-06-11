@@ -1,24 +1,25 @@
 import Route from '@ioc:Adonis/Core/Route'
 import Application from '@ioc:Adonis/Core/Application'
 
-const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
-
 Route.group(() => {
 
   Route.get('/', async () => {
     return { hello: 'Hello World v58' }
-  })
+  })//.middleware('level_permission:1')
 
-  //BOOKS
-  Route.resource("/books", 'BooksController').apiOnly()
+  //BOOK
+  Route.get("/books", 'BooksController.index').middleware("level_permission:get")
+  Route.post("/books", 'BooksController.store').middleware("level_permission:post")
+  Route.patch("/books/:id", 'BooksController.update').middleware("level_permission:patch")
+  Route.delete("/books/:id", 'BooksController.destroy').middleware("level_permission:destroy")
 
-  //COMPANIES
-  Route.resource("/companies", 'CompaniesController').apiOnly()
-  //Route.get("/companies", 'CompaniesController.index')
+  //TYPEBOOK
+  Route.get('/typebooks', 'TypebooksController.index')
+  Route.get('/typebooks/:id', 'TypebooksController.show').middleware('typebook_permission:get')
+  Route.post('/typebooks', 'TypebooksController.store').middleware('typebook_permission:post')
+  Route.patch('/typebooks/:id', 'TypebooksController.update').middleware('typebook_permission:patch')
+  Route.delete('/typebooks/:id', 'TypebooksController.destroy').middleware('typebook_permission:destroy')
 
-  //TYPEBOOKS
-  Route.resource("/typebooks", 'TypebooksController').apiOnly()
 
   //BOOKRECORDS
   Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
@@ -32,8 +33,6 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')
   Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')
   Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')
-
-
 
   //USERS
   Route.resource("/users", "UsersController").apiOnly()
@@ -51,15 +50,16 @@ Route.group(() => {
     return auth.use('api').user!
   })
 
-  Route.get('/test', async () => {
-    //return { hello: 'world' }
-    return Application.configPath('tokens/token.json')
-
-  })
 
 }).prefix('/api')
 
+//COMPANIES MIDDLEWARE
+Route.group(() => {
+  Route.resource("/companies", 'CompaniesController').apiOnly()
+}).prefix('/api').middleware('level_permission:superuser')
 
+
+//**************************************************************** */
 Route.get('/api/test/middleware/level', ({ response }) => {
   return response.json({ ok: true })
 }).middleware('level_permission:3')

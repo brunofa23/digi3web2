@@ -43,5 +43,7 @@ Server.middleware.register([
 Server.middleware.registerNamed({
   auth: () => import('App/Middleware/Auth'),
   level_permission: () => import('App/Middleware/LevelPermission'),
-  company_permission: () => import('App/Middleware/CompanyPermission')
+  company_permission: () => import('App/Middleware/CompanyPermission'),
+  typebook_permission: () => import('App/Middleware/TypebookPermission')
 })
+
