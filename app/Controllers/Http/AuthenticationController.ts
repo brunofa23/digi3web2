@@ -25,11 +25,6 @@ export default class AuthenticationController {
       })
       .first()
 
-    // if (!shortname) {
-    //   const errorValidation = await new validations('user_error_204')
-    //   throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-    // }
-
     if (!user) {
       const errorValidation = await new validations('user_error_205')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
