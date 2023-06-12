@@ -14,9 +14,6 @@ const authorize = require('App/Services/googleDrive/googledrive')
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
-
-
-
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
