@@ -1,4 +1,6 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import validations from 'App/Services/Validations/validations'
+import BadRequest from 'App/Exceptions/BadRequestException'
 
 export default class CompanyPermission {
   public async handle({ auth }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
