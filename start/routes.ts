@@ -37,10 +37,9 @@ Route.group(() => {
   //Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
   Route.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index')
   Route.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show')
-  Route.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store')
-  Route.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update')
-  Route.delete("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.destroy')
-
+  Route.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post')
+  Route.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update').middleware('bookrecord_permission:patch')
+  Route.delete("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.destroy').middleware('bookrecord_permission:destroy')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords').middleware('bookrecord_permission:generateOrUpdateBookrecords')
   Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords').middleware('bookrecord_permission:createorupdatebookrecords')
   Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords')
@@ -50,13 +49,12 @@ Route.group(() => {
   //Route.resource("/indeximages", "IndeximagesController").apiOnly()
   Route.get("/indeximages", "IndeximagesController.index")
   Route.get("/indeximages/:id", "IndeximagesController.show")
-  Route.post("/indeximages", "IndeximagesController.post")
-  Route.patch("/indeximages/:id2/", "IndeximagesController.update")
-  Route.delete("/indeximages", "IndeximagesController.destroy")
-
-  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')
-  Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')
-  Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')
+  //Route.post("/indeximages", "IndeximagesController.store")
+  //Route.patch("/indeximages/:id2/", "IndeximagesController.update")
+  //Route.delete("/indeximages", "IndeximagesController.destroy")
+  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads').middleware('indeximage_permission:uploads')
+  Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download').middleware('indeximage_permission:download')
+  Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture').middleware('indeximage_permission:uploadCapture')
 
 
   //AUTHENTICATION
@@ -65,9 +63,7 @@ Route.group(() => {
 
   //rota de teste
   Route.get('dashboard', async ({ auth }) => {
-    //return auth
     await auth.use('api').authenticate()
-    //console.log(auth.use('api').user!)
     return auth.use('api').user!
   })
 
