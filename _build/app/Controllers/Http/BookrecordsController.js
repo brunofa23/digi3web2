@@ -107,9 +107,9 @@ class BookrecordsController {
         };
     }
     async store({ auth, request, params, response }) {
-        const companies_id = await auth.use('api').authenticate();
+        const { companies_id } = await auth.use('api').authenticate();
         const body = request.only(Bookrecord_1.default.fillable);
-        body.companies_id = companies_id.id;
+        body.companies_id = companies_id;
         try {
             const data = await Bookrecord_1.default.create(body);
             return response.status(201).send(data);
@@ -119,11 +119,10 @@ class BookrecordsController {
         }
     }
     async update({ auth, request, params, response }) {
-        console.log("AUTH", auth);
-        const companies_id = await auth.use('api').authenticate();
+        const { companies_id } = await auth.use('api').authenticate();
         const body = request.only(Bookrecord_1.default.fillable);
         body.id = params.id;
-        body.companies_id = companies_id.id;
+        body.companies_id = companies_id;
         try {
             const data = await Bookrecord_1.default.findOrFail(body.id);
             await data.fill(body).save();
@@ -162,6 +161,7 @@ class BookrecordsController {
         }
     }
     async destroyManyBookRecords({ auth, request, response }) {
+        console.log("destroy many bookrecords>>>");
         const { companies_id } = await auth.use('api').authenticate();
         const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages']);
         let query = '1 = 1';

@@ -5,20 +5,18 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
-class CompanyPermission {
-    async handle({ auth }, next, customGuards) {
+class UserPermission {
+    async handle({ auth, response }, next, customGuards) {
         const authenticate = await auth.use('api').authenticate();
+        console.log("gard::>>", customGuards);
         for (const guard of customGuards) {
             if (guard === 'get' && authenticate.permission_level >= 0) {
                 await next();
             }
-            else if (guard === 'post' && authenticate.superuser) {
+            else if (guard === 'post' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
                 await next();
             }
-            else if (guard === 'patch' && authenticate.superuser) {
-                await next();
-            }
-            else if (guard === 'destroy' && authenticate.superuser) {
+            else if (guard === 'patch' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
                 await next();
             }
             else {
@@ -28,5 +26,5 @@ class CompanyPermission {
         }
     }
 }
-exports.default = CompanyPermission;
-//# sourceMappingURL=CompanyPermission.js.map
+exports.default = UserPermission;
+//# sourceMappingURL=UserPermission.js.map

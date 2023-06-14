@@ -73,7 +73,6 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
     }, {
         onUploadProgress: (event) => {
             const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
-            console.log(`Progresso: ${progress}%`);
         },
         onError: (err) => {
             console.error(`Ocorreu um erro durante o upload: ${err}`);
@@ -99,14 +98,11 @@ async function createFolder(authClient, folderName, parentId = undefined) {
         mimeType: 'application/vnd.google-apps.folder',
         parents: _parentId,
     };
-    console.log(">>>FILEMETADATA", fileMetadata);
     try {
-        console.log("entrei create folder");
         const file = await drive.files.create({
             resource: fileMetadata,
             fields: 'id',
         });
-        console.log('Folder Id:', file.data.id);
         return file.data.id;
     }
     catch (err) {
@@ -115,7 +111,6 @@ async function createFolder(authClient, folderName, parentId = undefined) {
 }
 async function searchFile(authClient, fileName, parentId = undefined) {
     const drive = google.drive({ version: 'v3', auth: authClient });
-    console.log("CHEGUEI NA PESQUISA searcfile", fileName, "parent", parentId);
     const files = [];
     const fileNamedecoded = decodeURIComponent(fileName);
     let query = `name ='${fileNamedecoded}' `;

@@ -17,16 +17,28 @@ Route_1.default.group(() => {
     Route_1.default.post('/typebooks', 'TypebooksController.store').middleware('typebook_permission:post');
     Route_1.default.patch('/typebooks/:id', 'TypebooksController.update').middleware('typebook_permission:patch');
     Route_1.default.delete('/typebooks/:id', 'TypebooksController.destroy').middleware('typebook_permission:destroy');
-    Route_1.default.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly();
-    Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords');
-    Route_1.default.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords');
-    Route_1.default.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords');
-    Route_1.default.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial');
-    Route_1.default.resource("/indeximages", "IndeximagesController").apiOnly();
-    Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads');
-    Route_1.default.post('/indeximages/download/:id', 'IndeximagesController.download').as('download');
-    Route_1.default.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture');
-    Route_1.default.resource("/users", "UsersController").apiOnly();
+    Route_1.default.get("/companies", 'CompaniesController.index');
+    Route_1.default.get("/companies/:id", 'CompaniesController.show');
+    Route_1.default.post("/companies", 'CompaniesController.store').middleware('company_permission:post');
+    Route_1.default.patch("/companies", 'CompaniesController.store').middleware('company_permission:patch');
+    Route_1.default.get("/users", "UsersController.index");
+    Route_1.default.get("/users/:id", "UsersController.show");
+    Route_1.default.post("/users", "UsersController.store").middleware('user_permission:post');
+    Route_1.default.patch("/users/:id", "UsersController.update").middleware('user_permission:patch');
+    Route_1.default.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index');
+    Route_1.default.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show');
+    Route_1.default.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post');
+    Route_1.default.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update').middleware('bookrecord_permission:patch');
+    Route_1.default.delete("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.destroy').middleware('bookrecord_permission:destroy');
+    Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords').middleware('bookrecord_permission:generateOrUpdateBookrecords');
+    Route_1.default.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords').middleware('bookrecord_permission:createorupdatebookrecords');
+    Route_1.default.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords');
+    Route_1.default.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial');
+    Route_1.default.get("/indeximages", "IndeximagesController.index");
+    Route_1.default.get("/indeximages/:id", "IndeximagesController.show");
+    Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads').middleware('indeximage_permission:uploads');
+    Route_1.default.post('/indeximages/download/:id', 'IndeximagesController.download').as('download').middleware('indeximage_permission:download');
+    Route_1.default.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture').middleware('indeximage_permission:uploadCapture');
     Route_1.default.post("/login", "AuthenticationController.login");
     Route_1.default.post("/logout", "AuthenticationController.logout");
     Route_1.default.get('dashboard', async ({ auth }) => {
@@ -34,9 +46,6 @@ Route_1.default.group(() => {
         return auth.use('api').user;
     });
 }).prefix('/api');
-Route_1.default.group(() => {
-    Route_1.default.resource("/companies", 'CompaniesController').apiOnly();
-}).prefix('/api').middleware('level_permission:superuser');
 Route_1.default.get('/api/test/middleware/level', ({ response }) => {
     return response.json({ ok: true });
 }).middleware('level_permission:3');

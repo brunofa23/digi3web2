@@ -34,6 +34,9 @@ Server_1.default.middleware.registerNamed({
     auth: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/Auth'))),
     level_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/LevelPermission'))),
     company_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/CompanyPermission'))),
-    typebook_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/TypebookPermission')))
+    typebook_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/TypebookPermission'))),
+    user_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/UserPermission'))),
+    bookrecord_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/BookRecordPermission'))),
+    indeximage_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/IndexImagePermission')))
 });
 //# sourceMappingURL=kernel.js.map
