@@ -78,37 +78,6 @@ async function authorize() {
   return client;
 }
 
-
-//UPLOAD ORIGINAL
-// async function uploadFiles(authClient, parents, folderPath, fileName) {
-//   const drive = google.drive({ version: 'v3', auth: authClient });
-//   const parent = [parents]
-
-//   const fileMetadata = {
-//     name: fileName,
-//     parents: parent
-//   };
-//   const media = {
-//     mimeType: 'image/jpeg',
-//     body: fs.createReadStream(`${folderPath}/${fileName}`),
-//   };
-//   try {
-//     const file = await drive.files.create({
-//       resource: fileMetadata,
-//       media: media,
-//       fields: 'id',
-
-//     });
-//     console.log('>>>File Id:', file.data.id);
-//     return file.data.id;
-//   } catch (err) {
-//     // TODO(developer) - Handle error
-//     console.log("ERRO:::::", err);
-//     throw err;
-//   }
-
-// }
-
 async function uploadFiles(authClient, parents, folderPath, fileName) {
   const drive = google.drive({ version: 'v3', auth: authClient });
   const parent = [parents]
@@ -130,7 +99,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
     onUploadProgress: (event) => {
 
       const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
-      console.log(`Progresso: ${progress}%`);
+
     },
     onError: (err) => {
       console.error(`Ocorreu um erro durante o upload: ${err}`);
@@ -150,39 +119,6 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
   const response = await resumableUpload;
   console.log(`Arquivo carregado com sucesso! ID do arquivo: ${response.data.id}`);
 
-
-  /************* */
-  // const fileMetadata = {
-  //   name: fileName,
-  //   parents: parent
-  // };
-  // const media = {
-  //   mimeType: 'image/jpeg',
-  //   body: fs.createReadStream(`${folderPath}/${fileName}`),
-  // };
-  // try {
-  //   const file = await drive.files.create({
-  //     resource: fileMetadata,
-  //     media: media,
-  //     fields: 'id',
-  //     supportsTeamDrives: true,
-  //     useResumableUpload: true,
-
-  //     onUploadProgress: (event) => {
-  //       const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
-  //       console.log(`>>>>>>>>Progresso: ${progress}%`);
-  //     }
-
-
-  //   });
-  //   console.log('>>>File Id:', file.data.id);
-  //   return file.data.id;
-  // } catch (err) {
-  //   // TODO(developer) - Handle error
-  //   console.log("ERRO:::::", err);
-  //   throw err;
-  // }
-
 }
 
 async function createFolder(authClient, folderName, parentId = undefined) {
@@ -198,14 +134,11 @@ async function createFolder(authClient, folderName, parentId = undefined) {
     parents: _parentId,
   };
 
-  console.log(">>>FILEMETADATA", fileMetadata);
   try {
-    console.log("entrei create folder")
     const file = await drive.files.create({
       resource: fileMetadata,
       fields: 'id',
     });
-    console.log('Folder Id:', file.data.id);
     return file.data.id;
   } catch (err) {
     // TODO(developer) - Handle error
@@ -217,7 +150,7 @@ async function createFolder(authClient, folderName, parentId = undefined) {
 async function searchFile(authClient, fileName, parentId = undefined) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
-  console.log("CHEGUEI NA PESQUISA searcfile", fileName, "parent", parentId)
+  //console.log("CHEGUEI NA PESQUISA searcfile", fileName, "parent", parentId)
   const files: Object[] = []
 
   const fileNamedecoded = decodeURIComponent(fileName);

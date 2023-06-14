@@ -14,9 +14,6 @@ const authorize = require('App/Services/googleDrive/googledrive')
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
-
-
-
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
@@ -98,15 +95,10 @@ export default class IndeximagesController {
 
   public async uploadCapture({ auth, request, params }) {
 
-    logtail.info("Entrei no upload capture")
     const authenticate = await auth.use('api').authenticate()
     const { imageCaptureBase64, cod, id } = request.requestData
-
-    logtail.info('request>>>', { cod, id })
-
     let base64Image = imageCaptureBase64.split(';base64,').pop();
     const folderPath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`)
-
     try {
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath)
@@ -118,14 +110,11 @@ export default class IndeximagesController {
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
 
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
-      console.log('File created', folderPath);
       logtail.info('File created', { folderPath })
     });
 
     const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true)
-    console.log(">>>FINAL NO UPLOAD CAPTURE")
-    logtail.info('>>>FINAL NO UPLOAD CAPTURE')
-
+    console.log(">>>UPLOAD CAPTURE>>>>>>")
     return { sucesso: "sucesso", file, typebook: params.typebooks_id }
 
 
