@@ -8,20 +8,20 @@ export default class UserPermission {
     const authenticate = await auth.use('api').authenticate()
     console.log("gard::>>", customGuards)
 
-    if (authenticate.superuser || authenticate.permission_level >= 5) {
-      await next()
-    }
+    // if (authenticate.superuser || authenticate.permission_level >= 5) {
+    //   await next()
+    // }
 
     for (const guard of customGuards) {
       if (guard === 'get' && authenticate.permission_level >= 0) {
         await next()
       }
       else
-        if (guard === 'post' && authenticate.permission_level >= 3) {
+        if (guard === 'post' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
           await next()
         }
         else
-          if (guard === 'patch' && authenticate.permission_level >= 3) {
+          if (guard === 'patch' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
             await next()
           }
           else {
