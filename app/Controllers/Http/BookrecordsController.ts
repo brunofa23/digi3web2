@@ -160,9 +160,9 @@ export default class BookrecordsController {
   }
 
   public async store({ auth, request, params, response }: HttpContextContract) {
-    const companies_id = await auth.use('api').authenticate()
+    const { companies_id } = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
-    body.companies_id = companies_id.id
+    body.companies_id = companies_id
 
     try {
       const data = await Bookrecord.create(body)
@@ -177,11 +177,10 @@ export default class BookrecordsController {
 
   public async update({ auth, request, params, response }: HttpContextContract) {
 
-    console.log("AUTH", auth)
-    const companies_id = await auth.use('api').authenticate()
+    const { companies_id } = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
     body.id = params.id
-    body.companies_id = companies_id.id
+    body.companies_id = companies_id
 
     try {
       const data = await Bookrecord.findOrFail(body.id)
@@ -232,7 +231,7 @@ export default class BookrecordsController {
   }
   //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
-
+    console.log("destroy many bookrecords>>>")
     const { companies_id } = await auth.use('api').authenticate()
     const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages'])
 

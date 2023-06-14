@@ -25,7 +25,7 @@ function deleteImage(folderPath) {
     if (err) {
       throw err;
     }
-    console.log("Delete File successfully.");
+    //console.log("Delete File successfully.");
   });
 }
 
@@ -88,7 +88,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
     try {
       await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, true)
-      console.log("UPLOAD COM SUCESSO!!!!")
+      //console.log("UPLOAD COM SUCESSO!!!!")
       return images
     } catch (error) {
       console.log(error);
@@ -116,7 +116,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
       }
     } catch (error) {
-      console.log(">>>erro indexação logtail")
       await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
@@ -133,7 +132,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
         if (err) {
           throw err;
         } else {
-          console.log('Arquivo renomeado');
+          //console.log('Arquivo renomeado');
         }
       });
     }
@@ -209,7 +208,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query)
-    console.log("name>>>>>", name)
+    //console.log("name>>>>>", name)
 
     //retorna o ultimo seq
     const _seq = await Indeximage.query()
@@ -232,7 +231,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       previous_file_name: originalFileName
     }
 
-    console.log("FILERENAME", fileRename)
+    //console.log("FILERENAME", fileRename)
     return fileRename
 
   } catch (error) {
