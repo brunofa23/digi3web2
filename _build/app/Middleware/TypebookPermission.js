@@ -8,15 +8,15 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 class TypebookPermission {
     async handle({ auth, response }, next, customGuards) {
         const authenticate = await auth.use('api').authenticate();
-        console.log("gard::>>", customGuards);
+        console.log("gard TYPEBOOK::>>", customGuards);
         for (const guard of customGuards) {
             if (guard === 'get' && authenticate.permission_level >= 0) {
                 await next();
             }
-            else if (guard === 'post' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+            else if (guard === 'post' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
                 await next();
             }
-            else if (guard === 'patch' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+            else if (guard === 'patch' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
                 await next();
             }
             else if (guard === 'destroy' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
