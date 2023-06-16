@@ -6,7 +6,7 @@ export default class TypebookPermission {
   public async handle({ auth, response }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
 
     const authenticate = await auth.use('api').authenticate()
-    console.log("gard::>>", customGuards)
+    console.log("gard TYPEBOOK::>>", customGuards)
 
     // if (authenticate.superuser || authenticate.permission_level >= 5) {
     //   await next()
@@ -17,11 +17,11 @@ export default class TypebookPermission {
         await next()
       }
       else
-        if (guard === 'post' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+        if (guard === 'post' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
           await next()
         }
         else
-          if (guard === 'patch' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+          if (guard === 'patch' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
             await next()
           }
           else
