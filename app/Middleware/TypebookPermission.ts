@@ -6,7 +6,7 @@ export default class TypebookPermission {
   public async handle({ auth, response }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
 
     const authenticate = await auth.use('api').authenticate()
-    console.log("gard TYPEBOOK::>>", customGuards)
+    //console.log("gard TYPEBOOK::>>", customGuards)
 
     // if (authenticate.superuser || authenticate.permission_level >= 5) {
     //   await next()

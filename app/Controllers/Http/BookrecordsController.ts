@@ -414,17 +414,20 @@ export default class BookrecordsController {
 
     const bookrecords: Object[] = []
 
-    for (let index = generateStartCode; index <= generateEndCode; index++) {
+    for (let index = (generateStartCode + 1); index <= generateEndCode; index++) {
 
       if (generateStartCode >= generateStartSheetInCodReference) {
 
         if (contIncrementSheet < generateSheetIncrement) {
           contIncrementSheet++
+
+          //|| generateStartSheetInCodReference < index
           if (contFirstSheet == false) {
             contFirstSheet = true
             contSheet++
           }
         } else {
+          console.log("FOLHA INICIAL>>>>>", contSheet)
           contIncrementSheet = 1
           contSheet++
         }
@@ -476,7 +479,6 @@ export default class BookrecordsController {
           }
         }
         else {
-
           if (indexIncrement >= generateIndexIncrement) {
             indexIncrement = 0
             indexBook++
@@ -485,13 +487,18 @@ export default class BookrecordsController {
         }
       }
 
-      if ((!generateEndSheetInCodReference || generateEndSheetInCodReference == 0) && (generateSheetStart == 0))
+      if ((!generateEndSheetInCodReference || generateEndSheetInCodReference == 0) && (generateSheetStart == 0) || ((index) <= generateStartSheetInCodReference))
         contSheet = 0
+      else {
+        contSheet = generateSheetStart
+        generateSheetStart++
+
+      }
 
       bookrecords.push({
         cod: generateStartCode++,
         book: generateBook,
-        sheet: contSheet, //((!generateStartSheetInCodReference && !generateEndSheetInCodReference) || (generateStartSheetInCodReference == 0 && generateEndSheetInCodReference == 0) ? undefined : contSheet),
+        sheet: contSheet,
         side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
         approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
         indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
@@ -499,9 +506,7 @@ export default class BookrecordsController {
         typebooks_id: params.typebooks_id,
         books_id: generateBooks_id,
         companies_id: authenticate.companies_id
-
       })
-
 
     }
 
