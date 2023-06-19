@@ -284,7 +284,7 @@ class BookrecordsController {
         let indexBook = generateIndex;
         let indexIncrement = 0;
         const bookrecords = [];
-        for (let index = generateStartCode; index <= generateEndCode; index++) {
+        for (let index = (generateStartCode + 1); index <= generateEndCode; index++) {
             if (generateStartCode >= generateStartSheetInCodReference) {
                 if (contIncrementSheet < generateSheetIncrement) {
                     contIncrementSheet++;
@@ -294,6 +294,7 @@ class BookrecordsController {
                     }
                 }
                 else {
+                    console.log("FOLHA INICIAL>>>>>", contSheet);
                     contIncrementSheet = 1;
                     contSheet++;
                 }
@@ -348,8 +349,12 @@ class BookrecordsController {
                     indexIncrement++;
                 }
             }
-            if ((!generateEndSheetInCodReference || generateEndSheetInCodReference == 0) && (generateSheetStart == 0))
+            if ((!generateEndSheetInCodReference || generateEndSheetInCodReference == 0) && (generateSheetStart == 0) || ((index) <= generateStartSheetInCodReference))
                 contSheet = 0;
+            else {
+                contSheet = generateSheetStart;
+                generateSheetStart++;
+            }
             bookrecords.push({
                 cod: generateStartCode++,
                 book: generateBook,

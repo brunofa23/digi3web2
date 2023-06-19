@@ -9,12 +9,6 @@ class default_1 extends Seeder_1.default {
     async run() {
         await Book_1.default.createMany([
             {
-                "id": 1,
-                "name": "BANCO DE ARQUIVOS",
-                "namefolder": "BANCO_DE_ARQUIVOS",
-                "status": 0
-            },
-            {
                 "id": 2,
                 "name": "CASAMENTO (LIVRO B)",
                 "namefolder": "CASAMENTO",
@@ -51,51 +45,9 @@ class default_1 extends Seeder_1.default {
                 "status": 1
             },
             {
-                "id": 8,
-                "name": "PROTOCOLO",
-                "namefolder": "PROTOCOLO",
-                "status": 0
-            },
-            {
-                "id": 9,
-                "name": "FOLHA DE SEGURANÇA",
-                "namefolder": "FOLHA_DE_SEGURANÇA",
-                "status": 0
-            },
-            {
-                "id": 10,
-                "name": "RESPOSTA OFICIOS",
-                "namefolder": "RESPOSTA_OFICIOS",
-                "status": 0
-            },
-            {
-                "id": 11,
-                "name": "PROCESSO HABILITACAO",
-                "namefolder": "PROCESSO_HABILITACAO",
-                "status": 1
-            },
-            {
-                "id": 12,
-                "name": "LIVROS",
-                "namefolder": "LIVROS",
-                "status": 0
-            },
-            {
                 "id": 13,
                 "name": "DOCUMENTOS",
                 "namefolder": "DOCUMENTOS",
-                "status": 0
-            },
-            {
-                "id": 14,
-                "name": "AUTENTICAÇÃO",
-                "namefolder": "AUTENTICACAO",
-                "status": 0
-            },
-            {
-                "id": 15,
-                "name": "RECONHECIMENTO FIRMA",
-                "namefolder": "RECONHECIMENTO_FIRMA",
                 "status": 0
             },
             {
@@ -114,18 +66,6 @@ class default_1 extends Seeder_1.default {
                 "id": 18,
                 "name": "TRANSCRIÇÕES",
                 "namefolder": "TRANSCRICOES",
-                "status": 1
-            },
-            {
-                "id": 19,
-                "name": "2VIA",
-                "namefolder": "2VIA",
-                "status": 1
-            },
-            {
-                "id": 20,
-                "name": "ANEXO",
-                "namefolder": "ANEXO",
                 "status": 1
             },
             {

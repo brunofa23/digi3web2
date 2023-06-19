@@ -8,7 +8,6 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 class BookRecordPermission {
     async handle({ auth, response }, next, customGuards) {
         const authenticate = await auth.use('api').authenticate();
-        console.log("gard::>> BOOKRECORD", customGuards);
         for (const guard of customGuards) {
             if (guard === 'get' && authenticate.permission_level >= 0) {
                 await next();
@@ -31,7 +30,7 @@ class BookRecordPermission {
             else if (guard === 'destroyManyBookRecords' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
                 await next();
             }
-            else if (guard === 'indeximagesinitial' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
+            else if (guard === 'indeximagesinitial' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
                 await next();
             }
             else {
