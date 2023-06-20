@@ -230,15 +230,140 @@ export default class BookrecordsController {
 
   }
   //EXCLUSÃO EM LOTES
+  // public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
+  //   console.log("destroy many bookrecords>>>")
+  //   const { companies_id } = await auth.use('api').authenticate()
+  //   const { typebooks_id, Book, startCod, endCod, deleteImages, deleteOnlyImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages', 'deleteOnlyImages'])
+
+  //   //deleteImages
+  //   //se 1  = exclui somente o livro
+  //   //se 2 = exclui somente as imagens
+  //   //se 3 = exclui imagens e livro
+
+  //   let query = '1 = 1'
+  //   if (Book == undefined)
+  //     return null
+  //   if (typebooks_id != undefined) {
+  //     if (Book != undefined) {
+  //       query += ` and book=${Book} `
+  //     }
+  //     if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
+  //       query += ` and cod>=${startCod} and cod <=${endCod} `
+  //     try {
+  //       //deletar imagem no gdrive
+  //       const listOfImagesToDeleteGDrive = await Indeximage
+  //         .query()
+  //         .preload('typebooks')
+  //         .whereIn("bookrecords_id",
+  //           Database.from('bookrecords')
+  //             .select('id')
+  //             .where('typebooks_id', '=', typebooks_id)
+  //             .andWhere('companies_id', '=', companies_id)
+  //             .whereRaw(query))
+
+  //       if (listOfImagesToDeleteGDrive.length > 0) {
+  //         var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+  //           return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+  //         });
+  //         fileRename.deleteFile(file_name)
+  //       }
+  //       //******************* */
+  //       //Exclui indeximages no banco
+  //       const dataIndexImages = await Indeximage
+  //         .query()
+  //         .delete()
+  //         .whereIn("bookrecords_id",
+  //           Database.from('bookrecords')
+  //             .select('id')
+  //             .where('typebooks_id', '=', typebooks_id)
+  //             .andWhere('companies_id', '=', companies_id)
+  //             .whereRaw(query))
+  //       //***************************** */
+
+  //       //Exclui os livros
+  //       const data = await Bookrecord
+  //         .query()
+  //         .where('typebooks_id', '=', typebooks_id)
+  //         .andWhere('companies_id', '=', companies_id)
+  //         .whereRaw(query)
+  //         .delete()
+  //       return response.status(201).send({ dataIndexImages, data })
+  //       //*************************************** */
+
+
+  //     } catch (error) {
+  //       throw new BadRequest('Bad Request update', 401, 'bookrecord_error_102')
+  //     }
+
+  //   }
+  // }
+
+
+  //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
     console.log("destroy many bookrecords>>>")
     const { companies_id } = await auth.use('api').authenticate()
-    const { typebooks_id, Book, startCod, endCod, deleteImages, deleteOnlyImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages', 'deleteOnlyImages'])
+    const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages'])
 
     //deleteImages
     //se 1  = exclui somente o livro
     //se 2 = exclui somente as imagens
     //se 3 = exclui imagens e livro
+
+    async function deleteIndexImages() {
+      try {
+        const deleteData = await Indeximage
+          .query()
+          .delete()
+          .whereIn("bookrecords_id",
+            Database.from('bookrecords')
+              .select('id')
+              .where('typebooks_id', '=', typebooks_id)
+              .andWhere('companies_id', '=', companies_id)
+              .whereRaw(query))
+        return response.status(201).send({ deleteData })
+      } catch (error) {
+        return error
+      }
+
+    }
+
+    async function deleteBookrecord() {
+      try {
+        const data = await Bookrecord
+          .query()
+          .where('typebooks_id', '=', typebooks_id)
+          .andWhere('companies_id', '=', companies_id)
+          .whereRaw(query)
+          .delete()
+        return response.status(201).send({ data })
+      } catch (error) {
+        return error
+      }
+    }
+
+    async function deleteImagesGoogle() {
+      try {
+        const listOfImagesToDeleteGDrive = await Indeximage
+          .query()
+          .preload('typebooks')
+          .whereIn("bookrecords_id",
+            Database.from('bookrecords')
+              .select('id')
+              .where('typebooks_id', '=', typebooks_id)
+              .andWhere('companies_id', '=', companies_id)
+              .whereRaw(query))
+        if (listOfImagesToDeleteGDrive.length > 0) {
+          var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+            return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+          });
+          fileRename.deleteFile(file_name)
+        }
+      } catch (error) {
+        return error
+      }
+
+    }
 
     let query = '1 = 1'
     if (Book == undefined)
@@ -249,56 +374,33 @@ export default class BookrecordsController {
       }
       if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
         query += ` and cod>=${startCod} and cod <=${endCod} `
+
       try {
-        //deletar imagem no gdrive
-        const listOfImagesToDeleteGDrive = await Indeximage
-          .query()
-          .preload('typebooks')
-          .whereIn("bookrecords_id",
-            Database.from('bookrecords')
-              .select('id')
-              .where('typebooks_id', '=', typebooks_id)
-              .andWhere('companies_id', '=', companies_id)
-              .whereRaw(query))
-
-        if (listOfImagesToDeleteGDrive.length > 0) {
-          var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-            return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
-          });
-          fileRename.deleteFile(file_name)
+        //se 1  = exclui somente o livro
+        if (deleteImages == 1) {
+          console.log("EXCLUI SOMENTE LIVRO")
+          await deleteIndexImages()
+          await deleteBookrecord()
         }
-        //******************* */
-        //Exclui indeximages no banco
-        const dataIndexImages = await Indeximage
-          .query()
-          .delete()
-          .whereIn("bookrecords_id",
-            Database.from('bookrecords')
-              .select('id')
-              .where('typebooks_id', '=', typebooks_id)
-              .andWhere('companies_id', '=', companies_id)
-              .whereRaw(query))
-        //***************************** */
-
-        //Exclui os livros
-        const data = await Bookrecord
-          .query()
-          .where('typebooks_id', '=', typebooks_id)
-          .andWhere('companies_id', '=', companies_id)
-          .whereRaw(query)
-          .delete()
-        return response.status(201).send({ dataIndexImages, data })
-        //*************************************** */
-
-
+        //se 2 = exclui somente as imagens
+        else if (deleteImages == 2) {
+          console.log("EXCLUI SOMENTE IMAGENS")
+          await deleteImagesGoogle()
+          await deleteIndexImages()
+        }
+        //se 3 = exclui imagens e livro
+        else if (deleteImages == 3) {
+          console.log("EXCLUI TUDO")
+          await deleteImagesGoogle()
+          await deleteIndexImages()
+          await deleteBookrecord()
+        }
       } catch (error) {
         throw new BadRequest('Bad Request update', 401, 'bookrecord_error_102')
       }
 
     }
   }
-
-
 
 
 
