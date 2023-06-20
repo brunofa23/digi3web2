@@ -44,16 +44,55 @@ export default class IndeximagesController {
     }
   }
 
-  public async destroy({ params }: HttpContextContract) {
-    const data = await Indeximage.findOrFail(params.id)
-    await data.delete()
+  // public async destroy({ params }: HttpContextContract) {
+  //   const data = await Indeximage.findOrFail(params.id)
+  //   await data.delete()
 
-    return {
-      message: "Livro excluido com sucesso.",
-      data: data
+  //   return {
+  //     message: "Livro excluido com sucesso.",
+  //     data: data
+  //   }
+
+  // }
+
+  public async destroy({ auth, request, params, response }: HttpContextContract) {
+
+    const body = request.only(Indeximage.fillable)
+    const { companies_id } = await auth.use('api').authenticate()
+    try {
+
+      return { body, companies_id }
+      //excluir imagens do google drive
+      // const listOfImagesToDeleteGDrive = await Indeximage.query()
+      //   .preload('typebooks')
+      //   .where('typebooks_id', '=', params.typebooks_id)
+      //   .andWhere('bookrecords_id', "=", params.id)
+      //   .andWhere('companies_id', "=", companies_id)
+      //   .andWhere('seq',"=", seq)
+
+      // if (listOfImagesToDeleteGDrive.length > 0) {
+      //   var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+      //     return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+      //   });
+      //   fileRename.deleteFile(file_name)
+      // }
+
+      // await Indeximage.query()
+      //   .where('typebooks_id', '=', params.typebooks_id)
+      //   .andWhere('bookrecords_id', "=", params.id)
+      //   .andWhere('companies_id', "=", companies_id).delete()
+
+      // return response.status(201).send({ data, message: "Excluido com sucesso!!" })
+    } catch (error) {
+      return error
+
     }
 
   }
+
+
+
+
 
   public async update({ request, params, response }: HttpContextContract) {
     const body = request.only(Indeximage.fillable)
@@ -120,12 +159,13 @@ export default class IndeximagesController {
 
   }
 
-  public async download({ auth, params }: HttpContextContract) {
+  public async download({ auth, params, request }: HttpContextContract) {
 
+    const body = request.only(Indeximage.fillable)
     const fileName = params.id
     const authenticate = await auth.use('api').authenticate()
     const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id)
-    return { fileDownload, fileName, extension: path.extname(fileName) }
+    return { fileDownload, fileName, extension: path.extname(fileName), body }
 
   }
 
