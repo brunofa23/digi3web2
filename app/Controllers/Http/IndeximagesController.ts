@@ -57,25 +57,25 @@ export default class IndeximagesController {
 
   public async destroy({ auth, request, params, response }: HttpContextContract) {
 
-    const body = request.only(Indeximage.fillable)
+    console.log("entrei do delete...", params)
     const { companies_id } = await auth.use('api').authenticate()
     try {
 
-      return { body, companies_id }
+      //return { body, companies_id }
       //excluir imagens do google drive
-      // const listOfImagesToDeleteGDrive = await Indeximage.query()
-      //   .preload('typebooks')
-      //   .where('typebooks_id', '=', params.typebooks_id)
-      //   .andWhere('bookrecords_id', "=", params.id)
-      //   .andWhere('companies_id', "=", companies_id)
-      //   .andWhere('seq',"=", seq)
+      const listOfImagesToDeleteGDrive = await Indeximage.query()
+        .preload('typebooks')
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('bookrecords_id', "=", params.bookrecords_id)
+        .andWhere('companies_id', "=", companies_id)
+        .andWhere('seq', "=", seq)
 
-      // if (listOfImagesToDeleteGDrive.length > 0) {
-      //   var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-      //     return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
-      //   });
-      //   fileRename.deleteFile(file_name)
-      // }
+      if (listOfImagesToDeleteGDrive.length > 0) {
+        var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+          return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+        });
+        fileRename.deleteFile(file_name)
+      }
 
       // await Indeximage.query()
       //   .where('typebooks_id', '=', params.typebooks_id)
