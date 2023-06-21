@@ -76,10 +76,6 @@ export default class IndeximagesController {
 
   }
 
-
-
-
-
   public async update({ request, params, response }: HttpContextContract) {
     const body = request.only(Indeximage.fillable)
     body.bookrecords_id = params.id
@@ -154,11 +150,6 @@ export default class IndeximagesController {
     return { fileDownload, fileName, extension: path.extname(fileName), body }
 
   }
-
-
-
-
-
 
   //*************************************************************** */
 }
