@@ -1,16 +1,13 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Indeximage from 'App/Models/Indeximage'
 import Application from '@ioc:Adonis/Core/Application'
-import { DateTime } from 'luxon'
 import BadRequestException from 'App/Exceptions/BadRequestException'
-import Typebook from 'App/Models/Typebook'
+import Format from '../../Services/Dates/format'
 
+const formatDate = new Format(new Date)
 const FileRename = require('../../Services/fileRename/fileRename')
-const Date = require('../../Services/Dates/format')
 const fs = require('fs')
 const path = require('path')
-const authorize = require('App/Services/googleDrive/googledrive')
-
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
@@ -44,13 +41,37 @@ export default class IndeximagesController {
     }
   }
 
-  public async destroy({ params }: HttpContextContract) {
-    const data = await Indeximage.findOrFail(params.id)
-    await data.delete()
+  public async destroy({ auth, request, params, response }: HttpContextContract) {
 
-    return {
-      message: "Livro excluido com sucesso.",
-      data: data
+    const { companies_id } = await auth.use('api').authenticate()
+    try {
+      //excluir imagens do google drive
+      const listOfImagesToDeleteGDrive = await Indeximage.query()
+        .preload('typebooks')
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('bookrecords_id', "=", params.bookrecords_id)
+        .andWhere('companies_id', "=", companies_id)
+        .andWhere('file_name', "like", params.file_name)
+
+      if (listOfImagesToDeleteGDrive.length > 0) {
+        var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+          return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+        });
+        console.log("entrei do delete...", file_name)
+        FileRename.deleteFile(file_name)
+      }
+
+      await Indeximage.query()
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('bookrecords_id', "=", params.bookrecords_id)
+        .andWhere('companies_id', "=", companies_id)
+        .andWhere('file_name', "like", params.file_name)
+        .delete()
+
+      return response.status(201).send({ message: "Excluido com sucesso!!" })
+    } catch (error) {
+      return error
+
     }
 
   }
@@ -106,33 +127,29 @@ export default class IndeximagesController {
     } catch (error) {
       return error
     }
-    var dateNow = Date.format(DateTime.now())
+
+    const dateNow = formatDate.formatDate(new Date)
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
+
+    console.log("FILENAME:::", file_name)
 
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
       logtail.info('File created', { folderPath })
     });
 
     const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true)
-    console.log(">>>UPLOAD CAPTURE>>>>>>")
     return { sucesso: "sucesso", file, typebook: params.typebooks_id }
-
-
   }
 
-  public async download({ auth, params }: HttpContextContract) {
+  public async download({ auth, params, request }: HttpContextContract) {
 
+    const body = request.only(Indeximage.fillable)
     const fileName = params.id
     const authenticate = await auth.use('api').authenticate()
     const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id)
-    return { fileDownload, fileName, extension: path.extname(fileName) }
+    return { fileDownload, fileName, extension: path.extname(fileName), body }
 
   }
-
-
-
-
-
 
   //*************************************************************** */
 }
