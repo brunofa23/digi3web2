@@ -5,8 +5,9 @@ import { DateTime } from 'luxon'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import Typebook from 'App/Models/Typebook'
 
-const FileRename = require('../../Services/fileRename/fileRename')
-const Date = require('../../Services/Dates/format')
+const fileRename = require('../../Services/fileRename/fileRename')
+//const Date = require('../../Services/Dates/format')
+import Date from '../../Services/Dates/format'
 const fs = require('fs')
 const path = require('path')
 const authorize = require('App/Services/googleDrive/googledrive')
@@ -43,17 +44,6 @@ export default class IndeximagesController {
       data: data,
     }
   }
-
-  // public async destroy({ params }: HttpContextContract) {
-  //   const data = await Indeximage.findOrFail(params.id)
-  //   await data.delete()
-
-  //   return {
-  //     message: "Livro excluido com sucesso.",
-  //     data: data
-  //   }
-
-  // }
 
   public async destroy({ auth, request, params, response }: HttpContextContract) {
 
