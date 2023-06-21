@@ -135,6 +135,8 @@ export default class IndeximagesController {
     const dateNow = formatDate.formatDate(new Date)
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
 
+    console.log("FILENAME:::", file_name)
+
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
       logtail.info('File created', { folderPath })
     });
