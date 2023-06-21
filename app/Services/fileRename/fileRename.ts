@@ -4,7 +4,7 @@ import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
-import Query from "mysql2/typings/mysql/lib/protocol/sequences/Query";
+
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -30,11 +30,9 @@ function deleteImage(folderPath) {
 }
 
 async function downloadImage(fileName) {
-
   const extension = path.extname(fileName);
   const fileId = await authorize.sendSearchFile(fileName)
   const download = await authorize.sendDownloadFile(fileId[0].id, extension)
-
   return download
 }
 
