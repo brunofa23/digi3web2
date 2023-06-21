@@ -5,13 +5,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
-const luxon_1 = require("luxon");
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const format_1 = __importDefault(require("../../Services/Dates/format"));
+const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
-const Date = require('../../Services/Dates/format');
 const fs = require('fs');
 const path = require('path');
-const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 class IndeximagesController {
@@ -36,13 +35,33 @@ class IndeximagesController {
             data: data,
         };
     }
-    async destroy({ params }) {
-        const data = await Indeximage_1.default.findOrFail(params.id);
-        await data.delete();
-        return {
-            message: "Livro excluido com sucesso.",
-            data: data
-        };
+    async destroy({ auth, request, params, response }) {
+        const { companies_id } = await auth.use('api').authenticate();
+        try {
+            const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()
+                .preload('typebooks')
+                .where('typebooks_id', '=', params.typebooks_id)
+                .andWhere('bookrecords_id', "=", params.bookrecords_id)
+                .andWhere('companies_id', "=", companies_id)
+                .andWhere('file_name', "like", params.file_name);
+            if (listOfImagesToDeleteGDrive.length > 0) {
+                var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+                    return { file_name: item.file_name, path: item.typebooks.path };
+                });
+                console.log("entrei do delete...", file_name);
+                FileRename.deleteFile(file_name);
+            }
+            await Indeximage_1.default.query()
+                .where('typebooks_id', '=', params.typebooks_id)
+                .andWhere('bookrecords_id', "=", params.bookrecords_id)
+                .andWhere('companies_id', "=", companies_id)
+                .andWhere('file_name', "like", params.file_name)
+                .delete();
+            return response.status(201).send({ message: "Excluido com sucesso!!" });
+        }
+        catch (error) {
+            return error;
+        }
     }
     async update({ request, params, response }) {
         const body = request.only(Indeximage_1.default.fillable);
@@ -86,20 +105,21 @@ class IndeximagesController {
         catch (error) {
             return error;
         }
-        var dateNow = Date.format(luxon_1.DateTime.now());
+        const dateNow = formatDate.formatDate(new Date);
         const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`;
+        console.log("FILENAME:::", file_name);
         fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
             logtail.info('File created', { folderPath });
         });
         const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true);
-        console.log(">>>UPLOAD CAPTURE>>>>>>");
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }
-    async download({ auth, params }) {
+    async download({ auth, params, request }) {
+        const body = request.only(Indeximage_1.default.fillable);
         const fileName = params.id;
         const authenticate = await auth.use('api').authenticate();
         const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id);
-        return { fileDownload, fileName, extension: path.extname(fileName) };
+        return { fileDownload, fileName, extension: path.extname(fileName), body };
     }
 }
 exports.default = IndeximagesController;

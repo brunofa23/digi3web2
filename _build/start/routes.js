@@ -36,6 +36,7 @@ Route_1.default.group(() => {
     Route_1.default.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial');
     Route_1.default.get("/indeximages", "IndeximagesController.index");
     Route_1.default.get("/indeximages/:id", "IndeximagesController.show");
+    Route_1.default.delete("/indeximages/:typebooks_id/:bookrecords_id/:file_name", "IndeximagesController.destroy");
     Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads').middleware('indeximage_permission:uploads');
     Route_1.default.post('/indeximages/download/:id', 'IndeximagesController.download').as('download').middleware('indeximage_permission:download');
     Route_1.default.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture').middleware('indeximage_permission:uploadCapture');
