@@ -1,17 +1,13 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Indeximage from 'App/Models/Indeximage'
 import Application from '@ioc:Adonis/Core/Application'
-import { DateTime } from 'luxon'
 import BadRequestException from 'App/Exceptions/BadRequestException'
-import Typebook from 'App/Models/Typebook'
+import Format from '../../Services/Dates/format'
 
-const fileRename = require('../../Services/fileRename/fileRename')
-//const Date = require('../../Services/Dates/format')
-import Date from '../../Services/Dates/format'
+const formatDate = new Format(new Date)
+const FileRename = require('../../Services/fileRename/fileRename')
 const fs = require('fs')
 const path = require('path')
-const authorize = require('App/Services/googleDrive/googledrive')
-
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
@@ -62,15 +58,17 @@ export default class IndeximagesController {
           return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
         });
         console.log("entrei do delete...", file_name)
-        fileRename.deleteFile(file_name)
+        FileRename.deleteFile(file_name)
       }
 
-      // await Indeximage.query()
-      //   .where('typebooks_id', '=', params.typebooks_id)
-      //   .andWhere('bookrecords_id', "=", params.id)
-      //   .andWhere('companies_id', "=", companies_id).delete()
+      await Indeximage.query()
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('bookrecords_id', "=", params.bookrecords_id)
+        .andWhere('companies_id', "=", companies_id)
+        .andWhere('file_name', "like", params.file_name)
+        .delete()
 
-      // return response.status(201).send({ data, message: "Excluido com sucesso!!" })
+      return response.status(201).send({ message: "Excluido com sucesso!!" })
     } catch (error) {
       return error
 
@@ -133,7 +131,8 @@ export default class IndeximagesController {
     } catch (error) {
       return error
     }
-    var dateNow = Date.format(DateTime.now())
+
+    const dateNow = formatDate.formatDate(new Date)
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
 
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
@@ -141,10 +140,7 @@ export default class IndeximagesController {
     });
 
     const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true)
-    console.log(">>>UPLOAD CAPTURE>>>>>>")
     return { sucesso: "sucesso", file, typebook: params.typebooks_id }
-
-
   }
 
   public async download({ auth, params, request }: HttpContextContract) {
