@@ -118,12 +118,14 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
     return objfileRename.file_name;
 }
 async function fileRename(originalFileName, typebooks_id, companies_id) {
+    console.log("FILE RENAME", originalFileName);
     let query;
     let objFileName;
     let separators;
     let arrayFileName;
     const regexBookAndCod = /^L\d+\(\d+\).*$/;
     const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
+    const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
     if (regexBookAndCod.test(originalFileName.toUpperCase())) {
         separators = ["L", '\'', '(', ')', '|', '-'];
         arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
@@ -156,6 +158,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
         };
         originalFileName = path.basename(originalFileName);
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `;
+    }
+    else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
+        const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
+        objFileName = {
+            book: arrayFileName[0],
+            approximate_term: arrayFileName[1],
+            ext: `.${arrayFileName[3]}`
+        };
+        query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `;
     }
     try {
         const name = await Bookrecord_1.default.query()

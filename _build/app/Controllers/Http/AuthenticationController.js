@@ -34,7 +34,6 @@ class AuthenticationController {
             expiresIn: '30 days',
             name: 'For the CLI app'
         });
-        console.log(">>>Fez login...", { token });
         logtail.debug("debug", { token, user });
         logtail.flush();
         return response.status(200).send({ token, user });
