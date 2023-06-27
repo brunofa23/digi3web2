@@ -151,16 +151,17 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
 }
 
 async function fileRename(originalFileName, typebooks_id, companies_id) {
-
+  console.log("FILE RENAME", originalFileName)
   let query
   let objFileName
   let separators
   let arrayFileName
   //Format L1(1).jpg
-  //if (originalFileName.toUpperCase().startsWith('L')) {
   const regexBookAndCod = /^L\d+\(\d+\).*$/;
   //const regexBookSheetSide = /^L\d_\d_[A-Za-z].*/;
   const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
+  //Format T123(123)livro.jpg
+  const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
 
   if (regexBookAndCod.test(originalFileName.toUpperCase())) {
     separators = ["L", '\'', '(', ')', '|', '-'];
@@ -198,6 +199,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       }
       originalFileName = path.basename(originalFileName)
       query = ` id=${objFileName.id} and cod=${objFileName.cod} `
+    }
+    //ARQUIVOS COM A MÁSCARA T1(121)
+    else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
+
+      console.log("entrei no book e term")
+      const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
+      console.log("array>>>>>>", arrayFileName)
+
     }
 
   try {

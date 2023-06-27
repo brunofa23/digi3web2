@@ -42,7 +42,7 @@ export default class AuthenticationController {
       name: 'For the CLI app'
 
     })
-    console.log(">>>Fez login...", { token });
+
     logtail.debug("debug", { token, user })
     logtail.flush()
 
