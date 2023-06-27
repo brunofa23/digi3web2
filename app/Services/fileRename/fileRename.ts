@@ -185,9 +185,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
         side: arrayFileName[6][0],
         ext: path.extname(originalFileName).toLowerCase()
       }
-      //console.log("ENTREI NO LIVRO FOLHA E LADO", arrayFileName, "livro:", objFileName.book, "folha:", objFileName.sheet, "side::", objFileName.side, "ext", objFileName.ext)
       query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`
-      //console.log("BOOK SHEET SIDE", query)
     }
     //ARQUIVOS QUE INICIAM COM ID
     else if (path.basename(originalFileName).startsWith('Id')) {
@@ -202,10 +200,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
     }
     //ARQUIVOS COM A MÁSCARA T1(121)
     else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
-
-      console.log("entrei no book e term")
       const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
-      console.log("array>>>>>>", arrayFileName)
+      objFileName = {
+        book: arrayFileName[0],
+        approximate_term: arrayFileName[1],
+        ext: `.${arrayFileName[3]}`
+      }
+      query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
 
     }
 
@@ -215,7 +216,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query)
-    //console.log("name>>>>>", name)
 
     //retorna o ultimo seq
     const _seq = await Indeximage.query()
@@ -237,8 +237,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       ext: objFileName.ext,
       previous_file_name: originalFileName
     }
-
-    //console.log("FILERENAME", fileRename)
     return fileRename
 
   } catch (error) {
