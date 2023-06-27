@@ -151,16 +151,17 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
 }
 
 async function fileRename(originalFileName, typebooks_id, companies_id) {
-
+  console.log("FILE RENAME", originalFileName)
   let query
   let objFileName
   let separators
   let arrayFileName
   //Format L1(1).jpg
-  //if (originalFileName.toUpperCase().startsWith('L')) {
   const regexBookAndCod = /^L\d+\(\d+\).*$/;
   //const regexBookSheetSide = /^L\d_\d_[A-Za-z].*/;
   const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
+  //Format T123(123)livro.jpg
+  const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
 
   if (regexBookAndCod.test(originalFileName.toUpperCase())) {
     separators = ["L", '\'', '(', ')', '|', '-'];
@@ -184,9 +185,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
         side: arrayFileName[6][0],
         ext: path.extname(originalFileName).toLowerCase()
       }
-      //console.log("ENTREI NO LIVRO FOLHA E LADO", arrayFileName, "livro:", objFileName.book, "folha:", objFileName.sheet, "side::", objFileName.side, "ext", objFileName.ext)
       query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`
-      //console.log("BOOK SHEET SIDE", query)
     }
     //ARQUIVOS QUE INICIAM COM ID
     else if (path.basename(originalFileName).startsWith('Id')) {
@@ -199,6 +198,17 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       originalFileName = path.basename(originalFileName)
       query = ` id=${objFileName.id} and cod=${objFileName.cod} `
     }
+    //ARQUIVOS COM A MÁSCARA T1(121)
+    else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
+      const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
+      objFileName = {
+        book: arrayFileName[0],
+        approximate_term: arrayFileName[1],
+        ext: `.${arrayFileName[3]}`
+      }
+      query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
+
+    }
 
   try {
     const name = await Bookrecord.query()
@@ -206,7 +216,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query)
-    //console.log("name>>>>>", name)
 
     //retorna o ultimo seq
     const _seq = await Indeximage.query()
@@ -228,8 +237,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       ext: objFileName.ext,
       previous_file_name: originalFileName
     }
-
-    //console.log("FILERENAME", fileRename)
     return fileRename
 
   } catch (error) {
