@@ -105,9 +105,10 @@ export default class IndeximagesController {
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
 
-    console.log("PASSEI AQUI>>>>>> UPLOAD", request['requestBody'])
+    const { dataImages } = request['requestBody']
 
-    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
+
+    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
     logtail.info("ARQUIVOS INDEXADOS>>>", files)
     logtail.flush()
 

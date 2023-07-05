@@ -36,7 +36,9 @@ async function downloadImage(fileName) {
   return download
 }
 
-async function transformFilesNameToId(images, params, companies_id, capture = false) {
+async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
+
+  //console.log("PASSEI AQUI>>>>>> UPLOAD", dataImages)
 
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
@@ -108,7 +110,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     if (!image.isValid) {
       console.log("Error", image.errors);
     }
-    const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id)
+    const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
     try {
       if (image && image.isValid) {
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
@@ -150,8 +152,8 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
 
 }
 
-async function fileRename(originalFileName, typebooks_id, companies_id) {
-  console.log("FILE RENAME", originalFileName)
+async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
+
   let query
   let objFileName
   let separators
@@ -208,7 +210,23 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
       }
       query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
 
+    } else {
+      //console.log("ARQUIVO COM MÁSCARA NÃO IDENTIFICADA", originalFileName, dataImages)
+      if (dataImages.book)
+        query = ` book = ${dataImages.book} `
+      if (dataImages.sheet)
+        query += ` and sheet = ${dataImages.sheet} `
+      if (dataImages.side)
+        query += ` and side = '${dataImages.side}' `
+      if (dataImages.approximateTerm)
+        query += ` and approximate_term = '${dataImages.approximateTerm}' `
+
+      //console.log("ORIGINAL FILE NAME:", originalFileName)
+      objFileName = {
+        ext: path.extname(originalFileName).toLowerCase()
+      }
     }
+
 
   try {
     const name = await Bookrecord.query()
@@ -228,15 +246,23 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
 
     //**FORMATO DE GRAVAÇÃO DOS ARQUIVOS (LAYOUT DE SAIDA)*************
     //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{approximate_term}_{side}_{books_id}.{extensão}
-    const fileRename = {
-      file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
-      bookrecords_id: name[0].id,
-      typebooks_id,
-      companies_id,
-      seq,
-      ext: objFileName.ext,
-      previous_file_name: originalFileName
+    let fileRename
+    try {
+      fileRename = {
+        file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
+        bookrecords_id: name[0].id,
+        typebooks_id,
+        companies_id,
+        seq,
+        ext: objFileName.ext,
+        previous_file_name: originalFileName
+      }
+      console.log("FILERENAME::::", fileRename)
+
+    } catch (error) {
+      console.log("FILERENAME ERROR::::", error)
     }
+
     return fileRename
 
   } catch (error) {
