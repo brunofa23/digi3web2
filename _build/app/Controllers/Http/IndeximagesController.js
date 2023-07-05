@@ -91,7 +91,7 @@ class IndeximagesController {
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages);
         logtail.info("ARQUIVOS INDEXADOS>>>", files);
         logtail.flush();
-        return response.status(201).send(files);
+        return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" });
     }
     async uploadCapture({ auth, request, params }) {
         const authenticate = await auth.use('api').authenticate();
