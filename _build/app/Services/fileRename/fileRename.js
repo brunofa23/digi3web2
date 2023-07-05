@@ -31,7 +31,7 @@ async function downloadImage(fileName) {
     const download = await authorize.sendDownloadFile(fileId[0].id, extension);
     return download;
 }
-async function transformFilesNameToId(images, params, companies_id, capture = false) {
+async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
     const _companies_id = companies_id;
     let result = [];
     const folderPath = Application_1.default.tmpPath(`/uploads/Client_${companies_id}`);
@@ -82,7 +82,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         if (!image.isValid) {
             console.log("Error", image.errors);
         }
-        const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id);
+        const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
         try {
             if (image && image.isValid) {
                 result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id));
@@ -117,8 +117,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
     }
     return objfileRename.file_name;
 }
-async function fileRename(originalFileName, typebooks_id, companies_id) {
-    console.log("FILE RENAME", originalFileName);
+async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
     let query;
     let objFileName;
     let separators;
@@ -168,6 +167,19 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
         };
         query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `;
     }
+    else {
+        if (dataImages.book)
+            query = ` book = ${dataImages.book} `;
+        if (dataImages.sheet)
+            query += ` and sheet = ${dataImages.sheet} `;
+        if (dataImages.side)
+            query += ` and side = '${dataImages.side}' `;
+        if (dataImages.approximateTerm)
+            query += ` and approximate_term = '${dataImages.approximateTerm}' `;
+        objFileName = {
+            ext: path.extname(originalFileName).toLowerCase()
+        };
+    }
     try {
         const name = await Bookrecord_1.default.query()
             .preload('typebooks')
@@ -180,15 +192,22 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
             .andWhere('companies_id', '=', companies_id)
             .orderBy('seq', 'desc').first();
         const seq = (!_seq ? 0 : _seq.seq + 1);
-        const fileRename = {
-            file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
-            bookrecords_id: name[0].id,
-            typebooks_id,
-            companies_id,
-            seq,
-            ext: objFileName.ext,
-            previous_file_name: originalFileName
-        };
+        let fileRename;
+        try {
+            fileRename = {
+                file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
+                bookrecords_id: name[0].id,
+                typebooks_id,
+                companies_id,
+                seq,
+                ext: objFileName.ext,
+                previous_file_name: originalFileName
+            };
+            console.log("FILERENAME::::", fileRename);
+        }
+        catch (error) {
+            console.log("FILERENAME ERROR::::", error);
+        }
         return fileRename;
     }
     catch (error) {
