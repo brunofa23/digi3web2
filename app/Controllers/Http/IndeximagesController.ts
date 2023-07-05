@@ -112,7 +112,7 @@ export default class IndeximagesController {
     logtail.info("ARQUIVOS INDEXADOS>>>", files)
     logtail.flush()
 
-    return response.status(201).send(files)
+    return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
 
