@@ -98,7 +98,6 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
 
     const images = request.files('images', {
@@ -106,7 +105,10 @@ export default class IndeximagesController {
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
 
-    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id)
+    const { dataImages } = request['requestBody']
+
+
+    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
     logtail.info("ARQUIVOS INDEXADOS>>>", files)
     logtail.flush()
 
