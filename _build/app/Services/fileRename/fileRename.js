@@ -11,8 +11,6 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const fs = require('fs');
 const path = require('path');
-const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 function sleep(ms) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -47,6 +45,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         .preload('typebooks')
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('companies_id', '=', companies_id).first();
+    console.log("PASSEI AQUI>>>>>> UPLOAD", directoryParent);
     if (!directoryParent || directoryParent == undefined)
         throw new BadRequestException_1.default('undefined book', 409);
     let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path);
@@ -166,6 +165,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             ext: `.${arrayFileName[3]}`
         };
         query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `;
+    }
+    else if (dataImages.typeBookFile) {
+        console.log("Vindo do typebook File Vandir....");
     }
     else {
         if (dataImages.book)
