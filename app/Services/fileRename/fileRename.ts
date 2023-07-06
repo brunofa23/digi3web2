@@ -10,10 +10,6 @@ const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
 const path = require('path')
 
-const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
-
-
 function sleep(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
@@ -38,7 +34,6 @@ async function downloadImage(fileName) {
 
 async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
 
-  //console.log("PASSEI AQUI>>>>>> UPLOAD", dataImages)
 
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
@@ -54,17 +49,27 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     throw new BadRequestException('could not create client directory', 409)
   }
 
+
   //retorna o nome do diretório path em typebooks
   const directoryParent = await Bookrecord.query()
     .preload('typebooks')
     .where('typebooks_id', '=', params.typebooks_id)
     .andWhere('companies_id', '=', companies_id).first()
 
+  console.log("PASSEI AQUI>>>>>> UPLOAD", directoryParent)
+  //VERIFICAR DAQUI PARA FRENTE
+
+
   if (!directoryParent || directoryParent == undefined)
     throw new BadRequestException('undefined book', 409)
 
+
   //verifica se existe essa pasta no Google e retorna o id do google
   let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
+
+
+
+
 
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
@@ -210,7 +215,11 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
       query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
 
-    } else {
+    }
+    else if (dataImages.typeBookFile) {
+      console.log("Vindo do typebook File Vandir....")
+    }
+    else {
       //console.log("ARQUIVO COM MÁSCARA NÃO IDENTIFICADA", originalFileName, dataImages)
       if (dataImages.book)
         query = ` book = ${dataImages.book} `

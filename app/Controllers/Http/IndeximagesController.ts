@@ -99,18 +99,16 @@ export default class IndeximagesController {
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
     const images = request.files('images', {
       size: '6mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
-
     const { dataImages } = request['requestBody']
-
+    console.log("cheguei aqui no uploads>>>>>", dataImages, "parametros", params)
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
-    logtail.info("ARQUIVOS INDEXADOS>>>", files)
-    logtail.flush()
+
+
 
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
