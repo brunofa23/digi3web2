@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
+const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
@@ -41,22 +42,20 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     catch (error) {
         throw new BadRequestException_1.default('could not create client directory', 409);
     }
-    const directoryParent = await Bookrecord_1.default.query()
-        .preload('typebooks')
-        .where('typebooks_id', '=', params.typebooks_id)
+    const directoryParent = await Typebook_1.default.query()
+        .where('id', '=', params.typebooks_id)
         .andWhere('companies_id', '=', companies_id).first();
-    console.log("PASSEI AQUI>>>>>> UPLOAD", directoryParent);
     if (!directoryParent || directoryParent == undefined)
         throw new BadRequestException_1.default('undefined book', 409);
-    let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path);
+    let parent = await authorize.sendSearchFile(directoryParent?.path);
     if (parent.length == 0) {
         const company = await Company_1.default.findByOrFail('id', _companies_id);
         const idFolderCompany = await authorize.sendSearchFile(company.foldername);
-        await authorize.sendCreateFolder(directoryParent?.typebooks.path, idFolderCompany[0].id);
+        await authorize.sendCreateFolder(directoryParent?.path, idFolderCompany[0].id);
         await sleep(2000);
     }
     await sleep(1000);
-    const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path);
+    const idParent = await authorize.sendSearchFile(directoryParent?.path);
     if (capture) {
         const _fileRename = await fileRename(images, params.typebooks_id, companies_id);
         try {
@@ -82,6 +81,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
             console.log("Error", image.errors);
         }
         const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
+        console.log("FILE RENAME RENOMEADO>>", _fileRename);
         try {
             if (image && image.isValid) {
                 result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id));
@@ -107,7 +107,12 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
         else {
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
         }
-        await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`);
+        try {
+            await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`);
+        }
+        catch (error) {
+            console.log("erro sendupload", error);
+        }
         await Indeximage_1.default.create(objfileRename);
         await deleteImage(`${folderPath}/${objfileRename.file_name}`);
     }
@@ -167,7 +172,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `;
     }
     else if (dataImages.typeBookFile) {
-        console.log("Vindo do typebook File Vandir....");
+        console.log("Vindo do typebook File Vandir....", dataImages);
+        const fileRename = {
+            file_name: `L1(100).jpg`,
+            bookrecords_id: 1,
+            typebooks_id,
+            companies_id,
+            previous_file_name: originalFileName
+        };
+        return fileRename;
     }
     else {
         if (dataImages.book)
