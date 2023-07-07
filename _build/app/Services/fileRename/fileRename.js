@@ -17,11 +17,13 @@ function sleep(ms) {
         setTimeout(resolve, ms);
     });
 }
-function deleteImage(folderPath) {
+async function deleteImage(folderPath) {
     fs.unlink(`${folderPath}`, (err) => {
         if (err) {
-            throw err;
+            throw "ERRO DELETE::" + err;
         }
+        console.log("Delete File successfully.");
+        return true;
     });
 }
 async function downloadImage(fileName) {
@@ -107,14 +109,13 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
         else {
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
         }
-        try {
-            await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`);
+        const sendUpload = await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`);
+        if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+            await Indeximage_1.default.create(objfileRename);
+            console.log("executando create indeximage");
         }
-        catch (error) {
-            console.log("erro sendupload", error);
-        }
-        await Indeximage_1.default.create(objfileRename);
         await deleteImage(`${folderPath}/${objfileRename.file_name}`);
+        console.log("DELETE>>", `${folderPath}/${objfileRename.file_name}`);
     }
     catch (error) {
         throw new BadRequestException_1.default(error + ' sendUploadFiles', 409);
@@ -129,7 +130,23 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     const regexBookAndCod = /^L\d+\(\d+\).*$/;
     const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
     const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
-    if (regexBookAndCod.test(originalFileName.toUpperCase())) {
+    if (dataImages.typeBookFile) {
+        console.log("Vindo do typebook File Vandir....", dataImages);
+        let fileName;
+        if (dataImages.book && dataImages.sheet && dataImages.side) {
+            fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
+        }
+        const fileRename = {
+            file_name: fileName,
+            typebooks_id,
+            companies_id,
+            previous_file_name: originalFileName,
+            typeBookFile: true
+        };
+        console.log("FILE RENAME>>>", fileRename);
+        return fileRename;
+    }
+    else if (regexBookAndCod.test(originalFileName.toUpperCase())) {
         separators = ["L", '\'', '(', ')', '|', '-'];
         arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
         objFileName = {
@@ -171,17 +188,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         };
         query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `;
     }
-    else if (dataImages.typeBookFile) {
-        console.log("Vindo do typebook File Vandir....", dataImages);
-        const fileRename = {
-            file_name: `L1(100).jpg`,
-            bookrecords_id: 1,
-            typebooks_id,
-            companies_id,
-            previous_file_name: originalFileName
-        };
-        return fileRename;
-    }
     else {
         if (dataImages.book)
             query = ` book = ${dataImages.book} `;
@@ -189,6 +195,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             query += ` and sheet = ${dataImages.sheet} `;
         if (dataImages.side)
             query += ` and side = '${dataImages.side}' `;
+        if (dataImages.cod)
+            query += ` and cod = '${dataImages.cod}' `;
         if (dataImages.approximateTerm)
             query += ` and approximate_term = '${dataImages.approximateTerm}' `;
         objFileName = {

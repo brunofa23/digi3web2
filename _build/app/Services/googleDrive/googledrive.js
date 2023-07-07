@@ -86,6 +86,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
         },
     });
     const response = await resumableUpload;
+    return response;
     console.log(`Arquivo carregado com sucesso! ID do arquivo: ${response.data.id}`);
 }
 async function createFolder(authClient, folderName, parentId = undefined) {
@@ -216,11 +217,13 @@ async function sendListAllFiles(folderId = "") {
 }
 async function sendUploadFiles(parent, folderPath, fileName) {
     const auth = await authorize();
-    uploadFiles(auth, parent, folderPath, fileName);
+    const response = uploadFiles(auth, parent, folderPath, fileName);
+    return response;
 }
 async function sendCreateFolder(folderName, parentId = undefined) {
     const auth = await authorize();
-    createFolder(auth, folderName.trim(), parentId);
+    const id = createFolder(auth, folderName.trim(), parentId);
+    return id;
 }
 async function sendSearchFile(fileName, parentId = undefined) {
     const auth = await authorize();
