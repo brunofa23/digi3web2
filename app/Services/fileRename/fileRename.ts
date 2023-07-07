@@ -17,12 +17,13 @@ function sleep(ms) {
   });
 }
 
-function deleteImage(folderPath) {
+async function deleteImage(folderPath) {
   fs.unlink(`${folderPath}`, (err) => {
     if (err) {
-      throw err;
+      throw "ERRO DELETE::" + err;
     }
-    //console.log("Delete File successfully.");
+    console.log("Delete File successfully.");
+    return true
   });
 }
 
@@ -139,16 +140,17 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
     }
     //copia o arquivo para o googledrive
-    try {
-      await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`)
-      //console.log("ENVIADO COM SUCESSO", idParent, 'folder:', folderPath, 'obj:', `${objfileRename.file_name}`)
-    } catch (error) {
-      console.log("erro sendupload", error)
-    }
+    const sendUpload = await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`)
+
     //chamar função para inserir na tabela indeximages
-    await Indeximage.create(objfileRename)
+    if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+      await Indeximage.create(objfileRename)
+      console.log("executando create indeximage")
+    }
     //chamar função de exclusão da imagem
     await deleteImage(`${folderPath}/${objfileRename.file_name}`)
+    console.log("DELETE>>", `${folderPath}/${objfileRename.file_name}`)
+
   } catch (error) {
     throw new BadRequestException(error + ' sendUploadFiles', 409)
   }
@@ -169,79 +171,90 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   //Format T123(123)livro.jpg
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
 
-  if (regexBookAndCod.test(originalFileName.toUpperCase())) {
-    separators = ["L", '\'', '(', ')', '|', '-'];
-    arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
-    objFileName = {
-      type: arrayFileName[1],
-      book: arrayFileName[2],
-      cod: arrayFileName[4],
-      ext: arrayFileName[6]
+
+  if (dataImages.typeBookFile) {
+    console.log("Vindo do typebook File Vandir....", dataImages)
+    let fileName
+    if (dataImages.book && dataImages.sheet && dataImages.side) {
+      fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
     }
-    query = ` cod =${objFileName.cod} and book = ${objFileName.book} `
-  }
-  else
-    if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
-      separators = ["L", '_', '|', '-'];
+
+    const fileRename = {
+      file_name: fileName,
+      typebooks_id,
+      companies_id,
+      previous_file_name: originalFileName,
+      typeBookFile: true
+    }
+    console.log("FILE RENAME>>>", fileRename)
+    return fileRename
+  } else
+
+    if (regexBookAndCod.test(originalFileName.toUpperCase())) {
+      separators = ["L", '\'', '(', ')', '|', '-'];
       arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
       objFileName = {
         type: arrayFileName[1],
         book: arrayFileName[2],
-        sheet: arrayFileName[4],
-        side: arrayFileName[6][0],
-        ext: path.extname(originalFileName).toLowerCase()
+        cod: arrayFileName[4],
+        ext: arrayFileName[6]
       }
-      query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`
+      query = ` cod =${objFileName.cod} and book = ${objFileName.book} `
     }
-    //ARQUIVOS QUE INICIAM COM ID
-    else if (path.basename(originalFileName).startsWith('Id')) {
-      const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
-      objFileName = {
-        id: arrayFileName[0].replace('Id', ''),
-        cod: arrayFileName[1].replace('(', '').replace(')', ''),
-        ext: `.${arrayFileName[4]}`
+    else
+      if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
+        separators = ["L", '_', '|', '-'];
+        arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+        objFileName = {
+          type: arrayFileName[1],
+          book: arrayFileName[2],
+          sheet: arrayFileName[4],
+          side: arrayFileName[6][0],
+          ext: path.extname(originalFileName).toLowerCase()
+        }
+        query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`
       }
-      originalFileName = path.basename(originalFileName)
-      query = ` id=${objFileName.id} and cod=${objFileName.cod} `
-    }
-    //ARQUIVOS COM A MÁSCARA T1(121)
-    else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
-      const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
-      objFileName = {
-        book: arrayFileName[0],
-        approximate_term: arrayFileName[1],
-        ext: `.${arrayFileName[3]}`
+      //ARQUIVOS QUE INICIAM COM ID
+      else if (path.basename(originalFileName).startsWith('Id')) {
+        const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
+        objFileName = {
+          id: arrayFileName[0].replace('Id', ''),
+          cod: arrayFileName[1].replace('(', '').replace(')', ''),
+          ext: `.${arrayFileName[4]}`
+        }
+        originalFileName = path.basename(originalFileName)
+        query = ` id=${objFileName.id} and cod=${objFileName.cod} `
       }
-      query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
+      //ARQUIVOS COM A MÁSCARA T1(121)
+      else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
+        const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
+        objFileName = {
+          book: arrayFileName[0],
+          approximate_term: arrayFileName[1],
+          ext: `.${arrayFileName[3]}`
+        }
+        query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
 
-    }
-    else if (dataImages.typeBookFile) {
-      console.log("Vindo do typebook File Vandir....", dataImages)
-      const fileRename = {
-        file_name: `L1(100).jpg`,
-        bookrecords_id: 1,
-        typebooks_id,
-        companies_id,
-        previous_file_name: originalFileName
       }
-      return fileRename
-    }
-    else {
-      //console.log("ARQUIVO COM MÁSCARA NÃO IDENTIFICADA", originalFileName, dataImages)
-      if (dataImages.book)
-        query = ` book = ${dataImages.book} `
-      if (dataImages.sheet)
-        query += ` and sheet = ${dataImages.sheet} `
-      if (dataImages.side)
-        query += ` and side = '${dataImages.side}' `
-      if (dataImages.approximateTerm)
-        query += ` and approximate_term = '${dataImages.approximateTerm}' `
 
-      //console.log("ORIGINAL FILE NAME:", originalFileName)
-      objFileName = {
-        ext: path.extname(originalFileName).toLowerCase()
+      else {
+        //console.log("ARQUIVO COM MÁSCARA NÃO IDENTIFICADA", originalFileName, dataImages)
+        if (dataImages.book)
+          query = ` book = ${dataImages.book} `
+        if (dataImages.sheet)
+          query += ` and sheet = ${dataImages.sheet} `
+        if (dataImages.side)
+          query += ` and side = '${dataImages.side}' `
+        if (dataImages.cod)
+          query += ` and cod = '${dataImages.cod}' `
+        if (dataImages.approximateTerm)
+          query += ` and approximate_term = '${dataImages.approximateTerm}' `
+
+        //console.log("ORIGINAL FILE NAME:", originalFileName)
+        objFileName = {
+          ext: path.extname(originalFileName).toLowerCase()
+        }
       }
-    }
 
 
   try {
