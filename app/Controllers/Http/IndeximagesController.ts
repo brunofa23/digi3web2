@@ -105,11 +105,7 @@ export default class IndeximagesController {
     })
     const { dataImages } = request['requestBody']
     console.log("cheguei aqui no uploads>>>>>", dataImages, "parametros", params)
-
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
-
-
-
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
