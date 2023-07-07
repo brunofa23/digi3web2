@@ -1,5 +1,6 @@
 
 import Bookrecord from "App/Models/Bookrecord";
+import Typebook from "App/Models/Typebook";
 import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
@@ -33,8 +34,6 @@ async function downloadImage(fileName) {
 }
 
 async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
-
-
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
@@ -49,41 +48,34 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     throw new BadRequestException('could not create client directory', 409)
   }
 
-
   //retorna o nome do diretório path em typebooks
-  const directoryParent = await Bookrecord.query()
-    .preload('typebooks')
-    .where('typebooks_id', '=', params.typebooks_id)
+  // const directoryParent = await Bookrecord.query()
+  //   .preload('typebooks')
+  //   .where('typebooks_id', '=', params.typebooks_id)
+  //   .andWhere('companies_id', '=', companies_id).first()
+  const directoryParent = await Typebook.query()
+    .where('id', '=', params.typebooks_id)
     .andWhere('companies_id', '=', companies_id).first()
-
-  console.log("PASSEI AQUI>>>>>> UPLOAD", directoryParent)
-  //VERIFICAR DAQUI PARA FRENTE
-
 
   if (!directoryParent || directoryParent == undefined)
     throw new BadRequestException('undefined book', 409)
 
-
   //verifica se existe essa pasta no Google e retorna o id do google
-  let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
-
-
-
-
+  let parent = await authorize.sendSearchFile(directoryParent?.path)
 
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
     //criar a pasta
     const company = await Company.findByOrFail('id', _companies_id)
     const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-    await authorize.sendCreateFolder(directoryParent?.typebooks.path, idFolderCompany[0].id)
+    await authorize.sendCreateFolder(directoryParent?.path, idFolderCompany[0].id)
     await sleep(2000)
     //return "Erro: Esta pasta não existe no GoogleDrive"
   }
 
+  //console.log("PASSEI AQUI>>>>>> UPLOAD", directoryParent.path)
   await sleep(1000);
-  const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path)
-
+  const idParent = await authorize.sendSearchFile(directoryParent?.path)
   //******************************************************************************** */
 
   //imagem única para upload
@@ -116,6 +108,8 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
       console.log("Error", image.errors);
     }
     const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
+    console.log("FILE RENAME RENOMEADO>>", _fileRename)
+
     try {
       if (image && image.isValid) {
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
@@ -145,7 +139,12 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
     }
     //copia o arquivo para o googledrive
-    await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`)
+    try {
+      await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`)
+      //console.log("ENVIADO COM SUCESSO", idParent, 'folder:', folderPath, 'obj:', `${objfileRename.file_name}`)
+    } catch (error) {
+      console.log("erro sendupload", error)
+    }
     //chamar função para inserir na tabela indeximages
     await Indeximage.create(objfileRename)
     //chamar função de exclusão da imagem
@@ -217,7 +216,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
     }
     else if (dataImages.typeBookFile) {
-      console.log("Vindo do typebook File Vandir....")
+      console.log("Vindo do typebook File Vandir....", dataImages)
+      const fileRename = {
+        file_name: `L1(100).jpg`,
+        bookrecords_id: 1,
+        typebooks_id,
+        companies_id,
+        previous_file_name: originalFileName
+      }
+      return fileRename
     }
     else {
       //console.log("ARQUIVO COM MÁSCARA NÃO IDENTIFICADA", originalFileName, dataImages)
