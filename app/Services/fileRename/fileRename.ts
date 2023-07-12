@@ -178,6 +178,11 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     if (dataImages.book && dataImages.sheet && dataImages.side) {
       fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
     }
+    else if (dataImages.book && dataImages.cod) {
+      fileName = `L${dataImages.book}(${dataImages.cod})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
+    } else if (dataImages.book && dataImages.approximateTerm) {
+      fileName = `T${dataImages.book}(${dataImages.approximateTerm})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
+    }
 
     const fileRename = {
       file_name: fileName,
