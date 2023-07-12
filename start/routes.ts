@@ -4,7 +4,7 @@ import Application from '@ioc:Adonis/Core/Application'
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v59' }
+    return { hello: 'Hello World v60' }
   })//.middleware('level_permission:1')
 
   //BOOK
