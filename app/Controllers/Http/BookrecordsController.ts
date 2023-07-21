@@ -516,8 +516,10 @@ export default class BookrecordsController {
     let indexBook = generateIndex
     let indexIncrement = 0
 
-    let sheetStart = generateSheetStart
+    let sheetStart = 0//generateSheetStart
     let sheetIncrement = 0
+    let contSheetStartCod = 0
+    let sheetStartInitial = true
 
     const bookrecords: Object[] = []
 
@@ -525,23 +527,29 @@ export default class BookrecordsController {
 
       //if (generateStartCode >= generateStartSheetInCodReference) {
 
-
-      if (generateSheetStart > 0) {
-        if (index == 0) {
-          sheetStart = generateSheetStart
-          sheetIncrement++
-          if (sheetIncrement >= generateSheetIncrement && generateSheetIncrement > 1) {
-            generateSheetIncrement = 0
-          }
+      if (generateStartSheetInCodReference <= contSheetStartCod) {
+        if (sheetStartInitial) {
+          sheetStart = generateSheetStart - 1
+          sheetStartInitial = false
         }
-        else {
-          if (sheetIncrement >= generateSheetIncrement) {
-            sheetIncrement = 0
-            sheetStart++
+        if (generateSheetStart > 0) {
+          if (index == 0) {
+            sheetStart = generateSheetStart
+            sheetIncrement++
+            if (sheetIncrement >= generateSheetIncrement && generateSheetIncrement > 1) {
+              generateSheetIncrement = 0
+            }
           }
-          sheetIncrement++
+          else {
+            if (sheetIncrement >= generateSheetIncrement) {
+              sheetIncrement = 0
+              sheetStart++
+            }
+            sheetIncrement++
+          }
         }
       }
+      contSheetStartCod++
 
       if (generateAlternateOfSides == "F")
         generateSideStart = "F"
