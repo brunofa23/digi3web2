@@ -531,7 +531,7 @@ export default class BookrecordsController {
             contSheet++
           }
         } else {
-          console.log("FOLHA INICIAL>>>>>", contSheet)
+          //console.log("FOLHA INICIAL>>>>>", contSheet)
           contIncrementSheet = 1
           contSheet++
         }
@@ -556,6 +556,7 @@ export default class BookrecordsController {
         }
 
       }
+
       if (generateApproximate_term > 0) {
         if (index == 0) {
           approximate_term = generateApproximate_term
