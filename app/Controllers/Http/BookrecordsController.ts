@@ -516,46 +516,53 @@ export default class BookrecordsController {
     let indexBook = generateIndex
     let indexIncrement = 0
 
+    let sheetStart = generateSheetStart
+    let sheetIncrement = 0
+
     const bookrecords: Object[] = []
 
-    for (let index = (generateStartCode + 1); index <= generateEndCode; index++) {
+    for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
 
-      if (generateStartCode >= generateStartSheetInCodReference) {
+      //if (generateStartCode >= generateStartSheetInCodReference) {
 
-        if (contIncrementSheet < generateSheetIncrement) {
-          contIncrementSheet++
 
-          //|| generateStartSheetInCodReference < index
-          if (contFirstSheet == false) {
-            contFirstSheet = true
-            contSheet++
+      if (generateSheetStart > 0) {
+        if (index == 0) {
+          sheetStart = generateSheetStart
+          sheetIncrement++
+          if (sheetIncrement >= generateSheetIncrement && generateSheetIncrement > 1) {
+            generateSheetIncrement = 0
           }
-        } else {
-          //console.log("FOLHA INICIAL>>>>>", contSheet)
-          contIncrementSheet = 1
-          contSheet++
         }
-
-        if (generateAlternateOfSides == "F")
-          generateSideStart = "F"
-        else if (generateAlternateOfSides == "V")
-          generateSideStart = "V"
-        else if (generateAlternateOfSides == "FV") {
-          if (contFirstSide == false) {
-            generateSideStart = (generateSideStart == "F" ? "V" : "F")
-            contFirstSide = true
+        else {
+          if (sheetIncrement >= generateSheetIncrement) {
+            sheetIncrement = 0
+            sheetStart++
           }
-          generateSideStart = (generateSideStart == "F" ? "V" : "F")
+          sheetIncrement++
         }
-        else if (generateAlternateOfSides == "FFVV") {
-          if (sideNow >= 2) {
-            generateSideStart = (generateSideStart == "F" ? "V" : "F")
-            sideNow = 0
-          }
-          sideNow++
-        }
-
       }
+
+      if (generateAlternateOfSides == "F")
+        generateSideStart = "F"
+      else if (generateAlternateOfSides == "V")
+        generateSideStart = "V"
+      else if (generateAlternateOfSides == "FV") {
+        if (contFirstSide == false) {
+          generateSideStart = (generateSideStart == "F" ? "V" : "F")
+          contFirstSide = true
+        }
+        generateSideStart = (generateSideStart == "F" ? "V" : "F")
+      }
+      else if (generateAlternateOfSides == "FFVV") {
+        if (sideNow >= 2) {
+          generateSideStart = (generateSideStart == "F" ? "V" : "F")
+          sideNow = 0
+        }
+        sideNow++
+      }
+
+
 
       if (generateApproximate_term > 0) {
         if (index == 0) {
@@ -603,7 +610,7 @@ export default class BookrecordsController {
       bookrecords.push({
         cod: generateStartCode++,
         book: generateBook,
-        sheet: contSheet,
+        sheet: ((!generateSheetStart || generateSheetStart == 0) ? undefined : sheetStart),
         side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
         approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
         indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
