@@ -507,8 +507,6 @@ export default class BookrecordsController {
     }
 
     let contSheet = !generateSheetStart ? 0 : generateSheetStart
-    let contIncrementSheet = 0
-    let contFirstSheet = false
     let contFirstSide = false
     let sideNow = 0
     let approximate_term = generateApproximate_term
@@ -519,37 +517,15 @@ export default class BookrecordsController {
     let sheetStart = 0//generateSheetStart
     let sheetIncrement = 0
     let contSheetStartCod = 0
+
+    let contSheetStartCodini = false
     let sheetStartInitial = true
+
+
 
     const bookrecords: Object[] = []
 
     for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
-
-      //if (generateStartCode >= generateStartSheetInCodReference) {
-
-      if (generateStartSheetInCodReference <= contSheetStartCod) {
-        if (sheetStartInitial) {
-          sheetStart = generateSheetStart - 1
-          sheetStartInitial = false
-        }
-        if (generateSheetStart > 0) {
-          if (index == 0) {
-            sheetStart = generateSheetStart
-            sheetIncrement++
-            if (sheetIncrement >= generateSheetIncrement && generateSheetIncrement > 1) {
-              generateSheetIncrement = 0
-            }
-          }
-          else {
-            if (sheetIncrement >= generateSheetIncrement) {
-              sheetIncrement = 0
-              sheetStart++
-            }
-            sheetIncrement++
-          }
-        }
-      }
-      contSheetStartCod++
 
       if (generateAlternateOfSides == "F")
         generateSideStart = "F"
@@ -569,8 +545,6 @@ export default class BookrecordsController {
         }
         sideNow++
       }
-
-
 
       if (generateApproximate_term > 0) {
         if (index == 0) {
@@ -607,13 +581,45 @@ export default class BookrecordsController {
         }
       }
 
-      if ((!generateEndSheetInCodReference || generateEndSheetInCodReference == 0) && (generateSheetStart == 0) || ((index) <= generateStartSheetInCodReference))
-        contSheet = 0
-      else {
-        contSheet = generateSheetStart
-        generateSheetStart++
+      contSheetStartCod++
+      if (generateStartSheetInCodReference <= contSheetStartCod) {
 
+        if (generateSheetIncrement == 1)
+          sheetStart = generateSheetStart++
+        else
+          if (generateSheetIncrement == 2) {
+            if (sheetIncrement < 2) {
+              sheetStart = generateSheetStart
+              sheetIncrement++
+            }
+            if (sheetIncrement == 2) {
+              sheetIncrement = 0
+              generateSheetStart++
+            }
+          }
+        if (generateSheetIncrement == 3) {
+          if (sheetIncrement < 3) {
+            sheetStart = generateSheetStart
+            sheetIncrement++
+          }
+          if (sheetIncrement == 3) {
+            sheetIncrement = 0
+            generateSheetStart++
+          }
+        }
+        if (generateSheetIncrement == 4) {
+          if (sheetIncrement < 4) {
+            sheetStart = generateSheetStart
+            sheetIncrement++
+          }
+          if (sheetIncrement == 4) {
+            sheetIncrement = 0
+            generateSheetStart++
+          }
+        }
       }
+
+
 
       bookrecords.push({
         cod: generateStartCode++,
