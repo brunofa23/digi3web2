@@ -84,7 +84,7 @@ export default class BookrecordsController {
         query += ` and sheet>0`
     }
 
-    console.log("Query:::", query)
+
     //last pages of each book****************************
     if (lastPagesOfEachBook) {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
@@ -525,123 +525,169 @@ export default class BookrecordsController {
 
     const bookrecords: Object[] = []
 
-    for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
+    if (generateBookdestination <= 0 || !generateBookdestination || generateBookdestination == undefined) {
 
-      if (generateAlternateOfSides == "F")
-        generateSideStart = "F"
-      else if (generateAlternateOfSides == "V")
-        generateSideStart = "V"
-      else if (generateAlternateOfSides == "FV") {
-        if (contFirstSide == false) {
+      for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
+        //console.log("GENERTE START COD: " generateStartCode + 1)
+        if (generateAlternateOfSides == "F")
+          generateSideStart = "F"
+        else if (generateAlternateOfSides == "V")
+          generateSideStart = "V"
+        else if (generateAlternateOfSides == "FV") {
+          if (contFirstSide == false) {
+            generateSideStart = (generateSideStart == "F" ? "V" : "F")
+            contFirstSide = true
+          }
           generateSideStart = (generateSideStart == "F" ? "V" : "F")
-          contFirstSide = true
         }
-        generateSideStart = (generateSideStart == "F" ? "V" : "F")
-      }
-      else if (generateAlternateOfSides == "FFVV") {
-        if (sideNow >= 2) {
-          generateSideStart = (generateSideStart == "F" ? "V" : "F")
-          sideNow = 0
+        else if (generateAlternateOfSides == "FFVV") {
+          if (sideNow >= 2) {
+            generateSideStart = (generateSideStart == "F" ? "V" : "F")
+            sideNow = 0
+          }
+          sideNow++
         }
-        sideNow++
-      }
 
-      if (generateApproximate_term > 0) {
-        if (index == 0) {
-          approximate_term = generateApproximate_term
-          approximate_termIncrement++
-          if (approximate_termIncrement >= generateApproximate_termIncrement && generateApproximate_termIncrement > 1) {
-            approximate_termIncrement = 0
+        if (generateApproximate_term > 0) {
+          if (index == 0) {
+            approximate_term = generateApproximate_term
+            approximate_termIncrement++
+            if (approximate_termIncrement >= generateApproximate_termIncrement && generateApproximate_termIncrement > 1) {
+              approximate_termIncrement = 0
+            }
+          }
+          else {
+
+            if (approximate_termIncrement >= generateApproximate_termIncrement) {
+              approximate_termIncrement = 0
+              approximate_term++
+            }
+            approximate_termIncrement++
           }
         }
-        else {
 
-          if (approximate_termIncrement >= generateApproximate_termIncrement) {
-            approximate_termIncrement = 0
-            approximate_term++
+        if (generateIndex > 0) {
+          if (index == 0) {
+            indexBook = generateIndex
+            indexIncrement++
+            if (indexIncrement >= generateIndexIncrement && generateIndexIncrement > 1) {
+              indexIncrement = 0
+            }
           }
-          approximate_termIncrement++
-        }
-      }
-
-      if (generateIndex > 0) {
-        if (index == 0) {
-          indexBook = generateIndex
-          indexIncrement++
-          if (indexIncrement >= generateIndexIncrement && generateIndexIncrement > 1) {
-            indexIncrement = 0
+          else {
+            if (indexIncrement >= generateIndexIncrement) {
+              indexIncrement = 0
+              indexBook++
+            }
+            indexIncrement++
           }
         }
-        else {
-          if (indexIncrement >= generateIndexIncrement) {
-            indexIncrement = 0
-            indexBook++
+        //********************************************************************************************** */
+        if (generateStartSheetInCodReference <= generateStartCode) {
+          console.log("Começar a contar::", generateStartSheetInCodReference)
+
+          if (generateSheetIncrement == 1) {
+            sheetStart = generateSheetStart
+            generateStartSheetInCodReference++
+            generateSheetStart++
           }
-          indexIncrement++
-        }
-      }
-
-      contSheetStartCod++
-      if (generateStartSheetInCodReference <= contSheetStartCod) {
-
-        if (generateSheetIncrement == 1)
-          sheetStart = generateSheetStart++
-        else
-          if (generateSheetIncrement == 2) {
+          else if (generateSheetIncrement == 2) {
             if (sheetIncrement < 2) {
               sheetStart = generateSheetStart
               sheetIncrement++
             }
             if (sheetIncrement == 2) {
               sheetIncrement = 0
+              generateStartSheetInCodReference++
+              generateSheetStart++
+            }
+          } else if (generateSheetIncrement == 3) {
+            if (sheetIncrement < 3) {
+              sheetStart = generateSheetStart
+              sheetIncrement++
+            }
+            if (sheetIncrement == 3) {
+              sheetIncrement = 0
+              generateStartSheetInCodReference++
+              generateSheetStart++
+            }
+          } else if (generateSheetIncrement == 4) {
+            if (sheetIncrement < 4) {
+              sheetStart = generateSheetStart
+              sheetIncrement++
+            }
+            if (sheetIncrement == 4) {
+              sheetIncrement = 0
+              generateStartSheetInCodReference++
               generateSheetStart++
             }
           }
-        if (generateSheetIncrement == 3) {
-          if (sheetIncrement < 3) {
-            sheetStart = generateSheetStart
-            sheetIncrement++
-          }
-          if (sheetIncrement == 3) {
-            sheetIncrement = 0
-            generateSheetStart++
-          }
+
+
         }
-        if (generateSheetIncrement == 4) {
-          if (sheetIncrement < 4) {
-            sheetStart = generateSheetStart
-            sheetIncrement++
-          }
-          if (sheetIncrement == 4) {
-            sheetIncrement = 0
-            generateSheetStart++
-          }
-        }
+        //contSheetStartCod++
+        // if (generateStartSheetInCodReference <= contSheetStartCod) {
+        // if (generateStartSheetInCodReference <= (generateStartCode + 1)) {
+
+        //   if (generateSheetIncrement == 1)
+        //     sheetStart = generateSheetStart++
+        //   else
+        //     if (generateSheetIncrement == 2) {
+        //       if (sheetIncrement < 2) {
+        //         sheetStart = generateSheetStart
+        //         sheetIncrement++
+        //       }
+        //       if (sheetIncrement == 2) {
+        //         sheetIncrement = 0
+        //         generateSheetStart++
+        //       }
+        //     }
+        //   if (generateSheetIncrement == 3) {
+        //     if (sheetIncrement < 3) {
+        //       sheetStart = generateSheetStart
+        //       sheetIncrement++
+        //     }
+        //     if (sheetIncrement == 3) {
+        //       sheetIncrement = 0
+        //       generateSheetStart++
+        //     }
+        //   }
+        //   if (generateSheetIncrement == 4) {
+        //     if (sheetIncrement < 4) {
+        //       sheetStart = generateSheetStart
+        //       sheetIncrement++
+        //     }
+        //     if (sheetIncrement == 4) {
+        //       sheetIncrement = 0
+        //       generateSheetStart++
+        //     }
+        //   }
+        // }
+
+        bookrecords.push({
+          cod: generateStartCode++,
+          book: generateBook,
+          sheet: ((!generateSheetStart || generateSheetStart == 0) ? undefined : sheetStart),
+          side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
+          approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
+          indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
+          year: ((!generateYear ? undefined : generateYear)),
+          typebooks_id: params.typebooks_id,
+          books_id: generateBooks_id,
+          companies_id: authenticate.companies_id
+        })
+
       }
-
-
-
-      bookrecords.push({
-        cod: generateStartCode++,
-        book: generateBook,
-        sheet: ((!generateSheetStart || generateSheetStart == 0) ? undefined : sheetStart),
-        side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
-        approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
-        indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
-        year: ((!generateYear ? undefined : generateYear)),
-        typebooks_id: params.typebooks_id,
-        books_id: generateBooks_id,
-        companies_id: authenticate.companies_id
-      })
-
     }
+
 
     try {
       const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
       if (generateBook > 0 && generateBookdestination > 0) {
         await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
           .andWhere('book', '=', generateBook)
-          .andWhereBetween('cod', [_startCode, _endCode]).update({ book: generateBookdestination })
+          //.andWhereBetween('cod', [_startCode, _endCode]).
+          .update({ book: generateBookdestination })
       }
 
       let successValidation = await new validations('bookrecord_success_100')
