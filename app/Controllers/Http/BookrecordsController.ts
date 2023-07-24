@@ -526,7 +526,6 @@ export default class BookrecordsController {
     const bookrecords: Object[] = []
 
     if (generateBookdestination <= 0 || !generateBookdestination || generateBookdestination == undefined) {
-
       for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
         //console.log("GENERTE START COD: " generateStartCode + 1)
         if (generateAlternateOfSides == "F")
@@ -622,47 +621,7 @@ export default class BookrecordsController {
               generateSheetStart++
             }
           }
-
-
         }
-        //contSheetStartCod++
-        // if (generateStartSheetInCodReference <= contSheetStartCod) {
-        // if (generateStartSheetInCodReference <= (generateStartCode + 1)) {
-
-        //   if (generateSheetIncrement == 1)
-        //     sheetStart = generateSheetStart++
-        //   else
-        //     if (generateSheetIncrement == 2) {
-        //       if (sheetIncrement < 2) {
-        //         sheetStart = generateSheetStart
-        //         sheetIncrement++
-        //       }
-        //       if (sheetIncrement == 2) {
-        //         sheetIncrement = 0
-        //         generateSheetStart++
-        //       }
-        //     }
-        //   if (generateSheetIncrement == 3) {
-        //     if (sheetIncrement < 3) {
-        //       sheetStart = generateSheetStart
-        //       sheetIncrement++
-        //     }
-        //     if (sheetIncrement == 3) {
-        //       sheetIncrement = 0
-        //       generateSheetStart++
-        //     }
-        //   }
-        //   if (generateSheetIncrement == 4) {
-        //     if (sheetIncrement < 4) {
-        //       sheetStart = generateSheetStart
-        //       sheetIncrement++
-        //     }
-        //     if (sheetIncrement == 4) {
-        //       sheetIncrement = 0
-        //       generateSheetStart++
-        //     }
-        //   }
-        // }
 
         bookrecords.push({
           cod: generateStartCode++,
@@ -684,10 +643,13 @@ export default class BookrecordsController {
     try {
       const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
       if (generateBook > 0 && generateBookdestination > 0) {
-        await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
+        const teste = await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
           .andWhere('book', '=', generateBook)
+          .andWhere('typebooks_id', '=', params.typebooks_id)
           //.andWhereBetween('cod', [_startCode, _endCode]).
           .update({ book: generateBookdestination })
+
+        console.log("teste", teste)
       }
 
       let successValidation = await new validations('bookrecord_success_100')
