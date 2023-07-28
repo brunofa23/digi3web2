@@ -127,3 +127,16 @@ node ace migration:fresh --seed
 git checkout development
 git branch -d development-test
 git push origin --delete development-test
+
+## TRABALHANDO COM DATAS
+// Importando o módulo nativo do Node.js para lidar com datas
+const { DateTime } = require('luxon');
+
+// Obtendo a data atual
+const dataAtual = DateTime.local();
+
+// Formatando a data no formato "DD/MM/YYYY hh:mm:ss"
+const dataFormatada = dataAtual.toFormat('dd/LL/yyyy HH:mm:ss');
+
+// Imprimindo a data formatada
+console.log(dataFormatada);
