@@ -127,3 +127,18 @@ node ace migration:fresh --seed
 git checkout development
 git branch -d development-test
 git push origin --delete development-test
+
+## permite executar o merge ignorando as alteraçoes
+git stash
+
+## TRABALHANDO COM DATAS
+function dateFormat(format, date = DateTime.local()) {
+  // Verificar se a data é válida
+  if (!(date instanceof DateTime)) {
+    throw new Error('A data fornecida não é válida. Certifique-se de passar um objeto DateTime.');
+  }
+  // Formatando a data no formato especificado
+  return date.toFormat(format);
+}
+
+
