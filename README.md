@@ -128,6 +128,9 @@ git checkout development
 git branch -d development-test
 git push origin --delete development-test
 
+## permite executar o merge ignorando as alteraçoes
+git stash
+
 ## TRABALHANDO COM DATAS
 function dateFormat(format, date = DateTime.local()) {
   // Verificar se a data é válida
@@ -137,3 +140,5 @@ function dateFormat(format, date = DateTime.local()) {
   // Formatando a data no formato especificado
   return date.toFormat(format);
 }
+
+
