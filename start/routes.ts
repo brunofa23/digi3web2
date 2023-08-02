@@ -49,17 +49,18 @@ Route.group(() => {
   //Route.resource("/indeximages", "IndeximagesController").apiOnly()
   Route.get("/indeximages", "IndeximagesController.index")
   Route.get("/indeximages/:id", "IndeximagesController.show")
-  //Route.post("/indeximages", "IndeximagesController.store")
-  //Route.patch("/indeximages/:id2/", "IndeximagesController.update")
   Route.delete("/indeximages/:typebooks_id/:bookrecords_id/:file_name", "IndeximagesController.destroy")
   Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads').middleware('indeximage_permission:uploads')
   Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download').middleware('indeximage_permission:download')
   Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture').middleware('indeximage_permission:uploadCapture')
 
-
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")
   Route.post("/logout", "AuthenticationController.logout")
+
+  //USER PASSWORD
+  Route.post("/resetpassword", "UserPasswordsController.resetPassword")
+  Route.post("/updatepassword", "UserPasswordsController.updatePassword")
 
   //rota de teste
   Route.get('dashboard', async ({ auth }) => {
