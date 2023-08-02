@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
 import Hash from '@ioc:Adonis/Core/Hash'
-import { column, beforeSave, BaseModel, hasOne, HasOne, beforeUpdate } from '@ioc:Adonis/Lucid/Orm'
+import { column, beforeSave, BaseModel, BelongsTo, belongsTo, hasOne, HasOne, beforeUpdate } from '@ioc:Adonis/Lucid/Orm'
 import Company from './Company'
 
 export default class User extends BaseModel {
@@ -9,6 +9,7 @@ export default class User extends BaseModel {
     return [
       'id',
       'companies_id',
+      'shortname',
       'name',
       'username',
       'email',
@@ -21,11 +22,17 @@ export default class User extends BaseModel {
     ]
   }
 
-  @hasOne(() => Company, {
-    foreignKey: 'id',
-    localKey: 'companies_id'
+  // @hasOne(() => Company, {
+  //   foreignKey: 'id',
+  //   localKey: 'companies_id'
+  // })
+  // public company: HasOne<typeof Company>
+
+  @belongsTo(() => Company, {
+    foreignKey: 'companies_id',
+    localKey: 'id'
   })
-  public company: HasOne<typeof Company>
+  public company: BelongsTo<typeof Company>
 
   @column({ isPrimary: true })
   public id: number

@@ -2,6 +2,8 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import User from 'App/Models/User'
 import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
+import { randomBytes } from 'crypto'
+import { promisify } from 'util'
 
 export default class UserPasswordsController {
 
@@ -31,23 +33,35 @@ export default class UserPasswordsController {
 
     public async resetPassword({ auth, request, params, response }: HttpContextContract) {
 
-        //await auth.use('api').authenticate()
-        const body = request.only(User.fillable) //await request.validate(UserValidator)
+        //return "reset password"
+        const body = await request.only(User.fillable)
+        //return body
+
         const user = await User.query()
+            .innerJoin('companies', 'users.companies_id', 'companies.id')
             .where('username', '=', body.username)
-            .andWhere('name', '=', body.name).first()
+            .where('shortname', '=', body.shortname)
 
-        if (user && user.email)
-            user.password = body.password
-        try {
-            const userUpdated = await user.merge(body).save()
-            let successValidation = await new validations('user_success_202')
-            return response.status(201).send(userUpdated, successValidation.code)
-        } catch (error) {
-            //throw new BadRequest('Bad Request', 401)
-            console.log("ERRO UPDATE")
+        //.andWhere('name', '=', body.name).first()
 
-        }
+        return user
+        // if (user && user.email) {
+        //     const random = await promisify(randomBytes)(15)
+        //     const passwordReset = random.toString('hex')
+        //     user.password = passwordReset
+        //     return passwordReset
+        // }
+
+
+        // try {
+        //     const userUpdated = await user.merge(body).save()
+        //     let successValidation = await new validations('user_success_202')
+        //     return response.status(201).send(userUpdated, successValidation.code)
+        // } catch (error) {
+        //     //throw new BadRequest('Bad Request', 401)
+        //     console.log("ERRO UPDATE")
+
+        // }
 
 
     }
