@@ -33,24 +33,26 @@ export default class UserPasswordsController {
 
     public async resetPassword({ auth, request, params, response }: HttpContextContract) {
 
-        //return "reset password"
         const body = await request.only(User.fillable)
-        //return body
-
-        const user = await User.query()
+        const user = await User.query().select('users.*')
             .innerJoin('companies', 'users.companies_id', 'companies.id')
             .where('username', '=', body.username)
-            .where('shortname', '=', body.shortname)
+            .where('shortname', '=', body.shortname).first()
 
-        //.andWhere('name', '=', body.name).first()
+        if (user instanceof User && user.email) {
+            const random = await promisify(randomBytes)(15)
+            const passwordReset = random.toString('hex')
+            user.password = passwordReset
+            user.save()
+            console.log("E USUÁRIO E TEM EMAIL...", passwordReset)
 
-        return user
-        // if (user && user.email) {
-        //     const random = await promisify(randomBytes)(15)
-        //     const passwordReset = random.toString('hex')
-        //     user.password = passwordReset
-        //     return passwordReset
-        // }
+            return passwordReset
+        } else {
+            console.log("NÃO É", user)
+            return user
+
+
+        }
 
 
         // try {
