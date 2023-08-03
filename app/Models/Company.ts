@@ -41,6 +41,12 @@ export default class Company extends BaseModel {
   })
   public user: HasMany<typeof User>
 
+  // @belongsTo(() => User, {
+  //   foreignKey: 'companies_id',
+  //   localKey: 'id'
+  // })
+  //public user: BelongsTo<typeof User>
+
   @column({ isPrimary: true })
   public id: number
 

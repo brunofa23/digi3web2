@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import { schema, CustomMessages, rules, validator } from '@ioc:Adonis/Core/Validator'
-=======
-import { schema, rules } from '@ioc:Adonis/Core/Validator'
->>>>>>> main
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
 export default class CompanyValidator {

@@ -4,7 +4,6 @@ import Hash from '@ioc:Adonis/Core/Hash'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 
-
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
