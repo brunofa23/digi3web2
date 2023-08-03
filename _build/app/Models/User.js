@@ -21,6 +21,7 @@ class User extends Orm_1.BaseModel {
         return [
             'id',
             'companies_id',
+            'shortname',
             'name',
             'username',
             'email',
@@ -39,9 +40,9 @@ class User extends Orm_1.BaseModel {
     }
 }
 __decorate([
-    (0, Orm_1.hasOne)(() => Company_1.default, {
-        foreignKey: 'id',
-        localKey: 'companies_id'
+    (0, Orm_1.belongsTo)(() => Company_1.default, {
+        foreignKey: 'companies_id',
+        localKey: 'id'
     }),
     __metadata("design:type", Object)
 ], User.prototype, "company", void 0);

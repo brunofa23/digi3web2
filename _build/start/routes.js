@@ -42,6 +42,8 @@ Route_1.default.group(() => {
     Route_1.default.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture').middleware('indeximage_permission:uploadCapture');
     Route_1.default.post("/login", "AuthenticationController.login");
     Route_1.default.post("/logout", "AuthenticationController.logout");
+    Route_1.default.post("/resetpassword", "UserPasswordsController.resetPassword");
+    Route_1.default.post("/updatepassword", "UserPasswordsController.updatePassword");
     Route_1.default.get('dashboard', async ({ auth }) => {
         await auth.use('api').authenticate();
         return auth.use('api').user;
