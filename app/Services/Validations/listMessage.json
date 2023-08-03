@@ -65,6 +65,11 @@
         "status": 201
     },
     {
+        "code": "user_success_203",
+        "messages": "User reset password successfully",
+        "status": 201
+    },
+    {
         "code": "typebook_success_100",
         "messages": "Typebook created successfully",
         "status": 201

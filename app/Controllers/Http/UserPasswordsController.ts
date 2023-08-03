@@ -34,6 +34,7 @@ export default class UserPasswordsController {
 
     public async resetPassword({ auth, request, params, response }: HttpContextContract) {
 
+        console.log("reset Acionado!!!")
         const body = await request.only(User.fillable)
         const user = await User.query().select('users.*').preload('company')
             .innerJoin('companies', 'users.companies_id', 'companies.id')
@@ -61,44 +62,13 @@ export default class UserPasswordsController {
                 })
 
                 console.log("enviado!!!!")
-                let successValidation = await new validations('user_success_202')
-                return response.status(201).send({ user: user.name, status: successValidation.code })
+                let successValidation = await new validations('user_success_203')
+                return response.status(201).send({ user: user.name, email: user.email, status: successValidation.code })
 
             } catch (error) {
                 return error
             }
-
-
-
         }
-
-
-        // if (user instanceof User && user.email) {
-        //     const random = await promisify(randomBytes)(15)
-        //     const passwordReset = random.toString('hex')
-        //     user.password = passwordReset
-        //     user.save()
-        //     console.log("E USUÁRIO E TEM EMAIL...", passwordReset)
-        //     //Enviar por email
-        //     return passwordReset
-        // } else {
-        //     console.log("NÃO É", user)
-        //     return user
-
-
-        // }
-
-
-        // try {
-        //     const userUpdated = await user.merge(body).save()
-        //     let successValidation = await new validations('user_success_202')
-        //     return response.status(201).send(userUpdated, successValidation.code)
-        // } catch (error) {
-        //     //throw new BadRequest('Bad Request', 401)
-        //     console.log("ERRO UPDATE")
-
-        // }
-
 
     }
 
