@@ -14,11 +14,6 @@ import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 |
 */
 export default class BadRequestException extends Exception {
-<<<<<<< HEAD
-=======
-
->>>>>>> main
-
     public async handle(error: this, ctx: HttpContextContract) {
         return ctx.response.status(error.status).send({
             code: error.code,

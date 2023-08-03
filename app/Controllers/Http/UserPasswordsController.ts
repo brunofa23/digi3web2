@@ -4,6 +4,7 @@ import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import { randomBytes } from 'crypto'
 import { promisify } from 'util'
+import Mail from '@ioc:Adonis/Addons/Mail'
 
 export default class UserPasswordsController {
 
@@ -34,25 +35,56 @@ export default class UserPasswordsController {
     public async resetPassword({ auth, request, params, response }: HttpContextContract) {
 
         const body = await request.only(User.fillable)
-        const user = await User.query().select('users.*')
+        const user = await User.query().select('users.*').preload('company')
             .innerJoin('companies', 'users.companies_id', 'companies.id')
             .where('username', '=', body.username)
             .where('shortname', '=', body.shortname).first()
 
         if (user instanceof User && user.email) {
+
             const random = await promisify(randomBytes)(15)
             const passwordReset = random.toString('hex')
             user.password = passwordReset
-            user.save()
-            console.log("E USUÁRIO E TEM EMAIL...", passwordReset)
+            //user.save()
             //Enviar por email
-            return passwordReset
-        } else {
-            console.log("NÃO É", user)
-            return user
+            try {
+                await Mail.send((message) => {
+                    message.from('no-reply@mgcartorios.com.br')
+                        .to(user?.email)
+                        .subject('Recuperação de Senha - Digi3')
+                        .htmlView('emails/welcome', {
+                            company: user.company.name,
+                            shortname: user.company.shortname,
+                            username: user.username,
+                            newPassword: passwordReset
+                        })
+                })
+                console.log("enviado!!!!")
+
+                return user
+            } catch (error) {
+                return error
+            }
+
 
 
         }
+
+
+        // if (user instanceof User && user.email) {
+        //     const random = await promisify(randomBytes)(15)
+        //     const passwordReset = random.toString('hex')
+        //     user.password = passwordReset
+        //     user.save()
+        //     console.log("E USUÁRIO E TEM EMAIL...", passwordReset)
+        //     //Enviar por email
+        //     return passwordReset
+        // } else {
+        //     console.log("NÃO É", user)
+        //     return user
+
+
+        // }
 
 
         // try {
