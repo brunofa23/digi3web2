@@ -45,7 +45,7 @@ export default class UserPasswordsController {
             user.password = passwordReset
             user.save()
             console.log("E USUÁRIO E TEM EMAIL...", passwordReset)
-
+            //Enviar por email
             return passwordReset
         } else {
             console.log("NÃO É", user)
