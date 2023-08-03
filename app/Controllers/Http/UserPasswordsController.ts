@@ -42,12 +42,12 @@ export default class UserPasswordsController {
 
         if (user instanceof User && user.email) {
 
-            const random = await promisify(randomBytes)(15)
-            const passwordReset = random.toString('hex')
-            user.password = passwordReset
-            //user.save()
-            //Enviar por email
             try {
+                const random = await promisify(randomBytes)(15)
+                const passwordReset = random.toString('hex')
+                user.password = passwordReset
+                user.save()
+                //Enviar por email
                 await Mail.send((message) => {
                     message.from('no-reply@mgcartorios.com.br')
                         .to(user?.email)
@@ -59,9 +59,11 @@ export default class UserPasswordsController {
                             newPassword: passwordReset
                         })
                 })
-                console.log("enviado!!!!")
 
-                return user
+                console.log("enviado!!!!")
+                let successValidation = await new validations('user_success_202')
+                return response.status(201).send({ user: user.name, status: successValidation.code })
+
             } catch (error) {
                 return error
             }
