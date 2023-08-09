@@ -9,18 +9,19 @@ import Mail from '@ioc:Adonis/Addons/Mail'
 export default class UserPasswordsController {
 
 
-    public async updatePassword({ auth, request, params, response }: HttpContextContract) {
+    public async updatePassword({ auth, request, response }: HttpContextContract) {
 
-        await auth.use('api').authenticate()
-        const body = request.only(User.fillable) //await request.validate(UserValidator)
+        const _auth = await auth.use('api').authenticate()
+        const { newPassword } = request.only(['newPassword'])
+
         const user = await User.query()
-            .where('username', '=', body.username)
-            .andWhere('companies_id', '=', body.companies_id).first()
+            .where('username', '=', _auth.username)
+            .andWhere('companies_id', '=', _auth.companies_id).first()
 
-        if (user && user.password) {
-            user.password = body.password
+        if (user && newPassword) {
             try {
-                const userUpdated = await user.merge(body).save()
+                user.password = newPassword
+                const userUpdated = await user.save()
                 let successValidation = await new validations('user_success_202')
                 return response.status(201).send(userUpdated, successValidation.code)
             } catch (error) {
@@ -32,7 +33,7 @@ export default class UserPasswordsController {
     }
 
 
-    public async resetPassword({ auth, request, params, response }: HttpContextContract) {
+    public async resetPassword({ request, response }: HttpContextContract) {
 
         console.log("reset Acionado!!!")
         const body = await request.only(User.fillable)
