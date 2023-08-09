@@ -10,16 +10,16 @@ const crypto_1 = require("crypto");
 const util_1 = require("util");
 const Mail_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Addons/Mail"));
 class UserPasswordsController {
-    async updatePassword({ auth, request, params, response }) {
-        await auth.use('api').authenticate();
-        const body = request.only(User_1.default.fillable);
+    async updatePassword({ auth, request, response }) {
+        const _auth = await auth.use('api').authenticate();
+        const { newPassword } = request.only(['newPassword']);
         const user = await User_1.default.query()
-            .where('username', '=', body.username)
-            .andWhere('companies_id', '=', body.companies_id).first();
-        if (user && user.password) {
-            user.password = body.password;
+            .where('username', '=', _auth.username)
+            .andWhere('companies_id', '=', _auth.companies_id).first();
+        if (user && newPassword) {
             try {
-                const userUpdated = await user.merge(body).save();
+                user.password = newPassword;
+                const userUpdated = await user.save();
                 let successValidation = await new validations_1.default('user_success_202');
                 return response.status(201).send(userUpdated, successValidation.code);
             }
@@ -29,7 +29,7 @@ class UserPasswordsController {
         }
         return response.status(400).send("Erro, verifique o nome da Empresa ou do Usuário.");
     }
-    async resetPassword({ auth, request, params, response }) {
+    async resetPassword({ request, response }) {
         console.log("reset Acionado!!!");
         const body = await request.only(User_1.default.fillable);
         const user = await User_1.default.query().select('users.*').preload('company')
