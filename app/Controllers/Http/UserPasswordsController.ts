@@ -11,11 +11,19 @@ export default class UserPasswordsController {
 
     public async updatePassword({ auth, request, params, response }: HttpContextContract) {
 
-        await auth.use('api').authenticate()
-        const body = request.only(User.fillable) //await request.validate(UserValidator)
+        const _auth = await auth.use('api').authenticate()
+        const { password, newPassword } = request.only(['password', 'newPassword'])
+
+        console.log("UPDATE PASSWORD...", request.only(['password', 'newPassword']))
+
+        //const body = request.only(User.fillable) //await request.validate(UserValidator)
         const user = await User.query()
-            .where('username', '=', body.username)
-            .andWhere('companies_id', '=', body.companies_id).first()
+            .where('username', '=', _auth.username)
+            .andWhere('companies_id', '=', _auth.companies_id).first()
+
+        ///fazer a comparação das senhas::::::
+        console.log("USER", user?.password)
+
 
         if (user && user.password) {
             user.password = body.password
