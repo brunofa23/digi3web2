@@ -3,6 +3,7 @@ import User from 'App/Models/User'
 import Hash from '@ioc:Adonis/Core/Hash'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
+import { DateTime } from 'luxon'
 
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
@@ -60,28 +61,47 @@ export default class AuthenticationController {
 
   public async authorizeAccessImages({ auth, request, response }) {
 
-    const { companies_id } = await auth.use('api').authenticate()
-    const username = request.input('username')
-    const password = request.input('password')
+    const { companies_id, username } = await auth.use('api').authenticate()
 
-    const user = await User
+    const usernameAutorization = request.input('username')
+    const password = request.input('password')
+    const accessImage = request.input('accessimage')
+
+    //return teste
+
+    const userAuthorization = await User
       .query()
-      .where('username', username)
+      .where('username', usernameAutorization)
       .andWhere('companies_id', '=', companies_id)
       .first()
 
-    if (!user) {
+    if (!userAuthorization) {
       const errorValidation = await new validations('user_error_205')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
     // Verify password
-    if (!(await Hash.verify(user.password, password))) {
+    if (!(await Hash.verify(userAuthorization.password, password))) {
       let errorValidation = await new validations('user_error_206')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
-    return response.status(200).send(true)
+    try {
+      const limitDataAccess = DateTime.local().plus({ days: accessImage }).toFormat('yyyy-MM-dd HH:mm')
+      const user = await User.query()
+        .where('username', username)
+        .andWhere('companies_id', '=', companies_id)
+        .first()
+      if (user) {
+        user.access_image = limitDataAccess
+        user.save()
+        return response.status(200).send({ valor: true, tempo: accessImage })
+      }
+
+    } catch (error) {
+      //let errorValidation = await new validations('user_error_206')
+      throw new BadRequest("Erro ao liberar o acesso.", errorValidation.status, errorValidation.code)
+    }
 
 
   }
