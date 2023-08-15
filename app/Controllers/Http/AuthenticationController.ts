@@ -58,6 +58,34 @@ export default class AuthenticationController {
 
   }
 
+  public async authorizeAccessImages({ auth, request, response }) {
+
+    const { companies_id } = await auth.use('api').authenticate()
+    const username = request.input('username')
+    const password = request.input('password')
+
+    const user = await User
+      .query()
+      .where('username', username)
+      .andWhere('companies_id', '=', companies_id)
+      .first()
+
+    if (!user) {
+      const errorValidation = await new validations('user_error_205')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
+
+    // Verify password
+    if (!(await Hash.verify(user.password, password))) {
+      let errorValidation = await new validations('user_error_206')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
+
+    return response.status(200).send(true)
+
+
+  }
+
 
 
 }
