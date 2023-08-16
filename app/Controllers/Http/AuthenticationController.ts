@@ -62,12 +62,9 @@ export default class AuthenticationController {
   public async authorizeAccessImages({ auth, request, response }) {
 
     const { companies_id, username } = await auth.use('api').authenticate()
-
     const usernameAutorization = request.input('username')
     const password = request.input('password')
     const accessImage = request.input('accessimage')
-
-    //return teste
 
     const userAuthorization = await User
       .query()
@@ -75,13 +72,20 @@ export default class AuthenticationController {
       .andWhere('companies_id', '=', companies_id)
       .first()
 
+    if (userAuthorization) {
+      if (userAuthorization.permission_level < 5 || !userAuthorization.superuser) {
+        const errorValidation = await new validations('user_error_201')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
+    }
+
     if (!userAuthorization) {
       const errorValidation = await new validations('user_error_205')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
     // Verify password
-    if (!(await Hash.verify(userAuthorization.password, password))) {
+    if (!(await Hash.verify(userAuthorization.password, String(password)))) {
       let errorValidation = await new validations('user_error_206')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
@@ -93,9 +97,10 @@ export default class AuthenticationController {
         .andWhere('companies_id', '=', companies_id)
         .first()
       if (user) {
+        //console.log("DATA", DateTime.fromISO(limitDataAccess))
         user.access_image = limitDataAccess
         user.save()
-        return response.status(200).send({ valor: true, tempo: accessImage })
+        return response.status(201).send({ valor: true, tempo: accessImage })
       }
 
     } catch (error) {

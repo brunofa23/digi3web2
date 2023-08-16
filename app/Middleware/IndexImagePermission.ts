@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
+import { DateTime } from 'luxon'
 
 export default class IndexImagePermission {
   public async handle({ auth, response }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
@@ -35,7 +36,8 @@ export default class IndexImagePermission {
                 await next()
               }
               else
-                if (guard === 'download' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+                if (guard === 'download' && (authenticate.permission_level >= 3 || authenticate.superuser || authenticate.access_image >= DateTime.local())) {
+                  console.log("ENTREI NO DOWNLOAD IMAGE....", authenticate)
                   await next()
                 }
                 else
