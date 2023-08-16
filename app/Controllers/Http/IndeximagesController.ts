@@ -9,7 +9,7 @@ const FileRename = require('../../Services/fileRename/fileRename')
 const fs = require('fs')
 const path = require('path')
 const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+//const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
 export default class IndeximagesController {
 
@@ -126,11 +126,11 @@ export default class IndeximagesController {
 
     const dateNow = formatDate.formatDate(new Date)
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
-
     console.log("FILENAME:::", file_name)
 
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
-      logtail.info('File created', { folderPath })
+      //logtail.info('File created', { folderPath })
+      console.log('File created', { folderPath })
     });
 
     const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true)
