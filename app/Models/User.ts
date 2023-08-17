@@ -17,6 +17,8 @@ export default class User extends BaseModel {
       'remember_me_token',
       'permission_level',
       'status',
+      'work_schedule',
+      'access_image',
       'createdAt',
       'updatedAt'
     ]
@@ -64,6 +66,12 @@ export default class User extends BaseModel {
 
   @column()
   public status: Boolean
+
+  @column()
+  public work_schedule: string
+
+  @column()
+  public access_image: DateTime
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

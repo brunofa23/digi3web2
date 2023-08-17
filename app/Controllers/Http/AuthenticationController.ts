@@ -3,6 +3,7 @@ import User from 'App/Models/User'
 import Hash from '@ioc:Adonis/Core/Hash'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
+import { DateTime } from 'luxon'
 
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
@@ -55,6 +56,58 @@ export default class AuthenticationController {
 
     await auth.use('api').revoke()
     return { revoked: true }
+
+  }
+
+  public async authorizeAccessImages({ auth, request, response }) {
+
+    const { companies_id, username } = await auth.use('api').authenticate()
+    const usernameAutorization = request.input('username')
+    const password = request.input('password')
+    const accessImage = request.input('accessimage')
+
+    const userAuthorization = await User
+      .query()
+      .where('username', usernameAutorization)
+      .andWhere('companies_id', '=', companies_id)
+      .first()
+
+    if (userAuthorization) {
+      if (userAuthorization.permission_level < 5 || !userAuthorization.superuser) {
+        const errorValidation = await new validations('user_error_201')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
+    }
+
+    if (!userAuthorization) {
+      const errorValidation = await new validations('user_error_205')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
+
+    // Verify password
+    if (!(await Hash.verify(userAuthorization.password, String(password)))) {
+      let errorValidation = await new validations('user_error_206')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
+
+    try {
+      const limitDataAccess = DateTime.local().plus({ days: accessImage }).toFormat('yyyy-MM-dd HH:mm')
+      const user = await User.query()
+        .where('username', username)
+        .andWhere('companies_id', '=', companies_id)
+        .first()
+      if (user) {
+        //console.log("DATA", DateTime.fromISO(limitDataAccess))
+        user.access_image = limitDataAccess
+        user.save()
+        return response.status(201).send({ valor: true, tempo: accessImage })
+      }
+
+    } catch (error) {
+      //let errorValidation = await new validations('user_error_206')
+      throw new BadRequest("Erro ao liberar o acesso.", errorValidation.status, errorValidation.code)
+    }
+
 
   }
 

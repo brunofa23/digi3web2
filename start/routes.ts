@@ -4,7 +4,7 @@ import Application from '@ioc:Adonis/Core/Application'
 Route.group(() => {
 
   Route.get('/', async () => {
-    return { hello: 'Hello World v63' }
+    return { hello: 'Hello World v64' }
   })//.middleware('level_permission:1')
 
   //BOOK
@@ -57,6 +57,7 @@ Route.group(() => {
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")
   Route.post("/logout", "AuthenticationController.logout")
+  Route.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages")//.middleware('user_permission:authorizeAccessImages')
 
   //USER PASSWORD
   Route.post("/resetpassword", "UserPasswordsController.resetPassword")
