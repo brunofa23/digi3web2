@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const luxon_1 = require("luxon");
 class IndexImagePermission {
     async handle({ auth, response }, next, customGuards) {
         const authenticate = await auth.use('api').authenticate();
@@ -25,11 +26,10 @@ class IndexImagePermission {
             else if (guard === 'uploads' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
                 await next();
             }
-            else if (guard === 'download' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+            else if (guard === 'download' && (authenticate.permission_level >= 3 || authenticate.superuser || authenticate.access_image >= luxon_1.DateTime.local())) {
                 await next();
             }
             else if (guard === 'uploadCapture' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
-                console.log("uploadCapture....");
                 await next();
             }
             else {

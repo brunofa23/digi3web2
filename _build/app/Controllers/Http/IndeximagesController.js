@@ -12,7 +12,6 @@ const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
 const path = require('path');
 const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 class IndeximagesController {
     async store({ request, response }) {
         const body = request.only(Indeximage_1.default.fillable);
@@ -109,7 +108,7 @@ class IndeximagesController {
         const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`;
         console.log("FILENAME:::", file_name);
         fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
-            logtail.info('File created', { folderPath });
+            console.log('File created', { folderPath });
         });
         const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true);
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };

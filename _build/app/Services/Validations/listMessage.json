@@ -30,6 +30,11 @@
         "status": 201
     },
     {
+        "code": "user_error_201",
+        "messages": "User not permission",
+        "status": 402
+    },
+    {
         "code": "user_error_203",
         "messages": "Username already in use",
         "status": 402
