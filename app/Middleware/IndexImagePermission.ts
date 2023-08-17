@@ -9,11 +9,6 @@ export default class IndexImagePermission {
     const authenticate = await auth.use('api').authenticate()
     console.log("gard::>>", customGuards)
 
-    // if (authenticate.superuser || authenticate.permission_level >= 5) {
-    //   console.log("SUPER USER....")
-    //   await next()
-    // }
-
     for (const guard of customGuards) {
       if (guard === 'get' && authenticate.permission_level >= 0) {
 
@@ -37,12 +32,12 @@ export default class IndexImagePermission {
               }
               else
                 if (guard === 'download' && (authenticate.permission_level >= 3 || authenticate.superuser || authenticate.access_image >= DateTime.local())) {
-                  console.log("ENTREI NO DOWNLOAD IMAGE....", authenticate)
+                  //console.log("ENTREI NO DOWNLOAD IMAGE....", authenticate)
                   await next()
                 }
                 else
                   if (guard === 'uploadCapture' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
-                    console.log("uploadCapture....")
+                    //console.log("uploadCapture....")
                     await next()
                   }
                   else {
