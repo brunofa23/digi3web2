@@ -1,6 +1,7 @@
 import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
+import Config from 'App/Models/Config';
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
@@ -13,8 +14,6 @@ const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
-//const SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly'];
-
 
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
@@ -26,13 +25,20 @@ function sleep(ms) {
 }
 
 
+async function getToken() {
+  const config = await Config.query().where("name", '=', 'tokenGoogle').first()
+  return config
+}
+
 async function loadSavedCredentialsIfExist() {
-  try {
-    const content = await fsPromises.readFile(TOKEN_PATH);
-    const credentials = JSON.parse(content);
-    return google.auth.fromJSON(credentials);
-  } catch (err) {
-    return null;
+  const tokenNumber = await getToken()
+
+  if (tokenNumber) {
+    try {
+      return google.auth.fromJSON(JSON.parse(tokenNumber.valuetext));
+    } catch (err) {
+      return null;
+    }
   }
 }
 
@@ -54,14 +60,10 @@ async function saveCredentials(client) {
     client_secret: key.client_secret,
     refresh_token: client.credentials.refresh_token,
   });
+
+
   await fsPromises.writeFile(TOKEN_PATH, payload);
 }
-
-/**
- * Load or request or authorization to call APIs.
- *
- */
-// async function authorize() {
 
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
@@ -149,41 +151,31 @@ async function createFolder(authClient, folderName, parentId = undefined) {
 }
 
 async function searchFile(authClient, fileName, parentId = undefined) {
+
   const drive = google.drive({ version: 'v3', auth: authClient });
-
-  //console.log("CHEGUEI NA PESQUISA searcfile", fileName, "parent", parentId)
   const files: Object[] = []
-
   const fileNamedecoded = decodeURIComponent(fileName);
-  //console.log("QUERY", fileNamedecoded)
-
   let query = `name ='${fileNamedecoded}' `
   if (parentId)
     query += ` and parents in '${parentId}'`
   query += " and trashed=false "
 
-  //console.log(">>>QUERY", query);
+
   try {
     const res = await drive.files.list({
       q: query
     });
+
     Array.prototype.push.apply(files, res.files);
     res.data.files.forEach(function (file) {
-      //console.log('Found file:', file.name, file.id);
       files.push({ name: file.name, id: file.id })
+      console.log('Found file:', file.name, file.id);
     });
     return res.data.files
-
   } catch (error) {
-
     return error;
   }
-
-
 }
-
-
-
 
 async function deleteFile(authClient, fileId) {
   const drive = google.drive({ version: 'v3', auth: authClient });
@@ -337,6 +329,7 @@ async function sendCreateFolder(folderName, parentId = undefined) {
 async function sendSearchFile(fileName, parentId = undefined) {
   const auth = await authorize()
   return searchFile(auth, fileName, parentId)
+
 
 }
 

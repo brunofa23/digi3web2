@@ -1,7 +1,19 @@
 import Route from '@ioc:Adonis/Core/Route'
 import Application from '@ioc:Adonis/Core/Application'
 
+import Config from 'App/Models/Config'
+
+
+// async function token() {
+//   const config = await Config.query().where("name", '=', 'tokenGoogle').first()
+//   console.log("TESTE", config)
+// }
+// token()
+
 Route.group(() => {
+
+
+
 
   Route.get('/', async () => {
     return { hello: 'Hello World v64' }
