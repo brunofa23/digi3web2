@@ -42,6 +42,16 @@ async function loadSavedCredentialsIfExist() {
   }
 }
 
+// async function loadSavedCredentialsIfExist() {
+//   try {
+//     const content = await fsPromises.readFile(TOKEN_PATH);
+//     const credentials = JSON.parse(content);
+//     return google.auth.fromJSON(credentials);
+//   } catch (err) {
+//     return null;
+//   }
+// }
+
 /**
  * Serializes credentials to a file comptible with GoogleAUth.fromJSON.
  *
