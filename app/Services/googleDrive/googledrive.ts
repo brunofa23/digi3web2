@@ -2,6 +2,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
 import Config from 'App/Models/Config';
+import Encryption from '@ioc:Adonis/Core/Encryption'
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
@@ -27,6 +28,18 @@ function sleep(ms) {
 
 async function getToken() {
   const config = await Config.query().where("name", '=', 'tokenGoogle').first()
+  console.log("valor do token", config?.valuetext)
+
+  let tokenDecryption = new Config()
+  tokenDecryption = config
+  tokenDecryption.valuetext = "tttttttttt"
+  console.log("TOKENDRCRYP", tokenDecryption.valuetext)
+
+  const decryptToken = Encryption.decrypt("z3F45cdqjqTVgsdYvIfcYJ2XVAIvYnfKt0GaU7MecDEwKrzhn-HJYk0y8NStWx2IqALrKl0OvtqT6ir60fwpBNLgEMaFLOoA47pMGCYL1UpkBAaIpGMYOH4MtBnB_YDDCLwH-A8gD9z9N9ps3DOvHk4JlbrqsCtCK_8O7maRcusEUeXHXDZlIVeTOKfwa280jJXd0XquXhuUmyqYX_Bi392TOXa0UG_MRZtpY2Vs6c6D6xSjbcXhxtCsuNBoRjo3t4Xp4N4dPbAahhE0fYFmKLIWVdaq1knyaR9oqsRXKPwCFONzwxlAGaa9sonUhcGhWb2rpc9WOKQhs959uUrB19qM4HkctSFkSlGdwkpQMBP_Y0fAM5Tk5T-Qw1PCu5CA35HUyGR3w0HK3jaYB7oqjS8kRrJjC0JiNisk_ah4XDgnF4u4tzJxbIQUt9_QxFD_.TVdXOFo0WGlKOGJxMnVFUw.xdSEOyPlNRM07Dq3geLhvlFc2-9VYsbY2kQIpvYPxvk")
+  //console.log("DESCRYPT>>", decryptToken)
+  //config?.valuetext = "teste teste"
+
+  console.log("config abaixo", config)
   return config
 }
 

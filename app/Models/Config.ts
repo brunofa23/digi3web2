@@ -3,6 +3,7 @@ import { BaseModel, column, afterFetch } from '@ioc:Adonis/Lucid/Orm'
 
 export default class Config extends BaseModel {
 
+
   public static get fillable() {
     return [
       'id',
@@ -36,10 +37,10 @@ export default class Config extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
 
-  // @afterFetch()
-  // public static afterFetchHook(config: Config[]) {
-  //   console.log("afterFetch...")
-  // }
+  @afterFetch()
+  public static afterFetchHook(config: Config[]) {
+    console.log("afterFetch...")
+  }
 
 
 }
