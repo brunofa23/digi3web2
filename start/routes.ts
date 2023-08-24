@@ -72,7 +72,7 @@ Route.group(() => {
   Route.post("/updatepassword", "UserPasswordsController.updatePassword")
 
   //CONFIG
-  Route.post("/config", "ConfigsController.store")
+  Route.post("/config", "ConfigsController.storeEncryption")
 
   //rota de teste
   Route.get('dashboard', async ({ auth }) => {

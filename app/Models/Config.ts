@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, afterFetch } from '@ioc:Adonis/Lucid/Orm'
 
 export default class Config extends BaseModel {
 
@@ -35,4 +35,11 @@ export default class Config extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+  // @afterFetch()
+  // public static afterFetchHook(config: Config[]) {
+  //   console.log("afterFetch...")
+  // }
+
+
 }
