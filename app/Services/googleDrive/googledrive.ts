@@ -15,7 +15,6 @@ const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
-
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 
@@ -28,27 +27,24 @@ function sleep(ms) {
 
 async function getToken() {
   const config = await Config.query().where("name", '=', 'tokenGoogle').first()
-  console.log("valor do token", config?.valuetext)
-
   let tokenDecryption = new Config()
-  tokenDecryption = config
-  tokenDecryption.valuetext = "tttttttttt"
-  console.log("TOKENDRCRYP", tokenDecryption.valuetext)
-
-  const decryptToken = Encryption.decrypt("z3F45cdqjqTVgsdYvIfcYJ2XVAIvYnfKt0GaU7MecDEwKrzhn-HJYk0y8NStWx2IqALrKl0OvtqT6ir60fwpBNLgEMaFLOoA47pMGCYL1UpkBAaIpGMYOH4MtBnB_YDDCLwH-A8gD9z9N9ps3DOvHk4JlbrqsCtCK_8O7maRcusEUeXHXDZlIVeTOKfwa280jJXd0XquXhuUmyqYX_Bi392TOXa0UG_MRZtpY2Vs6c6D6xSjbcXhxtCsuNBoRjo3t4Xp4N4dPbAahhE0fYFmKLIWVdaq1knyaR9oqsRXKPwCFONzwxlAGaa9sonUhcGhWb2rpc9WOKQhs959uUrB19qM4HkctSFkSlGdwkpQMBP_Y0fAM5Tk5T-Qw1PCu5CA35HUyGR3w0HK3jaYB7oqjS8kRrJjC0JiNisk_ah4XDgnF4u4tzJxbIQUt9_QxFD_.TVdXOFo0WGlKOGJxMnVFUw.xdSEOyPlNRM07Dq3geLhvlFc2-9VYsbY2kQIpvYPxvk")
-  //console.log("DESCRYPT>>", decryptToken)
-  //config?.valuetext = "teste teste"
-
-  console.log("config abaixo", config)
+  try {
+    if (config && config.valuetext) {
+      tokenDecryption = config
+      tokenDecryption.valuetext = Encryption.decrypt(config?.valuetext) //DESEMCRIPTA O TOKEN
+      tokenDecryption.valuetext = JSON.parse(tokenDecryption.valuetext) //CONVERTE PARA JSON
+    }
+  } catch (error) {
+    console.log("erro 1541", error)
+  }
   return config
 }
 
 async function loadSavedCredentialsIfExist() {
   const tokenNumber = await getToken()
-
   if (tokenNumber) {
     try {
-      return google.auth.fromJSON(JSON.parse(tokenNumber.valuetext));
+      return google.auth.fromJSON(tokenNumber.valuetext);
     } catch (err) {
       return null;
     }
@@ -72,8 +68,25 @@ async function loadSavedCredentialsIfExist() {
  * @return {Promise<void>}
  */
 
-async function saveCredentials(client) {
+// async function saveCredentials(client) {
 
+//   const content = await fsPromises.readFile(CREDENTIALS_PATH);
+//   const keys = JSON.parse(content);
+//   const key = keys.installed || keys.web;
+//   const payload = JSON.stringify({
+//     type: 'authorized_user',
+//     client_id: key.client_id,
+//     client_secret: key.client_secret,
+//     refresh_token: client.credentials.refresh_token,
+//   });
+
+
+//   await fsPromises.writeFile(TOKEN_PATH, payload);
+// }
+
+
+
+async function saveCredentials(client) {
   const content = await fsPromises.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
   const key = keys.installed || keys.web;
@@ -83,10 +96,9 @@ async function saveCredentials(client) {
     client_secret: key.client_secret,
     refresh_token: client.credentials.refresh_token,
   });
-
-
   await fsPromises.writeFile(TOKEN_PATH, payload);
 }
+
 
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
