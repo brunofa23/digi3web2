@@ -2,6 +2,19 @@ import { DateTime } from 'luxon'
 import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
 
 export default class Config extends BaseModel {
+
+  public static get fillable() {
+    return [
+      'id',
+      'name',
+      'valuetext',
+      'valuebool',
+      'valueinteger'
+
+    ]
+  }
+
+
   @column({ isPrimary: true })
   public id: number
 

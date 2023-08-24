@@ -32,7 +32,7 @@ export default class IndexImagePermission {
               }
               else
                 if (guard === 'download' && (authenticate.permission_level >= 3 || authenticate.superuser || authenticate.access_image >= DateTime.local())) {
-                  //console.log("ENTREI NO DOWNLOAD IMAGE....", authenticate)
+                  console.log("ENTREI NO DOWNLOAD IMAGE....")
                   await next()
                 }
                 else
@@ -44,6 +44,7 @@ export default class IndexImagePermission {
                     let errorValidation = await new validations('error_10')
                     throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
                   }
+
     }
 
   }

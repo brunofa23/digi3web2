@@ -138,11 +138,11 @@ export default class IndeximagesController {
   }
 
   public async download({ auth, params, request }: HttpContextContract) {
-
     const body = request.only(Indeximage.fillable)
     const fileName = params.id
     const authenticate = await auth.use('api').authenticate()
     const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id)
+    console.log("ENTREI NO DOWNLOAD IMAGE....")
 
     return { fileDownload, fileName, extension: path.extname(fileName), body }
 
