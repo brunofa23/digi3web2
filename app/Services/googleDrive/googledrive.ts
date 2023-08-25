@@ -18,13 +18,31 @@ const SCOPES = ['https://www.googleapis.com/auth/drive'];
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 
-async function loadSavedCredentialsIfExist() {
+
+
+async function getToken() {
+  const config = await Config.query().where("name", '=', 'tokenGoogle').first()
+  let tokenDecryption = new Config()
   try {
-    const content = await fsPromises.readFile(TOKEN_PATH);
-    const credentials = JSON.parse(content);
-    return google.auth.fromJSON(credentials);
-  } catch (err) {
-    return null;
+    if (config && config.valuetext) {
+      tokenDecryption = config
+      tokenDecryption.valuetext = Encryption.decrypt(config?.valuetext) //DESEMCRIPTA O TOKEN
+      tokenDecryption.valuetext = JSON.parse(tokenDecryption.valuetext) //CONVERTE PARA JSON
+    }
+  } catch (error) {
+    console.log("erro 1541", error)
+  }
+  return config
+}
+
+async function loadSavedCredentialsIfExist() {
+  const tokenNumber = await getToken()
+  if (tokenNumber) {
+    try {
+      return google.auth.fromJSON(tokenNumber.valuetext);
+    } catch (err) {
+      return null;
+    }
   }
 }
 
