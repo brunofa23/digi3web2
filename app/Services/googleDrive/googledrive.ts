@@ -29,9 +29,7 @@ async function loadSavedCredentialsIfExist() {
 }
 
 async function saveCredentials(client) {
-
   console.log("SAVECREDENTIALS::::", client)
-
   const content = await fsPromises.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
   const key = keys.installed || keys.web;
@@ -45,7 +43,6 @@ async function saveCredentials(client) {
   await fsPromises.writeFile(TOKEN_PATH, payload);
 
 }
-
 
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
@@ -64,6 +61,9 @@ async function authorize() {
   }
   return client;
 }
+
+
+
 
 async function uploadFiles(authClient, parents, folderPath, fileName) {
   const drive = google.drive({ version: 'v3', auth: authClient });
