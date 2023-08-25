@@ -28,6 +28,7 @@ async function deleteImage(folderPath) {
 }
 
 async function downloadImage(fileName) {
+
   const extension = path.extname(fileName);
   const fileId = await authorize.sendSearchFile(fileName)
   const download = await authorize.sendDownloadFile(fileId[0].id, extension)

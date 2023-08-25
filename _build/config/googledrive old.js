@@ -38,6 +38,9 @@ async function authorize() {
     if (client) {
         return client;
     }
+
+    console.log("AUTHORIZE....")
+
     client = await authenticate({
         scopes: SCOPES,
         keyfilePath: CREDENTIALS_PATH,

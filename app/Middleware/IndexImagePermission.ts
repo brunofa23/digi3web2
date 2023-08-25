@@ -32,7 +32,6 @@ export default class IndexImagePermission {
               }
               else
                 if (guard === 'download' && (authenticate.permission_level >= 3 || authenticate.superuser || authenticate.access_image >= DateTime.local())) {
-                  //console.log("ENTREI NO DOWNLOAD IMAGE....")
                   await next()
                 }
                 else

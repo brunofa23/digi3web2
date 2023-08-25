@@ -11,12 +11,45 @@ const path = require('path');
 const process = require('process');
 const { authenticate } = require('@google-cloud/local-auth');
 const { google } = require('googleapis');
-
+const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads');
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+
+async function getToken() {
+  const config = await Config.query().where("name", '=', 'tokenGoogle').first()
+  let tokenDecryption = new Config()
+  try {
+    if (config && config.valuetext) {
+      tokenDecryption = config
+      tokenDecryption.valuetext = Encryption.decrypt(config?.valuetext) //DESEMCRIPTA O TOKEN
+      tokenDecryption.valuetext = JSON.parse(tokenDecryption.valuetext) //CONVERTE PARA JSON
+    }
+  } catch (error) {
+    console.log("erro 1541", error)
+  }
+  return config
+}
+
+// async function loadSavedCredentialsIfExist() {
+//   const tokenNumber = await getToken()
+//   if (tokenNumber) {
+//     try {
+//       return google.auth.fromJSON(tokenNumber.valuetext);
+//     } catch (err) {
+//       return null;
+//     }
+//   }
+// }
 
 async function loadSavedCredentialsIfExist() {
   try {
@@ -28,10 +61,14 @@ async function loadSavedCredentialsIfExist() {
   }
 }
 
+/**
+ * Serializes credentials to a file comptible with GoogleAUth.fromJSON.
+ *
+ * @param {OAuth2Client} client
+ * @return {Promise<void>}
+ */
+
 async function saveCredentials(client) {
-
-  console.log("SAVECREDENTIALS::::", client)
-
   const content = await fsPromises.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
   const key = keys.installed || keys.web;
@@ -41,18 +78,16 @@ async function saveCredentials(client) {
     client_secret: key.client_secret,
     refresh_token: client.credentials.refresh_token,
   });
-
   await fsPromises.writeFile(TOKEN_PATH, payload);
-
 }
 
 
 async function authorize() {
+
   let client = await loadSavedCredentialsIfExist();
   if (client) {
     return client;
   }
-  console.log("ENTREI NO DOWNLOAD IMAGE....authorize")
 
   client = await authenticate({
     scopes: SCOPES,
@@ -280,6 +315,7 @@ async function downloadFile(authClient, fileId, extension) {
 
 //****************************************************************** */
 async function sendAuthorize() {
+
   await authorize()
   return true
 }
@@ -313,6 +349,8 @@ async function sendCreateFolder(folderName, parentId = undefined) {
 async function sendSearchFile(fileName, parentId = undefined) {
   const auth = await authorize()
   return searchFile(auth, fileName, parentId)
+
+
 }
 
 async function sendDeleteFile(fileId) {
