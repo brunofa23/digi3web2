@@ -71,8 +71,12 @@ Route.group(() => {
   Route.post("/resetpassword", "UserPasswordsController.resetPassword")
   Route.post("/updatepassword", "UserPasswordsController.updatePassword")
 
+  //TOKEN
+  Route.post("/token", "TokensController.store")
+  Route.get("/token", "TokensController.index")
+
   //CONFIG
-  Route.post("/config", "ConfigsController.storeEncryption")
+  //Route.post("/config", "ConfigsController.storeEncryption")
 
   //rota de teste
   Route.get('dashboard', async ({ auth }) => {

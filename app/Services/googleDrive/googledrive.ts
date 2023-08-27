@@ -22,13 +22,8 @@ const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 
 async function getToken() {
   const config = await Config.query().where("name", '=', 'tokenGoogle').first()
-  let tokenDecryption = new Config()
   try {
-    if (config && config.valuetext) {
-      tokenDecryption = config
-      tokenDecryption.valuetext = Encryption.decrypt(config?.valuetext) //DESEMCRIPTA O TOKEN
-      tokenDecryption.valuetext = JSON.parse(tokenDecryption.valuetext) //CONVERTE PARA JSON
-    }
+
   } catch (error) {
     console.log("erro 1541", error)
   }
