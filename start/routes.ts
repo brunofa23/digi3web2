@@ -2,7 +2,7 @@ import Route from '@ioc:Adonis/Core/Route'
 
 Route.group(() => {
   Route.get('/', async () => {
-    return { hello: 'Hello World v65' }
+    return { hello: 'Hello World v66' }
   })//.middleware('level_permission:1')
 
   //BOOK
@@ -62,7 +62,7 @@ Route.group(() => {
 
   //TOKEN
   Route.post("/token", "TokensController.store")
-  Route.get("/token", "TokensController.index")
+  //Route.get("/token", "TokensController.index")
 
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")

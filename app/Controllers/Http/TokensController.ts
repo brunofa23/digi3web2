@@ -22,6 +22,7 @@ export default class TokensController {
                 await Token.updateOrCreate(searchPayload, persistancePayload)
                 return response.status(200).send("salvo")
             } catch (error) {
+                throw error
                 //throw new BadRequest('Bad Request', 401, 'erro')
             }
         }
@@ -29,16 +30,16 @@ export default class TokensController {
     }
 
 
-    public async index({ auth, response, request }) {
+    // public async index({ auth, response, request }) {
 
-        await auth.use('api').authenticate()
-        try {
-            const token = await Token.findBy('name', 'tokenGoogle')
-            return response.status(200).send(token)
-        } catch (error) {
-            throw error
-            //throw new BadRequest('Bad Request', 401, 'erro')
-        }
+    //     await auth.use('api').authenticate()
+    //     try {
+    //         const token = await Token.findBy('name', 'tokenGoogle')
+    //         return response.status(200).send(token)
+    //     } catch (error) {
+    //         throw error
+    //         //throw new BadRequest('Bad Request', 401, 'erro')
+    //     }
 
-    }
+    // }
 }
