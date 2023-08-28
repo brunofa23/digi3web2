@@ -1,10 +1,8 @@
 import Route from '@ioc:Adonis/Core/Route'
-import Application from '@ioc:Adonis/Core/Application'
 
 Route.group(() => {
-
   Route.get('/', async () => {
-    return { hello: 'Hello World v64' }
+    return { hello: 'Hello World v66' }
   })//.middleware('level_permission:1')
 
   //BOOK
@@ -31,7 +29,6 @@ Route.group(() => {
   Route.get("/users/:id", "UsersController.show")
   Route.post("/users", "UsersController.store").middleware('user_permission:post')
   Route.patch("/users/:id", "UsersController.update").middleware('user_permission:patch')
-
 
   //BOOKRECORDS
   //Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
@@ -62,6 +59,13 @@ Route.group(() => {
   //USER PASSWORD
   Route.post("/resetpassword", "UserPasswordsController.resetPassword")
   Route.post("/updatepassword", "UserPasswordsController.updatePassword")
+
+  //TOKEN
+  Route.post("/token", "TokensController.store")
+  //Route.get("/token", "TokensController.index")
+
+  //CONFIG
+  //Route.post("/config", "ConfigsController.storeEncryption")
 
   //rota de teste
   Route.get('dashboard', async ({ auth }) => {

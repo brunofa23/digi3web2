@@ -1,68 +1,72 @@
 import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
+import Config from 'App/Models/Config';
 import Encryption from '@ioc:Adonis/Core/Encryption'
-import Token from 'App/Models/Token';
-import { types } from '@ioc:Adonis/Core/Helpers'
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
-const deleteFiles = require('../util')
+
 const path = require('path');
 const process = require('process');
 const { authenticate } = require('@google-cloud/local-auth');
 const { google } = require('googleapis');
-
+const { assuredworkloads } = require('googleapis/build/src/apis/assuredworkloads');
 
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+
 async function getToken() {
+  const config = await Config.query().where("name", '=', 'tokenGoogle').first()
+  let tokenDecryption = new Config()
   try {
-    //const token = await Token.findBy("name", 'tokenGoogle')
-    const token = await Token.findOrFail(1)
-    if (!types.isNull(token?.token)) {
-      token.token = JSON.parse(token.token)
-      return token
+    if (config && config.valuetext) {
+      tokenDecryption = config
+      tokenDecryption.valuetext = Encryption.decrypt(config?.valuetext) //DESEMCRIPTA O TOKEN
+      tokenDecryption.valuetext = JSON.parse(tokenDecryption.valuetext) //CONVERTE PARA JSON
     }
   } catch (error) {
     console.log("erro 1541", error)
-    return null
   }
+  return config
 }
 
-async function getCredentials() {
-  try {
-    //const credentials = await Token.findBy("name", 'tokenGoogle')
-    const credentials = await Token.findOrFail(1)
-    credentials.credentials = JSON.parse(credentials.credentials)
-    return credentials
-  } catch (error) {
-    console.log("erro 1542", error)
-    return null
-  }
-}
-
-async function generateCredentialsToJson() {
-  const credentialsDB = await getCredentials()
-  const fileNameCredentials = CREDENTIALS_PATH
-  const content = JSON.stringify(credentialsDB?.credentials, null, 2);
-  await fs.writeFileSync(fileNameCredentials, content, 'utf8');
-}
+// async function loadSavedCredentialsIfExist() {
+//   const tokenNumber = await getToken()
+//   if (tokenNumber) {
+//     try {
+//       return google.auth.fromJSON(tokenNumber.valuetext);
+//     } catch (err) {
+//       return null;
+//     }
+//   }
+// }
 
 async function loadSavedCredentialsIfExist() {
-  const tokenNumber = await getToken()
-  if (tokenNumber) {
-    try {
-      return google.auth.fromJSON(tokenNumber.token);
-    } catch (err) {
-      console.log("ERRO DO TOKEN", err)
-      return null;
-    }
+  try {
+    const content = await fsPromises.readFile(TOKEN_PATH);
+    const credentials = JSON.parse(content);
+    return google.auth.fromJSON(credentials);
+  } catch (err) {
+    return null;
   }
 }
+
+/**
+ * Serializes credentials to a file comptible with GoogleAUth.fromJSON.
+ *
+ * @param {OAuth2Client} client
+ * @return {Promise<void>}
+ */
 
 async function saveCredentials(client) {
   const content = await fsPromises.readFile(CREDENTIALS_PATH);
@@ -74,75 +78,27 @@ async function saveCredentials(client) {
     client_secret: key.client_secret,
     refresh_token: client.credentials.refresh_token,
   });
-
-  try {
-    const token = await Token.findOrFail(1)
-    token.token = payload
-    await token.save()
-    await deleteFiles.DeleteFiles(CREDENTIALS_PATH)
-
-  } catch (error) {
-    return error
-  }
-
-
+  await fsPromises.writeFile(TOKEN_PATH, payload);
 }
 
-/************************************************************** */
-// async function loadSavedCredentialsIfExist() {
-//   try {
-//     const content = await fsPromises.readFile(TOKEN_PATH);
-//     const credentials = JSON.parse(content);
-//     return google.auth.fromJSON(credentials);
-//   } catch (err) {
-//     return null;
-//   }
-// }
-
-// async function saveCredentials(client) {
-//   console.log("SAVECREDENTIALS::::", client)
-//   const content = await fsPromises.readFile(CREDENTIALS_PATH);
-//   const keys = JSON.parse(content);
-//   const key = keys.installed || keys.web;
-//   const payload = JSON.stringify({
-//     type: 'authorized_user',
-//     client_id: key.client_id,
-//     client_secret: key.client_secret,
-//     refresh_token: client.credentials.refresh_token,
-//   });
-//   await fsPromises.writeFile(TOKEN_PATH, payload);
-
-// }
-/*********************************************************** */
 
 async function authorize() {
+
   let client = await loadSavedCredentialsIfExist();
   if (client) {
     return client;
   }
 
-  if (!fs.existsSync(CREDENTIALS_PATH)) {
-    await generateCredentialsToJson();
-    return
+  client = await authenticate({
+    scopes: SCOPES,
+    keyfilePath: CREDENTIALS_PATH,
+  });
+
+  if (client.credentials) {
+    await saveCredentials(client);
   }
-
-  try {
-    client = await authenticate({
-      scopes: SCOPES,
-      keyfilePath: CREDENTIALS_PATH,
-    });
-    if (client.credentials) {
-      await saveCredentials(client);
-    }
-    return client;
-
-  } catch (error) {
-    console.error('Erro ao autenticar:', error);
-    throw error;
-  }
-
+  return client;
 }
-
 
 async function uploadFiles(authClient, parents, folderPath, fileName) {
   const drive = google.drive({ version: 'v3', auth: authClient });
@@ -359,6 +315,7 @@ async function downloadFile(authClient, fileId, extension) {
 
 //****************************************************************** */
 async function sendAuthorize() {
+
   await authorize()
   return true
 }
@@ -392,6 +349,8 @@ async function sendCreateFolder(folderName, parentId = undefined) {
 async function sendSearchFile(fileName, parentId = undefined) {
   const auth = await authorize()
   return searchFile(auth, fileName, parentId)
+
+
 }
 
 async function sendDeleteFile(fileId) {

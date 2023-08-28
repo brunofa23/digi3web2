@@ -66,6 +66,9 @@ export default class AuthenticationController {
     const password = request.input('password')
     const accessImage = request.input('accessimage')
 
+
+
+
     const userAuthorization = await User
       .query()
       .where('username', usernameAutorization)
@@ -91,7 +94,11 @@ export default class AuthenticationController {
     }
 
     try {
-      const limitDataAccess = DateTime.local().plus({ days: accessImage }).toFormat('yyyy-MM-dd HH:mm')
+      const limitDataAccess = DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm')
+
+      console.log("ACCESS IMAGE VALOR:", limitDataAccess)
+
+
       const user = await User.query()
         .where('username', username)
         .andWhere('companies_id', '=', companies_id)
