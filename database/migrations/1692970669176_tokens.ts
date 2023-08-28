@@ -7,8 +7,8 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id').primary().notNullable()
       table.string('name').notNullable()
-      table.string('token', 700).notNullable()
-      table.string('credentials', 700).notNullable()
+      table.string('token', 1500)
+      table.string('credentials', 1500)
       table.string('accountname').notNullable()
       table.boolean('status').defaultTo('false')
       /**

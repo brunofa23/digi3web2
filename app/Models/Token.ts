@@ -1,7 +1,7 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, beforeSave, afterFind } from '@ioc:Adonis/Lucid/Orm'
 import Encryption from '@ioc:Adonis/Core/Encryption'
-import { string, types } from '@ioc:Adonis/Core/Helpers'
+import { types } from '@ioc:Adonis/Core/Helpers'
 
 export default class Token extends BaseModel {
 
@@ -53,12 +53,12 @@ export default class Token extends BaseModel {
 
   @afterFind()
   public static afterFind(token: Token) {
-    if (!string.isEmpty(token.token) || !types.isNull(token.token))
+    //console.log("TOKEN MODEL", token.token)
+    if (!types.isNull(token.token))
       token.token = Encryption.decrypt(token.token)
-    if (!string.isEmpty(token.credentials) || !types.isNull(token.credentials))
+    if (!types.isNull(token.credentials))
       token.credentials = Encryption.decrypt(token.credentials)
   }
-
 
 
 }

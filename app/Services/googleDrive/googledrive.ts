@@ -3,10 +3,11 @@ import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
 import Encryption from '@ioc:Adonis/Core/Encryption'
 import Token from 'App/Models/Token';
+import { types } from '@ioc:Adonis/Core/Helpers'
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
-
+const deleteFiles = require('../util')
 const path = require('path');
 const process = require('process');
 const { authenticate } = require('@google-cloud/local-auth');
@@ -18,26 +19,41 @@ const SCOPES = ['https://www.googleapis.com/auth/drive'];
 const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 
-
 async function getToken() {
   try {
-    const token = await Token.query().where("name", '=', 'tokenGoogle').first()
-    //console.log("TOKEN", token)
-    token.token = JSON.parse(token.token)
-    return token
+    //const token = await Token.findBy("name", 'tokenGoogle')
+    const token = await Token.findOrFail(1)
+    if (!types.isNull(token?.token)) {
+      token.token = JSON.parse(token.token)
+      return token
+    }
   } catch (error) {
     console.log("erro 1541", error)
+    return null
   }
+}
 
+async function getCredentials() {
+  try {
+    //const credentials = await Token.findBy("name", 'tokenGoogle')
+    const credentials = await Token.findOrFail(1)
+    credentials.credentials = JSON.parse(credentials.credentials)
+    return credentials
+  } catch (error) {
+    console.log("erro 1542", error)
+    return null
+  }
+}
+
+async function generateCredentialsToJson() {
+  const credentialsDB = await getCredentials()
+  const fileNameCredentials = CREDENTIALS_PATH
+  const content = JSON.stringify(credentialsDB?.credentials, null, 2);
+  await fs.writeFileSync(fileNameCredentials, content, 'utf8');
 }
 
 async function loadSavedCredentialsIfExist() {
   const tokenNumber = await getToken()
-  // console.log("TOKEN NUMBER", tokenNumber?.token)
-  // const content = await fsPromises.readFile(TOKEN_PATH);
-  // const credentials = JSON.parse(content);
-  // console.log("conteudo", credentials)
-
   if (tokenNumber) {
     try {
       return google.auth.fromJSON(tokenNumber.token);
@@ -48,6 +64,31 @@ async function loadSavedCredentialsIfExist() {
   }
 }
 
+async function saveCredentials(client) {
+  const content = await fsPromises.readFile(CREDENTIALS_PATH);
+  const keys = JSON.parse(content);
+  const key = keys.installed || keys.web;
+  const payload = JSON.stringify({
+    type: 'authorized_user',
+    client_id: key.client_id,
+    client_secret: key.client_secret,
+    refresh_token: client.credentials.refresh_token,
+  });
+
+  try {
+    const token = await Token.findOrFail(1)
+    token.token = payload
+    await token.save()
+    await deleteFiles.DeleteFiles(CREDENTIALS_PATH)
+
+  } catch (error) {
+    return error
+  }
+
+
+}
+
+/************************************************************** */
 // async function loadSavedCredentialsIfExist() {
 //   try {
 //     const content = await fsPromises.readFile(TOKEN_PATH);
@@ -58,40 +99,49 @@ async function loadSavedCredentialsIfExist() {
 //   }
 // }
 
-async function saveCredentials(client) {
-  console.log("SAVECREDENTIALS::::", client)
-  const content = await fsPromises.readFile(CREDENTIALS_PATH);
-  const keys = JSON.parse(content);
-  const key = keys.installed || keys.web;
-  const payload = JSON.stringify({
-    type: 'authorized_user',
-    client_id: key.client_id,
-    client_secret: key.client_secret,
-    refresh_token: client.credentials.refresh_token,
-  });
-  await fsPromises.writeFile(TOKEN_PATH, payload);
+// async function saveCredentials(client) {
+//   console.log("SAVECREDENTIALS::::", client)
+//   const content = await fsPromises.readFile(CREDENTIALS_PATH);
+//   const keys = JSON.parse(content);
+//   const key = keys.installed || keys.web;
+//   const payload = JSON.stringify({
+//     type: 'authorized_user',
+//     client_id: key.client_id,
+//     client_secret: key.client_secret,
+//     refresh_token: client.credentials.refresh_token,
+//   });
+//   await fsPromises.writeFile(TOKEN_PATH, payload);
 
-}
+// }
+/*********************************************************** */
 
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
   if (client) {
     return client;
   }
-  console.log("ENTREI NO DOWNLOAD IMAGE....authorize")
 
-  client = await authenticate({
-    scopes: SCOPES,
-    keyfilePath: CREDENTIALS_PATH,
-  });
-
-  if (client.credentials) {
-    await saveCredentials(client);
+  if (!fs.existsSync(CREDENTIALS_PATH)) {
+    await generateCredentialsToJson();
+    return
   }
-  return client;
+
+  try {
+    client = await authenticate({
+      scopes: SCOPES,
+      keyfilePath: CREDENTIALS_PATH,
+    });
+    if (client.credentials) {
+      await saveCredentials(client);
+    }
+    return client;
+
+  } catch (error) {
+    console.error('Erro ao autenticar:', error);
+    throw error;
+  }
+
 }
-
-
 
 
 async function uploadFiles(authClient, parents, folderPath, fileName) {
