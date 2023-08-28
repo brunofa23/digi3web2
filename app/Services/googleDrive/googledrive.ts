@@ -1,8 +1,8 @@
 import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
-import Config from 'App/Models/Config';
 import Encryption from '@ioc:Adonis/Core/Encryption'
+import Token from 'App/Models/Token';
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
@@ -19,23 +19,26 @@ const TOKEN_PATH = Application.configPath('tokens/token.json')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 
 
-
 async function getToken() {
-  const config = await Config.query().where("name", '=', 'tokenGoogle').first()
   try {
-
+    const token = await Token.query().where("name", '=', 'tokenGoogle').first()
+    //console.log("TOKEN", token)
+    return token
   } catch (error) {
     console.log("erro 1541", error)
   }
-  return config
+
 }
 
 async function loadSavedCredentialsIfExist() {
   const tokenNumber = await getToken()
+  console.log("TOKEN NUMBER", tokenNumber?.token)
+
   if (tokenNumber) {
     try {
-      return google.auth.fromJSON(tokenNumber.valuetext);
+      return google.auth.fromJSON(tokenNumber.token);
     } catch (err) {
+      console.log("ERRO DO TOKEN", err)
       return null;
     }
   }
@@ -59,6 +62,7 @@ async function saveCredentials(client) {
 
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
+
   if (client) {
     return client;
   }
