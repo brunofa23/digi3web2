@@ -14,7 +14,7 @@ const process = require('process');
 const { authenticate } = require('@google-cloud/local-auth');
 const { google } = require('googleapis');
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
-const TOKEN_PATH = Application_1.default.configPath('tokens/token.json');
+const TOKEN_PATH = Application_1.default.configPath('tokens/');
 const CREDENTIALS_PATH = Application_1.default.configPath('/credentials/credentials.json');
 const CREDENTIALS_PATH_FOLDER = Application_1.default.configPath('/credentials/');
 async function getToken() {
@@ -83,6 +83,7 @@ async function saveCredentials(client) {
         token.token = payload;
         await token.save();
         await deleteFiles.DeleteFiles(CREDENTIALS_PATH);
+        await deleteFiles.DeleteFiles(TOKEN_PATH);
     }
     catch (error) {
         return error;
