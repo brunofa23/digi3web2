@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Route_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Route"));
 Route_1.default.group(() => {
     Route_1.default.get('/', async () => {
-        return { hello: 'Hello World v64' };
+        return { hello: 'Hello World v66' };
     });
     Route_1.default.get("/books", 'BooksController.index').middleware("level_permission:get");
     Route_1.default.post("/books", 'BooksController.store').middleware("level_permission:post");
@@ -45,6 +45,7 @@ Route_1.default.group(() => {
     Route_1.default.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages");
     Route_1.default.post("/resetpassword", "UserPasswordsController.resetPassword");
     Route_1.default.post("/updatepassword", "UserPasswordsController.updatePassword");
+    Route_1.default.post("/token", "TokensController.store");
     Route_1.default.get('dashboard', async ({ auth }) => {
         await auth.use('api').authenticate();
         return auth.use('api').user;
