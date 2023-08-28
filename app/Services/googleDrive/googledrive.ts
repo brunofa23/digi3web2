@@ -23,6 +23,7 @@ async function getToken() {
   try {
     const token = await Token.query().where("name", '=', 'tokenGoogle').first()
     //console.log("TOKEN", token)
+    token.token = JSON.parse(token.token)
     return token
   } catch (error) {
     console.log("erro 1541", error)
@@ -32,7 +33,10 @@ async function getToken() {
 
 async function loadSavedCredentialsIfExist() {
   const tokenNumber = await getToken()
-  console.log("TOKEN NUMBER", tokenNumber?.token)
+  // console.log("TOKEN NUMBER", tokenNumber?.token)
+  // const content = await fsPromises.readFile(TOKEN_PATH);
+  // const credentials = JSON.parse(content);
+  // console.log("conteudo", credentials)
 
   if (tokenNumber) {
     try {
@@ -43,6 +47,16 @@ async function loadSavedCredentialsIfExist() {
     }
   }
 }
+
+// async function loadSavedCredentialsIfExist() {
+//   try {
+//     const content = await fsPromises.readFile(TOKEN_PATH);
+//     const credentials = JSON.parse(content);
+//     return google.auth.fromJSON(credentials);
+//   } catch (err) {
+//     return null;
+//   }
+// }
 
 async function saveCredentials(client) {
   console.log("SAVECREDENTIALS::::", client)
@@ -55,14 +69,12 @@ async function saveCredentials(client) {
     client_secret: key.client_secret,
     refresh_token: client.credentials.refresh_token,
   });
-
   await fsPromises.writeFile(TOKEN_PATH, payload);
 
 }
 
 async function authorize() {
   let client = await loadSavedCredentialsIfExist();
-
   if (client) {
     return client;
   }

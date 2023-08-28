@@ -8,10 +8,9 @@ export default class TokensController {
         const authenticate = await auth.use('api').authenticate()
         const data = request.only(Token.fillable)
         if (authenticate.companies_id == 1 && authenticate.superuser == true) {
-
             try {
                 const searchPayload = { name: data.name }
-                const persistancePayload = data//{ password: 'secret' }
+                const persistancePayload = data
                 await Token.updateOrCreate(searchPayload, persistancePayload)
                 return response.status(200).send("salvo")
             } catch (error) {
@@ -23,12 +22,9 @@ export default class TokensController {
 
 
     public async index({ auth, response, request }) {
-
         const authenticate = await auth.use('api').authenticate()
-
         try {
             const token = await Token.findBy('name', 'tokenGoogle')
-
             return response.status(200).send(token)
         } catch (error) {
             //throw new BadRequest('Bad Request', 401, 'erro')

@@ -43,11 +43,9 @@ export default class Token extends BaseModel {
 
   @beforeSave()
   public static async Encryption(token: Token) {
-    console.log("before Save....", token)
     if (token.$dirty.token) {
       token.token = await Encryption.encrypt(token.token)
     }
-
     if (token.$dirty.credentials) {
       token.credentials = await Encryption.encrypt(token.credentials)
     }
