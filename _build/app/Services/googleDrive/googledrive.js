@@ -16,6 +16,7 @@ const { google } = require('googleapis');
 const SCOPES = ['https://www.googleapis.com/auth/drive'];
 const TOKEN_PATH = Application_1.default.configPath('tokens/token.json');
 const CREDENTIALS_PATH = Application_1.default.configPath('/credentials/credentials.json');
+const CREDENTIALS_PATH_FOLDER = Application_1.default.configPath('/credentials/');
 async function getToken() {
     try {
         const token = await Token_1.default.findOrFail(1);
@@ -44,7 +45,16 @@ async function generateCredentialsToJson() {
     const credentialsDB = await getCredentials();
     const fileNameCredentials = CREDENTIALS_PATH;
     const content = JSON.stringify(credentialsDB?.credentials, null, 2);
-    await fs.writeFileSync(fileNameCredentials, content, 'utf8');
+    try {
+        if (!fs.existsSync(CREDENTIALS_PATH_FOLDER)) {
+            console.log("ERRO SEM PASTA CREDENTIALS");
+            fs.mkdirSync(CREDENTIALS_PATH_FOLDER);
+        }
+        await fs.writeFileSync(fileNameCredentials, content, 'utf8');
+    }
+    catch (error) {
+        throw error;
+    }
 }
 async function loadSavedCredentialsIfExist() {
     const tokenNumber = await getToken();
