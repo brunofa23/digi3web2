@@ -9,6 +9,7 @@ const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/I
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const pino_std_serializers_1 = require("pino-std-serializers");
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const fs = require('fs');
 const path = require('path');
@@ -18,13 +19,18 @@ function sleep(ms) {
     });
 }
 async function deleteImage(folderPath) {
-    fs.unlink(`${folderPath}`, (err) => {
-        if (err) {
-            throw "ERRO DELETE::" + err;
-        }
-        console.log("Delete File successfully.");
-        return true;
-    });
+    try {
+        fs.unlink(`${folderPath}`, (err) => {
+            if (err) {
+                throw "ERRO DELETE::" + err;
+            }
+            console.log("Delete File successfully.");
+            return true;
+        });
+    }
+    catch (error) {
+        return { "ERRO DELETE::>": pino_std_serializers_1.err, error };
+    }
 }
 async function downloadImage(fileName) {
     const extension = path.extname(fileName);
