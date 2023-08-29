@@ -5,6 +5,7 @@ import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
+import { err } from "pino-std-serializers";
 
 
 const authorize = require('App/Services/googleDrive/googledrive')
@@ -18,13 +19,18 @@ function sleep(ms) {
 }
 
 async function deleteImage(folderPath) {
-  fs.unlink(`${folderPath}`, (err) => {
-    if (err) {
-      throw "ERRO DELETE::" + err;
-    }
-    console.log("Delete File successfully.");
-    return true
-  });
+  try {
+    fs.unlink(`${folderPath}`, (err) => {
+      if (err) {
+        throw "ERRO DELETE::" + err;
+      }
+      console.log("Delete File successfully.");
+      return true
+    });
+  } catch (error) {
+    return { "ERRO DELETE::>": err, error }
+  }
+
 }
 
 async function downloadImage(fileName) {
