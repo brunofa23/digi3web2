@@ -5,6 +5,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import { randomBytes } from 'crypto'
 import { promisify } from 'util'
 import Mail from '@ioc:Adonis/Addons/Mail'
+import UserValidator from 'App/Validators/UserValidator'
 
 export default class UserPasswordsController {
 
@@ -13,6 +14,13 @@ export default class UserPasswordsController {
 
         const _auth = await auth.use('api').authenticate()
         const { newPassword } = request.only(['newPassword'])
+
+        const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
+
+        if (strongPasswordRegex.test(newPassword) == false) {
+            let errorValidation = await new validations('user_error_206')
+            throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+        }
 
         const user = await User.query()
             .where('username', '=', _auth.username)
