@@ -50,12 +50,12 @@
         "status": 401
     },
     {
-        "code": "user_error_206",
+        "code": "user_error_207",
         "messages": "password is not strong",
         "status": 401
     },
     {
-        "code": "user_error_207",
+        "code": "user_error_206",
         "messages": "Invalid password",
         "status": 401
     },

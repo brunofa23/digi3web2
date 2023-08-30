@@ -16,9 +16,8 @@ export default class UserPasswordsController {
         const { newPassword } = request.only(['newPassword'])
 
         const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
-
         if (strongPasswordRegex.test(newPassword) == false) {
-            let errorValidation = await new validations('user_error_206')
+            let errorValidation = await new validations('user_error_207')
             throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
         }
 

@@ -2,6 +2,8 @@ import { DateTime } from 'luxon'
 import Hash from '@ioc:Adonis/Core/Hash'
 import { column, beforeSave, BaseModel, BelongsTo, belongsTo, hasOne, HasOne, beforeUpdate } from '@ioc:Adonis/Lucid/Orm'
 import Company from './Company'
+import BadRequest from 'App/Exceptions/BadRequestException'
+import validations from 'App/Services/Validations/validations'
 
 export default class User extends BaseModel {
 
@@ -81,10 +83,18 @@ export default class User extends BaseModel {
 
   @beforeSave()
   public static async hashPassword(user: User) {
+    const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
     if (user.$dirty.password) {
+      if (strongPasswordRegex.test(user.$dirty.password) == false) {
+        console.log("entrei no strongPasseord")
+        let errorValidation = await new validations('user_error_207')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
+
       user.password = await Hash.make(user.password)
     }
   }
+
 
 
 
