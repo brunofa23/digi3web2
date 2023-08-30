@@ -4,6 +4,12 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import UserValidator from 'App/Validators/UserValidator'
 import validations from 'App/Services/Validations/validations'
 
+function isStrongPassword(password) {
+  const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
+  return strongPasswordRegex.test(password);
+}
+
+
 export default class UsersController {
 
   public async index({ auth, response }: HttpContextContract) {

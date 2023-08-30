@@ -1,22 +1,26 @@
 import { schema, CustomMessages, rules } from '@ioc:Adonis/Core/Validator'
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
+const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
+
 export default class UserValidator {
   constructor(protected ctx: HttpContextContract) { }
 
   public schema = schema.create({
+
     id: schema.number.optional(),
     companies_id: schema.number(),
     name: schema.string({}, [rules.maxLength(45)]),
     username: schema.string({}, [rules.maxLength(45)]),
     email: schema.string.optional({}, [rules.email(), rules.maxLength(255)]),
-    password: schema.string.nullableAndOptional(),
+    password: schema.string.nullableAndOptional({}, [rules.regex(strongPasswordRegex)]),
     remember_me_token: schema.string.optional(),
     permission_level: schema.number(),
     superuser: schema.boolean(),
     status: schema.boolean()
   })
 
-
-  //public messages: CustomMessages = {}
+  public messages: CustomMessages = {
+    'password.regex': "Minimum 8 with uppercase, lowercase, numbers and special characters."
+  }
 }
