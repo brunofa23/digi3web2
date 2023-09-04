@@ -2,9 +2,11 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import User from 'App/Models/User'
 import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
-import { randomBytes } from 'crypto'
-import { promisify } from 'util'
+//import { randomBytes } from 'crypto'
+//import { promisify } from 'util'
 import Mail from '@ioc:Adonis/Addons/Mail'
+import { string } from '@ioc:Adonis/Core/Helpers'
+
 import UserValidator from 'App/Validators/UserValidator'
 
 export default class UserPasswordsController {
@@ -52,8 +54,10 @@ export default class UserPasswordsController {
         if (user instanceof User && user.email) {
 
             try {
-                const random = await promisify(randomBytes)(15)
-                const passwordReset = random.toString('hex')
+                //const random = await promisify(randomBytes)(15)
+                //const passwordReset = random.toString('hex')
+                const passwordReset = '#$1A' + string.generateRandom(32)
+                console.log('PASSWOPRD', passwordReset)
                 user.password = passwordReset
                 user.save()
                 //Enviar por email

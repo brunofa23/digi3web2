@@ -86,7 +86,6 @@ export default class User extends BaseModel {
     const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
     if (user.$dirty.password) {
       if (strongPasswordRegex.test(user.$dirty.password) == false) {
-        console.log("entrei no strongPasseord")
         let errorValidation = await new validations('user_error_207')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
       }
