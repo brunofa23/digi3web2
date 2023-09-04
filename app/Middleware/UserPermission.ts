@@ -6,12 +6,8 @@ export default class UserPermission {
   public async handle({ auth, request, response }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
 
     const authenticate = await auth.use('api').authenticate()
-    console.log("REQUEST::::", request)
-
 
     for (const guard of customGuards) {
-
-
 
       if (guard === 'get' && authenticate.permission_level >= 0) {
         await next()
