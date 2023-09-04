@@ -4,6 +4,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import UserValidator from 'App/Validators/UserValidator'
 import validations from 'App/Services/Validations/validations'
 
+
 export default class UsersController {
 
   public async index({ auth, response }: HttpContextContract) {

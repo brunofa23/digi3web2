@@ -1,6 +1,7 @@
 import { schema, CustomMessages, rules } from '@ioc:Adonis/Core/Validator'
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
+
 export default class UserValidator {
   constructor(protected ctx: HttpContextContract) { }
 
@@ -17,6 +18,7 @@ export default class UserValidator {
     status: schema.boolean()
   })
 
-
-  //public messages: CustomMessages = {}
+  // public messages: CustomMessages = {
+  //   'password.regex': "Minimum 8 with uppercase, lowercase, numbers and special characters."
+  // }
 }
