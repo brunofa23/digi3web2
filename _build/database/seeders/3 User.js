@@ -13,21 +13,11 @@ class default_1 extends Seeder_1.default {
                 "name": "Administrador",
                 "username": "admin",
                 "email": "admin@digi3.com.br",
-                "password": "12345",
-                "remember_me_token": "12345",
+                "password": "Cartorio@12345",
+                "remember_me_token": "Cartorio@12345",
                 "permission_level": 5,
                 "superuser": 1,
                 "status": 1
-            },
-            {
-                "companies_id": 2,
-                "name": "vendanova",
-                "username": "admin",
-                "email": "teste@teste.br",
-                "password": "12345",
-                "remember_me_token": "bruno",
-                "permission_level": 3,
-                "status": 0,
             },
         ]);
     }

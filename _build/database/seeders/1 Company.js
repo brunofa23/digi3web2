@@ -26,26 +26,7 @@ class default_1 extends Seeder_1.default {
                 "status": 1,
                 "created_at": "",
                 "updated_at": ""
-            },
-            {
-                "id": 2,
-                "name": "Cartório de Venda Nova",
-                "shortname": "vendanova",
-                "address": "Rua Teste",
-                "number": 200,
-                "complement": "",
-                "postalcode": "",
-                "district": "Centro",
-                "city": "Belo Horizonte",
-                "state": "MG",
-                "cnpj": 2222222222222222,
-                "responsablename": "Vandir",
-                "phoneresponsable": "",
-                "email": "teste@gmail.com",
-                "status": 1,
-                "created_at": "",
-                "updated_at": ""
-            },
+            }
         ]);
     }
 }

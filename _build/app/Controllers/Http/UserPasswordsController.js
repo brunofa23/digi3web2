@@ -6,13 +6,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
-const crypto_1 = require("crypto");
-const util_1 = require("util");
 const Mail_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Addons/Mail"));
+const Helpers_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Helpers");
 class UserPasswordsController {
     async updatePassword({ auth, request, response }) {
         const _auth = await auth.use('api').authenticate();
         const { newPassword } = request.only(['newPassword']);
+        const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
+        if (strongPasswordRegex.test(newPassword) == false) {
+            let errorValidation = await new validations_1.default('user_error_207');
+            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        }
         const user = await User_1.default.query()
             .where('username', '=', _auth.username)
             .andWhere('companies_id', '=', _auth.companies_id).first();
@@ -38,8 +42,8 @@ class UserPasswordsController {
             .where('shortname', '=', body.shortname).first();
         if (user instanceof User_1.default && user.email) {
             try {
-                const random = await (0, util_1.promisify)(crypto_1.randomBytes)(15);
-                const passwordReset = random.toString('hex');
+                const passwordReset = '#$1A' + Helpers_1.string.generateRandom(32);
+                console.log('PASSWOPRD', passwordReset);
                 user.password = passwordReset;
                 user.save();
                 await Mail_1.default.send((message) => {

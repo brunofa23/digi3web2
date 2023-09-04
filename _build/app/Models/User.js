@@ -16,6 +16,8 @@ const luxon_1 = require("luxon");
 const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash"));
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Company_1 = __importDefault(require("./Company"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 class User extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -36,7 +38,12 @@ class User extends Orm_1.BaseModel {
         ];
     }
     static async hashPassword(user) {
+        const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[!@#$%^&*])(?=.{8,})/;
         if (user.$dirty.password) {
+            if (strongPasswordRegex.test(user.$dirty.password) == false) {
+                let errorValidation = await new validations_1.default('user_error_207');
+                throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+            }
             user.password = await Hash_1.default.make(user.password);
         }
     }
