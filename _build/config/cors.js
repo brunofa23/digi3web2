@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const corsConfig = {
     enabled: (request) => request.url().startsWith('/api'),
-    origin: true,
+    origin: '*',
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
     headers: true,
     exposeHeaders: [
@@ -14,7 +14,7 @@ const corsConfig = {
         'pragma',
     ],
     credentials: true,
-    maxAge: 90,
+    maxAge: 86400,
 };
 exports.default = corsConfig;
 //# sourceMappingURL=cors.js.map

@@ -11,6 +11,7 @@ class default_1 extends Schema_1.default {
     }
     async up() {
         this.schema.createTable(this.tableName, (table) => {
+            table.primary(['id', 'typebooks_id', 'books_id', 'companies_id']);
             table.increments('id');
             table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id');
             table.integer('books_id').notNullable().unsigned().references('typebooks.books_id').onDelete('CASCADE');
@@ -20,10 +21,10 @@ class default_1 extends Schema_1.default {
             table.integer('sheet');
             table.string('side');
             table.string('approximate_term');
-            table.integer('index');
+            table.integer('indexbook');
             table.string('obs');
             table.string('letter');
-            table.integer('year');
+            table.string('year');
             table.string('model');
             table.timestamp('created_at', { useTz: true });
             table.timestamp('updated_at', { useTz: true });

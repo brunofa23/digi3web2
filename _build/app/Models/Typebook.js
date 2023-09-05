@@ -27,6 +27,7 @@ class Typebook extends Orm_1.BaseModel {
             'path',
             'books_id',
             'companies_id',
+            'filesTot',
             'createdAt',
             'updatedAt',
         ];
@@ -97,6 +98,10 @@ __decorate([
     Orm_1.column.dateTime({ autoCreate: true, autoUpdate: true }),
     __metadata("design:type", luxon_1.DateTime)
 ], Typebook.prototype, "updatedAt", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Typebook.prototype, "totalFiles", void 0);
 __decorate([
     (0, Orm_1.afterSave)(),
     __metadata("design:type", Function),

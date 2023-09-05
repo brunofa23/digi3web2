@@ -5,6 +5,8 @@ export default class extends BaseSchema {
 
   public async up() {
     this.schema.createTable(this.tableName, (table) => {
+
+      table.primary(['id', 'typebooks_id', 'books_id', 'companies_id'])
       table.increments('id')
 
       table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id')
@@ -16,10 +18,10 @@ export default class extends BaseSchema {
       table.integer('sheet')
       table.string('side')
       table.string('approximate_term')
-      table.integer('index')
+      table.integer('indexbook')
       table.string('obs')
       table.string('letter')
-      table.integer('year')
+      table.string('year')
       table.string('model')
 
       /**

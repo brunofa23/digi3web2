@@ -1,24 +1,35 @@
-import { GuardsList } from '@ioc:Adonis/Addons/Auth'
+//import { GuardsList } from '@ioc:Adonis/Addons/Auth'
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-
+import validations from 'App/Services/Validations/validations'
+import BadRequest from 'App/Exceptions/BadRequestException'
 export default class LevelPermission {
+
   public async handle({ auth, response }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
-    
-    await auth.use('api').authenticate()
-    const user = auth.use('api').user
 
-    for(const guard of customGuards) {
+    const authenticate = await auth.use('api').authenticate()
 
-      if(guard === 'superuser' && !user?.superuser) {
-        return response.unauthorized({ error: 'Unauthorized: su' })
+    if (authenticate.superuser) {
+      await next()
+    }
+    for (const guard of customGuards) {
+      console.log("entrei no LEVELPERMISSIONS", guard)
+      if (guard === 'get')
+        await next()
+      else {
+        let errorValidation = await new validations('error_10')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
       }
-      
-      if(!isNaN(parseInt(guard)) && user?.permission_level < parseInt(guard)) {
-        return response.unauthorized({ error: 'Unauthorized: level' })
-      }
+      // if (guard === 'get') {
+      //   await next()
+      //   //return response.unauthorized({ error: 'Unauthorized: su' })
+      // }
+
+      // if (!isNaN(parseInt(guard)) && user?.permission_level < parseInt(guard)) {
+      //   return response.unauthorized({ error: 'Unauthorized: level' })
+      // }
     }
 
-    await next()
+
   }
-  
+
 }

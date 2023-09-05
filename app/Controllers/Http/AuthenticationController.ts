@@ -1,14 +1,14 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import User from 'App/Models/User'
 import Hash from '@ioc:Adonis/Core/Hash'
+import BadRequest from 'App/Exceptions/BadRequestException'
+import validations from 'App/Services/Validations/validations'
+import { DateTime } from 'luxon'
 
 const { Logtail } = require("@logtail/node");
 const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 
-
-
 export default class AuthenticationController {
-
 
   public async login({ auth, request, response }: HttpContextContract) {
 
@@ -23,11 +23,17 @@ export default class AuthenticationController {
       .whereHas('company', builder => {
         builder.where('shortname', shortname)
       })
-      .firstOrFail()
+      .first()
+
+    if (!user) {
+      const errorValidation = await new validations('user_error_205')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
 
     // Verify password
     if (!(await Hash.verify(user.password, password))) {
-      return response.unauthorized('Invalid credentials')
+      let errorValidation = await new validations('user_error_206')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
     // Generate token
@@ -36,22 +42,79 @@ export default class AuthenticationController {
       name: 'For the CLI app'
 
     })
-    console.log(">>>Fez login...",{token});
-    logtail.debug("debug",{token,user})
+
+    logtail.debug("debug", { token, user })
     logtail.flush()
 
-    return {token, user}
+    //return { token, user }
+    return response.status(200).send({ token, user })
 
   }
 
 
-  public async logout({ auth, response }:HttpContextContract) {
+  public async logout({ auth }: HttpContextContract) {
 
-    
     await auth.use('api').revoke()
-    return {
-      revoked: true
+    return { revoked: true }
+
+  }
+
+  public async authorizeAccessImages({ auth, request, response }) {
+
+    const { companies_id, username } = await auth.use('api').authenticate()
+    const usernameAutorization = request.input('username')
+    const password = request.input('password')
+    const accessImage = request.input('accessimage')
+
+
+
+
+    const userAuthorization = await User
+      .query()
+      .where('username', usernameAutorization)
+      .andWhere('companies_id', '=', companies_id)
+      .first()
+
+    if (userAuthorization) {
+      if (userAuthorization.permission_level < 5 || !userAuthorization.superuser) {
+        const errorValidation = await new validations('user_error_201')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
     }
+
+    if (!userAuthorization) {
+      const errorValidation = await new validations('user_error_205')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
+
+    // Verify password
+    if (!(await Hash.verify(userAuthorization.password, String(password)))) {
+      let errorValidation = await new validations('user_error_206')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
+
+    try {
+      const limitDataAccess = DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm')
+
+      console.log("ACCESS IMAGE VALOR:", limitDataAccess)
+
+
+      const user = await User.query()
+        .where('username', username)
+        .andWhere('companies_id', '=', companies_id)
+        .first()
+      if (user) {
+        //console.log("DATA", DateTime.fromISO(limitDataAccess))
+        user.access_image = limitDataAccess
+        user.save()
+        return response.status(201).send({ valor: true, tempo: accessImage })
+      }
+
+    } catch (error) {
+      //let errorValidation = await new validations('user_error_206')
+      throw new BadRequest("Erro ao liberar o acesso.", errorValidation.status, errorValidation.code)
+    }
+
 
   }
 

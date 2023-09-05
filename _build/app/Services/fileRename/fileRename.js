@@ -4,9 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
+const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const pino_std_serializers_1 = require("pino-std-serializers");
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const fs = require('fs');
 const path = require('path');
@@ -15,127 +18,27 @@ function sleep(ms) {
         setTimeout(resolve, ms);
     });
 }
-function deleteImage(folderPath) {
-    fs.unlink(`${folderPath}`, (err) => {
-        if (err) {
-            throw err;
-        }
-        console.log("Delete File successfully.");
-    });
-}
-async function transformFilesNameToId1(images, params, companies_id, capture = false) {
-    const _companies_id = companies_id;
-    let result = [];
-    let query = "";
-    const folderPath = Application_1.default.tmpPath(`/uploads/Client_${companies_id}`);
+async function deleteImage(folderPath) {
     try {
-        if (!fs.existsSync(folderPath)) {
-            fs.mkdirSync(folderPath);
-        }
-    }
-    catch (error) {
-        return error;
-    }
-    const directoryParent = await Bookrecord_1.default.query()
-        .preload('typebooks')
-        .where('typebooks_id', '=', params.typebooks_id)
-        .andWhere('companies_id', '=', companies_id).first();
-    if (!directoryParent || directoryParent == undefined)
-        return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS";
-    let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path);
-    if (parent.length == 0) {
-        const company = await Company_1.default.findByOrFail('id', _companies_id);
-        const idFolderCompany = await authorize.sendSearchFile(company.foldername);
-        await authorize.sendCreateFolder(directoryParent?.typebooks.path, idFolderCompany[0].id);
-        await sleep(2000);
-    }
-    await sleep(1000);
-    const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path);
-    if (capture) {
-        console.log(">>imagem valida", images);
-        console.log(">>CAMINHO DA PASTA>>", path.dirname(images));
-        console.log(">>CAMINHO DA folderPath>>", images);
-        fs.rename(images, `${path.dirname(images)}/teste.jpg`, function (err) {
+        fs.unlink(`${folderPath}`, (err) => {
             if (err) {
-                throw err;
+                throw "ERRO DELETE::" + err;
             }
-            else {
-                console.log('Arquivo renomeado');
-            }
+            console.log("Delete File successfully.");
+            return true;
         });
     }
-    let cont = 0;
-    for (let image of images) {
-        cont++;
-        if (cont >= 6) {
-            await sleep(7000);
-            cont = 0;
-        }
-        if (!image) {
-            console.log("não é imagem");
-        }
-        if (!image.isValid) {
-            console.log("Error", image.errors);
-        }
-        if (image.clientName.toUpperCase().startsWith('L')) {
-            let separators = ["L", '\'', '(', ')', '|', '-'];
-            let arrayFileName = image.clientName.split(new RegExp('([' + separators.join('') + '])'));
-            query = ` cod =${arrayFileName[4]} and book = ${arrayFileName[2]} `;
-            try {
-                const name = await Bookrecord_1.default.query()
-                    .preload('typebooks')
-                    .where('typebooks_id', '=', params.typebooks_id)
-                    .andWhere('companies_id', '=', _companies_id)
-                    .whereRaw(query);
-                const data = await Indeximage_1.default.query()
-                    .where('bookrecords_id', name[0].id)
-                    .andWhere('typebooks_id', '=', params.typebooks_id)
-                    .andWhere('companies_id', '=', _companies_id)
-                    .orderBy('seq', 'desc').first();
-                if (!data)
-                    this.seq = 0;
-                else
-                    this.seq = data.seq + 1;
-                const fileName = `id${name[0].id}_${this.seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}.${image.extname}`;
-                const bookrecords_id = name[0].id;
-                const typebooks_id = params.typebooks_id;
-                const companies_id = _companies_id;
-                const seq = this.seq;
-                const ext = image.extname;
-                const file_name = fileName;
-                const previous_file_name = image.clientName;
-                const indexImage = {
-                    bookrecords_id,
-                    typebooks_id,
-                    companies_id,
-                    seq,
-                    ext,
-                    file_name,
-                    previous_file_name
-                };
-                if (image && image.isValid) {
-                    await image.move(folderPath, { name: fileName, overwrite: true });
-                    await authorize.sendUploadFiles(idParent[0].id, folderPath, `${fileName}`);
-                    const dataIndexImage = await Indeximage_1.default.create(indexImage);
-                    await deleteImage(`${folderPath}/${fileName}`);
-                    result.push(dataIndexImage);
-                }
-            }
-            catch (error) {
-                console.log(error);
-            }
-        }
+    catch (error) {
+        return { "ERRO DELETE::>": pino_std_serializers_1.err, error };
     }
-    console.log("total:", result.length);
-    return result.length;
 }
-async function downloadImage(fileName, companies_id) {
+async function downloadImage(fileName) {
+    const extension = path.extname(fileName);
     const fileId = await authorize.sendSearchFile(fileName);
-    console.log(fileId);
-    const download = await authorize.sendDownloadFile(fileId[0].id);
+    const download = await authorize.sendDownloadFile(fileId[0].id, extension);
     return download;
 }
-async function transformFilesNameToId(images, params, companies_id, capture = false) {
+async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
     const _companies_id = companies_id;
     let result = [];
     const folderPath = Application_1.default.tmpPath(`/uploads/Client_${companies_id}`);
@@ -145,28 +48,26 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         }
     }
     catch (error) {
-        return error;
+        throw new BadRequestException_1.default('could not create client directory', 409);
     }
-    const directoryParent = await Bookrecord_1.default.query()
-        .preload('typebooks')
-        .where('typebooks_id', '=', params.typebooks_id)
+    const directoryParent = await Typebook_1.default.query()
+        .where('id', '=', params.typebooks_id)
         .andWhere('companies_id', '=', companies_id).first();
     if (!directoryParent || directoryParent == undefined)
-        return "LIVRO SEM REGISTROS PARA VINCULAR IMAGENS";
-    let parent = await authorize.sendSearchFile(directoryParent?.typebooks.path);
+        throw new BadRequestException_1.default('undefined book', 409);
+    let parent = await authorize.sendSearchFile(directoryParent?.path);
     if (parent.length == 0) {
         const company = await Company_1.default.findByOrFail('id', _companies_id);
         const idFolderCompany = await authorize.sendSearchFile(company.foldername);
-        await authorize.sendCreateFolder(directoryParent?.typebooks.path, idFolderCompany[0].id);
+        await authorize.sendCreateFolder(directoryParent?.path, idFolderCompany[0].id);
         await sleep(2000);
     }
     await sleep(1000);
-    const idParent = await authorize.sendSearchFile(directoryParent?.typebooks.path);
+    const idParent = await authorize.sendSearchFile(directoryParent?.path);
     if (capture) {
         const _fileRename = await fileRename(images, params.typebooks_id, companies_id);
         try {
             await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, true);
-            console.log("UPLOAD COM SUCESSO!!!!");
             return images;
         }
         catch (error) {
@@ -178,7 +79,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     for (let image of images) {
         cont++;
         if (cont >= 6) {
-            await sleep(7000);
+            await sleep(4000);
             cont = 0;
         }
         if (!image) {
@@ -187,14 +88,15 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         if (!image.isValid) {
             console.log("Error", image.errors);
         }
-        const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id);
+        const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
+        console.log("FILE RENAME RENOMEADO>>", _fileRename);
         try {
             if (image && image.isValid) {
-                result.push(pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id));
+                result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id));
             }
         }
         catch (error) {
-            console.log(error);
+            await new BadRequestException_1.default(error + 'pushImageToGoogle', 409);
         }
     }
     return result;
@@ -202,33 +104,63 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, capture = false) {
     try {
         if (capture) {
-            fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
+            await fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
                 if (err) {
                     throw err;
                 }
                 else {
-                    console.log('Arquivo renomeado');
                 }
             });
         }
         else {
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
         }
-        await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`);
-        await Indeximage_1.default.create(objfileRename);
+        const sendUpload = await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`);
+        if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+            await Indeximage_1.default.create(objfileRename);
+            console.log("executando create indeximage");
+        }
         await deleteImage(`${folderPath}/${objfileRename.file_name}`);
+        console.log("DELETE>>", `${folderPath}/${objfileRename.file_name}`);
     }
     catch (error) {
-        return error;
+        throw new BadRequestException_1.default(error + ' sendUploadFiles', 409);
     }
     return objfileRename.file_name;
 }
-async function fileRename(originalFileName, typebooks_id, companies_id) {
+async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
     let query;
     let objFileName;
-    if (originalFileName.toUpperCase().startsWith('L')) {
-        let separators = ["L", '\'', '(', ')', '|', '-'];
-        const arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+    let separators;
+    let arrayFileName;
+    const regexBookAndCod = /^L\d+\(\d+\).*$/;
+    const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
+    const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
+    if (dataImages.typeBookFile) {
+        console.log("Vindo do typebook File Vandir....", dataImages);
+        let fileName;
+        if (dataImages.book && dataImages.sheet && dataImages.side) {
+            fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
+        }
+        else if (dataImages.book && dataImages.cod) {
+            fileName = `L${dataImages.book}(${dataImages.cod})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
+        }
+        else if (dataImages.book && dataImages.approximateTerm) {
+            fileName = `T${dataImages.book}(${dataImages.approximateTerm})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
+        }
+        const fileRename = {
+            file_name: fileName,
+            typebooks_id,
+            companies_id,
+            previous_file_name: originalFileName,
+            typeBookFile: true
+        };
+        console.log("FILE RENAME>>>", fileRename);
+        return fileRename;
+    }
+    else if (regexBookAndCod.test(originalFileName.toUpperCase())) {
+        separators = ["L", '\'', '(', ')', '|', '-'];
+        arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
         objFileName = {
             type: arrayFileName[1],
             book: arrayFileName[2],
@@ -236,6 +168,18 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
             ext: arrayFileName[6]
         };
         query = ` cod =${objFileName.cod} and book = ${objFileName.book} `;
+    }
+    else if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
+        separators = ["L", '_', '|', '-'];
+        arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
+        objFileName = {
+            type: arrayFileName[1],
+            book: arrayFileName[2],
+            sheet: arrayFileName[4],
+            side: arrayFileName[6][0],
+            ext: path.extname(originalFileName).toLowerCase()
+        };
+        query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`;
     }
     else if (path.basename(originalFileName).startsWith('Id')) {
         const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/);
@@ -247,27 +191,130 @@ async function fileRename(originalFileName, typebooks_id, companies_id) {
         originalFileName = path.basename(originalFileName);
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `;
     }
-    const name = await Bookrecord_1.default.query()
-        .preload('typebooks')
-        .where('typebooks_id', '=', typebooks_id)
-        .andWhere('companies_id', '=', companies_id)
-        .whereRaw(query);
-    const _seq = await Indeximage_1.default.query()
-        .where('bookrecords_id', name[0].id)
-        .andWhere('typebooks_id', '=', typebooks_id)
-        .andWhere('companies_id', '=', companies_id)
-        .orderBy('seq', 'desc').first();
-    const seq = (!_seq ? 0 : _seq.seq + 1);
-    const fileRename = {
-        file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${name[0].sheet}_${name[0].approximate_term == null ? '' : name[0].approximate_term}_${name[0].side}_${name[0].books_id}${objFileName.ext}`,
-        bookrecords_id: name[0].id,
-        typebooks_id,
-        companies_id,
-        seq,
-        ext: objFileName.ext,
-        previous_file_name: originalFileName
-    };
-    return fileRename;
+    else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
+        const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
+        objFileName = {
+            book: arrayFileName[0],
+            approximate_term: arrayFileName[1],
+            ext: `.${arrayFileName[3]}`
+        };
+        query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `;
+    }
+    else {
+        if (dataImages.book)
+            query = ` book = ${dataImages.book} `;
+        if (dataImages.sheet)
+            query += ` and sheet = ${dataImages.sheet} `;
+        if (dataImages.side)
+            query += ` and side = '${dataImages.side}' `;
+        if (dataImages.cod)
+            query += ` and cod = '${dataImages.cod}' `;
+        if (dataImages.approximateTerm)
+            query += ` and approximate_term = '${dataImages.approximateTerm}' `;
+        objFileName = {
+            ext: path.extname(originalFileName).toLowerCase()
+        };
+    }
+    try {
+        const name = await Bookrecord_1.default.query()
+            .preload('typebooks')
+            .where('typebooks_id', '=', typebooks_id)
+            .andWhere('companies_id', '=', companies_id)
+            .whereRaw(query);
+        const _seq = await Indeximage_1.default.query()
+            .where('bookrecords_id', name[0].id)
+            .andWhere('typebooks_id', '=', typebooks_id)
+            .andWhere('companies_id', '=', companies_id)
+            .orderBy('seq', 'desc').first();
+        const seq = (!_seq ? 0 : _seq.seq + 1);
+        let fileRename;
+        try {
+            fileRename = {
+                file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
+                bookrecords_id: name[0].id,
+                typebooks_id,
+                companies_id,
+                seq,
+                ext: objFileName.ext,
+                previous_file_name: originalFileName
+            };
+            console.log("FILERENAME::::", fileRename);
+        }
+        catch (error) {
+            console.log("FILERENAME ERROR::::", error);
+        }
+        return fileRename;
+    }
+    catch (error) {
+        return error;
+    }
 }
-module.exports = { transformFilesNameToId, downloadImage, fileRename };
+async function deleteFile(listFiles) {
+    const idFolder = await authorize.sendSearchFile(listFiles[0]['path']);
+    let idFile;
+    for (const file of listFiles) {
+        idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id);
+        await authorize.sendDeleteFile(idFile[0].id);
+    }
+    return "excluido!!!";
+}
+async function totalFilesInFolder(folderName) {
+    try {
+        const idFolder = await authorize.sendSearchFile(folderName);
+        const listFiles = await authorize.sendListAllFiles(idFolder);
+        if (listFiles) {
+            return listFiles;
+        }
+        else
+            return 0;
+    }
+    catch (error) {
+        return 0;
+    }
+}
+async function indeximagesinitial(folderName, companies_id) {
+    const listFiles = await totalFilesInFolder(folderName?.path);
+    const objlistFilesBookRecord = listFiles.map((file) => {
+        const fileSplit = file.split("_");
+        const id = fileSplit[0].match(/\d+/g)[0];
+        const typebooks_id = fileSplit[2];
+        const books_id = fileSplit[7].match(/\d+/g)[0];
+        const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
+        const book = fileSplit[3] == '' ? null : fileSplit[3];
+        const sheet = fileSplit[4] == '' ? null : fileSplit[4];
+        const side = fileSplit[6];
+        const approximate_term = fileSplit[5];
+        const indexbook = fileSplit[8] == '' ? null : fileSplit[8];
+        const obs = fileSplit[9];
+        const letter = fileSplit[10];
+        const year = fileSplit[11];
+        return {
+            id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
+            approximate_term, indexbook, obs, letter, year
+        };
+    });
+    const indexImages = listFiles.map((file) => {
+        const fileSplit = file.split("_");
+        const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
+        const typebooks_id = fileSplit[2];
+        const seq = fileSplit[1].match(/^(\d+)/)[0];
+        const ext = path.extname(file);
+        return {
+            bookrecords_id, typebooks_id, companies_id, seq,
+            ext, file_name: file, previous_file_name: file
+        };
+    });
+    const uniqueIds = {};
+    const bookRecord = objlistFilesBookRecord.filter(obj => {
+        if (!uniqueIds[obj.id]) {
+            uniqueIds[obj.id] = true;
+            return true;
+        }
+        return false;
+    });
+    bookRecord.sort((a, b) => a.id - b.id);
+    indexImages.sort((a, b) => a.id - b.id);
+    return { bookRecord, indexImages };
+}
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder };
 //# sourceMappingURL=fileRename.js.map

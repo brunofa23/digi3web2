@@ -2,7 +2,7 @@ import BaseSeeder from '@ioc:Adonis/Lucid/Seeder'
 import Company from 'App/Models/Company'
 
 export default class extends BaseSeeder {
-  public async run () {
+  public async run() {
     await Company.createMany(
 
       [
@@ -24,45 +24,8 @@ export default class extends BaseSeeder {
           "status": 1,
           "created_at": "",
           "updated_at": ""
-         },
-        {
-          "id": 2,
-          "name": "Cartório de Registro Civil Sete Lagoas",
-          "shortname": "Sete Lagoas",
-          "address": "Rua Teste",
-          "number": 200,
-          "complement": "",
-          "postalcode": "",
-          "district": "Centro",
-          "city": "Sete Lagoas",
-          "state": "MG",
-          "cnpj": 2222222222222222,
-          "responsablename": "Vandir",
-          "phoneresponsable": "",
-          "email": "teste@gmail.com",
-          "status": 1,
-          "created_at": "",
-          "updated_at": ""
-        },
-        // {
-        //   "id": 3,
-        //   "name": "Cartório Empresa Teste",
-        //   "shortname": "Empresa Teste",
-        //   "address": "Rua Hum",
-        //   "number": 250,
-        //   "complement": "",
-        //   "postalcode": "",
-        //   "district": "Centro",
-        //   "city": "Teste",
-        //   "state": "MG",
-        //   "cnpj": 3232323232323232,
-        //   "responsablename": "Maria",
-        //   "phoneresponsable": "",
-        //   "email": "teste@teste",
-        //   "status": 1,
-        //   "created_at": "",
-        //   "updated_at": ""
-        // }
+        }
+
       ]
 
 

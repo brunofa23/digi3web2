@@ -4,7 +4,8 @@
     "./commands",
     "@adonisjs/core/build/commands/index.js",
     "@adonisjs/repl/build/commands",
-    "@adonisjs/lucid/build/commands"
+    "@adonisjs/lucid/build/commands",
+    "@adonisjs/mail/build/commands"
   ],
   "exceptionHandlerNamespace": "App/Exceptions/Handler",
   "aliases": {
@@ -21,7 +22,9 @@
     "./providers/AppProvider",
     "@adonisjs/core",
     "@adonisjs/lucid",
-    "@adonisjs/auth"
+    "@adonisjs/auth",
+    "@adonisjs/mail",
+    "@adonisjs/view"
   ],
   "aceProviders": [
     "@adonisjs/repl"
@@ -44,11 +47,19 @@
     "tmp/uploads/*",
     ".env.example",
     "config/credentials/*",
-    "config/tokens/*"
+    "config/tokens/*",
+    {
+      "pattern": "resources/views/**/*.edge",
+      "reloadServer": false
+    }
   ],
+<<<<<<< HEAD
 <<<<<<< HEAD
   "lastCompiledAt": "2023-03-15T15:20:47.101Z"
 =======
   "lastCompiledAt": "2023-03-15T15:35:43.146Z"
 >>>>>>> d6b9b72b127cd2875c200a97f0882797e997490b
+=======
+  "lastCompiledAt": "2023-09-04T20:08:28.730Z"
+>>>>>>> 52eb4bc741450b7be853ac97398c8b5850f05a06
 }

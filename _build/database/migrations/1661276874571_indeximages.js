@@ -16,8 +16,8 @@ class default_1 extends Schema_1.default {
             table.integer('companies_id').notNullable().unsigned().references('companies.id');
             table.integer('seq');
             table.string('ext', 5);
-            table.string('file_name', 45);
-            table.string('previous_file_name', 45);
+            table.string('file_name', 200);
+            table.string('previous_file_name', 200);
             table.primary(['companies_id', 'bookrecords_id', 'typebooks_id', 'seq']);
             table.timestamp('created_at', { useTz: true });
             table.timestamp('updated_at', { useTz: true });

@@ -9,6 +9,19 @@ class ExceptionHandler extends HttpExceptionHandler_1.default {
     constructor() {
         super(Logger_1.default);
     }
+    async handle(error, ctx) {
+        console.log("EXCEPTION>>>", error.code);
+        if (error.status === 422) {
+            return ctx.response.status(error.status).send({
+                code: 'BAD_REQUEST 422',
+                message: error.message,
+                status: error.status,
+                errors: error['messages']?.errors ? error['messages'].errors : ''
+            });
+        }
+        console.log("ERROR HANDLE", error);
+        return super.handle(error, ctx);
+    }
 }
 exports.default = ExceptionHandler;
 //# sourceMappingURL=Handler.js.map

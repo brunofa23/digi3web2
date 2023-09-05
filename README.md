@@ -34,8 +34,14 @@ abrir servidor
 2 - cd build
 3 - npm ci --production
 4 - 
-COPIAR A PASTA BUILD PARA BUILDCOPY
+
+## GERAR PASTA
+mkdir -p _build/tmp/uploads
+
+## COPIAR A PASTA BUILD PARA BUILDCOPY
 cp -fR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
+- run: cp -fR tmp _build
+----
 OU
 ATUALIZAR APENAS OS NOVOS ARQUIVOS
 cp -uR ~/digi3web2/digi3web2/build ~/digi3web2/deploy/
@@ -74,7 +80,7 @@ git branch main master -f
 git checkout main  
 git push origin main -f 
 
-###
+### GIT 
 Deletar uma branch
 git branch -D ou -d <nome da branch>
 
@@ -95,3 +101,44 @@ logtail.debug("debug",{
       "usuário:":user
     })
 logtail.flush()
+
+
+## para pegar dados da request
+ex: const data = request.only(['name', 'status', 'books_id'])
+
+
+## executar uma determinada função de teste
+node ace test --tags="teste3" functional
+
+## serializar Json
+JSON.parse(JSON.stringify(body))
+
+## RELACIONAMENTO ENTRE TABELAS
+## no model fazer o relacionamento
+User(){
+  return this.belongsTo("App/Models/User")
+}
+const tweet = await Tweet.query().with('nome do relacionamento').fetch()
+
+## Rodar migration e executar seed
+node ace migration:fresh --seed
+
+## Excluir brant de test
+git checkout development
+git branch -d development-test
+git push origin --delete development-test
+
+## permite executar o merge ignorando as alteraçoes
+git stash
+
+## TRABALHANDO COM DATAS
+function dateFormat(format, date = DateTime.local()) {
+  // Verificar se a data é válida
+  if (!(date instanceof DateTime)) {
+    throw new Error('A data fornecida não é válida. Certifique-se de passar um objeto DateTime.');
+  }
+  // Formatando a data no formato especificado
+  return date.toFormat(format);
+}
+
+

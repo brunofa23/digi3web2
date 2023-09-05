@@ -4,22 +4,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
-const FileRename = require('../../Services/fileRename/fileRename');
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
-const luxon_1 = require("luxon");
-const Date = require('../../Services/Dates/format');
-const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const format_1 = __importDefault(require("../../Services/Dates/format"));
+const formatDate = new format_1.default(new Date);
+const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
+const path = require('path');
+const { Logtail } = require("@logtail/node");
 class IndeximagesController {
     async store({ request, response }) {
         const body = request.only(Indeximage_1.default.fillable);
-        const data = await Indeximage_1.default.create(body);
-        response.status(201);
-        return {
-            message: "Criado com sucesso",
-            data: data,
-        };
+        try {
+            const data = await Indeximage_1.default.create(body);
+            return response.status(201).send(data);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request', 401, error);
+        }
     }
     async index({ auth, response }) {
         await auth.use('api').authenticate();
@@ -32,46 +34,66 @@ class IndeximagesController {
             data: data,
         };
     }
-    async destroy({ params }) {
-        const data = await Indeximage_1.default.findOrFail(params.id);
-        await data.delete();
-        return {
-            message: "Livro excluido com sucesso.",
-            data: data
-        };
+    async destroy({ auth, request, params, response }) {
+        const { companies_id } = await auth.use('api').authenticate();
+        try {
+            const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()
+                .preload('typebooks')
+                .where('typebooks_id', '=', params.typebooks_id)
+                .andWhere('bookrecords_id', "=", params.bookrecords_id)
+                .andWhere('companies_id', "=", companies_id)
+                .andWhere('file_name', "like", params.file_name);
+            if (listOfImagesToDeleteGDrive.length > 0) {
+                var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+                    return { file_name: item.file_name, path: item.typebooks.path };
+                });
+                console.log("entrei do delete...", file_name);
+                FileRename.deleteFile(file_name);
+            }
+            await Indeximage_1.default.query()
+                .where('typebooks_id', '=', params.typebooks_id)
+                .andWhere('bookrecords_id', "=", params.bookrecords_id)
+                .andWhere('companies_id', "=", companies_id)
+                .andWhere('file_name', "like", params.file_name)
+                .delete();
+            return response.status(201).send({ message: "Excluido com sucesso!!" });
+        }
+        catch (error) {
+            return error;
+        }
     }
-    async update({ request, params }) {
+    async update({ request, params, response }) {
         const body = request.only(Indeximage_1.default.fillable);
         body.bookrecords_id = params.id;
         body.typebooks_id = params.id2;
-        body.seq = params.id3;
-        const data = await Indeximage_1.default
-            .query()
-            .where('bookrecords_id', '=', body.bookrecords_id)
-            .where('typebooks_id', '=', body.typebooks_id)
-            .where('seq', '=', body.seq);
-        await data.fill(body).save();
-        return {
-            message: 'Tipo de Livro cadastrado com sucesso!!',
-            data: data,
-            params: params
-        };
+        body.seq = params.id;
+        try {
+            const data = await Indeximage_1.default
+                .query()
+                .where('bookrecords_id', '=', body.bookrecords_id)
+                .where('typebooks_id', '=', body.typebooks_id)
+                .where('seq', '=', body.seq);
+            await data.fill(body).save();
+            return response.status(201).send(data);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request', 401);
+        }
     }
-    async uploads({ auth, request, params }) {
+    async uploads({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const images = request.files('images', {
             size: '6mb',
-            extnames: ['jpg', 'png', 'jpeg', 'pdf']
+            extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
         });
-        const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id);
-        console.log("passei pelo Upload...");
-        return files;
+        const { dataImages } = request['requestBody'];
+        console.log("cheguei aqui no uploads>>>>>", dataImages, "parametros", params);
+        const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages);
+        return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" });
     }
     async uploadCapture({ auth, request, params }) {
-        logtail.info("Entrei no upload capture");
         const authenticate = await auth.use('api').authenticate();
         const { imageCaptureBase64, cod, id } = request.requestData;
-        logtail.info('request>>>', { cod, id });
         let base64Image = imageCaptureBase64.split(';base64,').pop();
         const folderPath = Application_1.default.tmpPath(`/uploads/Client_${authenticate.companies_id}`);
         try {
@@ -82,23 +104,21 @@ class IndeximagesController {
         catch (error) {
             return error;
         }
-        var dateNow = Date.format(luxon_1.DateTime.now());
+        const dateNow = formatDate.formatDate(new Date);
         const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`;
+        console.log("FILENAME:::", file_name);
         fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
-            console.log('File created', folderPath);
-            logtail.info('File created', { folderPath });
+            console.log('File created', { folderPath });
         });
         const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true);
-        console.log(">>>FINAL NO UPLOAD CAPTURE");
-        logtail.info('>>>FINAL NO UPLOAD CAPTURE');
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }
-    async download({ auth, params }) {
+    async download({ auth, params, request }) {
+        const body = request.only(Indeximage_1.default.fillable);
         const fileName = params.id;
         const authenticate = await auth.use('api').authenticate();
         const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id);
-        console.log(">>>>>>>FILEINFORMATRION", fileName);
-        return { fileDownload, fileName };
+        return { fileDownload, fileName, extension: path.extname(fileName), body };
     }
 }
 exports.default = IndeximagesController;

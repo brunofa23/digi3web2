@@ -1,82 +1,84 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Typebook from 'App/Models/Typebook'
 import Company from 'App/Models/Company'
+import BadRequest from 'App/Exceptions/BadRequestException'
+import TypebookValidator from 'App/Validators/TypebookValidator'
+import validations from 'App/Services/Validations/validations'
 
 const authorize = require('App/Services/googleDrive/googledrive')
-
+const fileRename = require('App/Services/fileRename/fileRename')
 
 export default class TypebooksController {
 
-
   //inserir livro
   public async store({ auth, request, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
-    const body = request.only(Typebook.fillable)
-    body.companies_id = authenticate.companies_id
+    const typebookPayload = await request.validate(TypebookValidator)
+    typebookPayload.companies_id = authenticate.companies_id
 
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
-      const data = await Typebook.create(body)
-
-      console.log(">>>typebook folder");
-
+      const data = await Typebook.create(typebookPayload)
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
-
-      response.status(201)
-      return {
-        message: "Criado com sucesso",
-        data: data,
-      }
+      let successValidation = await new validations('typebook_success_100')
+      return response.status(201).send(typebookPayload, successValidation.code)
 
     } catch (error) {
-      return error//response.status(401)
+      throw new BadRequest('Bad Request - Create Typebook', 401, error)
     }
 
   }
 
 
   //listar livro
-  public async index({ auth, request, response }) {
+  public async index({ auth, response, request }: HttpContextContract) {
+
     const { companies_id } = await auth.use('api').authenticate()
-    const { name, status, books_id } = request.requestData
+    const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
+    let data
 
     if (!companies_id)
-      return "error"
+      throw new BadRequest('company not exists', 401)
 
-    if (!name && !status && !books_id) {
-      const data = await Typebook.query().where("companies_id", '=', companies_id)
-      return response.send(data)
+    if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
+      data = await Typebook.query().where("companies_id", '=', companies_id)
+
     }
     else {
 
       let query = " 1=1 "
       let _status
-      if (status !== undefined) {
-        if (status === 'TRUE' || status === '1')
+      if (typebookPayload.status !== undefined) {
+        if (typebookPayload.status === 'TRUE' || typebookPayload.status === '1')
           _status = 1
         else
-          if (status === 'FALSE' || status === '0')
+          if (typebookPayload.status === 'FALSE' || typebookPayload.status === '0')
             _status = 0
         query += ` and status =${_status} `
       }
 
-      if (name !== undefined)
-        query += ` and name like '%${name}%' `
+      if (typebookPayload.name !== undefined)
+        query += ` and name like '%${typebookPayload.name}%' `
 
-      if (books_id !== undefined) {
-        query += ` and books_id = ${books_id} `
+      if (typebookPayload.books_id !== undefined) {
+        query += ` and books_id = ${typebookPayload.books_id} `
       }
-
-      const data
+      data
         = await Typebook.query().where("companies_id", '=', companies_id)
           .preload('bookrecords').preload('book')
           .whereRaw(query)
 
-
-      return response.send(data)
     }
+
+    if (typebookPayload.totalfiles) {
+      //const totalFiles = await fileRename.totalFilesInFolder('Client_3.Book_2.NASCIMENTO')
+      for (let i = 0; i < data.length; i++) {
+        const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
+        data[i].totalFiles = totalFiles.length
+      }
+    }
+    return response.status(200).send(data)
 
 
   }
@@ -89,46 +91,49 @@ export default class TypebooksController {
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).firstOrFail()
 
-    return response.send(data)
+    return response.status(200).send(data)
 
   }
 
-
-
   //patch ou put
-  public async update({ auth, request, params }: HttpContextContract) {
+  public async update({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    const body = request.only(Typebook.fillable)
+    //const body = request.only(Typebook.fillable)
+    const typebookPayload = await request.validate(TypebookValidator)
 
-    body.id = params.id
-    body.companies_id = authenticate.companies_id
+    typebookPayload.id = params.id
+    typebookPayload.companies_id = authenticate.companies_id
 
-    const data = await Typebook.query()
-      .where("companies_id", "=", authenticate.companies_id)
-      .andWhere('id', "=", params.id).update(body)
+    try {
+      await Typebook.query()
+        .where("companies_id", "=", authenticate.companies_id)
+        .andWhere('id', "=", params.id).update(typebookPayload)
 
-    return {
-      message: 'Tipo de Livro atualizado com sucesso!!',
-      data: data,
-      body: body,
-      params: params.id
+      let successValidation = await new validations('typebook_success_101')
+      return response.status(201).send(typebookPayload, successValidation.code)
+    } catch (error) {
+      throw new BadRequest('Bad Request - update', 401)
     }
+
 
   }
 
   //delete
-  public async destroy({ auth, params }: HttpContextContract) {
+  public async destroy({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
     const data = await Typebook.query()
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).delete()
 
-    return {
-      message: "Livro excluido com sucesso.",
-      data: data
-    }
+    let successValidation = await new validations('typebook_success_102')
+
+    return response.status(200).send(data, successValidation.code)
+    // return {
+    //   message: "Livro excluido com sucesso.",
+    //   data: data
+    // }
 
   }
 
