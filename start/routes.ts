@@ -2,7 +2,7 @@ import Route from '@ioc:Adonis/Core/Route'
 
 Route.group(() => {
   Route.get('/', async () => {
-    return { hello: 'Hello World v70' }
+    return { hello: 'Hello World v71' }
   })//.middleware('level_permission:1')
 
   //BOOK
