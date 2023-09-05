@@ -9,6 +9,7 @@ export default class UserPermission {
 
     for (const guard of customGuards) {
 
+
       if (guard === 'get' && authenticate.permission_level >= 0) {
         await next()
       }
@@ -21,6 +22,7 @@ export default class UserPermission {
             await next()
           }
           else if (guard === 'authorizeAccessImages' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
+            //console.log("AUTORIZAÇÃO PARA IMAGENS...")
             await next()
           }
           else {

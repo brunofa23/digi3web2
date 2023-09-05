@@ -66,9 +66,6 @@ export default class AuthenticationController {
     const password = request.input('password')
     const accessImage = request.input('accessimage')
 
-
-
-
     const userAuthorization = await User
       .query()
       .where('username', usernameAutorization)
@@ -76,7 +73,8 @@ export default class AuthenticationController {
       .first()
 
     if (userAuthorization) {
-      if (userAuthorization.permission_level < 5 || !userAuthorization.superuser) {
+      console.log("ACCESS IMAGES>>>>>>>>", userAuthorization.permission_level)
+      if ((userAuthorization.permission_level < 5) && (!userAuthorization.superuser)) {
         const errorValidation = await new validations('user_error_201')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
       }
