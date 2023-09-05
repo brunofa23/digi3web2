@@ -4,11 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "npm run docker:dev && node ace serve --watch",
-<<<<<<< HEAD
     "build": "node ace build --production && mkdir -p _build/tmp/uploads",
-=======
-    "build": "node ace build --production --ignore-ts-errors",
->>>>>>> 52eb4bc741450b7be853ac97398c8b5850f05a06
     "start": "node server.js",
     "docker:dev": "./scripts/docker-dev-start.sh",
     "release": "standard-version -a"
