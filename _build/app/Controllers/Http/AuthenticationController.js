@@ -54,7 +54,8 @@ class AuthenticationController {
             .andWhere('companies_id', '=', companies_id)
             .first();
         if (userAuthorization) {
-            if (userAuthorization.permission_level < 5 || !userAuthorization.superuser) {
+            console.log("ACCESS IMAGES>>>>>>>>", userAuthorization.permission_level);
+            if ((userAuthorization.permission_level < 5) && (!userAuthorization.superuser)) {
                 const errorValidation = await new validations_1.default('user_error_201');
                 throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
             }
