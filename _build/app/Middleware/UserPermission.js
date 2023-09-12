@@ -12,10 +12,10 @@ class UserPermission {
             if (guard === 'get' && authenticate.permission_level >= 0) {
                 await next();
             }
-            else if (guard === 'post' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+            else if (guard === 'post' && (authenticate.permission_level >= 6 || authenticate.superuser)) {
                 await next();
             }
-            else if (guard === 'patch' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+            else if (guard === 'patch' && (authenticate.permission_level >= 6 || authenticate.superuser)) {
                 await next();
             }
             else if (guard === 'authorizeAccessImages' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
