@@ -14,11 +14,11 @@ export default class UserPermission {
         await next()
       }
       else
-        if (guard === 'post' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+        if (guard === 'post' && (authenticate.permission_level >= 6 || authenticate.superuser)) {
           await next()
         }
         else
-          if (guard === 'patch' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+          if (guard === 'patch' && (authenticate.permission_level >= 6 || authenticate.superuser)) {
             await next()
           }
           else if (guard === 'authorizeAccessImages' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
