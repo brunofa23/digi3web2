@@ -45,6 +45,7 @@ Route.group(() => {
   //DOCUMENTS
   Route.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index')
   Route.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store')
+  Route.patch("/typebooks/:typebooks_id/documents/:id", 'DocumentsController.update')
 
 
   //INDEXIMAGES

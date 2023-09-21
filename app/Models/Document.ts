@@ -187,13 +187,13 @@ export default class Document extends BaseModel {
 
 
   @hasMany(() => Indeximage, {
-    foreignKey: 'bookrecords_id',
+    foreignKey: 'documents_id',
     localKey: 'id'
   })
   public bookrecords: HasMany<typeof Indeximage>
 
   @hasMany(() => Indeximage, {
-    foreignKey: 'bookrecords_id',
+    foreignKey: 'documents_id',
     localKey: 'id'
   })
   public indeximage: HasMany<typeof Indeximage>
