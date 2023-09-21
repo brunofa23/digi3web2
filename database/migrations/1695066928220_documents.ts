@@ -20,7 +20,7 @@ export default class extends BaseSchema {
 
       table.integer('intfield1')
       table.string('stringfield1', 350)
-      table.dateTime('date1')
+      table.dateTime('datefield1')
 
       table.integer('intfield2')
       table.string('stringfield2', 350)

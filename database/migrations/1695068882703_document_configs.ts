@@ -8,14 +8,14 @@ export default class extends BaseSchema {
       table.increments('id').notNullable()
       table.integer('documents_id').notNullable().unsigned().references('documents.id').onDelete('CASCADE')
 
-      table.integer('cod')
-      table.integer('prot')
-      table.integer('box')
-      table.integer('classification')
+      table.string('cod')
+      table.string('prot')
+      table.string('box')
+      table.string('classification')
 
       table.string('intfield1')
       table.string('stringfield1')
-      table.string('date1')
+      table.string('datefield1')
 
       table.string('intfield2')
       table.string('stringfield2')

@@ -16,9 +16,9 @@ export default class Document extends BaseModel {
       'prot',
       'box',
       'classification',
-      'intField1',
-      'stringField1',
-      'date1',
+      'intfield1',
+      'stringfield1',
+      'datefield1',
       'intfield2',
       'stringfield2',
       'datefield2',
@@ -87,6 +87,7 @@ export default class Document extends BaseModel {
 
   @column()
   public intfield1: number
+
   @column()
   public stringfield1: string
   @column()
