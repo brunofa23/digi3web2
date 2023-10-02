@@ -34,6 +34,7 @@ export default class TypebooksController {
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
 
+
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
@@ -43,10 +44,8 @@ export default class TypebooksController {
 
     if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
       data = await Typebook.query().where("companies_id", '=', companies_id)
-
     }
     else {
-
       let query = " 1=1 "
       let _status
       if (typebookPayload.status !== undefined) {
@@ -57,27 +56,26 @@ export default class TypebooksController {
             _status = 0
         query += ` and status =${_status} `
       }
-
       if (typebookPayload.name !== undefined)
         query += ` and name like '%${typebookPayload.name}%' `
 
       if (typebookPayload.books_id !== undefined) {
         query += ` and books_id = ${typebookPayload.books_id} `
       }
-      data
-        = await Typebook.query().where("companies_id", '=', companies_id)
-          .preload('bookrecords').preload('book')
-          .whereRaw(query)
-
+      data = await Typebook.query().where("companies_id", '=', companies_id)
+        .preload('bookrecords').preload('book')
+        .whereRaw(query)
     }
 
+    //console.log("DATA::>>>")
+
     if (typebookPayload.totalfiles) {
-      //const totalFiles = await fileRename.totalFilesInFolder('Client_3.Book_2.NASCIMENTO')
       for (let i = 0; i < data.length; i++) {
         const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
         data[i].totalFiles = totalFiles.length
       }
     }
+
     return response.status(200).send(data)
 
 
@@ -86,6 +84,7 @@ export default class TypebooksController {
   //retorna um registro
   public async show({ auth, params, response }: HttpContextContract) {
 
+    //console.log("PASSEI AQUI...")
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
       .where("companies_id", "=", authenticate.companies_id)
