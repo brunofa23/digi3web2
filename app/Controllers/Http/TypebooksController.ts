@@ -4,6 +4,7 @@ import Company from 'App/Models/Company'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
+import Book from 'App/Models/Book'
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
@@ -14,13 +15,20 @@ export default class TypebooksController {
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebookPayload = await request.validate(TypebookValidator)
+    const book = await Book.find(typebookPayload.books_id)
     typebookPayload.companies_id = authenticate.companies_id
+    typebookPayload.path = `Client_${typebookPayload.companies_id}.Book_${typebookPayload.id}.${book?.namefolder}`
+
+    console.log("TYPEBOOK>>", typebookPayload)
 
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(typebookPayload)
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
+      //console.log("idFolderCompany>>", idFolderCompany)
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
+      //console.log("Criada com sucesso", data.path, idFolderCompany[0].id)
+      //return
       let successValidation = await new validations('typebook_success_100')
       return response.status(201).send(typebookPayload, successValidation.code)
 
@@ -96,11 +104,8 @@ export default class TypebooksController {
 
   //patch ou put
   public async update({ auth, request, params, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
-    //const body = request.only(Typebook.fillable)
     const typebookPayload = await request.validate(TypebookValidator)
-
     typebookPayload.id = params.id
     typebookPayload.companies_id = authenticate.companies_id
 
