@@ -32,11 +32,6 @@ class Typebook extends Orm_1.BaseModel {
             'updatedAt',
         ];
     }
-    static async afterSaveHook(typebook) {
-        const book = await Book_1.default.find(typebook.books_id);
-        typebook.path = `Client_${typebook.companies_id}.Book_${typebook.id}.${book?.namefolder}`;
-        await typebook.save();
-    }
 }
 __decorate([
     (0, Orm_1.hasMany)(() => Bookrecord_1.default, {
@@ -102,11 +97,5 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], Typebook.prototype, "totalFiles", void 0);
-__decorate([
-    (0, Orm_1.afterSave)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Typebook]),
-    __metadata("design:returntype", Promise)
-], Typebook, "afterSaveHook", null);
 exports.default = Typebook;
 //# sourceMappingURL=Typebook.js.map

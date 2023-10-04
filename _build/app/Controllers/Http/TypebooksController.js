@@ -8,13 +8,17 @@ const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Comp
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const TypebookValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/TypebookValidator"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
+const Book_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Book"));
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const fileRename = global[Symbol.for('ioc.use')]('App/Services/fileRename/fileRename');
 class TypebooksController {
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const typebookPayload = await request.validate(TypebookValidator_1.default);
+        const book = await Book_1.default.find(typebookPayload.books_id);
         typebookPayload.companies_id = authenticate.companies_id;
+        typebookPayload.path = `Client_${typebookPayload.companies_id}.Book_${typebookPayload.id}.${book?.namefolder}`;
+        console.log("TYPEBOOK>>", typebookPayload);
         try {
             const company = await Company_1.default.findByOrFail('id', authenticate.companies_id);
             const data = await Typebook_1.default.create(typebookPayload);
@@ -51,10 +55,9 @@ class TypebooksController {
             if (typebookPayload.books_id !== undefined) {
                 query += ` and books_id = ${typebookPayload.books_id} `;
             }
-            data
-                = await Typebook_1.default.query().where("companies_id", '=', companies_id)
-                    .preload('bookrecords').preload('book')
-                    .whereRaw(query);
+            data = await Typebook_1.default.query().where("companies_id", '=', companies_id)
+                .preload('bookrecords').preload('book')
+                .whereRaw(query);
         }
         if (typebookPayload.totalfiles) {
             for (let i = 0; i < data.length; i++) {
