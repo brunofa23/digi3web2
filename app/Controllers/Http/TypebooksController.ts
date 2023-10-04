@@ -4,6 +4,7 @@ import Company from 'App/Models/Company'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
+import Book from 'App/Models/Book'
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
@@ -14,13 +15,20 @@ export default class TypebooksController {
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebookPayload = await request.validate(TypebookValidator)
+    const book = await Book.find(typebookPayload.books_id)
     typebookPayload.companies_id = authenticate.companies_id
+    typebookPayload.path = `Client_${typebookPayload.companies_id}.Book_${typebookPayload.id}.${book?.namefolder}`
+
+    console.log("TYPEBOOK>>", typebookPayload)
 
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(typebookPayload)
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
+      //console.log("idFolderCompany>>", idFolderCompany)
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
+      //console.log("Criada com sucesso", data.path, idFolderCompany[0].id)
+      //return
       let successValidation = await new validations('typebook_success_100')
       return response.status(201).send(typebookPayload, successValidation.code)
 
@@ -34,6 +42,7 @@ export default class TypebooksController {
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
 
+
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
@@ -43,10 +52,8 @@ export default class TypebooksController {
 
     if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
       data = await Typebook.query().where("companies_id", '=', companies_id)
-
     }
     else {
-
       let query = " 1=1 "
       let _status
       if (typebookPayload.status !== undefined) {
@@ -57,27 +64,26 @@ export default class TypebooksController {
             _status = 0
         query += ` and status =${_status} `
       }
-
       if (typebookPayload.name !== undefined)
         query += ` and name like '%${typebookPayload.name}%' `
 
       if (typebookPayload.books_id !== undefined) {
         query += ` and books_id = ${typebookPayload.books_id} `
       }
-      data
-        = await Typebook.query().where("companies_id", '=', companies_id)
-          .preload('bookrecords').preload('book')
-          .whereRaw(query)
-
+      data = await Typebook.query().where("companies_id", '=', companies_id)
+        .preload('bookrecords').preload('book')
+        .whereRaw(query)
     }
 
+    //console.log("DATA::>>>")
+
     if (typebookPayload.totalfiles) {
-      //const totalFiles = await fileRename.totalFilesInFolder('Client_3.Book_2.NASCIMENTO')
       for (let i = 0; i < data.length; i++) {
         const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
         data[i].totalFiles = totalFiles.length
       }
     }
+
     return response.status(200).send(data)
 
 
@@ -86,6 +92,7 @@ export default class TypebooksController {
   //retorna um registro
   public async show({ auth, params, response }: HttpContextContract) {
 
+    //console.log("PASSEI AQUI...")
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
       .where("companies_id", "=", authenticate.companies_id)
@@ -97,11 +104,8 @@ export default class TypebooksController {
 
   //patch ou put
   public async update({ auth, request, params, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
-    //const body = request.only(Typebook.fillable)
     const typebookPayload = await request.validate(TypebookValidator)
-
     typebookPayload.id = params.id
     typebookPayload.companies_id = authenticate.companies_id
 

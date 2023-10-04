@@ -42,6 +42,12 @@ Route.group(() => {
   Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords')
   Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial')
 
+  //DOCUMENTS
+  Route.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index')
+  Route.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store')
+  Route.patch("/typebooks/:typebooks_id/documents/:id", 'DocumentsController.update')
+
+
   //INDEXIMAGES
   //Route.resource("/indeximages", "IndeximagesController").apiOnly()
   Route.get("/indeximages", "IndeximagesController.index")

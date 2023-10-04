@@ -5,9 +5,4 @@ import Encryption from '@ioc:Adonis/Core/Encryption'
 
 export default class ConfigsController {
 
-
-
-
-
-
 }

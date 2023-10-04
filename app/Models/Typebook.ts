@@ -1,6 +1,5 @@
 import { DateTime } from 'luxon'
 import {
-  afterSave,
   BaseModel,
   column,
   HasMany,
@@ -81,13 +80,14 @@ export default class Typebook extends BaseModel {
   @column()
   public totalFiles: number
 
-  @afterSave()
-  public static async afterSaveHook(typebook: Typebook) {
-    const book = await Book.find(typebook.books_id)
-    typebook.path = `Client_${typebook.companies_id}.Book_${typebook.id}.${book?.namefolder}`
-    await typebook.save()
+  // @afterSave()
+  // public static async afterSaveHook(typebook: Typebook) {
+  //   const book = await Book.find(typebook.books_id)
+  //   typebook.path = `Client_${typebook.companies_id}.Book_${typebook.id}.${book?.namefolder}`
+  //   console.log("TYPEBOOK GRAVAÇÃO>>>", typebook.id, typebook.companies_id, typebook.path, typebook.books_id, typebook.path)
+  //   await typebook.save()
 
-  }
+  // }
 
 
 
