@@ -6,6 +6,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
+import ExceptionHandler from "App/Exceptions/Handler";
 
 
 const authorize = require('App/Services/googleDrive/googledrive')
@@ -56,11 +57,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     throw new BadRequestException('could not create client directory', 409)
   }
 
-  //retorna o nome do diretório path em typebooks
-  // const directoryParent = await Bookrecord.query()
-  //   .preload('typebooks')
-  //   .where('typebooks_id', '=', params.typebooks_id)
-  //   .andWhere('companies_id', '=', companies_id).first()
   const directoryParent = await Typebook.query()
     .where('id', '=', params.typebooks_id)
     .andWhere('companies_id', '=', companies_id).first()
@@ -88,21 +84,18 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
   //imagem única para upload
   if (capture) {
-
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
-
     try {
       await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, true)
-      //console.log("UPLOAD COM SUCESSO!!!!")
       return images
     } catch (error) {
       console.log(error);
       return error
     }
-
   }
 
   let cont = 0
+  //console.log("PASSEI AQUI>>>>1924")
   for (let image of images) {
     cont++
     if (cont >= 6) {
@@ -179,6 +172,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
 
 
+
   if (dataImages.typeBookFile) {
     console.log("Vindo do typebook File Vandir....", dataImages)
     let fileName
@@ -198,7 +192,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       previous_file_name: originalFileName,
       typeBookFile: true
     }
-    console.log("FILE RENAME>>>", fileRename)
+    //console.log("FILE RENAME>>>", fileRename)
     return fileRename
   } else
 
@@ -228,14 +222,21 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
       //ARQUIVOS QUE INICIAM COM ID
       else if (path.basename(originalFileName).startsWith('Id')) {
-        const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
-        objFileName = {
-          id: arrayFileName[0].replace('Id', ''),
-          cod: arrayFileName[1].replace('(', '').replace(')', ''),
-          ext: `.${arrayFileName[4]}`
+
+        const regex = /Id(\d+)_(\d+)\((\d+)\)_.+\.(jpg|png|jpeg|tiff|bmp)/;
+        const match = originalFileName.match(regex);
+        if (match) {
+          objFileName = {
+            id: match[1],
+            seq: match[2],
+            cod: match[3],
+            extension: `.${match[4]}`
+          }
         }
         originalFileName = path.basename(originalFileName)
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `
+
+        //console.log("cheguei aqui no fileRENAME....ID", query)
       }
       //ARQUIVOS COM A MÁSCARA T1(121)
       else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
@@ -275,6 +276,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query)
+
+    //console.log("cheguei aqui QUERY NAME", name)
 
     //retorna o ultimo seq
     const _seq = await Indeximage.query()
