@@ -47,6 +47,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
   const _companies_id = companies_id
   let result: Object[] = []
 
+
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
   try {
@@ -171,8 +172,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   //Format T123(123)livro.jpg
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
 
-
-
   if (dataImages.typeBookFile) {
     console.log("Vindo do typebook File Vandir....", dataImages)
     let fileName
@@ -195,7 +194,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     //console.log("FILE RENAME>>>", fileRename)
     return fileRename
   } else
-
     if (regexBookAndCod.test(originalFileName.toUpperCase())) {
       separators = ["L", '\'', '(', ')', '|', '-'];
       arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
@@ -222,6 +220,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
       //ARQUIVOS QUE INICIAM COM ID
       else if (path.basename(originalFileName).startsWith('Id')) {
+        console.log("INICIAM COM ID>>>>", originalFileName)
 
         const regex = /Id(\d+)_(\d+)\((\d+)\)_.+\.(jpg|png|jpeg|tiff|bmp)/;
         const match = originalFileName.match(regex);
@@ -277,7 +276,12 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query)
 
-    //console.log("cheguei aqui QUERY NAME", name)
+    if (name.length === 0) {
+      console.log("cheguei aqui QUERY NAME", name, name.length)
+
+      return
+    }
+
 
     //retorna o ultimo seq
     const _seq = await Indeximage.query()
@@ -389,7 +393,6 @@ async function indeximagesinitial(folderName, companies_id) {
     }
     return false;
   });
-
 
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
