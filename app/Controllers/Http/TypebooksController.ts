@@ -5,6 +5,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
 import Book from 'App/Models/Book'
+import { DateTime } from 'luxon'
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
@@ -37,12 +38,10 @@ export default class TypebooksController {
     }
 
   }
-
-
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
 
-
+    console.log("INDEX TYPEBOOK 133333:>>>")
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
@@ -70,19 +69,25 @@ export default class TypebooksController {
       if (typebookPayload.books_id !== undefined) {
         query += ` and books_id = ${typebookPayload.books_id} `
       }
+
+      // data = await Typebook.query().where("companies_id", '=', companies_id)
+      //   .preload('bookrecords').preload('book')
+      //   .whereRaw(query)
       data = await Typebook.query().where("companies_id", '=', companies_id)
-        .preload('bookrecords').preload('book')
         .whereRaw(query)
+
     }
 
     //console.log("DATA::>>>")
 
     if (typebookPayload.totalfiles) {
+      console.log("INDEX TYPEBOOK 12222:>>>")
       for (let i = 0; i < data.length; i++) {
         const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
         data[i].totalFiles = totalFiles.length
       }
     }
+
 
     return response.status(200).send(data)
 
