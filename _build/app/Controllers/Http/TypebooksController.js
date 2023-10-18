@@ -17,11 +17,12 @@ class TypebooksController {
         const typebookPayload = await request.validate(TypebookValidator_1.default);
         const book = await Book_1.default.find(typebookPayload.books_id);
         typebookPayload.companies_id = authenticate.companies_id;
-        typebookPayload.path = `Client_${typebookPayload.companies_id}.Book_${typebookPayload.id}.${book?.namefolder}`;
-        console.log("TYPEBOOK>>", typebookPayload);
         try {
             const company = await Company_1.default.findByOrFail('id', authenticate.companies_id);
             const data = await Typebook_1.default.create(typebookPayload);
+            const typebookPath = await Typebook_1.default.findOrFail(data.id);
+            typebookPath.path = `Client_${typebookPath.companies_id}.Book_${typebookPath.id}.${book?.namefolder}`;
+            await typebookPath.save();
             const idFolderCompany = await authorize.sendSearchFile(company.foldername);
             await authorize.sendCreateFolder(data.path, idFolderCompany[0].id);
             let successValidation = await new validations_1.default('typebook_success_100');
@@ -32,7 +33,6 @@ class TypebooksController {
         }
     }
     async index({ auth, response, request }) {
-        console.log("INDEX TYPEBOOK 133333:>>>");
         const { companies_id } = await auth.use('api').authenticate();
         const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles']);
         let data;
@@ -60,7 +60,6 @@ class TypebooksController {
                 .whereRaw(query);
         }
         if (typebookPayload.totalfiles) {
-            console.log("INDEX TYPEBOOK 12222:>>>");
             for (let i = 0; i < data.length; i++) {
                 const totalFiles = await fileRename.totalFilesInFolder(data[i].path);
                 data[i].totalFiles = totalFiles.length;
@@ -93,11 +92,18 @@ class TypebooksController {
     }
     async destroy({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const data = await Typebook_1.default.query()
-            .where("companies_id", "=", authenticate.companies_id)
-            .andWhere('id', "=", params.id).delete();
-        let successValidation = await new validations_1.default('typebook_success_102');
-        return response.status(200).send(data, successValidation.code);
+        try {
+            const data = await Typebook_1.default.query()
+                .where("companies_id", "=", authenticate.companies_id)
+                .andWhere('id', "=", params.id).delete();
+            console.log("DELETE DELETE>>>");
+            let successValidation = await new validations_1.default('typebook_success_102');
+            return response.status(200).send(data, successValidation.code);
+        }
+        catch (error) {
+            let errorValidation = await new validations_1.default('typebook_error_102');
+            return response.status(500).send(errorValidation.code);
+        }
     }
 }
 exports.default = TypebooksController;
