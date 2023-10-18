@@ -181,19 +181,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`;
     }
     else if (path.basename(originalFileName).startsWith('Id')) {
-        const regex = /Id(\d+)_(\d+)\((\d+)\)_.+\.(jpg|png|jpeg|tiff|bmp)/;
-        const match = originalFileName.match(regex);
-        if (match) {
-            objFileName = {
-                id: match[1],
-                seq: match[2],
-                cod: match[3],
-                extension: `.${match[4]}`
-            };
-        }
+        const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/);
+        objFileName = {
+            id: arrayFileName[0].replace('Id', ''),
+            cod: arrayFileName[1].replace('(', '').replace(')', ''),
+            ext: `.${arrayFileName[4]}`
+        };
         originalFileName = path.basename(originalFileName);
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `;
-        console.log("cheguei aqui no fileRENAME....ID", query);
     }
     else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
         const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
