@@ -20,7 +20,7 @@ Route_1.default.group(() => {
     Route_1.default.get("/companies", 'CompaniesController.index');
     Route_1.default.get("/companies/:id", 'CompaniesController.show');
     Route_1.default.post("/companies", 'CompaniesController.store').middleware('company_permission:post');
-    Route_1.default.patch("/companies", 'CompaniesController.store').middleware('company_permission:patch');
+    Route_1.default.patch("/companies/:id", 'CompaniesController.update').middleware('company_permission:patch');
     Route_1.default.get("/users", "UsersController.index");
     Route_1.default.get("/users/:id", "UsersController.show");
     Route_1.default.post("/users", "UsersController.store").middleware('user_permission:post');

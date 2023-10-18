@@ -9,7 +9,6 @@ const luxon_1 = require("luxon");
 class IndexImagePermission {
     async handle({ auth, response }, next, customGuards) {
         const authenticate = await auth.use('api').authenticate();
-        console.log("gard::>>", customGuards);
         for (const guard of customGuards) {
             if (guard === 'get' && authenticate.permission_level >= 0) {
                 await next();

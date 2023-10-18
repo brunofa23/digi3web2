@@ -16,7 +16,6 @@ class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData;
-        console.log("request", request.requestData);
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -70,7 +69,8 @@ class BookrecordsController {
                     .select('id')
                     .from('indeximages')
                     .whereColumn('indeximages.bookrecords_id', '=', 'bookrecords.id')
-                    .andWhere('indeximages.typebooks_id', '=', params.typebooks_id);
+                    .andWhere('indeximages.typebooks_id', '=', params.typebooks_id)
+                    .andWhere("companies_id", '=', authenticate.companies_id);
             })
                 .whereRaw(query)
                 .orderBy("book", "asc")
@@ -89,7 +89,7 @@ class BookrecordsController {
                 .where("companies_id", '=', authenticate.companies_id)
                 .andWhere("typebooks_id", '=', params.typebooks_id)
                 .preload('indeximage', (queryIndex) => {
-                queryIndex.where("typebooks_id", '=', params.typebooks_id);
+                queryIndex.where("typebooks_id", '=', params.typebooks_id).andWhere("companies_id", '=', authenticate.companies_id);
             })
                 .whereRaw(query)
                 .orderBy("book", "asc")
@@ -160,7 +160,6 @@ class BookrecordsController {
         }
     }
     async destroyManyBookRecords({ auth, request, response }) {
-        console.log("destroy many bookrecords>>>");
         const { companies_id } = await auth.use('api').authenticate();
         const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages']);
         async function deleteIndexImages() {
@@ -225,17 +224,14 @@ class BookrecordsController {
                 query += ` and cod>=${startCod} and cod <=${endCod} `;
             try {
                 if (deleteImages == 1) {
-                    console.log("EXCLUI SOMENTE LIVRO");
                     await deleteIndexImages();
                     await deleteBookrecord();
                 }
                 else if (deleteImages == 2) {
-                    console.log("EXCLUI SOMENTE IMAGENS");
                     await deleteImagesGoogle();
                     await deleteIndexImages();
                 }
                 else if (deleteImages == 3) {
-                    console.log("EXCLUI TUDO");
                     await deleteImagesGoogle();
                     await deleteIndexImages();
                     await deleteBookrecord();
@@ -375,7 +371,6 @@ class BookrecordsController {
                     }
                 }
                 if (generateStartSheetInCodReference <= generateStartCode) {
-                    console.log("Começar a contar::", generateStartSheetInCodReference);
                     if (generateSheetIncrement == 1) {
                         sheetStart = generateSheetStart;
                         generateStartSheetInCodReference++;

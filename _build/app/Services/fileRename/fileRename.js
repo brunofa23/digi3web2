@@ -76,6 +76,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         }
     }
     let cont = 0;
+    let _fileRename;
     for (let image of images) {
         cont++;
         if (cont >= 6) {
@@ -88,8 +89,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         if (!image.isValid) {
             console.log("Error", image.errors);
         }
-        const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
-        console.log("FILE RENAME RENOMEADO>>", _fileRename);
+        _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
         try {
             if (image && image.isValid) {
                 result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id));
@@ -155,7 +155,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             previous_file_name: originalFileName,
             typeBookFile: true
         };
-        console.log("FILE RENAME>>>", fileRename);
         return fileRename;
     }
     else if (regexBookAndCod.test(originalFileName.toUpperCase())) {
@@ -182,14 +181,19 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`;
     }
     else if (path.basename(originalFileName).startsWith('Id')) {
-        const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/);
-        objFileName = {
-            id: arrayFileName[0].replace('Id', ''),
-            cod: arrayFileName[1].replace('(', '').replace(')', ''),
-            ext: `.${arrayFileName[4]}`
-        };
+        const regex = /Id(\d+)_(\d+)\((\d+)\)_.+\.(jpg|png|jpeg|tiff|bmp)/;
+        const match = originalFileName.match(regex);
+        if (match) {
+            objFileName = {
+                id: match[1],
+                seq: match[2],
+                cod: match[3],
+                extension: `.${match[4]}`
+            };
+        }
         originalFileName = path.basename(originalFileName);
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `;
+        console.log("cheguei aqui no fileRENAME....ID", query);
     }
     else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
         const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
@@ -272,8 +276,13 @@ async function totalFilesInFolder(folderName) {
         return 0;
     }
 }
-async function indeximagesinitial(folderName, companies_id) {
-    const listFiles = await totalFilesInFolder(folderName?.path);
+async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
+    let listFiles;
+    if (listFilesImages.length > 0) {
+        listFiles = listFilesImages;
+    }
+    else
+        listFiles = await totalFilesInFolder(folderName?.path);
     const objlistFilesBookRecord = listFiles.map((file) => {
         const fileSplit = file.split("_");
         const id = fileSplit[0].match(/\d+/g)[0];
