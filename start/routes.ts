@@ -22,7 +22,8 @@ Route.group(() => {
   Route.get("/companies", 'CompaniesController.index')
   Route.get("/companies/:id", 'CompaniesController.show')
   Route.post("/companies", 'CompaniesController.store').middleware('company_permission:post')
-  Route.patch("/companies", 'CompaniesController.store').middleware('company_permission:patch')
+  Route.patch("/companies/:id", 'CompaniesController.update').middleware('company_permission:patch')
+
 
   //USERS
   Route.get("/users", "UsersController.index")

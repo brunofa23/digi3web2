@@ -6,6 +6,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
+import ExceptionHandler from "App/Exceptions/Handler";
 
 
 const authorize = require('App/Services/googleDrive/googledrive')
@@ -56,11 +57,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     throw new BadRequestException('could not create client directory', 409)
   }
 
-  //retorna o nome do diretório path em typebooks
-  // const directoryParent = await Bookrecord.query()
-  //   .preload('typebooks')
-  //   .where('typebooks_id', '=', params.typebooks_id)
-  //   .andWhere('companies_id', '=', companies_id).first()
   const directoryParent = await Typebook.query()
     .where('id', '=', params.typebooks_id)
     .andWhere('companies_id', '=', companies_id).first()
@@ -88,21 +84,19 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
   //imagem única para upload
   if (capture) {
-
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
-
     try {
       await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, true)
-      //console.log("UPLOAD COM SUCESSO!!!!")
       return images
     } catch (error) {
       console.log(error);
       return error
     }
-
   }
 
   let cont = 0
+  let _fileRename
+  //console.log("PASSEI AQUI>>>>1924")
   for (let image of images) {
     cont++
     if (cont >= 6) {
@@ -115,11 +109,12 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     if (!image.isValid) {
       console.log("Error", image.errors);
     }
-    const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
-    console.log("FILE RENAME RENOMEADO>>", _fileRename)
+
+    _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
 
     try {
       if (image && image.isValid) {
+        //        console.log("Salvando arquivo", image)
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
       }
     } catch (error) {
@@ -178,7 +173,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   //Format T123(123)livro.jpg
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
 
-
   if (dataImages.typeBookFile) {
     console.log("Vindo do typebook File Vandir....", dataImages)
     let fileName
@@ -198,10 +192,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       previous_file_name: originalFileName,
       typeBookFile: true
     }
-    console.log("FILE RENAME>>>", fileRename)
+    //console.log("FILE RENAME>>>", fileRename)
     return fileRename
   } else
-
     if (regexBookAndCod.test(originalFileName.toUpperCase())) {
       separators = ["L", '\'', '(', ')', '|', '-'];
       arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
@@ -228,14 +221,20 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
       //ARQUIVOS QUE INICIAM COM ID
       else if (path.basename(originalFileName).startsWith('Id')) {
-        const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
-        objFileName = {
-          id: arrayFileName[0].replace('Id', ''),
-          cod: arrayFileName[1].replace('(', '').replace(')', ''),
-          ext: `.${arrayFileName[4]}`
+        //console.log("INICIAM COM ID>>>>", originalFileName)
+        const regex = /Id(\d+)_(\d+)\((\d+)\)_.+\.(jpg|png|jpeg|tiff|bmp)/;
+        const match = originalFileName.match(regex);
+        if (match) {
+          objFileName = {
+            id: match[1],
+            seq: match[2],
+            cod: match[3],
+            extension: `.${match[4]}`
+          }
         }
         originalFileName = path.basename(originalFileName)
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `
+        console.log("cheguei aqui no fileRENAME....ID", query)
       }
       //ARQUIVOS COM A MÁSCARA T1(121)
       else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
@@ -276,6 +275,10 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query)
 
+    // if (name.length === 0) {
+    //   //console.log("cheguei aqui QUERY NAME", name, name.length)
+    //   return
+    // }
     //retorna o ultimo seq
     const _seq = await Indeximage.query()
       .where('bookrecords_id', name[0].id)
@@ -339,8 +342,14 @@ async function totalFilesInFolder(folderName) {
 
 
 }
-async function indeximagesinitial(folderName, companies_id) {
-  const listFiles = await totalFilesInFolder(folderName?.path)
+async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
+
+  let listFiles
+  if (listFilesImages.length > 0) {
+    listFiles = listFilesImages
+  } else
+    listFiles = await totalFilesInFolder(folderName?.path)
+
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
     const fileSplit = file.split("_")
@@ -386,7 +395,6 @@ async function indeximagesinitial(folderName, companies_id) {
     }
     return false;
   });
-
 
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);

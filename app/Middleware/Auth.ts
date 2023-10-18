@@ -14,12 +14,6 @@ export default class AuthMiddleware {
         auth.defaultGuard = guard
         return true
       }
-
-
-
-
-
-
     }
 
     throw new AuthenticationException(

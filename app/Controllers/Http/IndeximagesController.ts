@@ -3,6 +3,7 @@ import Indeximage from 'App/Models/Indeximage'
 import Application from '@ioc:Adonis/Core/Application'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import Format from '../../Services/Dates/format'
+import Bookrecord from 'App/Models/Bookrecord'
 
 const formatDate = new Format(new Date)
 const FileRename = require('../../Services/fileRename/fileRename')
@@ -104,7 +105,34 @@ export default class IndeximagesController {
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
     const { dataImages } = request['requestBody']
-    console.log("cheguei aqui no uploads>>>>>", dataImages, "parametros", params)
+    const { indexImagesInitial } = request['requestData']
+
+
+    if (indexImagesInitial == 'true') {
+      const listFilesImages = images.map((image) => {
+        const imageName = image.clientName
+        return imageName
+      })
+      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages)
+      //console.log("LISTA DE ARQUIVOS...", sendFiles)
+      for (const item of listFiles.bookRecord) {
+        try {
+          await Bookrecord.create(item)
+          console.log("CREATE>>>>", item)
+        } catch (error) {
+          console.log("ERRO BOOKRECORD::", error)
+        }
+      }
+      for (const item of listFiles.indexImages) {
+        try {
+          await Indeximage.create(item)
+        } catch (error) {
+          console.log("ERRO indeximage::", error)
+
+        }
+      }
+    }
+
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 

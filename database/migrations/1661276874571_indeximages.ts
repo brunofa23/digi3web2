@@ -6,9 +6,9 @@ export default class extends BaseSchema {
   public async up() {
     this.schema.createTable(this.tableName, (table) => {
       //table.increments('id')
-      table.integer('bookrecords_id').notNullable().unsigned().references('bookrecords.id')
-      table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id')
-      table.integer('companies_id').notNullable().unsigned().references('companies.id')
+      table.integer('bookrecords_id').notNullable().unsigned().references('bookrecords.id').onDelete('CASCADE')
+      table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id').onDelete('CASCADE')
+      table.integer('companies_id').notNullable().unsigned().references('companies.id').onDelete('CASCADE')
       table.integer('seq')
       table.string('ext', 5)
       table.string('file_name', 200)
