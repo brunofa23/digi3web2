@@ -89,7 +89,6 @@ export default class CompaniesController {
 
     const body = await request.validate(CompanyValidator)
 
-
     try {
       body['id'] = params.id
       const data = await Company.findOrFail(body.id)

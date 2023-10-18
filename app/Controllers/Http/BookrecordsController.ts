@@ -15,6 +15,7 @@ export default class BookrecordsController {
   public async index({ auth, request, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -23,9 +24,6 @@ export default class BookrecordsController {
       letter,
       sheetstart, sheetend,
       side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData
-
-    console.log("request", request.requestData)
-
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
       (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -105,7 +103,8 @@ export default class BookrecordsController {
             .select('id')
             .from('indeximages')
             .whereColumn('indeximages.bookrecords_id', '=', 'bookrecords.id')
-            .andWhere('indeximages.typebooks_id', '=', params.typebooks_id);
+            .andWhere('indeximages.typebooks_id', '=', params.typebooks_id)
+            .andWhere("companies_id", '=', authenticate.companies_id)
         })
         .whereRaw(query)
         .orderBy("book", "asc")
@@ -121,35 +120,21 @@ export default class BookrecordsController {
     }
 
     else {
+
       data = await Bookrecord.query()
         .where("companies_id", '=', authenticate.companies_id)
         .andWhere("typebooks_id", '=', params.typebooks_id)
+
         .preload('indeximage', (queryIndex) => {
-          queryIndex.where("typebooks_id", '=', params.typebooks_id)
+          queryIndex.where("typebooks_id", '=', params.typebooks_id).andWhere("companies_id", '=', authenticate.companies_id)
         })
         .whereRaw(query)
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
         .paginate(page, limit)
-
     }
-
     return response.status(200).send(data)
-
-    // const data = await Bookrecord.query()
-    //   .select('bookrecords.*').leftOuterJoin('indeximages', 'bookrecords.id', '=', 'indeximages.bookrecords_id')
-    //   .select(Database.raw('(select count(`seq`) from `indeximages` indeximagesA where bookrecords.id=indeximagesA.bookrecords_id limit 1) countfiles'))
-    //   .where("bookrecords.companies_id", '=', authenticate.companies_id)
-    //   .andWhere("bookrecords.typebooks_id", '=', params.typebooks_id)
-    //   .preload('indeximage')
-    //   .groupBy('bookrecords.id')
-    //   .orderBy("book", "asc")
-    //   .orderBy("cod", "asc")
-    //   .orderBy("sheet", "asc")
-    //   .paginate(page, limit)
-
-
   }
 
   public async show({ params }: HttpContextContract) {
@@ -233,7 +218,7 @@ export default class BookrecordsController {
 
   //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
-    console.log("destroy many bookrecords>>>")
+    //console.log("destroy many bookrecords>>>")
     const { companies_id } = await auth.use('api').authenticate()
     const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages'])
 
@@ -310,19 +295,19 @@ export default class BookrecordsController {
       try {
         //se 1  = exclui somente o livro
         if (deleteImages == 1) {
-          console.log("EXCLUI SOMENTE LIVRO")
+
           await deleteIndexImages()
           await deleteBookrecord()
         }
         //se 2 = exclui somente as imagens
         else if (deleteImages == 2) {
-          console.log("EXCLUI SOMENTE IMAGENS")
+
           await deleteImagesGoogle()
           await deleteIndexImages()
         }
         //se 3 = exclui imagens e livro
         else if (deleteImages == 3) {
-          console.log("EXCLUI TUDO")
+
           await deleteImagesGoogle()
           await deleteIndexImages()
           await deleteBookrecord()
@@ -459,7 +444,7 @@ export default class BookrecordsController {
 
     if (generateBookdestination <= 0 || !generateBookdestination || generateBookdestination == undefined) {
       for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
-        //console.log("GENERTE START COD: " generateStartCode + 1)
+
         if (generateAlternateOfSides == "F")
           generateSideStart = "F"
         else if (generateAlternateOfSides == "V")
@@ -515,8 +500,6 @@ export default class BookrecordsController {
         }
         //********************************************************************************************** */
         if (generateStartSheetInCodReference <= generateStartCode) {
-          console.log("Começar a contar::", generateStartSheetInCodReference)
-
           if (generateSheetIncrement == 1) {
             sheetStart = generateSheetStart
             generateStartSheetInCodReference++
