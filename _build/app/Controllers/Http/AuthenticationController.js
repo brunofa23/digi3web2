@@ -32,7 +32,7 @@ class AuthenticationController {
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         const token = await auth.use('api').generate(user, {
-            expiresIn: '30 days',
+            expiresIn: '7 days',
             name: 'For the CLI app'
         });
         logtail.debug("debug", { token, user });

@@ -32,6 +32,7 @@ class TypebooksController {
         }
     }
     async index({ auth, response, request }) {
+        console.log("INDEX TYPEBOOK 133333:>>>");
         const { companies_id } = await auth.use('api').authenticate();
         const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles']);
         let data;
@@ -56,10 +57,10 @@ class TypebooksController {
                 query += ` and books_id = ${typebookPayload.books_id} `;
             }
             data = await Typebook_1.default.query().where("companies_id", '=', companies_id)
-                .preload('bookrecords').preload('book')
                 .whereRaw(query);
         }
         if (typebookPayload.totalfiles) {
+            console.log("INDEX TYPEBOOK 12222:>>>");
             for (let i = 0; i < data.length; i++) {
                 const totalFiles = await fileRename.totalFilesInFolder(data[i].path);
                 data[i].totalFiles = totalFiles.length;
