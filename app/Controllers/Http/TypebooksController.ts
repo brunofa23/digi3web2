@@ -18,18 +18,16 @@ export default class TypebooksController {
     const typebookPayload = await request.validate(TypebookValidator)
     const book = await Book.find(typebookPayload.books_id)
     typebookPayload.companies_id = authenticate.companies_id
-    typebookPayload.path = `Client_${typebookPayload.companies_id}.Book_${typebookPayload.id}.${book?.namefolder}`
-
-    console.log("TYPEBOOK>>", typebookPayload)
 
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(typebookPayload)
+      const typebookPath = await Typebook.findOrFail(data.id)
+      typebookPath.path = `Client_${typebookPath.companies_id}.Book_${typebookPath.id}.${book?.namefolder}`
+      await typebookPath.save()
+
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-      //console.log("idFolderCompany>>", idFolderCompany)
       await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
-      //console.log("Criada com sucesso", data.path, idFolderCompany[0].id)
-      //return
       let successValidation = await new validations('typebook_success_100')
       return response.status(201).send(typebookPayload, successValidation.code)
 
@@ -40,12 +38,9 @@ export default class TypebooksController {
   }
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
-
-    console.log("INDEX TYPEBOOK 133333:>>>")
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
-
     if (!companies_id)
       throw new BadRequest('company not exists', 401)
 
@@ -81,7 +76,7 @@ export default class TypebooksController {
     //console.log("DATA::>>>")
 
     if (typebookPayload.totalfiles) {
-      console.log("INDEX TYPEBOOK 12222:>>>")
+      //console.log("INDEX TYPEBOOK 12222:>>>")
       for (let i = 0; i < data.length; i++) {
         const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
         data[i].totalFiles = totalFiles.length
@@ -130,15 +125,22 @@ export default class TypebooksController {
 
   //delete
   public async destroy({ auth, params, response }: HttpContextContract) {
+
     const authenticate = await auth.use('api').authenticate()
+    try {
+      const data = await Typebook.query()
+        .where("companies_id", "=", authenticate.companies_id)
+        .andWhere('id', "=", params.id).delete()
+      console.log("DELETE DELETE>>>")
+      let successValidation = await new validations('typebook_success_102')
+      return response.status(200).send(data, successValidation.code)
+    } catch (error) {
 
-    const data = await Typebook.query()
-      .where("companies_id", "=", authenticate.companies_id)
-      .andWhere('id', "=", params.id).delete()
+      let errorValidation = await new validations('typebook_error_102')
+      return response.status(500).send(errorValidation.code)
 
-    let successValidation = await new validations('typebook_success_102')
+    }
 
-    return response.status(200).send(data, successValidation.code)
     // return {
     //   message: "Livro excluido com sucesso.",
     //   data: data
