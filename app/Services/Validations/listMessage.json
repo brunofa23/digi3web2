@@ -90,6 +90,11 @@
         "status": 201
     },
     {
+        "code": "typebook_error_102",
+        "messages": "Cannot delete or update a parent row: a foreign key constraint fails",
+        "status": 500
+    },
+    {
         "code": "bookrecord_success_100",
         "messages": "successful creation or alteration of books",
         "status": 201
