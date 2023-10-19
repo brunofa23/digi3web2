@@ -27,7 +27,7 @@ export default class TypebooksController {
       await typebookPath.save()
 
       const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-      await authorize.sendCreateFolder(data.path, idFolderCompany[0].id)
+      await authorize.sendCreateFolder(typebookPath.path, idFolderCompany[0].id)
       let successValidation = await new validations('typebook_success_100')
       return response.status(201).send(typebookPayload, successValidation.code)
 
@@ -72,8 +72,6 @@ export default class TypebooksController {
         .whereRaw(query)
 
     }
-
-    //console.log("DATA::>>>")
 
     if (typebookPayload.totalfiles) {
       //console.log("INDEX TYPEBOOK 12222:>>>")
@@ -131,7 +129,7 @@ export default class TypebooksController {
       const data = await Typebook.query()
         .where("companies_id", "=", authenticate.companies_id)
         .andWhere('id', "=", params.id).delete()
-      console.log("DELETE DELETE>>>")
+      //console.log("DELETE DELETE>>>")
       let successValidation = await new validations('typebook_success_102')
       return response.status(200).send(data, successValidation.code)
     } catch (error) {

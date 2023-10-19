@@ -46,7 +46,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
-
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
   try {
@@ -56,7 +55,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
   } catch (error) {
     throw new BadRequestException('could not create client directory', 409)
   }
-
   const directoryParent = await Typebook.query()
     .where('id', '=', params.typebooks_id)
     .andWhere('companies_id', '=', companies_id).first()

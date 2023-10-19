@@ -12,7 +12,7 @@ export default class LevelPermission {
       await next()
     }
     for (const guard of customGuards) {
-      console.log("entrei no LEVELPERMISSIONS", guard)
+      //console.log("entrei no LEVELPERMISSIONS", guard)
       if (guard === 'get')
         await next()
       else {
