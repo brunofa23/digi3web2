@@ -24,7 +24,7 @@ class TypebooksController {
             typebookPath.path = `Client_${typebookPath.companies_id}.Book_${typebookPath.id}.${book?.namefolder}`;
             await typebookPath.save();
             const idFolderCompany = await authorize.sendSearchFile(company.foldername);
-            await authorize.sendCreateFolder(data.path, idFolderCompany[0].id);
+            await authorize.sendCreateFolder(typebookPath.path, idFolderCompany[0].id);
             let successValidation = await new validations_1.default('typebook_success_100');
             return response.status(201).send(typebookPayload, successValidation.code);
         }
@@ -96,7 +96,6 @@ class TypebooksController {
             const data = await Typebook_1.default.query()
                 .where("companies_id", "=", authenticate.companies_id)
                 .andWhere('id', "=", params.id).delete();
-            console.log("DELETE DELETE>>>");
             let successValidation = await new validations_1.default('typebook_success_102');
             return response.status(200).send(data, successValidation.code);
         }
