@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
+const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const Token_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Token"));
 const Helpers_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Helpers");
 const fsPromises = require('fs').promises;
@@ -102,10 +103,12 @@ async function authorize() {
         client = await authenticate({
             scopes: SCOPES,
             keyfilePath: CREDENTIALS_PATH,
+            setTimeout: 6000000
         });
         if (client.credentials) {
             await saveCredentials(client);
         }
+        console.log("CLIENT>>>>>", client);
         return client;
     }
     catch (error) {
@@ -220,6 +223,7 @@ async function listAllFiles(authClient, folderId = "") {
         let pageToken = null;
         const pageSize = 100;
         do {
+            console.log("FOLDER>>>", folderId[0]);
             const response = await drive.files.list({
                 q: `'${folderId[0].id}' in parents and trashed=false`,
                 pageSize: pageSize,
@@ -230,9 +234,16 @@ async function listAllFiles(authClient, folderId = "") {
             allItems = allItems.concat(items);
             pageToken = response.data.nextPageToken;
         } while (pageToken);
+        let cont = 0;
         const listFiles = [];
         await allItems.forEach(item => {
             listFiles.push(item.name);
+            cont++;
+            if (cont == 150) {
+                const data = Company_1.default.query().where('id', '=', '1');
+                console.log("DATA COMPANY>>", data);
+                cont = 0;
+            }
         });
         return listFiles;
     }
