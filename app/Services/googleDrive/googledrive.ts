@@ -99,33 +99,6 @@ async function saveCredentials(client) {
 
 }
 
-/************************************************************** */
-// async function loadSavedCredentialsIfExist() {
-//   try {
-//     const content = await fsPromises.readFile(TOKEN_PATH);
-//     const credentials = JSON.parse(content);
-//     return google.auth.fromJSON(credentials);
-//   } catch (err) {
-//     return null;
-//   }
-// }
-
-// async function saveCredentials(client) {
-//   console.log("SAVECREDENTIALS::::", client)
-//   const content = await fsPromises.readFile(CREDENTIALS_PATH);
-//   const keys = JSON.parse(content);
-//   const key = keys.installed || keys.web;
-//   const payload = JSON.stringify({
-//     type: 'authorized_user',
-//     client_id: key.client_id,
-//     client_secret: key.client_secret,
-//     refresh_token: client.credentials.refresh_token,
-//   });
-//   await fsPromises.writeFile(TOKEN_PATH, payload);
-
-// }
-/*********************************************************** */
-
 async function authorize() {
 
   let client = await loadSavedCredentialsIfExist();
@@ -288,14 +261,47 @@ async function listFiles(authClient, folderId = "") {
 async function listAllFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
-  //console.log("FOLDER ID>>>:::", folderId)
+  // try {
+  //   let allItems = [];
+  //   // Variáveis de controle para paginação
+  //   let pageToken = null;
+  //   const pageSize = 100;
+  //   do {
+  //     // Solicite a lista de arquivos na pasta com base no token de página atual
+  //     const response = await drive.files.list({
+  //       q: `'${folderId[0].id}' in parents and trashed=false`,
+  //       pageSize: pageSize,
+  //       pageToken: pageToken,
+  //       fields: 'nextPageToken, files(name)',
+  //     });
+  //     // Obtenha os itens da resposta
+  //     const items = response.data.files;
+  //     // Adicione os itens à lista principal
+  //     allItems = allItems.concat(items);
+  //     // Atualize o token de página para a próxima página (se houver)
+  //     pageToken = response.data.nextPageToken;
+  //   } while (pageToken);
+  //   // Agora, a lista `allItems` contém todos os itens da pasta
+  //   // Faça o que for necessário com a lista completa
+  //   console.time("teste")
+  //   const listFiles = []
+  //   await allItems.forEach(item => {
+  //     listFiles.push(item.name)
+  //   });
+  //   console.timeEnd("teste")
+
+  //   return listFiles
+  // }
+  // catch (error) {
+  //   //console.error('Erro ao listar os itens:', error);
+  // }
+
 
   try {
     let allItems = [];
     // Variáveis de controle para paginação
     let pageToken = null;
     const pageSize = 100;
-
     do {
       // Solicite a lista de arquivos na pasta com base no token de página atual
       const response = await drive.files.list({
@@ -304,30 +310,28 @@ async function listAllFiles(authClient, folderId = "") {
         pageToken: pageToken,
         fields: 'nextPageToken, files(name)',
       });
-
       // Obtenha os itens da resposta
       const items = response.data.files;
-
       // Adicione os itens à lista principal
       allItems = allItems.concat(items);
-
       // Atualize o token de página para a próxima página (se houver)
       pageToken = response.data.nextPageToken;
     } while (pageToken);
-
     // Agora, a lista `allItems` contém todos os itens da pasta
-
     // Faça o que for necessário com a lista completa
 
     const listFiles = []
     await allItems.forEach(item => {
       listFiles.push(item.name)
     });
+
     return listFiles
   }
   catch (error) {
     //console.error('Erro ao listar os itens:', error);
   }
+
+
 
 
 
