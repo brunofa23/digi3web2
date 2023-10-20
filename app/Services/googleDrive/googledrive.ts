@@ -2,6 +2,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
 import Encryption from '@ioc:Adonis/Core/Encryption'
+import Company from 'App/Models/Company';
 import Token from 'App/Models/Token';
 import { types } from '@ioc:Adonis/Core/Helpers'
 
@@ -115,16 +116,21 @@ async function authorize() {
     client = await authenticate({
       scopes: SCOPES,
       keyfilePath: CREDENTIALS_PATH,
+      setTimeout: 6000000
     });
     if (client.credentials) {
       await saveCredentials(client);
     }
+
+    console.log("CLIENT>>>>>", client)
     return client;
 
   } catch (error) {
     console.error('Erro ao autenticar:', error);
     throw error;
   }
+
+
 
 }
 
@@ -304,6 +310,8 @@ async function listAllFiles(authClient, folderId = "") {
     const pageSize = 100;
     do {
       // Solicite a lista de arquivos na pasta com base no token de página atual
+      console.log("FOLDER>>>", folderId[0])
+
       const response = await drive.files.list({
         q: `'${folderId[0].id}' in parents and trashed=false`,
         pageSize: pageSize,
@@ -320,9 +328,18 @@ async function listAllFiles(authClient, folderId = "") {
     // Agora, a lista `allItems` contém todos os itens da pasta
     // Faça o que for necessário com a lista completa
 
+    let cont = 0
     const listFiles = []
     await allItems.forEach(item => {
       listFiles.push(item.name)
+
+      cont++
+      if (cont == 150) {
+        const data = Company.query().where('id', '=', '1')
+        console.log("DATA COMPANY>>", data)
+        cont = 0
+      }
+
     });
 
     return listFiles
