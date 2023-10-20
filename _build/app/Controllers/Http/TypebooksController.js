@@ -36,13 +36,13 @@ class TypebooksController {
         const { companies_id } = await auth.use('api').authenticate();
         const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles']);
         let data;
+        let query = " 1=1 ";
         if (!companies_id)
             throw new BadRequestException_1.default('company not exists', 401);
         if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
             data = await Typebook_1.default.query().where("companies_id", '=', companies_id);
         }
         else {
-            let query = " 1=1 ";
             let _status;
             if (typebookPayload.status !== undefined) {
                 if (typebookPayload.status === 'TRUE' || typebookPayload.status === '1')
@@ -56,10 +56,14 @@ class TypebooksController {
             if (typebookPayload.books_id !== undefined) {
                 query += ` and books_id = ${typebookPayload.books_id} `;
             }
-            data = await Typebook_1.default.query().where("companies_id", '=', companies_id)
+            data = await Typebook_1.default.query()
+                .where("companies_id", '=', companies_id)
                 .whereRaw(query);
         }
         if (typebookPayload.totalfiles) {
+            data = await Typebook_1.default.query()
+                .where("companies_id", '=', companies_id)
+                .whereRaw(query).andWhere("status", "=", 1);
             for (let i = 0; i < data.length; i++) {
                 const totalFiles = await fileRename.totalFilesInFolder(data[i].path);
                 data[i].totalFiles = totalFiles.length;
