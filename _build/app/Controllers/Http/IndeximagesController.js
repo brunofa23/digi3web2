@@ -139,10 +139,11 @@ class IndeximagesController {
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }
     async download({ auth, params, request }) {
+        const authenticate = await auth.use('api').authenticate();
+        const { typebook_id } = request.only(['typebook_id']);
         const body = request.only(Indeximage_1.default.fillable);
         const fileName = params.id;
-        const authenticate = await auth.use('api').authenticate();
-        const fileDownload = await FileRename.downloadImage(fileName, authenticate.companies_id);
+        const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id);
         return { fileDownload, fileName, extension: path.extname(fileName), body };
     }
 }

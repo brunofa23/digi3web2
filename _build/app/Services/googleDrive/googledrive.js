@@ -218,7 +218,6 @@ async function listFiles(authClient, folderId = "") {
 async function listAllFiles(authClient, folderId = "") {
     const drive = google.drive({ version: 'v3', auth: authClient });
     try {
-        console.time("valor1");
         let allItems = [];
         let pageToken = null;
         const pageSize = 100;
@@ -230,14 +229,13 @@ async function listAllFiles(authClient, folderId = "") {
                 fields: 'nextPageToken, files(name)',
             });
             const items = response.data.files;
-            allItems = allItems.concat(items);
+            allItems.push(...items);
             pageToken = response.data.nextPageToken;
         } while (pageToken);
         const listFiles = [];
-        await allItems.forEach(item => {
+        allItems.forEach(item => {
             listFiles.push(item.name);
         });
-        console.timeEnd("valor1");
         return listFiles;
     }
     catch (error) {
