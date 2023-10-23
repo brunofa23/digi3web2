@@ -217,35 +217,31 @@ async function listFiles(authClient, folderId = "") {
 }
 async function listAllFiles(authClient, folderId = "") {
     const drive = google.drive({ version: 'v3', auth: authClient });
-    const allFiles = [];
-    console.time("VALOR2");
-    async function listFiles(pageToken) {
-        drive.files.list({
-            q: `'${folderId[0].id}' in parents and trashed=false`,
-            pageToken: pageToken,
-        }, (err, res) => {
-            if (err) {
-                console.error('Erro ao listar arquivos:', err);
-            }
-            else {
-                const files = res.data.files;
-                allFiles.push(...files);
-                if (res.data.nextPageToken) {
-                    listFiles(res.data.nextPageToken);
-                }
-                else {
-                    console.log(`Quantidade total de arquivos na pasta: ${allFiles.length}`);
-                    const allListFiles = [];
-                    allFiles.forEach(item => {
-                        allListFiles.push(item.name);
-                    });
-                    console.timeEnd("VALOR2");
-                    return allListFiles;
-                }
-            }
+    try {
+        console.time("valor1");
+        let allItems = [];
+        let pageToken = null;
+        const pageSize = 100;
+        do {
+            const response = await drive.files.list({
+                q: `'${folderId[0].id}' in parents and trashed=false`,
+                pageSize: pageSize,
+                pageToken: pageToken,
+                fields: 'nextPageToken, files(name)',
+            });
+            const items = response.data.files;
+            allItems = allItems.concat(items);
+            pageToken = response.data.nextPageToken;
+        } while (pageToken);
+        const listFiles = [];
+        await allItems.forEach(item => {
+            listFiles.push(item.name);
         });
+        console.timeEnd("valor1");
+        return listFiles;
     }
-    listFiles(null);
+    catch (error) {
+    }
 }
 async function downloadFile(authClient, fileId, extension) {
     const drive = google.drive({ version: 'v3', auth: authClient });
