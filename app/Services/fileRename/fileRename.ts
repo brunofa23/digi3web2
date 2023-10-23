@@ -34,10 +34,15 @@ async function deleteImage(folderPath) {
 
 }
 
-async function downloadImage(fileName) {
+async function downloadImage(fileName, typebook_id, company_id) {
 
+  const directoryParent = await Typebook.query()
+    .where('id', '=', typebook_id)
+    .andWhere('companies_id', '=', company_id).first()
+
+  const parent = await authorize.sendSearchFile(directoryParent?.path)
   const extension = path.extname(fileName);
-  const fileId = await authorize.sendSearchFile(fileName)
+  const fileId = await authorize.sendSearchFile(fileName, parent[0].id)
   const download = await authorize.sendDownloadFile(fileId[0].id, extension)
   return download
 }
