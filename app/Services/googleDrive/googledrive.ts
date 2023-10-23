@@ -267,9 +267,8 @@ async function listFiles(authClient, folderId = "") {
 async function listAllFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
-
   try {
-    console.time("valor1")
+    //console.time("valor1")
     let allItems = [];
     // Variáveis de controle para paginação
     let pageToken = null;
@@ -285,7 +284,8 @@ async function listAllFiles(authClient, folderId = "") {
       // Obtenha os itens da resposta
       const items = response.data.files;
       // Adicione os itens à lista principal
-      allItems = allItems.concat(items);
+      //allItems = allItems.concat(items);
+      allItems.push(...items);
       // Atualize o token de página para a próxima página (se houver)
       pageToken = response.data.nextPageToken;
     } while (pageToken);
@@ -293,23 +293,19 @@ async function listAllFiles(authClient, folderId = "") {
     // Faça o que for necessário com a lista completa
 
     const listFiles = []
-    await allItems.forEach(item => {
+    allItems.forEach(item => {
       listFiles.push(item.name)
     });
 
+    //console.timeEnd("valor1")
     //console.log("LIST FILES", listFiles)
-    console.timeEnd("valor1")
     return listFiles
   }
   catch (error) {
     //console.error('Erro ao listar os itens:', error);
   }
-
-
   /******************************************************************* */
-  // const allFiles = [];
-
-  // console.time("VALOR2")
+  // let allFiles = []
   // async function listFiles(pageToken) {
 
   //   drive.files.list({
@@ -332,8 +328,9 @@ async function listAllFiles(authClient, folderId = "") {
   //         allFiles.forEach(item => {
   //           allListFiles.push(item.name)
   //         });
+
   //         //console.log("LIST FILES", allListFiles)
-  //         console.timeEnd("VALOR2")
+  //         //console.timeEnd("VALOR2")
   //         return allListFiles
 
   //       }
@@ -341,8 +338,10 @@ async function listAllFiles(authClient, folderId = "") {
   //   });
   // }
 
+  // const listar = await listFiles(null)
+  // console.log("LISTAR>>>", listar)
 
-  // listFiles(null)
+
   /************************************************************************* */
 
 }
