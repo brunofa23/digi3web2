@@ -2,7 +2,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
 import Encryption from '@ioc:Adonis/Core/Encryption'
-import Company from 'App/Models/Company';
+
 import Token from 'App/Models/Token';
 import { types } from '@ioc:Adonis/Core/Helpers'
 
@@ -267,7 +267,9 @@ async function listFiles(authClient, folderId = "") {
 async function listAllFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
+
   // try {
+  //   console.time("valor1")
   //   let allItems = [];
   //   // Variáveis de controle para paginação
   //   let pageToken = null;
@@ -289,13 +291,14 @@ async function listAllFiles(authClient, folderId = "") {
   //   } while (pageToken);
   //   // Agora, a lista `allItems` contém todos os itens da pasta
   //   // Faça o que for necessário com a lista completa
-  //   console.time("teste")
+
   //   const listFiles = []
   //   await allItems.forEach(item => {
   //     listFiles.push(item.name)
   //   });
-  //   console.timeEnd("teste")
 
+  //   //console.log("LIST FILES", listFiles)
+  //   console.timeEnd("valor1")
   //   return listFiles
   // }
   // catch (error) {
@@ -303,54 +306,44 @@ async function listAllFiles(authClient, folderId = "") {
   // }
 
 
-  try {
-    let allItems = [];
-    // Variáveis de controle para paginação
-    let pageToken = null;
-    const pageSize = 100;
-    do {
-      // Solicite a lista de arquivos na pasta com base no token de página atual
-      console.log("FOLDER>>>", folderId[0])
+  /******************************************************************* */
+  const allFiles = [];
 
-      const response = await drive.files.list({
-        q: `'${folderId[0].id}' in parents and trashed=false`,
-        pageSize: pageSize,
-        pageToken: pageToken,
-        fields: 'nextPageToken, files(name)',
-      });
-      // Obtenha os itens da resposta
-      const items = response.data.files;
-      // Adicione os itens à lista principal
-      allItems = allItems.concat(items);
-      // Atualize o token de página para a próxima página (se houver)
-      pageToken = response.data.nextPageToken;
-    } while (pageToken);
-    // Agora, a lista `allItems` contém todos os itens da pasta
-    // Faça o que for necessário com a lista completa
+  console.time("VALOR2")
+  async function listFiles(pageToken) {
 
-    let cont = 0
-    const listFiles = []
-    await allItems.forEach(item => {
-      listFiles.push(item.name)
+    drive.files.list({
+      q: `'${folderId[0].id}' in parents and trashed=false`,
+      pageToken: pageToken,
+    }, (err, res) => {
+      if (err) {
+        console.error('Erro ao listar arquivos:', err);
+      } else {
+        const files = res.data.files;
+        allFiles.push(...files);
 
-      cont++
-      if (cont == 150) {
-        const data = Company.query().where('id', '=', '1')
-        console.log("DATA COMPANY>>", data)
-        cont = 0
+        if (res.data.nextPageToken) {
+          // Há mais páginas de resultados, continue a paginar
+          listFiles(res.data.nextPageToken);
+        } else {
+          // Todos os arquivos foram listados
+          console.log(`Quantidade total de arquivos na pasta: ${allFiles.length}`);
+          const allListFiles = []
+          allFiles.forEach(item => {
+            allListFiles.push(item.name)
+          });
+          //console.log("LIST FILES", allListFiles)
+          console.timeEnd("VALOR2")
+          return allListFiles
+
+        }
       }
-
     });
-
-    return listFiles
-  }
-  catch (error) {
-    //console.error('Erro ao listar os itens:', error);
   }
 
 
-
-
+  listFiles(null)
+  /************************************************************************* */
 
 }
 

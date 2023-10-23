@@ -22,14 +22,15 @@ export default class TypebooksController {
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(typebookPayload)
-      const typebookPath = await Typebook.findOrFail(data.id)
-      typebookPath.path = `Client_${typebookPath.companies_id}.Book_${typebookPath.id}.${book?.namefolder}`
-      await typebookPath.save()
-
-      const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-      await authorize.sendCreateFolder(typebookPath.path, idFolderCompany[0].id)
-      let successValidation = await new validations('typebook_success_100')
-      return response.status(201).send(typebookPayload, successValidation.code)
+      const typebookPath = await Typebook.query().where('id', '=', data.id).andWhere('companies_id', '=', typebookPayload.companies_id).first()
+      if (typebookPath) {
+        typebookPath.path = `Client_${typebookPath.companies_id}.Book_${typebookPath.id}.${book?.namefolder}`
+        await typebookPath.save()
+        const idFolderCompany = await authorize.sendSearchFile(company.foldername)
+        await authorize.sendCreateFolder(typebookPath.path, idFolderCompany[0].id)
+        let successValidation = await new validations('typebook_success_100')
+        return response.status(201).send(typebookPayload, successValidation.code)
+      }
 
     } catch (error) {
       throw new BadRequest('Bad Request - Create Typebook', 401, error)
