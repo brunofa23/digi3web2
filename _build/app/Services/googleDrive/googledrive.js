@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
-const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const Token_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Token"));
 const Helpers_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Helpers");
 const fsPromises = require('fs').promises;
@@ -218,37 +217,35 @@ async function listFiles(authClient, folderId = "") {
 }
 async function listAllFiles(authClient, folderId = "") {
     const drive = google.drive({ version: 'v3', auth: authClient });
-    try {
-        let allItems = [];
-        let pageToken = null;
-        const pageSize = 100;
-        do {
-            console.log("FOLDER>>>", folderId[0]);
-            const response = await drive.files.list({
-                q: `'${folderId[0].id}' in parents and trashed=false`,
-                pageSize: pageSize,
-                pageToken: pageToken,
-                fields: 'nextPageToken, files(name)',
-            });
-            const items = response.data.files;
-            allItems = allItems.concat(items);
-            pageToken = response.data.nextPageToken;
-        } while (pageToken);
-        let cont = 0;
-        const listFiles = [];
-        await allItems.forEach(item => {
-            listFiles.push(item.name);
-            cont++;
-            if (cont == 150) {
-                const data = Company_1.default.query().where('id', '=', '1');
-                console.log("DATA COMPANY>>", data);
-                cont = 0;
+    const allFiles = [];
+    console.time("VALOR2");
+    async function listFiles(pageToken) {
+        drive.files.list({
+            q: `'${folderId[0].id}' in parents and trashed=false`,
+            pageToken: pageToken,
+        }, (err, res) => {
+            if (err) {
+                console.error('Erro ao listar arquivos:', err);
+            }
+            else {
+                const files = res.data.files;
+                allFiles.push(...files);
+                if (res.data.nextPageToken) {
+                    listFiles(res.data.nextPageToken);
+                }
+                else {
+                    console.log(`Quantidade total de arquivos na pasta: ${allFiles.length}`);
+                    const allListFiles = [];
+                    allFiles.forEach(item => {
+                        allListFiles.push(item.name);
+                    });
+                    console.timeEnd("VALOR2");
+                    return allListFiles;
+                }
             }
         });
-        return listFiles;
     }
-    catch (error) {
-    }
+    listFiles(null);
 }
 async function downloadFile(authClient, fileId, extension) {
     const drive = google.drive({ version: 'v3', auth: authClient });

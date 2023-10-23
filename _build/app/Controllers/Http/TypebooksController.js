@@ -20,13 +20,15 @@ class TypebooksController {
         try {
             const company = await Company_1.default.findByOrFail('id', authenticate.companies_id);
             const data = await Typebook_1.default.create(typebookPayload);
-            const typebookPath = await Typebook_1.default.findOrFail(data.id);
-            typebookPath.path = `Client_${typebookPath.companies_id}.Book_${typebookPath.id}.${book?.namefolder}`;
-            await typebookPath.save();
-            const idFolderCompany = await authorize.sendSearchFile(company.foldername);
-            await authorize.sendCreateFolder(typebookPath.path, idFolderCompany[0].id);
-            let successValidation = await new validations_1.default('typebook_success_100');
-            return response.status(201).send(typebookPayload, successValidation.code);
+            const typebookPath = await Typebook_1.default.query().where('id', '=', data.id).andWhere('companies_id', '=', typebookPayload.companies_id).first();
+            if (typebookPath) {
+                typebookPath.path = `Client_${typebookPath.companies_id}.Book_${typebookPath.id}.${book?.namefolder}`;
+                await typebookPath.save();
+                const idFolderCompany = await authorize.sendSearchFile(company.foldername);
+                await authorize.sendCreateFolder(typebookPath.path, idFolderCompany[0].id);
+                let successValidation = await new validations_1.default('typebook_success_100');
+                return response.status(201).send(typebookPayload, successValidation.code);
+            }
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request - Create Typebook', 401, error);
