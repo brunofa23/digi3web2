@@ -22,15 +22,20 @@ export default class TypebooksController {
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(typebookPayload)
-      const typebookPath = await Typebook.query().where('id', '=', data.id).andWhere('companies_id', '=', typebookPayload.companies_id).first()
-      if (typebookPath) {
-        typebookPath.path = `Client_${typebookPath.companies_id}.Book_${typebookPath.id}.${book?.namefolder}`
-        await typebookPath.save()
-        const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-        await authorize.sendCreateFolder(typebookPath.path, idFolderCompany[0].id)
-        let successValidation = await new validations('typebook_success_100')
-        return response.status(201).send(typebookPayload, successValidation.code)
+      const path = `Client_${typebookPayload.companies_id}.Book_${data.id}.${book?.namefolder}`
+
+      await Typebook.query().where('id', '=', data.id)
+        .andWhere('companies_id', '=', typebookPayload.companies_id)
+        .update({ path: path })
+
+      const idFolderCompany = await authorize.sendSearchFile(company.foldername)
+      const verifyFolder = await authorize.sendSearchFile(path)
+      if (verifyFolder.length > 0) {
+        return
       }
+      await authorize.sendCreateFolder(path, idFolderCompany[0].id)
+      let successValidation = await new validations('typebook_success_100')
+      return response.status(201).send(typebookPayload, successValidation.code)
 
     } catch (error) {
       throw new BadRequest('Bad Request - Create Typebook', 401, error)
