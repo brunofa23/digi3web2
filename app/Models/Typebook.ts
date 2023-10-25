@@ -22,7 +22,8 @@ export default class Typebook extends BaseModel {
       'path',
       'books_id',
       'companies_id',
-      'filesTot',
+      'totalfiles',
+      'dateindex',
       'createdAt',
       'updatedAt',
     ]
@@ -79,6 +80,9 @@ export default class Typebook extends BaseModel {
 
   @column()
   public totalFiles: number
+
+  @column()
+  public dateindex: DateTime
 
   // @afterSave()
   // public static async afterSaveHook(typebook: Typebook) {
