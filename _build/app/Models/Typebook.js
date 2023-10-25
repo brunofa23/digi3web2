@@ -27,7 +27,8 @@ class Typebook extends Orm_1.BaseModel {
             'path',
             'books_id',
             'companies_id',
-            'filesTot',
+            'totalfiles',
+            'dateindex',
             'createdAt',
             'updatedAt',
         ];
@@ -97,5 +98,9 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], Typebook.prototype, "totalFiles", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", luxon_1.DateTime)
+], Typebook.prototype, "dateindex", void 0);
 exports.default = Typebook;
 //# sourceMappingURL=Typebook.js.map
