@@ -97,10 +97,10 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], Typebook.prototype, "totalFiles", void 0);
+], Typebook.prototype, "totalfiles", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", luxon_1.DateTime)
+    __metadata("design:type", String)
 ], Typebook.prototype, "dateindex", void 0);
 exports.default = Typebook;
 //# sourceMappingURL=Typebook.js.map

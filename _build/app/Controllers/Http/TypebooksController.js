@@ -66,11 +66,13 @@ class TypebooksController {
                 .whereRaw(query);
         }
         if (typebookPayload.totalfiles) {
+            console.log("PASSEI PELO TOTAL FILES.....");
             data = await Typebook_1.default.query()
                 .where("companies_id", '=', companies_id)
                 .whereRaw(query).andWhere("status", "=", 1);
             for (let i = 0; i < data.length; i++) {
                 const totalFiles = await fileRename.totalFilesInFolder(data[i].path);
+                console.log("TOTAL FILES>>>", totalFiles);
                 data[i].totalFiles = totalFiles.length;
             }
         }

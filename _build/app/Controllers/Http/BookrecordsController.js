@@ -440,11 +440,17 @@ class BookrecordsController {
             throw new BadRequestException_1.default("Bad Request", 402);
         }
     }
-    async indeximagesinitial({ auth, params }) {
+    async indeximagesinitial({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         let listFiles;
         try {
             const foldername = await Typebook_1.default.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first();
+            if (foldername) {
+                await Typebook_1.default.query()
+                    .where('companies_id', '=', authenticate.companies_id)
+                    .andWhere('id', '=', foldername?.id)
+                    .update({ dateindex: 'Indexing', totalfiles: null });
+            }
             listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id);
         }
         catch (error) {
@@ -455,7 +461,6 @@ class BookrecordsController {
                 await Bookrecord_1.default.create(item);
             }
             catch (error) {
-                console.log("ERRO BOOKRECORD::", error);
             }
         }
         for (const item of listFiles.indexImages) {
@@ -463,10 +468,18 @@ class BookrecordsController {
                 await Indeximage_1.default.create(item);
             }
             catch (error) {
-                console.log("ERRO indeximage::", error);
             }
         }
-        return "sucesso!!";
+        try {
+            const typebookPayload = await Typebook_1.default.query()
+                .where('companies_id', '=', authenticate.companies_id)
+                .andWhere('id', '=', listFiles.bookRecord[0].typebooks_id)
+                .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length });
+            return response.status(201).send(typebookPayload);
+        }
+        catch (error) {
+            return error;
+        }
     }
 }
 exports.default = BookrecordsController;

@@ -12,7 +12,7 @@ class default_1 extends Schema_1.default {
     async up() {
         this.schema.alterTable(this.tableName, (table) => {
             table.integer('totalfiles').nullable();
-            table.datetime('dateindex').nullable();
+            table.string('dateindex').nullable();
         });
     }
     async down() {
