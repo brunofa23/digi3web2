@@ -633,5 +633,11 @@ export default class BookrecordsController {
   }
 
 
+  public async bookSummary({ auth, params, response }: HttpContextContract) {
+
+  }
+
+
+
   //********************************************************* */
 }
