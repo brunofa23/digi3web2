@@ -443,8 +443,10 @@ class BookrecordsController {
     async indeximagesinitial({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         let listFiles;
+        let foldername;
         try {
-            const foldername = await Typebook_1.default.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first();
+            foldername = await Typebook_1.default.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first();
+            console.log("FOLDER NAME>>>", foldername?.name, foldername?.path, foldername?.id);
             if (foldername) {
                 await Typebook_1.default.query()
                     .where('companies_id', '=', authenticate.companies_id)
@@ -473,7 +475,7 @@ class BookrecordsController {
         try {
             const typebookPayload = await Typebook_1.default.query()
                 .where('companies_id', '=', authenticate.companies_id)
-                .andWhere('id', '=', listFiles.bookRecord[0].typebooks_id)
+                .andWhere('id', '=', foldername.id)
                 .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length });
             return response.status(201).send(typebookPayload);
         }
