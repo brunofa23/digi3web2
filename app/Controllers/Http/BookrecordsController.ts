@@ -584,6 +584,15 @@ export default class BookrecordsController {
     let listFiles
     try {
       const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
+      //console.log("FOLDER NAME>>>", foldername?.name, foldername?.path)
+
+      if (foldername) {
+        await Typebook.query()
+          .where('companies_id', '=', authenticate.companies_id)
+          .andWhere('id', '=', foldername?.id)
+          .update({ dateindex: 'Indexing', totalfiles: null })
+      }
+
       listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
     } catch (error) {
       return error
@@ -612,8 +621,7 @@ export default class BookrecordsController {
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('id', '=', listFiles.bookRecord[0].typebooks_id)
         .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
-
-      console.log("PASSEI AQUIIIIII", listFiles.bookRecord[0].typebooks_id, "qtde:", listFiles.indexImages.length)
+      //console.log("PASSEI AQUIIIIII", listFiles.bookRecord[0].typebooks_id, "qtde:", listFiles.indexImages.length)
       return response.status(201).send(typebookPayload)
     } catch (error) {
       return error
