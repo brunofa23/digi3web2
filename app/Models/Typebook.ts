@@ -79,10 +79,10 @@ export default class Typebook extends BaseModel {
   public updatedAt: DateTime
 
   @column()
-  public totalFiles: number
+  public totalfiles: number
 
   @column()
-  public dateindex: DateTime
+  public dateindex: string
 
   // @afterSave()
   // public static async afterSaveHook(typebook: Typebook) {
