@@ -582,9 +582,10 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
 
     let listFiles
+    let foldername
     try {
-      const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
-      //console.log("FOLDER NAME>>>", foldername?.name, foldername?.path)
+      foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
+      console.log("FOLDER NAME>>>", foldername?.name, foldername?.path, foldername?.id)
 
       if (foldername) {
         await Typebook.query()
@@ -619,9 +620,8 @@ export default class BookrecordsController {
     try {
       const typebookPayload = await Typebook.query()
         .where('companies_id', '=', authenticate.companies_id)
-        .andWhere('id', '=', listFiles.bookRecord[0].typebooks_id)
+        .andWhere('id', '=', foldername.id)
         .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
-      //console.log("PASSEI AQUIIIIII", listFiles.bookRecord[0].typebooks_id, "qtde:", listFiles.indexImages.length)
       return response.status(201).send(typebookPayload)
     } catch (error) {
       return error
