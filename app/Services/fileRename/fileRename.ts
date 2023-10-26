@@ -325,6 +325,21 @@ async function deleteFile(listFiles: [{}]) {
 
 }
 
+//*********************************************************** */
+// async function totalFilesInFolder(folderName) {
+//   try {
+//     const idFolder = await authorize.sendSearchFile(folderName)
+//     const listFiles = await authorize.sendListAllFiles(idFolder)
+//     if (listFiles) {
+//       //console.log("TOTAL DE ARQUIVOS::", listFiles.length)
+//       return listFiles
+//     }
+//     else return 0
+//   } catch (error) {
+//     return 0
+//   }
+// }
+
 async function totalFilesInFolder(folderName) {
   try {
     const idFolder = await authorize.sendSearchFile(folderName)
@@ -337,9 +352,12 @@ async function totalFilesInFolder(folderName) {
   } catch (error) {
     return 0
   }
-
-
 }
+//**************************************************** */
+
+
+
+
 async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
 
   let listFiles

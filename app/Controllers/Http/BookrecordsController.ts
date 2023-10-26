@@ -578,22 +578,32 @@ export default class BookrecordsController {
   }
 
 
-  public async indeximagesinitial({ auth, params }: HttpContextContract) {
+  public async indeximagesinitial({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
     let listFiles
     try {
       const foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
+      //console.log("FOLDER NAME>>>", foldername?.name, foldername?.path)
+
+      if (foldername) {
+        await Typebook.query()
+          .where('companies_id', '=', authenticate.companies_id)
+          .andWhere('id', '=', foldername?.id)
+          .update({ dateindex: 'Indexing', totalfiles: null })
+      }
+
       listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
     } catch (error) {
       return error
     }
 
+
     for (const item of listFiles.bookRecord) {
       try {
         await Bookrecord.create(item)
       } catch (error) {
-        console.log("ERRO BOOKRECORD::", error)
+        //console.log("ERRO BOOKRECORD::", error)
       }
     }
 
@@ -601,12 +611,24 @@ export default class BookrecordsController {
       try {
         await Indeximage.create(item)
       } catch (error) {
-        console.log("ERRO indeximage::", error)
+        //console.log("ERRO indeximage::", error)
 
       }
     }
 
-    return "sucesso!!"
+    try {
+      const typebookPayload = await Typebook.query()
+        .where('companies_id', '=', authenticate.companies_id)
+        .andWhere('id', '=', listFiles.bookRecord[0].typebooks_id)
+        .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
+      //console.log("PASSEI AQUIIIIII", listFiles.bookRecord[0].typebooks_id, "qtde:", listFiles.indexImages.length)
+      return response.status(201).send(typebookPayload)
+    } catch (error) {
+      return error
+    }
+
+
+
 
   }
 
