@@ -635,6 +635,14 @@ export default class BookrecordsController {
 
   public async bookSummary({ auth, params, response }: HttpContextContract) {
 
+    SELECT book, COUNT(*) FROM bookrecords
+    WHERE companies_id = 14 AND typebooks_id = 11
+    GROUP BY book
+    UNION
+    SELECT count(distinct(book)), count(*)
+    FROM bookrecords
+    WHERE companies_id = 14 AND typebooks_id = 11
+    ORDER BY book asc;
   }
 
 
