@@ -636,7 +636,6 @@ export default class BookrecordsController {
 
   public async bookSummary({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    console.log("PARAMS", params)
     const typebooks_id = params.typebooks_id
     //return typebooks_id
     try {
@@ -646,26 +645,14 @@ export default class BookrecordsController {
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('typebooks_id', '=', typebooks_id)
         .groupBy('book')
+        .orderBy('book')
 
-      const bookSummaryTotal = await Database.from('bookrecords')
-        .countDistinct('Book', 'totalBooks')
-        .count('*', 'totalRows')
-        .where('companies_id', '=', authenticate.companies_id)
-        .andWhere('typebooks_id', '=', typebooks_id).first()
-
-      return response.status(201).send({ bookSummaryTotal, bookSummaryPayload })
+      return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
       return error
     }
-    // SELECT book, COUNT(*) FROM bookrecords
-    // WHERE companies_id = 14 AND typebooks_id = 11
-    // GROUP BY book
-    // UNION
-    // SELECT count(distinct(book)), count(*)
-    // FROM bookrecords
-    // WHERE companies_id = 14 AND typebooks_id = 11
-    // ORDER BY book asc;
+
   }
 
 
