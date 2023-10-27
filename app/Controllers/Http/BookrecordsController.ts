@@ -602,6 +602,7 @@ export default class BookrecordsController {
 
     for (const item of listFiles.bookRecord) {
       try {
+        //console.log("ITEM>>>>>>>>>", item)
         await Bookrecord.create(item)
       } catch (error) {
         //console.log("ERRO BOOKRECORD::", error)
@@ -631,6 +632,29 @@ export default class BookrecordsController {
 
 
   }
+
+
+  public async bookSummary({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const typebooks_id = params.typebooks_id
+    //return typebooks_id
+    try {
+      const bookSummaryPayload = await Database.from('bookrecords')
+        .select('Book')
+        .count('*', 'totalRows')
+        .where('companies_id', '=', authenticate.companies_id)
+        .andWhere('typebooks_id', '=', typebooks_id)
+        .groupBy('book')
+        .orderBy('book')
+
+      return response.status(200).send(bookSummaryPayload)
+
+    } catch (error) {
+      return error
+    }
+
+  }
+
 
 
   //********************************************************* */

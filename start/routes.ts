@@ -35,6 +35,7 @@ Route.group(() => {
   //Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
   Route.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index')
   Route.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show')
+  Route.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary')
   Route.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post')
   Route.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update').middleware('bookrecord_permission:patch')
   Route.delete("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.destroy').middleware('bookrecord_permission:destroy')
@@ -42,6 +43,8 @@ Route.group(() => {
   Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords').middleware('bookrecord_permission:createorupdatebookrecords')
   Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords')
   Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial')
+
+
 
   //DOCUMENTS
   Route.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index')
