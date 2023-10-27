@@ -27,6 +27,7 @@ Route_1.default.group(() => {
     Route_1.default.patch("/users/:id", "UsersController.update").middleware('user_permission:patch');
     Route_1.default.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index');
     Route_1.default.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show');
+    Route_1.default.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary');
     Route_1.default.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post');
     Route_1.default.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update').middleware('bookrecord_permission:patch');
     Route_1.default.delete("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.destroy').middleware('bookrecord_permission:destroy');

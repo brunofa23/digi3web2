@@ -483,6 +483,23 @@ class BookrecordsController {
             return error;
         }
     }
+    async bookSummary({ auth, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const typebooks_id = params.typebooks_id;
+        try {
+            const bookSummaryPayload = await Database_1.default.from('bookrecords')
+                .select('Book')
+                .count('*', 'totalRows')
+                .where('companies_id', '=', authenticate.companies_id)
+                .andWhere('typebooks_id', '=', typebooks_id)
+                .groupBy('book')
+                .orderBy('book');
+            return response.status(200).send(bookSummaryPayload);
+        }
+        catch (error) {
+            return error;
+        }
+    }
 }
 exports.default = BookrecordsController;
 //# sourceMappingURL=BookrecordsController.js.map
