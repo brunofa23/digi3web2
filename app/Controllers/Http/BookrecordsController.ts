@@ -639,15 +639,41 @@ export default class BookrecordsController {
     const typebooks_id = params.typebooks_id
     //return typebooks_id
     try {
-      const bookSummaryPayload = await Database.from('bookrecords')
-        .select('Book')
-        .count('*', 'totalRows')
-        .where('companies_id', '=', authenticate.companies_id)
-        .andWhere('typebooks_id', '=', typebooks_id)
-        .groupBy('book')
-        .orderBy('book')
+      //const bookSummaryPayload = await Database.from('bookrecords')
+      // .select('Book')
+      // .count('*', 'totalRows')
+      // .where('companies_id', '=', authenticate.companies_id)
+      // .andWhere('typebooks_id', '=', typebooks_id)
+      // .groupBy('book')
+      // .orderBy('book')
 
-      return response.status(200).send(bookSummaryPayload)
+      const bookSummaryPayload = await Database.rawQuery(
+        `SELECT
+        br.book book,
+        br.book_count totalRows,
+        IFNULL(images.image_count, 0) AS totalFiles
+      FROM (
+        SELECT
+          book,
+          COUNT(*) AS book_count
+        FROM bookrecords
+        WHERE companies_id = ${authenticate.companies_id}
+        AND typebooks_id = ${typebooks_id}
+        GROUP BY book
+      ) AS br
+      LEFT JOIN (
+        SELECT
+          bkr.book AS book,
+          COUNT(*) AS image_count
+        FROM indeximages AS idx
+        INNER JOIN bookrecords AS bkr ON (idx.bookrecords_id = bkr.id)
+        WHERE bkr.companies_id = ${authenticate.companies_id}
+        AND bkr.typebooks_id = ${typebooks_id}
+        GROUP BY bkr.book
+      ) AS images ON br.book = images.book;`
+      )
+
+      return response.status(200).send(bookSummaryPayload[0])
 
     } catch (error) {
       return error
