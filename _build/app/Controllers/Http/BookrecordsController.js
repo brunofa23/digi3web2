@@ -510,6 +510,7 @@ class BookrecordsController {
         AND bkr.typebooks_id = ${typebooks_id}
         GROUP BY bkr.book
       ) AS images ON br.book = images.book;`);
+            console.log("SUMMARY", bookSummaryPayload[0]);
             return response.status(200).send(bookSummaryPayload[0]);
         }
         catch (error) {

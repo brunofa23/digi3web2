@@ -301,7 +301,6 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
             approximate_term, indexbook, obs, letter, year
         };
     });
-    console.log("OBJLIST..>>>>>", objlistFilesBookRecord);
     const indexImages = listFiles.map((file) => {
         const fileSplit = file.split("_");
         const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
