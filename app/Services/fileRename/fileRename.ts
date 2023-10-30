@@ -390,7 +390,7 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   });
 
 
-  console.log("OBJLIST..>>>>>", objlistFilesBookRecord)
+  //console.log("OBJLIST..>>>>>", objlistFilesBookRecord)
 
   const indexImages = listFiles.map((file) => {
     const fileSplit = file.split("_")
