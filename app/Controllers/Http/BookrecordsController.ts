@@ -673,6 +673,7 @@ export default class BookrecordsController {
       ) AS images ON br.book = images.book;`
       )
 
+      console.log("SUMMARY", bookSummaryPayload[0])
       return response.status(200).send(bookSummaryPayload[0])
 
     } catch (error) {
