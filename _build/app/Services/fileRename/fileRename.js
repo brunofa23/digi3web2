@@ -105,6 +105,16 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     }
     return result;
 }
+async function renameFileGoogle(filename, folderPath, newTitle) {
+    console.log("RENAME FILE GOOLGLE....");
+    try {
+        const idFolderPath = await authorize.sendSearchFile(folderPath);
+        const idFile = await authorize.sendSearchFile(filename, idFolderPath);
+        const renameFile = await authorize.sendRenameFile(idFile, newTitle);
+    }
+    catch (error) {
+    }
+}
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, capture = false) {
     try {
         if (capture) {
@@ -324,5 +334,5 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
     indexImages.sort((a, b) => a.id - b.id);
     return { bookRecord, indexImages };
 }
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder };
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle };
 //# sourceMappingURL=fileRename.js.map

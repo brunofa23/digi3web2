@@ -200,6 +200,22 @@ async function deleteFile(authClient, fileId) {
     });
     return request;
 }
+async function renameFile(authClient, fileId, newTitle) {
+    const drive = google.drive({ version: 'v3', auth: authClient });
+    try {
+        const fileMetadata = {
+            name: newTitle,
+        };
+        const updatedFile = await drive.files.update({
+            fileId,
+            resource: fileMetadata,
+        });
+        console.log(`Arquivo renomeado para: ${updatedFile.data.name}`);
+    }
+    catch (error) {
+        console.error('Erro ao renomear o arquivo:', error);
+    }
+}
 async function listFiles(authClient, folderId = "") {
     const drive = google.drive({ version: 'v3', auth: authClient });
     const res = await drive.files.list({
@@ -309,5 +325,9 @@ async function sendDownloadFile(fileId, extension) {
     const auth = await authorize();
     return downloadFile(auth, fileId, extension);
 }
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles };
+async function sendRenameFile(fileId, newTitle) {
+    const auth = await authorize();
+    return renameFile(auth, fileId, newTitle);
+}
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles, sendRenameFile };
 //# sourceMappingURL=googledrive.js.map
