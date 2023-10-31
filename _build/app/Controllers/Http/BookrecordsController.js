@@ -487,31 +487,28 @@ class BookrecordsController {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
         try {
-            const bookSummaryPayload = await Database_1.default.rawQuery(`SELECT
-        br.book book,
-        br.book_count totalRows,
-        IFNULL(images.image_count, 0) AS totalFiles
-      FROM (
-        SELECT
-          book,
-          COUNT(*) AS book_count
-        FROM bookrecords
-        WHERE companies_id = ${authenticate.companies_id}
-        AND typebooks_id = ${typebooks_id}
-        GROUP BY book
-      ) AS br
-      LEFT JOIN (
-        SELECT
-          bkr.book AS book,
-          COUNT(*) AS image_count
-        FROM indeximages AS idx
-        INNER JOIN bookrecords AS bkr ON (idx.bookrecords_id = bkr.id)
-        WHERE bkr.companies_id = ${authenticate.companies_id}
-        AND bkr.typebooks_id = ${typebooks_id}
-        GROUP BY bkr.book
-      ) AS images ON br.book = images.book;`);
-            console.log("SUMMARY", bookSummaryPayload[0]);
-            return response.status(200).send(bookSummaryPayload[0]);
+            const bookSummaryPayload = await Database_1.default
+                .from('bookrecords')
+                .select('book')
+                .count('* as totalRows')
+                .select(Database_1.default.raw(`
+    (SELECT COUNT(*)
+     FROM indeximages
+     INNER JOIN bookrecords bkr ON
+       (indeximages.bookrecords_id = bkr.id AND
+       indeximages.companies_id = bkr.companies_id AND
+       indeximages.typebooks_id = bkr.typebooks_id)
+     WHERE bkr.companies_id = bookrecords.companies_id
+       AND bkr.typebooks_id = bookrecords.typebooks_id
+       AND bkr.book = bookrecords.book
+     GROUP BY bkr.book
+    ) as totalFiles
+  `))
+                .where('companies_id', authenticate.companies_id)
+                .where('typebooks_id', typebooks_id)
+                .groupBy('book')
+                .orderBy('bookrecords.book');
+            return response.status(200).send(bookSummaryPayload);
         }
         catch (error) {
             return error;
