@@ -638,6 +638,9 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
 
+    fileRename.renameFileGoogle()
+
+
     try {
       const bookSummaryPayload = await Database
         .from('bookrecords')

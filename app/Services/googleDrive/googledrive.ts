@@ -240,6 +240,28 @@ async function deleteFile(authClient, fileId) {
   return request
 }
 
+//RENOMERAR ARQUIVOS**************************************************************** */
+async function renameFile(authClient, fileId, newTitle) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  try {
+    const fileMetadata = {
+      name: newTitle,
+    };
+
+    const updatedFile = await drive.files.update({
+      fileId,
+      resource: fileMetadata,
+    });
+
+    console.log(`Arquivo renomeado para: ${updatedFile.data.name}`);
+  } catch (error) {
+    console.error('Erro ao renomear o arquivo:', error);
+  }
+}
+
+//******************************************************************* */
+
 
 async function listFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
@@ -297,52 +319,13 @@ async function listAllFiles(authClient, folderId = "") {
       listFiles.push(item.name)
     });
 
-    //console.timeEnd("valor1")
-    //console.log("LIST FILES", listFiles)
     return listFiles
   }
   catch (error) {
     //console.error('Erro ao listar os itens:', error);
   }
-  /******************************************************************* */
-  // let allFiles = []
-  // async function listFiles(pageToken) {
-
-  //   drive.files.list({
-  //     q: `'${folderId[0].id}' in parents and trashed=false`,
-  //     pageToken: pageToken,
-  //   }, (err, res) => {
-  //     if (err) {
-  //       console.error('Erro ao listar arquivos:', err);
-  //     } else {
-  //       const files = res.data.files;
-  //       allFiles.push(...files);
-
-  //       if (res.data.nextPageToken) {
-  //         // Há mais páginas de resultados, continue a paginar
-  //         listFiles(res.data.nextPageToken);
-  //       } else {
-  //         // Todos os arquivos foram listados
-  //         console.log(`Quantidade total de arquivos na pasta: ${allFiles.length}`);
-  //         const allListFiles = []
-  //         allFiles.forEach(item => {
-  //           allListFiles.push(item.name)
-  //         });
-
-  //         //console.log("LIST FILES", allListFiles)
-  //         //console.timeEnd("VALOR2")
-  //         return allListFiles
-
-  //       }
-  //     }
-  //   });
-  // }
-
-  // const listar = await listFiles(null)
-  // console.log("LISTAR>>>", listar)
 
 
-  /************************************************************************* */
 
 }
 
@@ -445,7 +428,12 @@ async function sendDownloadFile(fileId, extension) {
   return downloadFile(auth, fileId, extension)
 }
 
+async function sendRenameFile(fileId, newTitle) {
+  const auth = await authorize()
+  return renameFile(auth, fileId, newTitle)
+
+}
 
 
 
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles }
+module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles, sendRenameFile }
