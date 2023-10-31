@@ -6,8 +6,6 @@ import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
-import ExceptionHandler from "App/Exceptions/Handler";
-
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -46,6 +44,7 @@ async function downloadImage(fileName, typebook_id, company_id) {
   const download = await authorize.sendDownloadFile(fileId[0].id, extension)
   return download
 }
+
 
 async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
   //**PARTE ONDE CRIA AS PASTAS */
@@ -127,6 +126,16 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
   return result
 }
 
+async function renameFileGoogle(filename, folderPath, newTitle) {
+  console.log("RENAME FILE GOOLGLE....")
+  try {
+    const idFolderPath = await authorize.sendSearchFile(folderPath)
+    const idFile = await authorize.sendSearchFile(filename, idFolderPath)
+    const renameFile = await authorize.sendRenameFile(idFile, newTitle)
+  } catch (error) {
+
+  }
+}
 
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, capture = false) {
 
@@ -418,8 +427,6 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
   return { bookRecord, indexImages }
-
-
 }
 
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder }
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle }
