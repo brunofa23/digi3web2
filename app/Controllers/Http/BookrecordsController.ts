@@ -388,7 +388,6 @@ export default class BookrecordsController {
       generateStartCode,
       generateEndCode,
       generateStartSheetInCodReference,
-      generateEndSheetInCodReference,
       generateSheetStart,
       generateSheetIncrement,
       generateSideStart,
@@ -420,7 +419,6 @@ export default class BookrecordsController {
       throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
     }
 
-    //let contSheet = !generateSheetStart ? 0 : generateSheetStart
     let contFirstSide = false
     let sideNow = 0
     let approximate_term = generateApproximate_term
@@ -429,9 +427,6 @@ export default class BookrecordsController {
     let indexIncrement = 0
     let sheetStart = 0//generateSheetStart
     let sheetIncrement = 0
-    //let contSheetStartCod = 0
-    //let contSheetStartCodini = false
-    //let sheetStartInitial = true
 
     const bookrecords: Object[] = []
 
@@ -549,7 +544,8 @@ export default class BookrecordsController {
 
 
     try {
-      const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
+      const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
+
       if (generateBook > 0 && generateBookdestination > 0) {
         const teste = await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
           .andWhere('book', '=', generateBook)
