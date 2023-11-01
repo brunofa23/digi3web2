@@ -241,19 +241,20 @@ async function deleteFile(authClient, fileId) {
 }
 
 //RENOMERAR ARQUIVOS**************************************************************** */
-async function renameFile(authClient, fileId, newTitle) {
+async function renameFile(authClient, fileId: String, newTitle: String) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   try {
     const fileMetadata = {
       name: newTitle,
     };
-
+    //  console.log("RENAME FILE, PASSEI AQUI", fileMetadata, fileId)
     const updatedFile = await drive.files.update({
       fileId,
       resource: fileMetadata,
     });
 
+    //    console.log("UPDATEFILE", updatedFile)
     console.log(`Arquivo renomeado para: ${updatedFile.data.name}`);
   } catch (error) {
     console.error('Erro ao renomear o arquivo:', error);

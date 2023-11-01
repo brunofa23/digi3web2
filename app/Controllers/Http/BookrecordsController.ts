@@ -162,6 +162,8 @@ export default class BookrecordsController {
 
   public async update({ auth, request, params, response }: HttpContextContract) {
 
+
+
     const { companies_id } = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
     body.id = params.id
@@ -214,8 +216,6 @@ export default class BookrecordsController {
     }
 
   }
-
-
   //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
     //console.log("destroy many bookrecords>>>")
@@ -319,8 +319,6 @@ export default class BookrecordsController {
     }
   }
 
-
-
   //Cria uma linha 
   public async createorupdatebookrecords({ auth, request, response }) {
 
@@ -348,7 +346,6 @@ export default class BookrecordsController {
         })
 
       }
-
       else {
         updateRecord.push({
           id: iterator.id,
@@ -391,7 +388,6 @@ export default class BookrecordsController {
       generateStartCode,
       generateEndCode,
       generateStartSheetInCodReference,
-      generateEndSheetInCodReference,
       generateSheetStart,
       generateSheetIncrement,
       generateSideStart,
@@ -423,22 +419,14 @@ export default class BookrecordsController {
       throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
     }
 
-    let contSheet = !generateSheetStart ? 0 : generateSheetStart
     let contFirstSide = false
     let sideNow = 0
     let approximate_term = generateApproximate_term
     let approximate_termIncrement = 0
     let indexBook = generateIndex
     let indexIncrement = 0
-
     let sheetStart = 0//generateSheetStart
     let sheetIncrement = 0
-    let contSheetStartCod = 0
-
-    let contSheetStartCodini = false
-    let sheetStartInitial = true
-
-
 
     const bookrecords: Object[] = []
 
@@ -556,12 +544,12 @@ export default class BookrecordsController {
 
 
     try {
-      const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords)
+      const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
+
       if (generateBook > 0 && generateBookdestination > 0) {
         const teste = await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
           .andWhere('book', '=', generateBook)
           .andWhere('typebooks_id', '=', params.typebooks_id)
-          //.andWhereBetween('cod', [_startCode, _endCode]).
           .update({ book: generateBookdestination })
 
         console.log("teste", teste)
@@ -599,7 +587,6 @@ export default class BookrecordsController {
       return error
     }
 
-
     for (const item of listFiles.bookRecord) {
       try {
         //console.log("ITEM>>>>>>>>>", item)
@@ -627,10 +614,6 @@ export default class BookrecordsController {
     } catch (error) {
       return error
     }
-
-
-
-
   }
 
 
@@ -638,8 +621,10 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
 
-    fileRename.renameFileGoogle()
-
+    // fileRename.
+    //   renameFileGoogle('Id650703_0(1)_100_1___F_3a - Copia.png',
+    //     'Client_10.Book_100.NASCIMENTO',
+    //     'TESTE.png')
 
     try {
       const bookSummaryPayload = await Database

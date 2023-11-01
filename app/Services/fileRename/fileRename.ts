@@ -127,13 +127,15 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 }
 
 async function renameFileGoogle(filename, folderPath, newTitle) {
-  console.log("RENAME FILE GOOLGLE....")
   try {
     const idFolderPath = await authorize.sendSearchFile(folderPath)
-    const idFile = await authorize.sendSearchFile(filename, idFolderPath)
-    const renameFile = await authorize.sendRenameFile(idFile, newTitle)
-  } catch (error) {
+    const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id)
+    //console.log("RENAME FILE GOOLGLE....", "IF FOLDER:", idFolderPath[0].id, "ID FILE", idFile[0].id)
 
+    const renameFile = await authorize.sendRenameFile(idFile[0].id, newTitle)
+    console.log("SUCESSO>>>", renameFile)
+  } catch (error) {
+    console.log("ERROR 1456", error)
   }
 }
 
