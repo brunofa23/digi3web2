@@ -290,7 +290,7 @@ class BookrecordsController {
     }
     async generateOrUpdateBookrecords({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateEndSheetInCodReference, generateSheetStart, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear, } = request.requestData;
+        let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateSheetStart, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear, } = request.requestData;
         const _startCode = generateStartCode;
         const _endCode = generateEndCode;
         if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
@@ -305,7 +305,6 @@ class BookrecordsController {
             let errorValidation = await new validations_1.default('bookrecord_error_102');
             throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
         }
-        let contSheet = !generateSheetStart ? 0 : generateSheetStart;
         let contFirstSide = false;
         let sideNow = 0;
         let approximate_term = generateApproximate_term;
@@ -314,9 +313,6 @@ class BookrecordsController {
         let indexIncrement = 0;
         let sheetStart = 0;
         let sheetIncrement = 0;
-        let contSheetStartCod = 0;
-        let contSheetStartCodini = false;
-        let sheetStartInitial = true;
         const bookrecords = [];
         if (generateBookdestination <= 0 || !generateBookdestination || generateBookdestination == undefined) {
             for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
@@ -425,7 +421,7 @@ class BookrecordsController {
             }
         }
         try {
-            const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'companies_id'], bookrecords);
+            const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords);
             if (generateBook > 0 && generateBookdestination > 0) {
                 const teste = await Bookrecord_1.default.query().where("companies_id", "=", authenticate.companies_id)
                     .andWhere('book', '=', generateBook)
@@ -486,7 +482,6 @@ class BookrecordsController {
     async bookSummary({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
-        fileRename.renameFileGoogle();
         try {
             const bookSummaryPayload = await Database_1.default
                 .from('bookrecords')
