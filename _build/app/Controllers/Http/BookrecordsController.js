@@ -416,7 +416,8 @@ class BookrecordsController {
                     year: ((!generateYear ? undefined : generateYear)),
                     typebooks_id: params.typebooks_id,
                     books_id: generateBooks_id,
-                    companies_id: authenticate.companies_id
+                    companies_id: authenticate.companies_id,
+                    userid: authenticate.id
                 });
             }
         }

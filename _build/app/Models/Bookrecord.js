@@ -34,6 +34,7 @@ class Bookrecord extends Orm_1.BaseModel {
             'letter',
             'year',
             'model',
+            'userid',
             'createdAt',
             'updatedAt',
         ];
@@ -123,6 +124,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Bookrecord.prototype, "model", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Bookrecord.prototype, "userid", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
