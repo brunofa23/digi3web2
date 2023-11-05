@@ -16,6 +16,7 @@ export default class BookrecordsController {
 
     const authenticate = await auth.use('api').authenticate()
 
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -381,6 +382,7 @@ export default class BookrecordsController {
 
     const authenticate = await auth.use('api').authenticate()
 
+
     let {
       generateBooks_id,
       generateBook,
@@ -536,7 +538,8 @@ export default class BookrecordsController {
           year: ((!generateYear ? undefined : generateYear)),
           typebooks_id: params.typebooks_id,
           books_id: generateBooks_id,
-          companies_id: authenticate.companies_id
+          companies_id: authenticate.companies_id,
+          userid: authenticate.id
         })
 
       }
