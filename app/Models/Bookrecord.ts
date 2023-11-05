@@ -21,6 +21,7 @@ export default class Bookrecord extends BaseModel {
       'letter',
       'year',
       'model',
+      'userid',
       'createdAt',
       'updatedAt',
     ]
@@ -93,6 +94,9 @@ export default class Bookrecord extends BaseModel {
 
   @column()
   public model: string
+
+  @column()
+  public userid: number
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
