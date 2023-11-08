@@ -188,7 +188,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
 
   if (dataImages.typeBookFile) {
-    console.log("Vindo do typebook File Vandir....", dataImages)
+    //console.log("Vindo do typebook File Vandir....", dataImages)
     let fileName
     if (dataImages.book && dataImages.sheet && dataImages.side) {
       fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
@@ -284,10 +284,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query)
 
-    // if (name.length === 0) {
-    //   //console.log("cheguei aqui QUERY NAME", name, name.length)
-    //   return
-    // }
+    console.log("BOOK RECORD", name)
+
     //retorna o ultimo seq
     const _seq = await Indeximage.query()
       .where('bookrecords_id', name[0].id)
@@ -324,6 +322,12 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 }
 
+async function mountNameFile(bookRecord: Bookrecord, extFile: String) {
+
+  return `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`
+
+}
+
 async function deleteFile(listFiles: [{}]) {
 
   const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
@@ -336,20 +340,6 @@ async function deleteFile(listFiles: [{}]) {
 
 }
 
-//*********************************************************** */
-// async function totalFilesInFolder(folderName) {
-//   try {
-//     const idFolder = await authorize.sendSearchFile(folderName)
-//     const listFiles = await authorize.sendListAllFiles(idFolder)
-//     if (listFiles) {
-//       //console.log("TOTAL DE ARQUIVOS::", listFiles.length)
-//       return listFiles
-//     }
-//     else return 0
-//   } catch (error) {
-//     return 0
-//   }
-// }
 
 async function totalFilesInFolder(folderName) {
   try {
@@ -365,9 +355,6 @@ async function totalFilesInFolder(folderName) {
   }
 }
 //**************************************************** */
-
-
-
 
 async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
 
@@ -399,13 +386,8 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
       approximate_term, indexbook, obs, letter, year
     }
   });
-
-
-  //console.log("OBJLIST..>>>>>", objlistFilesBookRecord)
-
   const indexImages = listFiles.map((file) => {
     const fileSplit = file.split("_")
-
     const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
     const typebooks_id = fileSplit[2]
     const seq = fileSplit[1].match(/^(\d+)/)[0];
