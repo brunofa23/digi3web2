@@ -152,7 +152,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
     const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
     if (dataImages.typeBookFile) {
-        console.log("Vindo do typebook File Vandir....", dataImages);
         let fileName;
         if (dataImages.book && dataImages.sheet && dataImages.side) {
             fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
@@ -235,6 +234,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             .where('typebooks_id', '=', typebooks_id)
             .andWhere('companies_id', '=', companies_id)
             .whereRaw(query);
+        console.log("BOOK RECORD", name);
         const _seq = await Indeximage_1.default.query()
             .where('bookrecords_id', name[0].id)
             .andWhere('typebooks_id', '=', typebooks_id)
@@ -262,6 +262,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     catch (error) {
         return error;
     }
+}
+async function mountNameFile(bookRecord, extFile) {
+    return `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`;
 }
 async function deleteFile(listFiles) {
     const idFolder = await authorize.sendSearchFile(listFiles[0]['path']);

@@ -39,6 +39,9 @@ class Bookrecord extends Orm_1.BaseModel {
             'updatedAt',
         ];
     }
+    static async verifyUpdate(bookRecord) {
+        console.log("EXECUTEI UPDATE...", bookRecord);
+    }
 }
 __decorate([
     (0, Orm_1.hasMany)(() => Indeximage_1.default, {
@@ -136,5 +139,11 @@ __decorate([
     Orm_1.column.dateTime({ autoCreate: true, autoUpdate: true }),
     __metadata("design:type", luxon_1.DateTime)
 ], Bookrecord.prototype, "updatedAt", void 0);
+__decorate([
+    (0, Orm_1.afterUpdate)(),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Bookrecord]),
+    __metadata("design:returntype", Promise)
+], Bookrecord, "verifyUpdate", null);
 exports.default = Bookrecord;
 //# sourceMappingURL=Bookrecord.js.map
