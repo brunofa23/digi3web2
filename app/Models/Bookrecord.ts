@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, HasMany, hasMany, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, HasMany, hasMany, HasOne, hasOne, afterUpdate } from '@ioc:Adonis/Lucid/Orm'
 import Indeximage from './Indeximage'
 import Typebook from './Typebook'
 import Company from './Company'
@@ -103,4 +103,13 @@ export default class Bookrecord extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+  @afterUpdate()
+  public static async verifyUpdate(bookRecord: Bookrecord) {
+    console.log("EXECUTEI UPDATE...", bookRecord)
+    // if (bookR.$dirty.password) {
+    //   user.password = await Hash.make(user.password)
+    // }
+  }
+
 }
