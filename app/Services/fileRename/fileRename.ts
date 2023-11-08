@@ -282,36 +282,35 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       .preload('typebooks')
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
-      .whereRaw(query)
-
-    console.log("BOOK RECORD", name)
+      .whereRaw(query).first()
 
     //retorna o ultimo seq
+    if (name === null)
+      return
+
     const _seq = await Indeximage.query()
-      .where('bookrecords_id', name[0].id)
+      .where('bookrecords_id', name.id)
       .andWhere('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .orderBy('seq', 'desc').first()
 
     const seq = (!_seq ? 0 : _seq.seq + 1)
 
-    //**FORMATO DE GRAVAÇÃO DOS ARQUIVOS (LAYOUT DE SAIDA)*************
-    //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{approximate_term}_{side}_{books_id}.{extensão}
     let fileRename
     try {
       fileRename = {
-        file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
-        bookrecords_id: name[0].id,
+        file_name: await mountNameFile(name, seq, objFileName.ext),
+        bookrecords_id: name.id,
         typebooks_id,
         companies_id,
         seq,
         ext: objFileName.ext,
         previous_file_name: originalFileName
       }
-      console.log("FILERENAME::::", fileRename)
+      //console.log("FILERENAME::::", fileRename)
 
     } catch (error) {
-      console.log("FILERENAME ERROR::::", error)
+      //console.log("FILERENAME ERROR::::", error)
     }
 
     return fileRename
@@ -322,10 +321,25 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 }
 
-async function mountNameFile(bookRecord: Bookrecord, extFile: String) {
+async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: String) {
+  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{approximate_term}_{side}_{books_id}.{extensão}
+  //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
 
-  return `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`
+  // const id = fileSplit[0].match(/\d+/g)[0];
+  //   const typebooks_id = fileSplit[2]
+  //   const books_id = fileSplit[7].match(/\d+/g)[0];
+  //   const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
+  //   const book = fileSplit[3] == '' ? null : fileSplit[3]
+  //   const sheet = fileSplit[4] == '' ? null : fileSplit[4]
+  //   const side = fileSplit[6]
+  //   const approximate_term = fileSplit[5]
+  //   const indexbook = fileSplit[8] == '' ? null : fileSplit[8]
+  //   const obs = fileSplit[9]
+  //   const letter = fileSplit[10]
+  //   const year = fileSplit[11]
 
+
+  return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}${extFile.toLowerCase()}`
 }
 
 async function deleteFile(listFiles: [{}]) {
@@ -413,4 +427,4 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   return { bookRecord, indexImages }
 }
 
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle }
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile }

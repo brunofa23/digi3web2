@@ -3,6 +3,7 @@ import { BaseModel, column, HasMany, hasMany, HasOne, hasOne, afterUpdate } from
 import Indeximage from './Indeximage'
 import Typebook from './Typebook'
 import Company from './Company'
+const fileRename = require('../Services/fileRename/fileRename')
 
 export default class Bookrecord extends BaseModel {
   public static get fillable() {
@@ -106,7 +107,9 @@ export default class Bookrecord extends BaseModel {
 
   @afterUpdate()
   public static async verifyUpdate(bookRecord: Bookrecord) {
-    console.log("EXECUTEI UPDATE...", bookRecord)
+    const fileName = fileRename.mountNameFile(bookRecord, 1, '.jpg')
+
+    console.log("EXECUTEI UPDATE...", fileName)
     // if (bookR.$dirty.password) {
     //   user.password = await Hash.make(user.password)
     // }
