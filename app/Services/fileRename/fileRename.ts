@@ -6,6 +6,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
+import { DateTime } from "luxon";
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -127,6 +128,9 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 }
 
 async function renameFileGoogle(filename, folderPath, newTitle) {
+
+  console.log("RENAME FILE>>>>", filename, folderPath, newTitle)
+
   try {
     const idFolderPath = await authorize.sendSearchFile(folderPath)
     const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id)
@@ -278,29 +282,38 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 
   try {
-    const name = await Bookrecord.query()
-      .preload('typebooks')
+    // const name = await Bookrecord.query()
+    //   .preload('typebooks')
+    //   .where('typebooks_id', '=', typebooks_id)
+    //   .andWhere('companies_id', '=', companies_id)
+    //   .whereRaw(query).first()
+
+    // //retorna o ultimo seq
+    // if (name === null)
+    //   return
+
+    // const _seq = await Indeximage.query()
+    //   .where('bookrecords_id', name.id)
+    //   .andWhere('typebooks_id', '=', typebooks_id)
+    //   .andWhere('companies_id', '=', companies_id)
+    //   .orderBy('seq', 'desc').first()
+    // const seq = (!_seq ? 0 : _seq.seq + 1)
+
+    const bookRecord = await Bookrecord.query()
+      .preload('indeximage')
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query).first()
 
-    //retorna o ultimo seq
-    if (name === null)
+    if (bookRecord === null)
       return
-
-    const _seq = await Indeximage.query()
-      .where('bookrecords_id', name.id)
-      .andWhere('typebooks_id', '=', typebooks_id)
-      .andWhere('companies_id', '=', companies_id)
-      .orderBy('seq', 'desc').first()
-
-    const seq = (!_seq ? 0 : _seq.seq + 1)
+    const seq = bookRecord?.indeximage.length
 
     let fileRename
     try {
       fileRename = {
-        file_name: await mountNameFile(name, seq, objFileName.ext),
-        bookrecords_id: name.id,
+        file_name: await mountNameFile(bookRecord, seq, objFileName.ext),
+        bookrecords_id: bookRecord.id,
         typebooks_id,
         companies_id,
         seq,
@@ -325,32 +338,30 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
   //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{approximate_term}_{side}_{books_id}.{extensão}
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
 
-  // const id = fileSplit[0].match(/\d+/g)[0];
-  //   const typebooks_id = fileSplit[2]
-  //   const books_id = fileSplit[7].match(/\d+/g)[0];
-  //   const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
-  //   const book = fileSplit[3] == '' ? null : fileSplit[3]
-  //   const sheet = fileSplit[4] == '' ? null : fileSplit[4]
-  //   const side = fileSplit[6]
-  //   const approximate_term = fileSplit[5]
-  //   const indexbook = fileSplit[8] == '' ? null : fileSplit[8]
-  //   const obs = fileSplit[9]
-  //   const letter = fileSplit[10]
-  //   const year = fileSplit[11]
-
-
-  return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}${extFile.toLowerCase()}`
+  if (!extFile.startsWith('.'))
+    extFile = path.extname(extFile).toLowerCase()
+  let dateNow: DateTime = DateTime.now()
+  dateNow = dateNow.toFormat('yyyyMMddHHmm')
+  return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
 }
 
 async function deleteFile(listFiles: [{}]) {
 
-  const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
-  let idFile
-  for (const file of listFiles) {
-    idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id)
-    await authorize.sendDeleteFile(idFile[0].id)
+  try {
+    const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
+    let idFile
+    for (const file of listFiles) {
+      console.log("ID FILE 1241>>>", file)
+      if ('idFile' in file) {
+        idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id)
+        await authorize.sendDeleteFile(idFile[0].id)
+      }
+    }
+    return "excluido!!!"
+  } catch (error) {
+    throw error
   }
-  return "excluido!!!"
+
 
 }
 

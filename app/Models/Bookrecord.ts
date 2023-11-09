@@ -107,12 +107,24 @@ export default class Bookrecord extends BaseModel {
 
   @afterUpdate()
   public static async verifyUpdate(bookRecord: Bookrecord) {
-    const fileName = fileRename.mountNameFile(bookRecord, 1, '.jpg')
 
-    console.log("EXECUTEI UPDATE...", fileName)
-    // if (bookR.$dirty.password) {
-    //   user.password = await Hash.make(user.password)
-    // }
+    const _indexImage = await Indeximage.query()
+      .preload('typebooks')
+      .where('indeximages.bookrecords_id', bookRecord.id)
+      .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
+      .andWhere('indeximages.companies_id', bookRecord.companies_id)
+
+    for (const data of _indexImage) {
+      const oldFileName = data.file_name
+      const newFileName = await fileRename.mountNameFile(bookRecord, data?.seq, data.file_name)
+      await Indeximage.query()
+        .where('bookrecords_id', '=', data.bookrecords_id)
+        .andWhere('typebooks_id', '=', data.typebooks_id)
+        .andWhere('companies_id', '=', data.companies_id)
+        .andWhere('seq', '=', data.seq).update({ file_name: newFileName })
+      fileRename.renameFileGoogle(oldFileName, data.typebooks.path, newFileName)
+    }
+
   }
 
 }

@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, BelongsTo, belongsTo, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import Bookrecord from './Bookrecord'
 import Typebook from './Typebook'
 
@@ -19,11 +19,13 @@ export default class Indeximage extends BaseModel {
     ]
   }
 
+
   @hasOne(() => Bookrecord, {
     foreignKey: 'id',
     localKey: 'bookrecords_id'
   })
   public bookrecord: HasOne<typeof Bookrecord>
+
 
   @hasOne(() => Typebook, {
     foreignKey: 'id',
