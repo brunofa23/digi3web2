@@ -235,12 +235,10 @@ async function searchFile(authClient, fileName, parentId = undefined) {
 async function deleteFile(authClient, fileId) {
   try {
     const drive = google.drive({ version: 'v3', auth: authClient });
-    if (fileId) {
-      const request = drive.files.delete({
-        'fileId': fileId
-      })
-      return request
-    }
+    const request = drive.files.delete({
+      'fileId': fileId
+    })
+    return request
   } catch (error) {
     throw error
   }

@@ -346,23 +346,17 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
 }
 
 async function deleteFile(listFiles: [{}]) {
-
   try {
     const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
     let idFile
     for (const file of listFiles) {
-      console.log("ID FILE 1241>>>", file)
-      if ('idFile' in file) {
-        idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id)
-        await authorize.sendDeleteFile(idFile[0].id)
-      }
+      idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id)
+      await authorize.sendDeleteFile(idFile[0].id)
     }
     return "excluido!!!"
   } catch (error) {
     throw error
   }
-
-
 }
 
 
