@@ -633,6 +633,8 @@ export default class BookrecordsController {
       const bookSummaryPayload = await Database
         .from('bookrecords')
         .select('book')
+        .min('cod as initialCod')
+        .max('cod as finalCod')
         .count('* as totalRows')
         .select(Database.raw(`
     (SELECT COUNT(*)
@@ -652,7 +654,8 @@ export default class BookrecordsController {
         .groupBy('book')
         .orderBy('bookrecords.book')
 
-      //console.log("SUMMARY", bookSummaryPayload)
+
+      console.log("SUMMARY", bookSummaryPayload)
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
