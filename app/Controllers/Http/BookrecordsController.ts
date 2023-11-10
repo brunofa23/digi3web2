@@ -623,16 +623,12 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
-
-    // fileRename.
-    //   renameFileGoogle('Id650703_0(1)_100_1___F_3a - Copia.png',
-    //     'Client_10.Book_100.NASCIMENTO',
-    //     'TESTE.png')
-
     try {
       const bookSummaryPayload = await Database
         .from('bookrecords')
         .select('book')
+        .min('cod as initialCod')
+        .max('cod as finalCod')
         .count('* as totalRows')
         .select(Database.raw(`
     (SELECT COUNT(*)
@@ -660,8 +656,6 @@ export default class BookrecordsController {
     }
 
   }
-
-
 
   //********************************************************* */
 }
