@@ -17,6 +17,7 @@ const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Indeximage_1 = __importDefault(require("./Indeximage"));
 const Typebook_1 = __importDefault(require("./Typebook"));
 const Company_1 = __importDefault(require("./Company"));
+const fileRename = require('../Services/fileRename/fileRename');
 class Bookrecord extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -40,7 +41,21 @@ class Bookrecord extends Orm_1.BaseModel {
         ];
     }
     static async verifyUpdate(bookRecord) {
-        console.log("EXECUTEI UPDATE...", bookRecord);
+        const _indexImage = await Indeximage_1.default.query()
+            .preload('typebooks')
+            .where('indeximages.bookrecords_id', bookRecord.id)
+            .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
+            .andWhere('indeximages.companies_id', bookRecord.companies_id);
+        for (const data of _indexImage) {
+            const oldFileName = data.file_name;
+            const newFileName = await fileRename.mountNameFile(bookRecord, data?.seq, data.file_name);
+            await Indeximage_1.default.query()
+                .where('bookrecords_id', '=', data.bookrecords_id)
+                .andWhere('typebooks_id', '=', data.typebooks_id)
+                .andWhere('companies_id', '=', data.companies_id)
+                .andWhere('seq', '=', data.seq).update({ file_name: newFileName });
+            fileRename.renameFileGoogle(oldFileName, data.typebooks.path, newFileName);
+        }
     }
 }
 __decorate([

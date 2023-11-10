@@ -10,6 +10,7 @@ const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const pino_std_serializers_1 = require("pino-std-serializers");
+const luxon_1 = require("luxon");
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const fs = require('fs');
 const path = require('path');
@@ -106,6 +107,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     return result;
 }
 async function renameFileGoogle(filename, folderPath, newTitle) {
+    console.log("RENAME FILE>>>>", filename, folderPath, newTitle);
     try {
         const idFolderPath = await authorize.sendSearchFile(folderPath);
         const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id);
@@ -229,33 +231,27 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         };
     }
     try {
-        const name = await Bookrecord_1.default.query()
-            .preload('typebooks')
+        const bookRecord = await Bookrecord_1.default.query()
+            .preload('indeximage')
             .where('typebooks_id', '=', typebooks_id)
             .andWhere('companies_id', '=', companies_id)
-            .whereRaw(query);
-        console.log("BOOK RECORD", name);
-        const _seq = await Indeximage_1.default.query()
-            .where('bookrecords_id', name[0].id)
-            .andWhere('typebooks_id', '=', typebooks_id)
-            .andWhere('companies_id', '=', companies_id)
-            .orderBy('seq', 'desc').first();
-        const seq = (!_seq ? 0 : _seq.seq + 1);
+            .whereRaw(query).first();
+        if (bookRecord === null)
+            return;
+        const seq = bookRecord?.indeximage.length;
         let fileRename;
         try {
             fileRename = {
-                file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
-                bookrecords_id: name[0].id,
+                file_name: await mountNameFile(bookRecord, seq, objFileName.ext),
+                bookrecords_id: bookRecord.id,
                 typebooks_id,
                 companies_id,
                 seq,
                 ext: objFileName.ext,
                 previous_file_name: originalFileName
             };
-            console.log("FILERENAME::::", fileRename);
         }
         catch (error) {
-            console.log("FILERENAME ERROR::::", error);
         }
         return fileRename;
     }
@@ -263,17 +259,26 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         return error;
     }
 }
-async function mountNameFile(bookRecord, extFile) {
-    return `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`;
+async function mountNameFile(bookRecord, seq, extFile) {
+    if (!extFile.startsWith('.'))
+        extFile = path.extname(extFile).toLowerCase();
+    let dateNow = luxon_1.DateTime.now();
+    dateNow = dateNow.toFormat('yyyyMMddHHmm');
+    return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`;
 }
 async function deleteFile(listFiles) {
-    const idFolder = await authorize.sendSearchFile(listFiles[0]['path']);
-    let idFile;
-    for (const file of listFiles) {
-        idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id);
-        await authorize.sendDeleteFile(idFile[0].id);
+    try {
+        const idFolder = await authorize.sendSearchFile(listFiles[0]['path']);
+        let idFile;
+        for (const file of listFiles) {
+            idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id);
+            await authorize.sendDeleteFile(idFile[0].id);
+        }
+        return "excluido!!!";
     }
-    return "excluido!!!";
+    catch (error) {
+        throw error;
+    }
 }
 async function totalFilesInFolder(folderName) {
     try {
@@ -338,5 +343,5 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
     indexImages.sort((a, b) => a.id - b.id);
     return { bookRecord, indexImages };
 }
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle };
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile };
 //# sourceMappingURL=fileRename.js.map
