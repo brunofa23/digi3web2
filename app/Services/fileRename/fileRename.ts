@@ -6,6 +6,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
+import { DateTime } from "luxon";
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -127,6 +128,9 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 }
 
 async function renameFileGoogle(filename, folderPath, newTitle) {
+
+  console.log("RENAME FILE>>>>", filename, folderPath, newTitle)
+
   try {
     const idFolderPath = await authorize.sendSearchFile(folderPath)
     const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id)
@@ -278,40 +282,48 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 
   try {
-    const name = await Bookrecord.query()
-      .preload('typebooks')
+    // const name = await Bookrecord.query()
+    //   .preload('typebooks')
+    //   .where('typebooks_id', '=', typebooks_id)
+    //   .andWhere('companies_id', '=', companies_id)
+    //   .whereRaw(query).first()
+
+    // //retorna o ultimo seq
+    // if (name === null)
+    //   return
+
+    // const _seq = await Indeximage.query()
+    //   .where('bookrecords_id', name.id)
+    //   .andWhere('typebooks_id', '=', typebooks_id)
+    //   .andWhere('companies_id', '=', companies_id)
+    //   .orderBy('seq', 'desc').first()
+    // const seq = (!_seq ? 0 : _seq.seq + 1)
+
+    const bookRecord = await Bookrecord.query()
+      .preload('indeximage')
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
-      .whereRaw(query)
+      .whereRaw(query).first()
 
-    console.log("BOOK RECORD", name)
+    if (bookRecord === null)
+      return
+    const seq = bookRecord?.indeximage.length
 
-    //retorna o ultimo seq
-    const _seq = await Indeximage.query()
-      .where('bookrecords_id', name[0].id)
-      .andWhere('typebooks_id', '=', typebooks_id)
-      .andWhere('companies_id', '=', companies_id)
-      .orderBy('seq', 'desc').first()
-
-    const seq = (!_seq ? 0 : _seq.seq + 1)
-
-    //**FORMATO DE GRAVAÇÃO DOS ARQUIVOS (LAYOUT DE SAIDA)*************
-    //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{approximate_term}_{side}_{books_id}.{extensão}
     let fileRename
     try {
       fileRename = {
-        file_name: `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`,
-        bookrecords_id: name[0].id,
+        file_name: await mountNameFile(bookRecord, seq, objFileName.ext),
+        bookrecords_id: bookRecord.id,
         typebooks_id,
         companies_id,
         seq,
         ext: objFileName.ext,
         previous_file_name: originalFileName
       }
-      console.log("FILERENAME::::", fileRename)
+      //console.log("FILERENAME::::", fileRename)
 
     } catch (error) {
-      console.log("FILERENAME ERROR::::", error)
+      //console.log("FILERENAME ERROR::::", error)
     }
 
     return fileRename
@@ -322,22 +334,29 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 }
 
-async function mountNameFile(bookRecord: Bookrecord, extFile: String) {
+async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: String) {
+  //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{approximate_term}_{side}_{books_id}.{extensão}
+  //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
 
-  return `Id${name[0].id}_${seq}(${name[0].cod})_${name[0].typebooks_id}_${name[0].book}_${!name[0].sheet || name[0].sheet == null ? "" : name[0].sheet}_${!name[0].approximate_term || name[0].approximate_term == null ? '' : name[0].approximate_term}_${!name[0].side || name[0].side == null ? '' : name[0].side}_${name[0].books_id}${objFileName.ext.toLowerCase()}`
-
+  if (!extFile.startsWith('.'))
+    extFile = path.extname(extFile).toLowerCase()
+  let dateNow: DateTime = DateTime.now()
+  dateNow = dateNow.toFormat('yyyyMMddHHmm')
+  return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
 }
 
 async function deleteFile(listFiles: [{}]) {
-
-  const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
-  let idFile
-  for (const file of listFiles) {
-    idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id)
-    await authorize.sendDeleteFile(idFile[0].id)
+  try {
+    const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
+    let idFile
+    for (const file of listFiles) {
+      idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id)
+      await authorize.sendDeleteFile(idFile[0].id)
+    }
+    return "excluido!!!"
+  } catch (error) {
+    throw error
   }
-  return "excluido!!!"
-
 }
 
 
@@ -413,4 +432,4 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   return { bookRecord, indexImages }
 }
 
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle }
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile }
