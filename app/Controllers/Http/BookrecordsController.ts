@@ -623,12 +623,6 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
-
-    // fileRename.
-    //   renameFileGoogle('Id650703_0(1)_100_1___F_3a - Copia.png',
-    //     'Client_10.Book_100.NASCIMENTO',
-    //     'TESTE.png')
-
     try {
       const bookSummaryPayload = await Database
         .from('bookrecords')
@@ -654,8 +648,7 @@ export default class BookrecordsController {
         .groupBy('book')
         .orderBy('bookrecords.book')
 
-
-      console.log("SUMMARY", bookSummaryPayload)
+      //console.log("SUMMARY", bookSummaryPayload)
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
@@ -663,8 +656,6 @@ export default class BookrecordsController {
     }
 
   }
-
-
 
   //********************************************************* */
 }
