@@ -487,6 +487,8 @@ class BookrecordsController {
             const bookSummaryPayload = await Database_1.default
                 .from('bookrecords')
                 .select('book')
+                .min('cod as initialCod')
+                .max('cod as finalCod')
                 .count('* as totalRows')
                 .select(Database_1.default.raw(`
     (SELECT COUNT(*)
