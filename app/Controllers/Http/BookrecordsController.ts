@@ -162,17 +162,21 @@ export default class BookrecordsController {
   }
 
   public async update({ auth, request, params, response }: HttpContextContract) {
-
-
-
-    const { companies_id } = await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
+    //console.log("BODY>>>>", body)
     body.id = params.id
-    body.companies_id = companies_id
-
+    body.companies_id = authenticate.companies_id
+    body.userid = authenticate.id
     try {
-      const data = await Bookrecord.findOrFail(body.id)
-      await data.fill(body).save()
+      const data = await Bookrecord.query()
+        .where('id', '=', body.id)
+        .andWhere('typebooks_id', '=', body.typebooks_id)
+        .andWhere('companies_id', '=', authenticate.companies_id).first()
+
+      if (data)
+        await data.fill(body).save()
+
       return response.status(201).send({ data, params: params.id })
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -550,12 +554,14 @@ export default class BookrecordsController {
       const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
 
       if (generateBook > 0 && generateBookdestination > 0) {
-        const teste = await Bookrecord.query().where("companies_id", "=", authenticate.companies_id)
+        const alterNumberBook = await Bookrecord.query()
+          .where("companies_id", "=", authenticate.companies_id)
           .andWhere('book', '=', generateBook)
           .andWhere('typebooks_id', '=', params.typebooks_id)
-          .update({ book: generateBookdestination })
-
-        console.log("teste", teste)
+        //.update({ book: generateBookdestination })
+        //alterNumberBook.book = generateBookdestination
+        //await alterNumberBook.fill()
+        console.log("alterNumberBook 15221", alterNumberBook)
       }
 
       let successValidation = await new validations('bookrecord_success_100')

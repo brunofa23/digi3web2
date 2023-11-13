@@ -5,6 +5,8 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import Format from '../../Services/Dates/format'
 import Bookrecord from 'App/Models/Bookrecord'
 
+import Typebook from 'App/Models/Typebook'
+
 const formatDate = new Format(new Date)
 const FileRename = require('../../Services/fileRename/fileRename')
 const fs = require('fs')
@@ -28,8 +30,19 @@ export default class IndeximagesController {
   }
 
   public async index({ auth, response }) {
+    console.log("TESTE INDEX API......")
     await auth.use('api').authenticate()
     const data = await Indeximage.query()
+      .preload('typebooks')
+      .where('bookrecords_id', '=', 12394)
+      .andWhere('typebooks_id', 2)
+      .andWhere('companies_id', 16)
+
+    // const data = await Typebook.query()
+    //   .preload('company')
+    //   .where('id', '=', 2)
+    //   .andWhere('companies_id', 16)
+
     return response.send({ data })
   }
 

@@ -107,12 +107,15 @@ export default class Bookrecord extends BaseModel {
 
   @afterUpdate()
   public static async verifyUpdate(bookRecord: Bookrecord) {
+    console.log("PASSEI PELO AFTER UPDATE", bookRecord.companies_id)
 
     const _indexImage = await Indeximage.query()
       .preload('typebooks')
       .where('indeximages.bookrecords_id', bookRecord.id)
       .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
       .andWhere('indeximages.companies_id', bookRecord.companies_id)
+
+    console.log("INDEX IMAGES 1288>>>", _indexImage[0].typebooks)
 
     for (const data of _indexImage) {
       const oldFileName = data.file_name
@@ -122,6 +125,8 @@ export default class Bookrecord extends BaseModel {
         .andWhere('typebooks_id', '=', data.typebooks_id)
         .andWhere('companies_id', '=', data.companies_id)
         .andWhere('seq', '=', data.seq).update({ file_name: newFileName })
+      console.log("ARQUIVO RENOMEADO NO INDEXIMAGE", newFileName)
+
       fileRename.renameFileGoogle(oldFileName, data.typebooks.path, newFileName)
     }
 

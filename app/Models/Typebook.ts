@@ -39,7 +39,7 @@ export default class Typebook extends BaseModel {
     foreignKey: 'typebooks_id',
     localKey: 'id'
   })
-  public typebooks: HasMany<typeof Indeximage>
+  public indeximage: HasMany<typeof Indeximage>
 
   @hasOne(() => Book, {
     foreignKey: 'id',
