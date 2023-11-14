@@ -13,7 +13,7 @@ export default class BookrecordsController {
 
   //Listar Bookrecords
   public async index({ auth, request, params, response }: HttpContextContract) {
-    console.log("BOOK RECORDS AQUI>>>>>>>")
+
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -554,6 +554,7 @@ export default class BookrecordsController {
     }
 
 
+    console.log("BOOKRECORD 15000>>", bookrecords)
     try {
       const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
 
