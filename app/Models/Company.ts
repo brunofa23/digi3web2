@@ -1,7 +1,9 @@
 import { DateTime } from 'luxon'
-import { afterSave, BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
+import { afterSave, BaseModel, column, HasMany, hasMany, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
 import Typebook from './Typebook'
 import User from './User'
+import Bookrecord from './Bookrecord'
+import Indeximage from './Indeximage'
 
 
 export default class Company extends BaseModel {
@@ -41,11 +43,6 @@ export default class Company extends BaseModel {
   })
   public user: HasMany<typeof User>
 
-  // @belongsTo(() => User, {
-  //   foreignKey: 'companies_id',
-  //   localKey: 'id'
-  // })
-  //public user: BelongsTo<typeof User>
 
   @column({ isPrimary: true })
   public id: number

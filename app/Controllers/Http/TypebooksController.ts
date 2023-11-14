@@ -5,7 +5,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
 import Book from 'App/Models/Book'
-import { DateTime } from 'luxon'
+
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
@@ -44,6 +44,7 @@ export default class TypebooksController {
   }
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
+
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
@@ -53,7 +54,8 @@ export default class TypebooksController {
       throw new BadRequest('company not exists', 401)
 
     if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
-      data = await Typebook.query().where("companies_id", '=', companies_id)
+      data = await Typebook.query()
+        .where("companies_id", '=', companies_id)
     }
     else {
       let _status
@@ -71,9 +73,7 @@ export default class TypebooksController {
       if (typebookPayload.books_id !== undefined) {
         query += ` and books_id = ${typebookPayload.books_id} `
       }
-      // data = await Typebook.query().where("companies_id", '=', companies_id)
-      //   .preload('bookrecords').preload('book')
-      //   .whereRaw(query)
+
       data = await Typebook.query()
         .where("companies_id", '=', companies_id)
         .whereRaw(query)
@@ -104,7 +104,7 @@ export default class TypebooksController {
   //retorna um registro
   public async show({ auth, params, response }: HttpContextContract) {
 
-    //console.log("PASSEI AQUI...")
+    console.log("PASSEI AQUI...")
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
       .where("companies_id", "=", authenticate.companies_id)
