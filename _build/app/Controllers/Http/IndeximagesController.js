@@ -12,7 +12,6 @@ const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
 const path = require('path');
-const { Logtail } = require("@logtail/node");
 class IndeximagesController {
     async store({ request, response }) {
         const body = request.only(Indeximage_1.default.fillable);
@@ -25,8 +24,16 @@ class IndeximagesController {
         }
     }
     async index({ auth, response }) {
+        console.log("TESTE INDEX API......");
         await auth.use('api').authenticate();
-        const data = await Indeximage_1.default.query();
+        const data = await Indeximage_1.default.query()
+            .preload('typebooks', (queryIndex) => {
+            queryIndex.where("id", 2)
+                .andWhere('companies_id', '=', 16);
+        })
+            .where('bookrecords_id', '=', 12394)
+            .andWhere('typebooks_id', '=', 2)
+            .andWhere('companies_id', '=', 16);
         return response.send({ data });
     }
     async show({ params }) {
@@ -39,7 +46,10 @@ class IndeximagesController {
         const { companies_id } = await auth.use('api').authenticate();
         try {
             const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()
-                .preload('typebooks')
+                .preload('typebooks', (query) => {
+                query.where('id', params.typebooks_id)
+                    .andWhere('companies_id', companies_id);
+            })
                 .where('typebooks_id', '=', params.typebooks_id)
                 .andWhere('bookrecords_id', "=", params.bookrecords_id)
                 .andWhere('companies_id', "=", companies_id)

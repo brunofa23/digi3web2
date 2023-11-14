@@ -107,10 +107,12 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     return result;
 }
 async function renameFileGoogle(filename, folderPath, newTitle) {
-    console.log("RENAME FILE>>>>", filename, folderPath, newTitle);
     try {
+        console.log("RENAME FILE>>>>", filename, folderPath, newTitle);
         const idFolderPath = await authorize.sendSearchFile(folderPath);
+        console.log("1500 idFolderPath >>>>", idFolderPath[0].id);
         const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id);
+        console.log("ID FILE>>>>>", idFile);
         const renameFile = await authorize.sendRenameFile(idFile[0].id, newTitle);
         console.log("SUCESSO>>>", renameFile);
     }

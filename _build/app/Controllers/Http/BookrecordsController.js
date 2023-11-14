@@ -14,6 +14,7 @@ const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typ
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
+        console.log("BOOK RECORDS AQUI>>>>>>>");
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData;
         let query = " 1=1 ";
@@ -89,7 +90,8 @@ class BookrecordsController {
                 .where("companies_id", '=', authenticate.companies_id)
                 .andWhere("typebooks_id", '=', params.typebooks_id)
                 .preload('indeximage', (queryIndex) => {
-                queryIndex.where("typebooks_id", '=', params.typebooks_id).andWhere("companies_id", '=', authenticate.companies_id);
+                queryIndex.where("typebooks_id", '=', params.typebooks_id)
+                    .andWhere("companies_id", '=', authenticate.companies_id);
             })
                 .whereRaw(query)
                 .orderBy("book", "asc")
@@ -118,13 +120,18 @@ class BookrecordsController {
         }
     }
     async update({ auth, request, params, response }) {
-        const { companies_id } = await auth.use('api').authenticate();
+        const authenticate = await auth.use('api').authenticate();
         const body = request.only(Bookrecord_1.default.fillable);
         body.id = params.id;
-        body.companies_id = companies_id;
+        body.companies_id = authenticate.companies_id;
+        body.userid = authenticate.id;
         try {
-            const data = await Bookrecord_1.default.findOrFail(body.id);
-            await data.fill(body).save();
+            const data = await Bookrecord_1.default.query()
+                .where('id', '=', body.id)
+                .andWhere('typebooks_id', '=', body.typebooks_id)
+                .andWhere('companies_id', '=', authenticate.companies_id).first();
+            if (data)
+                await data.fill(body).save();
             return response.status(201).send({ data, params: params.id });
         }
         catch (error) {
@@ -135,7 +142,10 @@ class BookrecordsController {
         const { companies_id } = await auth.use('api').authenticate();
         try {
             const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()
-                .preload('typebooks')
+                .preload('typebooks', (query) => {
+                query.where('id', params.typebooks_id)
+                    .andWhere('companies_id', companies_id);
+            })
                 .where('typebooks_id', '=', params.typebooks_id)
                 .andWhere('bookrecords_id', "=", params.id)
                 .andWhere('companies_id', "=", companies_id);
@@ -196,7 +206,10 @@ class BookrecordsController {
             try {
                 const listOfImagesToDeleteGDrive = await Indeximage_1.default
                     .query()
-                    .preload('typebooks')
+                    .preload('typebooks', (query) => {
+                    query.where('id', typebooks_id)
+                        .andWhere('companies_id', companies_id);
+                })
                     .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
                     .select('id')
                     .where('typebooks_id', '=', typebooks_id)
@@ -424,11 +437,11 @@ class BookrecordsController {
         try {
             const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords);
             if (generateBook > 0 && generateBookdestination > 0) {
-                const teste = await Bookrecord_1.default.query().where("companies_id", "=", authenticate.companies_id)
+                const alterNumberBook = await Bookrecord_1.default.query()
+                    .where("companies_id", "=", authenticate.companies_id)
                     .andWhere('book', '=', generateBook)
-                    .andWhere('typebooks_id', '=', params.typebooks_id)
-                    .update({ book: generateBookdestination });
-                console.log("teste", teste);
+                    .andWhere('typebooks_id', '=', params.typebooks_id);
+                console.log("alterNumberBook 15221", alterNumberBook);
             }
             let successValidation = await new validations_1.default('bookrecord_success_100');
             return response.status(201).send(data.length, successValidation.code);
