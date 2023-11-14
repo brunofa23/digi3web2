@@ -13,7 +13,7 @@ export default class BookrecordsController {
 
   //Listar Bookrecords
   public async index({ auth, request, params, response }: HttpContextContract) {
-    console.log("BOOK RECORDS AQUI>>>>>>>")
+
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -480,6 +480,7 @@ export default class BookrecordsController {
           }
         }
 
+        //INDEX******************************************************************************
         if (generateIndex > 0) {
           if (index == 0) {
             indexBook = generateIndex
@@ -552,7 +553,6 @@ export default class BookrecordsController {
 
       }
     }
-
 
     try {
       const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)

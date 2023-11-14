@@ -131,14 +131,8 @@ async function renameFileGoogle(filename, folderPath, newTitle) {
 
 
   try {
-    console.log("RENAME FILE>>>>", filename, folderPath, newTitle)
     const idFolderPath = await authorize.sendSearchFile(folderPath)
-    console.log("1500 idFolderPath >>>>", idFolderPath[0].id)
     const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id)
-    console.log("ID FILE>>>>>", idFile)
-    //console.log("RENAME FILE GOOLGLE....", "IF FOLDER:", idFolderPath[0].id, "ID FILE", idFile[0].id)
-    //return
-
     const renameFile = await authorize.sendRenameFile(idFile[0].id, newTitle)
     console.log("SUCESSO>>>", renameFile)
   } catch (error) {
