@@ -14,7 +14,6 @@ const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typ
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
-        console.log("BOOK RECORDS AQUI>>>>>>>");
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData;
         let query = " 1=1 ";
