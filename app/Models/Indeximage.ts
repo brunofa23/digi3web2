@@ -23,8 +23,6 @@ export default class Indeximage extends BaseModel {
     ]
   }
 
-
-
   // @belongsTo(() => Bookrecord, {
   //   foreignKey: 'id',
   //   localKey: 'bookrecords_id'
@@ -33,29 +31,43 @@ export default class Indeximage extends BaseModel {
 
 
   // @belongsTo(() => Typebook, {
-  //   //foreignKey: 'id',
-  //   //localKey: 'typebooks_id'
+  //   foreignKey: 'typebooks_id',
+  //   localKey: 'id'
   // })
   // public typebooks: BelongsTo<typeof Typebook>
 
+  // @belongsTo(() => Bookrecord, {
+  //   foreignKey: 'bookrecords_id',
+  //   localKey: 'id'
+  // })
+  // public bookrecord: BelongsTo<typeof Bookrecord>
+
+  // @belongsTo(() => Company, {
+  //   foreignKey: 'companies_id',
+  //   localKey: 'id'
+  // })
+  // public company: BelongsTo<typeof Company>
+
 
   @hasOne(() => Bookrecord, {
-    foreignKey: 'id',
-    localKey: 'bookrecords_id'
+    foreignKey: 'bookrecords_id',
+    localKey: 'id'
   })
   public bookrecord: HasOne<typeof Bookrecord>
 
   @hasOne(() => Typebook, {
-    foreignKey: 'id',
+    foreignKey: 'typebooks_id',
     localKey: 'typebooks_id'
   })
   public typebooks: HasOne<typeof Typebook>
 
   @hasOne(() => Company, {
-    foreignKey: 'id',
-    localKey: 'companies_id'
+    foreignKey: 'companies_id',
+    localKey: 'id'
   })
   public company: HasOne<typeof Company>
+
+
 
 
   @column({ isPrimary: true })

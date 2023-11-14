@@ -32,11 +32,16 @@ export default class IndeximagesController {
   public async index({ auth, response }) {
     console.log("TESTE INDEX API......")
     await auth.use('api').authenticate()
+
     const data = await Indeximage.query()
       .preload('typebooks')
+      .preload('company')
+      .preload('bookrecord')
       .where('bookrecords_id', '=', 12394)
-      .andWhere('typebooks_id', 2)
-      .andWhere('companies_id', 16)
+      .andWhere('typebooks_id', '=', 2)
+      .andWhere('companies_id', '=', 16)
+
+
 
     // const data = await Typebook.query()
     //   .preload('company')

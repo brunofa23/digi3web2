@@ -6,6 +6,8 @@ import {
   hasMany,
   hasOne,
   HasOne,
+  belongsTo,
+  BelongsTo
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Indeximage from './Indeximage'
@@ -40,6 +42,13 @@ export default class Typebook extends BaseModel {
     localKey: 'id'
   })
   public indeximage: HasMany<typeof Indeximage>
+
+  // @belongsTo(() => Indeximage, {
+  //   foreignKey: 'id',
+  //   localKey: 'typebooks_id'
+  // })
+  // public typebooks: BelongsTo<typeof Indeximage>
+
 
   @hasOne(() => Book, {
     foreignKey: 'id',
