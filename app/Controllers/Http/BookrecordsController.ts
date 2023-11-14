@@ -480,6 +480,7 @@ export default class BookrecordsController {
           }
         }
 
+        //INDEX******************************************************************************
         if (generateIndex > 0) {
           if (index == 0) {
             indexBook = generateIndex
@@ -553,8 +554,6 @@ export default class BookrecordsController {
       }
     }
 
-
-    console.log("BOOKRECORD 15000>>", bookrecords)
     try {
       const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
 
