@@ -28,11 +28,11 @@ export default class Bookrecord extends BaseModel {
     ]
   }
 
-  // @hasMany(() => Indeximage, {
-  //   foreignKey: 'bookrecords_id',
-  //   localKey: 'id'
-  // })
-  // public bookrecords: HasMany<typeof Indeximage>
+  @hasMany(() => Indeximage, {
+    foreignKey: 'bookrecords_id',
+    localKey: 'id'
+  })
+  public bookrecords: HasMany<typeof Indeximage>
 
   @hasMany(() => Indeximage, {
     foreignKey: 'bookrecords_id',
@@ -110,7 +110,10 @@ export default class Bookrecord extends BaseModel {
     console.log("PASSEI PELO AFTER UPDATE", bookRecord.companies_id)
 
     const _indexImage = await Indeximage.query()
-      .preload('typebooks')
+      .preload('typebooks', (query) => {
+        query.where('id', bookRecord.typebooks_id)
+          .andWhere('companies_id', bookRecord.companies_id)
+      })
       .where('indeximages.bookrecords_id', bookRecord.id)
       .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
       .andWhere('indeximages.companies_id', bookRecord.companies_id)

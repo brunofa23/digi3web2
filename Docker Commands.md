@@ -1,5 +1,5 @@
 1. **Gestão de contêineres**:
-   - `docker run`: Cria e inicia um contêiner a partir de uma imagem.
+   - `docker run`: Cria e inicia um contêiner am.
    - `docker start`: Inicia um contêiner parado.
    - `docker stop`: Para um contêiner em execução.
    - `docker restart`: Reinicia um contêiner.
@@ -38,15 +38,14 @@
 
 
 7. **Criar um container**:
-   docker run --name digi3Web -e MYSQL_ROOT_PASSWORD=sua_senha -d mysql:8.0.28
+   docker run --name digi3Web -e MYSQL_ROOT_PASSWORD=Cartorio@12345 -p 3309:3306 -d mysql:8.0.28
 
-8. **Acessar o Container**:
-    docker run -it --rm --link digi3Web:mysql mysql:8.0.28 mysql -hmysql -uroot -p
 
-9. **Iniciar docker**
+8. **Iniciar docker**
    docker exec -it <ID_ou_nome_do_contêiner> mysql -uroot -p
+   docker exec -it ce51a0ed1595 mysql -uroot -p
 
-10. **Configurar Usuário Root Mysql para acesso externo**:
+9. **Configurar Usuário Root Mysql para acesso externo**:
       select user, host from mysql.user
       update mysql.user set host='%' where user='root'
 

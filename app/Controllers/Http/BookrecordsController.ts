@@ -13,10 +13,8 @@ export default class BookrecordsController {
 
   //Listar Bookrecords
   public async index({ auth, request, params, response }: HttpContextContract) {
-
+    console.log("BOOK RECORDS AQUI>>>>>>>")
     const authenticate = await auth.use('api').authenticate()
-
-
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -125,9 +123,9 @@ export default class BookrecordsController {
       data = await Bookrecord.query()
         .where("companies_id", '=', authenticate.companies_id)
         .andWhere("typebooks_id", '=', params.typebooks_id)
-
         .preload('indeximage', (queryIndex) => {
-          queryIndex.where("typebooks_id", '=', params.typebooks_id).andWhere("companies_id", '=', authenticate.companies_id)
+          queryIndex.where("typebooks_id", '=', params.typebooks_id)
+            .andWhere("companies_id", '=', authenticate.companies_id)
         })
         .whereRaw(query)
         .orderBy("book", "asc")
@@ -191,7 +189,10 @@ export default class BookrecordsController {
 
       //excluir imagens do google drive
       const listOfImagesToDeleteGDrive = await Indeximage.query()
-        .preload('typebooks')
+        .preload('typebooks', (query) => {
+          query.where('id', params.typebooks_id)
+            .andWhere('companies_id', companies_id)
+        })
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('bookrecords_id', "=", params.id)
         .andWhere('companies_id', "=", companies_id)
@@ -268,7 +269,10 @@ export default class BookrecordsController {
       try {
         const listOfImagesToDeleteGDrive = await Indeximage
           .query()
-          .preload('typebooks')
+          .preload('typebooks', (query) => {
+            query.where('id', typebooks_id)
+              .andWhere('companies_id', companies_id)
+          })
           .whereIn("bookrecords_id",
             Database.from('bookrecords')
               .select('id')

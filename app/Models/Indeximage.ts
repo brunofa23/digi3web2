@@ -1,11 +1,7 @@
 import { DateTime } from 'luxon'
-import {
-  BaseModel, column, HasOne, hasOne
-  , belongsTo, BelongsTo
-} from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import Bookrecord from './Bookrecord'
 import Typebook from './Typebook'
-import Company from './Company'
 
 export default class Indeximage extends BaseModel {
 
@@ -23,51 +19,19 @@ export default class Indeximage extends BaseModel {
     ]
   }
 
-  // @belongsTo(() => Bookrecord, {
-  //   foreignKey: 'id',
-  //   localKey: 'bookrecords_id'
-  // })
-  // public bookrecord: BelongsTo<typeof Bookrecord>
-
-
-  // @belongsTo(() => Typebook, {
-  //   foreignKey: 'typebooks_id',
-  //   localKey: 'id'
-  // })
-  // public typebooks: BelongsTo<typeof Typebook>
-
-  // @belongsTo(() => Bookrecord, {
-  //   foreignKey: 'bookrecords_id',
-  //   localKey: 'id'
-  // })
-  // public bookrecord: BelongsTo<typeof Bookrecord>
-
-  // @belongsTo(() => Company, {
-  //   foreignKey: 'companies_id',
-  //   localKey: 'id'
-  // })
-  // public company: BelongsTo<typeof Company>
-
 
   @hasOne(() => Bookrecord, {
-    foreignKey: 'bookrecords_id',
-    localKey: 'id'
+    foreignKey: 'id',
+    localKey: 'bookrecords_id'
   })
   public bookrecord: HasOne<typeof Bookrecord>
 
+
   @hasOne(() => Typebook, {
-    foreignKey: 'typebooks_id',
+    foreignKey: 'id',
     localKey: 'typebooks_id'
   })
   public typebooks: HasOne<typeof Typebook>
-
-  @hasOne(() => Company, {
-    foreignKey: 'companies_id',
-    localKey: 'id'
-  })
-  public company: HasOne<typeof Company>
-
-
 
 
   @column({ isPrimary: true })
