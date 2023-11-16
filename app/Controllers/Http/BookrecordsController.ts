@@ -572,12 +572,12 @@ export default class BookrecordsController {
           existingRecord.cod = record.cod,
             existingRecord.book = record.book,
             existingRecord.sheet = record.sheet,
-            existingRecord.side = record.side',
-          existingRecord.approximate_term = record.approximate_term,
+            existingRecord.side = record.side,
+            existingRecord.approximate_term = record.approximate_term,
             existingRecord.indexbook = record.indexbook,
             existingRecord.year = record.year,
-            existingRecord.typebooks_id = record.typebooks_id',
-          existingRecord.books_id = record.books_id,
+            existingRecord.typebooks_id = record.typebooks_id,
+            existingRecord.books_id = record.books_id,
             existingRecord.companies_id = record.companies_id,
             existingRecord.userid = record.userid
           //console.log("record termo aproximado", record.approximate_term)
