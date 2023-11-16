@@ -555,24 +555,69 @@ export default class BookrecordsController {
     }
 
     try {
-      const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
+      for (const record of bookrecords) {
+        const existingRecord = await Bookrecord.query()
+          .where({
+            cod: record.cod,
+            book: record.book,
+            books_id: record.books_id,
+            typebooks_id: record.typebooks_id,
+            companies_id: record.companies_id,
+          })
+          .first()
 
-      if (generateBook > 0 && generateBookdestination > 0) {
-        const alterNumberBook = await Bookrecord.query()
-          .where("companies_id", "=", authenticate.companies_id)
-          .andWhere('book', '=', generateBook)
-          .andWhere('typebooks_id', '=', params.typebooks_id)
-        //.update({ book: generateBookdestination })
-        //alterNumberBook.book = generateBookdestination
-        //await alterNumberBook.fill()
-        console.log("alterNumberBook 15221", alterNumberBook)
+        if (existingRecord) {
+          //console.log("EXISTE...FAZER UPDATE", record)
+
+          existingRecord.cod = record.cod,
+            existingRecord.book = record.book,
+            existingRecord.sheet = record.sheet,
+            existingRecord.side = record.side',
+          existingRecord.approximate_term = record.approximate_term,
+            existingRecord.indexbook = record.indexbook,
+            existingRecord.year = record.year,
+            existingRecord.typebooks_id = record.typebooks_id',
+          existingRecord.books_id = record.books_id,
+            existingRecord.companies_id = record.companies_id,
+            existingRecord.userid = record.userid
+          //console.log("record termo aproximado", record.approximate_term)
+          await existingRecord.save()
+          // await Bookrecord.query()
+          //   .where({
+          //     cod: record.cod,
+          //     book: record.book,
+          //     books_id: record.books_id,
+          //     typebooks_id: record.typebooks_id,
+          //     companies_id: record.companies_id,
+          //   }).update(record)
+
+        } else {
+          // Faça a lógica de criação aqui
+          console.log("NÃO EXISTER...FAZER INSERT")
+          //await Bookrecord.create(record)
+        }
       }
 
-      let successValidation = await new validations('bookrecord_success_100')
-      return response.status(201).send(data.length, successValidation.code)
+
+      //const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
+      //  console.log("BOOKRECORDS>>>>", bookrecords, data)
+
+      // if (generateBook > 0 && generateBookdestination > 0) {
+      //   const alterNumberBook = await Bookrecord.query()
+      //     .where("companies_id", "=", authenticate.companies_id)
+      //     .andWhere('book', '=', generateBook)
+      //     .andWhere('typebooks_id', '=', params.typebooks_id)
+      //.update({ book: generateBookdestination })
+      //alterNumberBook.book = generateBookdestination
+      //await alterNumberBook.fill()
+      //console.log("alterNumberBook 15221", alterNumberBook)
+      //}
+
+      //let successValidation = await new validations('bookrecord_success_100')
+      //return response.status(201).send(data.length, successValidation.code)
 
     } catch (error) {
-      throw new BadRequestException("Bad Request", 402)
+      throw new BadRequestException("Bad Request", 402, error)
     }
 
     //SUBSTITUI O NUMERO DO LIVRO
