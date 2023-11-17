@@ -387,10 +387,7 @@ export default class BookrecordsController {
 
   //gera ou substitui um livro
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
-
-
     let {
       generateBooks_id,
       generateBook,
@@ -555,24 +552,76 @@ export default class BookrecordsController {
     }
 
     try {
-      const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
+      for (const record of bookrecords) {
 
+        const existingRecord = await Bookrecord.query()
+          .where('cod', record.cod)
+          .andWhere('book', record.book)
+          .andWhere('books_id', record.books_id)
+          .andWhere('typebooks_id', record.typebooks_id)
+          .andWhere('companies_id', record.companies_id)
+          .first()
+
+        if (existingRecord) {
+          //console.log("EXISTE...FAZER UPDATE", existingRecord)
+
+          // existingRecord.typebooks_id = record.typebooks_id
+          // existingRecord.books_id = record.books_id
+          // existingRecord.companies_id = record.companies_id
+          // existingRecord.cod = record.cod
+          // existingRecord.book = record.book
+          // existingRecord.sheet = record.sheet
+          // existingRecord.side = record.side
+          // existingRecord.approximate_term = record.approximate_term
+          // existingRecord.indexbook = record.indexbook
+          // existingRecord.obs = record.obs
+          // existingRecord.letter = record.letter
+          // existingRecord.year = record.year
+          // existingRecord.model = record.model
+          // existingRecord.userid = record.userid
+
+          //for (const key in record) {
+          // Verifica se a propriedade existe tanto em existingRecord quanto em record
+          //if (record.hasOwnProperty(key) == true && existingRecord.hasOwnProperty(key) == true) {
+          //if (record.hasOwnProperty(key)) {
+          //existingRecord[key] = record[key];
+          //console.log(existingRecord.sheet, record.sheet)
+          //console.log("KEY", record.hasOwnProperty(key), 'existing record', existingRecord.hasOwnProperty(key), key)
+          //}
+          //}
+          //console.log("EXISTING RECORD>>>>>", existingRecord.sheet, record.sheet)
+          //await existingRecord.fill(record).save()
+
+          await Bookrecord.query()
+            .where('cod', record.cod)
+            .andWhere('book', record.book)
+            .andWhere('books_id', record.books_id)
+            .andWhere('typebooks_id', record.typebooks_id)
+            .andWhere('companies_id', record.companies_id)
+            .update(record)
+
+        } else {
+          // Faça a lógica de criação aqui
+          console.log("NÃO EXISTE...FAZER INSERT")
+          await Bookrecord.create(record)
+        }
+      }
+      //const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
+      //  console.log("BOOKRECORDS>>>>", bookrecords, data)
       if (generateBook > 0 && generateBookdestination > 0) {
         const alterNumberBook = await Bookrecord.query()
           .where("companies_id", "=", authenticate.companies_id)
           .andWhere('book', '=', generateBook)
           .andWhere('typebooks_id', '=', params.typebooks_id)
-        //.update({ book: generateBookdestination })
+          .update({ book: generateBookdestination })
         //alterNumberBook.book = generateBookdestination
-        //await alterNumberBook.fill()
-        console.log("alterNumberBook 15221", alterNumberBook)
       }
 
       let successValidation = await new validations('bookrecord_success_100')
-      return response.status(201).send(data.length, successValidation.code)
+      return response.status(201).send(successValidation.code)
 
     } catch (error) {
-      throw new BadRequestException("Bad Request", 402)
+      throw new BadRequestException("Bad Request", 402, error)
     }
 
     //SUBSTITUI O NUMERO DO LIVRO
