@@ -434,19 +434,40 @@ class BookrecordsController {
             }
         }
         try {
-            const data = await Bookrecord_1.default.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords);
+            for (const record of bookrecords) {
+                const existingRecord = await Bookrecord_1.default.query()
+                    .where('cod', record.cod)
+                    .andWhere('book', record.book)
+                    .andWhere('books_id', record.books_id)
+                    .andWhere('typebooks_id', record.typebooks_id)
+                    .andWhere('companies_id', record.companies_id)
+                    .first();
+                if (existingRecord) {
+                    await Bookrecord_1.default.query()
+                        .where('cod', record.cod)
+                        .andWhere('book', record.book)
+                        .andWhere('books_id', record.books_id)
+                        .andWhere('typebooks_id', record.typebooks_id)
+                        .andWhere('companies_id', record.companies_id)
+                        .update(record);
+                }
+                else {
+                    console.log("NÃO EXISTE...FAZER INSERT");
+                    await Bookrecord_1.default.create(record);
+                }
+            }
             if (generateBook > 0 && generateBookdestination > 0) {
                 const alterNumberBook = await Bookrecord_1.default.query()
                     .where("companies_id", "=", authenticate.companies_id)
                     .andWhere('book', '=', generateBook)
-                    .andWhere('typebooks_id', '=', params.typebooks_id);
-                console.log("alterNumberBook 15221", alterNumberBook);
+                    .andWhere('typebooks_id', '=', params.typebooks_id)
+                    .update({ book: generateBookdestination });
             }
             let successValidation = await new validations_1.default('bookrecord_success_100');
-            return response.status(201).send(data.length, successValidation.code);
+            return response.status(201).send(successValidation.code);
         }
         catch (error) {
-            throw new BadRequestException_1.default("Bad Request", 402);
+            throw new BadRequestException_1.default("Bad Request", 402, error);
         }
     }
     async indeximagesinitial({ auth, params, response }) {

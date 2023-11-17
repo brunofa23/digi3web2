@@ -40,32 +40,6 @@ class Bookrecord extends Orm_1.BaseModel {
             'updatedAt',
         ];
     }
-    static async verifyUpdate(bookRecord) {
-        try {
-            const _indexImage = await Indeximage_1.default.query()
-                .preload('typebooks', (query) => {
-                query.where('id', bookRecord.typebooks_id)
-                    .andWhere('companies_id', bookRecord.companies_id);
-            })
-                .where('indeximages.bookrecords_id', bookRecord.id)
-                .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
-                .andWhere('indeximages.companies_id', bookRecord.companies_id);
-            if (_indexImage.length > 0) {
-                for (const data of _indexImage) {
-                    const oldFileName = data.file_name;
-                    const newFileName = await fileRename.mountNameFile(bookRecord, data?.seq, data.file_name);
-                    await Indeximage_1.default.query()
-                        .where('bookrecords_id', '=', data.bookrecords_id)
-                        .andWhere('typebooks_id', '=', data.typebooks_id)
-                        .andWhere('companies_id', '=', data.companies_id)
-                        .andWhere('seq', '=', data.seq).update({ file_name: newFileName });
-                    fileRename.renameFileGoogle(oldFileName, data.typebooks.path, newFileName);
-                }
-            }
-        }
-        catch (error) {
-        }
-    }
 }
 __decorate([
     (0, Orm_1.hasMany)(() => Indeximage_1.default, {
@@ -163,11 +137,5 @@ __decorate([
     Orm_1.column.dateTime({ autoCreate: true, autoUpdate: true }),
     __metadata("design:type", luxon_1.DateTime)
 ], Bookrecord.prototype, "updatedAt", void 0);
-__decorate([
-    (0, Orm_1.afterUpdate)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Bookrecord]),
-    __metadata("design:returntype", Promise)
-], Bookrecord, "verifyUpdate", null);
 exports.default = Bookrecord;
 //# sourceMappingURL=Bookrecord.js.map
