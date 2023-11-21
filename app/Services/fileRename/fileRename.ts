@@ -380,7 +380,7 @@ async function updateFileName(bookRecord: Bookrecord) {
           .andWhere('companies_id', '=', data.companies_id)
           .andWhere('seq', '=', data.seq)
           .update({ previous_file_name: newFileName })
-        console.log("ARQUIVO RENOMEADO NO INDEXIMAGE 5666", newFileName)
+        // console.log("ARQUIVO RENOMEADO NO INDEXIMAGE 5666", newFileName)
       }
     }
 
