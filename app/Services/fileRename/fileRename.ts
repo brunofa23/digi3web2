@@ -358,8 +358,6 @@ async function deleteFile(listFiles: [{}]) {
 
 async function updateFileName(bookRecord: Bookrecord) {
   try {
-    //console.log("bookrecord>>>>", bookRecord)
-
     const _indexImage = await Indeximage.query()
       .preload('typebooks', (query) => {
         query.where('id', bookRecord.typebooks_id)
