@@ -315,7 +315,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         companies_id,
         seq,
         ext: objFileName.ext,
-        previous_file_name: originalFileName
+        //previous_file_name: originalFileName
       }
       //console.log("FILERENAME::::", fileRename)
 

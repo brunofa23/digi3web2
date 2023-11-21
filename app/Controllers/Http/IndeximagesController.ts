@@ -5,7 +5,7 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import Format from '../../Services/Dates/format'
 import Bookrecord from 'App/Models/Bookrecord'
 
-import Typebook from 'App/Models/Typebook'
+
 
 const formatDate = new Format(new Date)
 const FileRename = require('../../Services/fileRename/fileRename')
