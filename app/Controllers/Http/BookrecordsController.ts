@@ -568,7 +568,7 @@ export default class BookrecordsController {
 
           if (generateBookdestination > 0) {
             record.book = generateBookdestination
-            console.log("record", record, generateBookdestination)
+            //console.log("record", record, generateBookdestination)
           }
 
           const bookrecord = await Bookrecord.query()
@@ -584,17 +584,10 @@ export default class BookrecordsController {
 
         } else {
           // Faça a lógica de criação aqui
-          console.log("NÃO EXISTE...FAZER INSERT")
+          //console.log("NÃO EXISTE...FAZER INSERT")
           await Bookrecord.create(record)
         }
       }
-      // if (generateBook > 0 && generateBookdestination > 0) {
-      //   const alterNumberBook = await Bookrecord.query()
-      //     .where("companies_id", "=", authenticate.companies_id)
-      //     .andWhere('book', '=', generateBook)
-      //     .andWhere('typebooks_id', '=', params.typebooks_id)
-      //     .update({ book: generateBookdestination })
-      // }
 
       let successValidation = await new validations('bookrecord_success_100')
       return response.status(201).send(successValidation.code)
