@@ -563,8 +563,8 @@ export default class BookrecordsController {
           .first()
 
         if (existingRecord) {
-          await Bookrecord.query()
-            .where('id', 10000)
+          console.log("record", record)
+          const bookrecord = await Bookrecord.query()
             .where('cod', record.cod)
             .andWhere('book', record.book)
             .andWhere('books_id', record.books_id)
@@ -572,6 +572,8 @@ export default class BookrecordsController {
             .andWhere('companies_id', record.companies_id)
             .update(record)
 
+          record.id = existingRecord.id
+          fileRename.updateFileName(record)
 
         } else {
           // Faça a lógica de criação aqui
@@ -579,16 +581,13 @@ export default class BookrecordsController {
           await Bookrecord.create(record)
         }
       }
-      //const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
-      //  console.log("BOOKRECORDS>>>>", bookrecords, data)
-      if (generateBook > 0 && generateBookdestination > 0) {
-        const alterNumberBook = await Bookrecord.query()
-          .where("companies_id", "=", authenticate.companies_id)
-          .andWhere('book', '=', generateBook)
-          .andWhere('typebooks_id', '=', params.typebooks_id)
-          .update({ book: generateBookdestination })
-        //alterNumberBook.book = generateBookdestination
-      }
+      // if (generateBook > 0 && generateBookdestination > 0) {
+      //   const alterNumberBook = await Bookrecord.query()
+      //     .where("companies_id", "=", authenticate.companies_id)
+      //     .andWhere('book', '=', generateBook)
+      //     .andWhere('typebooks_id', '=', params.typebooks_id)
+      //     .update({ book: generateBookdestination })
+      // }
 
       let successValidation = await new validations('bookrecord_success_100')
       return response.status(201).send(successValidation.code)

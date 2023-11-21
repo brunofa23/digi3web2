@@ -356,6 +356,41 @@ async function deleteFile(listFiles: [{}]) {
   }
 }
 
+async function updateFileName(bookRecord: Bookrecord) {
+  try {
+    //console.log("bookrecord>>>>", bookRecord)
+
+    const _indexImage = await Indeximage.query()
+      .preload('typebooks', (query) => {
+        query.where('id', bookRecord.typebooks_id)
+          .andWhere('companies_id', bookRecord.companies_id)
+      })
+      .where('indeximages.bookrecords_id', bookRecord.id)
+      .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
+      .andWhere('indeximages.companies_id', bookRecord.companies_id)
+
+    //console.log("intex", _indexImage)
+
+    if (_indexImage.length > 0) {
+      for (const data of _indexImage) {
+        const newFileName = await mountNameFile(bookRecord, data?.seq, data.file_name)
+        await Indeximage.query()
+          .where('bookrecords_id', '=', data.bookrecords_id)
+          .andWhere('typebooks_id', '=', data.typebooks_id)
+          .andWhere('companies_id', '=', data.companies_id)
+          .andWhere('seq', '=', data.seq)
+          .update({ previous_file_name: newFileName })
+        console.log("ARQUIVO RENOMEADO NO INDEXIMAGE 5666", newFileName)
+      }
+    }
+
+
+  } catch (error) {
+    throw error
+  }
+
+
+}
 
 async function totalFilesInFolder(folderName) {
   try {
@@ -429,4 +464,4 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   return { bookRecord, indexImages }
 }
 
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile }
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }
