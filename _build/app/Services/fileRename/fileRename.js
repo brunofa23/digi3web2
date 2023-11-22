@@ -247,7 +247,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                 companies_id,
                 seq,
                 ext: objFileName.ext,
-                previous_file_name: originalFileName
             };
         }
         catch (error) {
@@ -279,6 +278,32 @@ async function deleteFile(listFiles) {
         throw error;
     }
 }
+async function updateFileName(bookRecord) {
+    try {
+        const _indexImage = await Indeximage_1.default.query()
+            .preload('typebooks', (query) => {
+            query.where('id', bookRecord.typebooks_id)
+                .andWhere('companies_id', bookRecord.companies_id);
+        })
+            .where('indeximages.bookrecords_id', bookRecord.id)
+            .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
+            .andWhere('indeximages.companies_id', bookRecord.companies_id);
+        if (_indexImage.length > 0) {
+            for (const data of _indexImage) {
+                const newFileName = await mountNameFile(bookRecord, data?.seq, data.file_name);
+                await Indeximage_1.default.query()
+                    .where('bookrecords_id', '=', data.bookrecords_id)
+                    .andWhere('typebooks_id', '=', data.typebooks_id)
+                    .andWhere('companies_id', '=', data.companies_id)
+                    .andWhere('seq', '=', data.seq)
+                    .update({ previous_file_name: newFileName });
+            }
+        }
+    }
+    catch (error) {
+        throw error;
+    }
+}
 async function totalFilesInFolder(folderName) {
     try {
         const idFolder = await authorize.sendSearchFile(folderName);
@@ -298,8 +323,10 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
     if (listFilesImages.length > 0) {
         listFiles = listFilesImages;
     }
-    else
+    else {
         listFiles = await totalFilesInFolder(folderName?.path);
+    }
+    listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"));
     const objlistFilesBookRecord = listFiles.map((file) => {
         const fileSplit = file.split("_");
         const id = fileSplit[0].match(/\d+/g)[0];
@@ -342,5 +369,5 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
     indexImages.sort((a, b) => a.id - b.id);
     return { bookRecord, indexImages };
 }
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile };
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName };
 //# sourceMappingURL=fileRename.js.map
