@@ -431,7 +431,7 @@ export default class BookrecordsController {
     let approximate_term = generateApproximate_term
     let approximate_termIncrement = 0
     let indexBook = generateIndex
-    let indexIncrement = 0
+    let indexIncrement = generateIndexIncrement
     let sheetStart = 0//generateSheetStart
     let sheetIncrement = 0
 
@@ -478,22 +478,28 @@ export default class BookrecordsController {
       }
 
       //INDEX******************************************************************************
-      if (generateIndex > 0) {
-        if (index == 0) {
-          indexBook = generateIndex
-          indexIncrement++
-          if (indexIncrement >= generateIndexIncrement && generateIndexIncrement > 1) {
-            indexIncrement = 0
-          }
-        }
-        else {
-          if (indexIncrement >= generateIndexIncrement) {
-            indexIncrement = 0
-            indexBook++
-          }
-          indexIncrement++
-        }
-      }
+      // if (indexIncrement > 0) {
+      //   if (index == (generateStartCode + 1))
+      //     indexBook = generateIndex
+      //   else
+      //     generateIndex++
+      // }
+      // if (generateIndex > 0) {
+      //   if (index == 0) {
+      //     indexBook = generateIndex
+      //     indexIncrement++
+      //     if (indexIncrement >= generateIndexIncrement && generateIndexIncrement > 1) {
+      //       indexIncrement = 0
+      //     }
+      //   }
+      //   else {
+      //     if (indexIncrement >= generateIndexIncrement) {
+      //       indexIncrement = 0
+      //       indexBook++
+      //     }
+      //     indexIncrement++
+      //   }
+      // }
       //********************************************************************************************** */
       if (generateStartSheetInCodReference <= generateStartCode) {
         if (generateSheetIncrement == 1) {
@@ -534,13 +540,14 @@ export default class BookrecordsController {
         }
       }
 
+      //console.log("indexbook", generateIndex, indexIncrement)
       bookrecords.push({
         cod: generateStartCode++,
         book: generateBook,
         sheet: ((!generateSheetStart || generateSheetStart == 0) ? undefined : sheetStart),
         side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
         approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
-        indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
+        indexbook: (!generateIndex ? null : generateIndex), //((!generateIndex || generateIndex == 0) ? undefined : indexBook),
         year: ((!generateYear ? undefined : generateYear)),
         typebooks_id: params.typebooks_id,
         books_id: generateBooks_id,
@@ -622,7 +629,6 @@ export default class BookrecordsController {
           .where("companies_id", "=", authenticate.companies_id)
           .andWhere("typebooks_id", "=", params.typebooks_id)
           .whereNotNull('previous_file_name')
-      console.log("passo 3", listFilesToModify.length)
 
       if (listFilesToModify) {
         for (const iterator of listFilesToModify) {
@@ -637,7 +643,7 @@ export default class BookrecordsController {
             .andWhere("seq", iterator.seq)
             .andWhere("file_name", iterator.file_name)
             .update({ file_name: iterator.previous_file_name, previous_file_name: null })
-          console.log("LISTA DE ARQUIVOS modificados>>>>>", iterator.file_name, foldername.path, iterator.previous_file_name)
+          //console.log("LISTA DE ARQUIVOS modificados>>>>>", iterator.file_name, foldername.path, iterator.previous_file_name)
 
         }
       }
@@ -683,7 +689,7 @@ export default class BookrecordsController {
     try {
       const bookSummaryPayload = await Database
         .from('bookrecords')
-        .select('book')
+        .select('book', 'indexbook')
         .min('cod as initialCod')
         .max('cod as finalCod')
         .count('* as totalRows')
@@ -702,7 +708,7 @@ export default class BookrecordsController {
   `))
         .where('companies_id', authenticate.companies_id)
         .where('typebooks_id', typebooks_id)
-        .groupBy('book')
+        .groupBy('book', 'indexbook')
         .orderBy('bookrecords.book')
 
       //console.log("SUMMARY", bookSummaryPayload)
