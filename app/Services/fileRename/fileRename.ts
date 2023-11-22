@@ -315,7 +315,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         companies_id,
         seq,
         ext: objFileName.ext,
-        previous_file_name: originalFileName
+        //previous_file_name: originalFileName
       }
       //console.log("FILERENAME::::", fileRename)
 
@@ -356,6 +356,39 @@ async function deleteFile(listFiles: [{}]) {
   }
 }
 
+async function updateFileName(bookRecord: Bookrecord) {
+  try {
+    const _indexImage = await Indeximage.query()
+      .preload('typebooks', (query) => {
+        query.where('id', bookRecord.typebooks_id)
+          .andWhere('companies_id', bookRecord.companies_id)
+      })
+      .where('indeximages.bookrecords_id', bookRecord.id)
+      .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
+      .andWhere('indeximages.companies_id', bookRecord.companies_id)
+
+    //console.log("intex", _indexImage)
+
+    if (_indexImage.length > 0) {
+      for (const data of _indexImage) {
+        const newFileName = await mountNameFile(bookRecord, data?.seq, data.file_name)
+        await Indeximage.query()
+          .where('bookrecords_id', '=', data.bookrecords_id)
+          .andWhere('typebooks_id', '=', data.typebooks_id)
+          .andWhere('companies_id', '=', data.companies_id)
+          .andWhere('seq', '=', data.seq)
+          .update({ previous_file_name: newFileName })
+        // console.log("ARQUIVO RENOMEADO NO INDEXIMAGE 5666", newFileName)
+      }
+    }
+
+
+  } catch (error) {
+    throw error
+  }
+
+
+}
 
 async function totalFilesInFolder(folderName) {
   try {
@@ -373,17 +406,17 @@ async function totalFilesInFolder(folderName) {
 //**************************************************** */
 
 async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
-
   let listFiles
   if (listFilesImages.length > 0) {
     listFiles = listFilesImages
-  } else
+  } else {
     listFiles = await totalFilesInFolder(folderName?.path)
+  }
 
+  listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"))
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
     const fileSplit = file.split("_")
-
     const id = fileSplit[0].match(/\d+/g)[0];
     const typebooks_id = fileSplit[2]
     const books_id = fileSplit[7].match(/\d+/g)[0];
@@ -401,6 +434,7 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
       id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
       approximate_term, indexbook, obs, letter, year
     }
+
   });
   const indexImages = listFiles.map((file) => {
     const fileSplit = file.split("_")
@@ -427,6 +461,8 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
   return { bookRecord, indexImages }
+
+
 }
 
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile }
+module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }

@@ -431,125 +431,132 @@ export default class BookrecordsController {
     let approximate_term = generateApproximate_term
     let approximate_termIncrement = 0
     let indexBook = generateIndex
-    let indexIncrement = 0
+    let indexIncrement = generateIndexIncrement
     let sheetStart = 0//generateSheetStart
     let sheetIncrement = 0
 
     const bookrecords: Object[] = []
 
-    if (generateBookdestination <= 0 || !generateBookdestination || generateBookdestination == undefined) {
-      for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
+    //if (generateBookdestination <= 0 || !generateBookdestination || generateBookdestination == undefined) {
+    for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
 
-        if (generateAlternateOfSides == "F")
-          generateSideStart = "F"
-        else if (generateAlternateOfSides == "V")
-          generateSideStart = "V"
-        else if (generateAlternateOfSides == "FV") {
-          if (contFirstSide == false) {
-            generateSideStart = (generateSideStart == "F" ? "V" : "F")
-            contFirstSide = true
-          }
+      if (generateAlternateOfSides == "F")
+        generateSideStart = "F"
+      else if (generateAlternateOfSides == "V")
+        generateSideStart = "V"
+      else if (generateAlternateOfSides == "FV") {
+        if (contFirstSide == false) {
           generateSideStart = (generateSideStart == "F" ? "V" : "F")
+          contFirstSide = true
         }
-        else if (generateAlternateOfSides == "FFVV") {
-          if (sideNow >= 2) {
-            generateSideStart = (generateSideStart == "F" ? "V" : "F")
-            sideNow = 0
-          }
-          sideNow++
+        generateSideStart = (generateSideStart == "F" ? "V" : "F")
+      }
+      else if (generateAlternateOfSides == "FFVV") {
+        if (sideNow >= 2) {
+          generateSideStart = (generateSideStart == "F" ? "V" : "F")
+          sideNow = 0
         }
+        sideNow++
+      }
 
-        if (generateApproximate_term > 0) {
-          if (index == 0) {
-            approximate_term = generateApproximate_term
-            approximate_termIncrement++
-            if (approximate_termIncrement >= generateApproximate_termIncrement && generateApproximate_termIncrement > 1) {
-              approximate_termIncrement = 0
-            }
-          }
-          else {
-
-            if (approximate_termIncrement >= generateApproximate_termIncrement) {
-              approximate_termIncrement = 0
-              approximate_term++
-            }
-            approximate_termIncrement++
+      if (generateApproximate_term > 0) {
+        if (index == 0) {
+          approximate_term = generateApproximate_term
+          approximate_termIncrement++
+          if (approximate_termIncrement >= generateApproximate_termIncrement && generateApproximate_termIncrement > 1) {
+            approximate_termIncrement = 0
           }
         }
+        else {
 
-        //INDEX******************************************************************************
-        if (generateIndex > 0) {
-          if (index == 0) {
-            indexBook = generateIndex
-            indexIncrement++
-            if (indexIncrement >= generateIndexIncrement && generateIndexIncrement > 1) {
-              indexIncrement = 0
-            }
+          if (approximate_termIncrement >= generateApproximate_termIncrement) {
+            approximate_termIncrement = 0
+            approximate_term++
           }
-          else {
-            if (indexIncrement >= generateIndexIncrement) {
-              indexIncrement = 0
-              indexBook++
-            }
-            indexIncrement++
-          }
+          approximate_termIncrement++
         }
-        //********************************************************************************************** */
-        if (generateStartSheetInCodReference <= generateStartCode) {
-          if (generateSheetIncrement == 1) {
+      }
+
+      //INDEX******************************************************************************
+      // if (indexIncrement > 0) {
+      //   if (index == (generateStartCode + 1))
+      //     indexBook = generateIndex
+      //   else
+      //     generateIndex++
+      // }
+      // if (generateIndex > 0) {
+      //   if (index == 0) {
+      //     indexBook = generateIndex
+      //     indexIncrement++
+      //     if (indexIncrement >= generateIndexIncrement && generateIndexIncrement > 1) {
+      //       indexIncrement = 0
+      //     }
+      //   }
+      //   else {
+      //     if (indexIncrement >= generateIndexIncrement) {
+      //       indexIncrement = 0
+      //       indexBook++
+      //     }
+      //     indexIncrement++
+      //   }
+      // }
+      //********************************************************************************************** */
+      if (generateStartSheetInCodReference <= generateStartCode) {
+        if (generateSheetIncrement == 1) {
+          sheetStart = generateSheetStart
+          generateStartSheetInCodReference++
+          generateSheetStart++
+        }
+        else if (generateSheetIncrement == 2) {
+          if (sheetIncrement < 2) {
             sheetStart = generateSheetStart
+            sheetIncrement++
+          }
+          if (sheetIncrement == 2) {
+            sheetIncrement = 0
             generateStartSheetInCodReference++
             generateSheetStart++
           }
-          else if (generateSheetIncrement == 2) {
-            if (sheetIncrement < 2) {
-              sheetStart = generateSheetStart
-              sheetIncrement++
-            }
-            if (sheetIncrement == 2) {
-              sheetIncrement = 0
-              generateStartSheetInCodReference++
-              generateSheetStart++
-            }
-          } else if (generateSheetIncrement == 3) {
-            if (sheetIncrement < 3) {
-              sheetStart = generateSheetStart
-              sheetIncrement++
-            }
-            if (sheetIncrement == 3) {
-              sheetIncrement = 0
-              generateStartSheetInCodReference++
-              generateSheetStart++
-            }
-          } else if (generateSheetIncrement == 4) {
-            if (sheetIncrement < 4) {
-              sheetStart = generateSheetStart
-              sheetIncrement++
-            }
-            if (sheetIncrement == 4) {
-              sheetIncrement = 0
-              generateStartSheetInCodReference++
-              generateSheetStart++
-            }
+        } else if (generateSheetIncrement == 3) {
+          if (sheetIncrement < 3) {
+            sheetStart = generateSheetStart
+            sheetIncrement++
+          }
+          if (sheetIncrement == 3) {
+            sheetIncrement = 0
+            generateStartSheetInCodReference++
+            generateSheetStart++
+          }
+        } else if (generateSheetIncrement == 4) {
+          if (sheetIncrement < 4) {
+            sheetStart = generateSheetStart
+            sheetIncrement++
+          }
+          if (sheetIncrement == 4) {
+            sheetIncrement = 0
+            generateStartSheetInCodReference++
+            generateSheetStart++
           }
         }
-
-        bookrecords.push({
-          cod: generateStartCode++,
-          book: generateBook,
-          sheet: ((!generateSheetStart || generateSheetStart == 0) ? undefined : sheetStart),
-          side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
-          approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
-          indexbook: ((!generateIndex || generateIndex == 0) ? undefined : indexBook),
-          year: ((!generateYear ? undefined : generateYear)),
-          typebooks_id: params.typebooks_id,
-          books_id: generateBooks_id,
-          companies_id: authenticate.companies_id,
-          userid: authenticate.id
-        })
-
       }
+
+      //console.log("indexbook", generateIndex, indexIncrement)
+      bookrecords.push({
+        cod: generateStartCode++,
+        book: generateBook,
+        sheet: ((!generateSheetStart || generateSheetStart == 0) ? undefined : sheetStart),
+        side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
+        approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
+        indexbook: (!generateIndex ? null : generateIndex), //((!generateIndex || generateIndex == 0) ? undefined : indexBook),
+        year: ((!generateYear ? undefined : generateYear)),
+        typebooks_id: params.typebooks_id,
+        books_id: generateBooks_id,
+        companies_id: authenticate.companies_id,
+        userid: authenticate.id
+      })
+
     }
+    //}
 
     try {
       for (const record of bookrecords) {
@@ -563,58 +570,30 @@ export default class BookrecordsController {
           .first()
 
         if (existingRecord) {
-          //console.log("EXISTE...FAZER UPDATE", existingRecord)
+          //console.log("record", record, generateBookdestination)
+          const book = record.book
 
-          // existingRecord.typebooks_id = record.typebooks_id
-          // existingRecord.books_id = record.books_id
-          // existingRecord.companies_id = record.companies_id
-          // existingRecord.cod = record.cod
-          // existingRecord.book = record.book
-          // existingRecord.sheet = record.sheet
-          // existingRecord.side = record.side
-          // existingRecord.approximate_term = record.approximate_term
-          // existingRecord.indexbook = record.indexbook
-          // existingRecord.obs = record.obs
-          // existingRecord.letter = record.letter
-          // existingRecord.year = record.year
-          // existingRecord.model = record.model
-          // existingRecord.userid = record.userid
+          if (generateBookdestination > 0) {
+            record.book = generateBookdestination
+            //console.log("record", record, generateBookdestination)
+          }
 
-          //for (const key in record) {
-          // Verifica se a propriedade existe tanto em existingRecord quanto em record
-          //if (record.hasOwnProperty(key) == true && existingRecord.hasOwnProperty(key) == true) {
-          //if (record.hasOwnProperty(key)) {
-          //existingRecord[key] = record[key];
-          //console.log(existingRecord.sheet, record.sheet)
-          //console.log("KEY", record.hasOwnProperty(key), 'existing record', existingRecord.hasOwnProperty(key), key)
-          //}
-          //}
-          //console.log("EXISTING RECORD>>>>>", existingRecord.sheet, record.sheet)
-          //await existingRecord.fill(record).save()
-
-          await Bookrecord.query()
+          const bookrecord = await Bookrecord.query()
             .where('cod', record.cod)
-            .andWhere('book', record.book)
+            .andWhere('book', book)
             .andWhere('books_id', record.books_id)
             .andWhere('typebooks_id', record.typebooks_id)
             .andWhere('companies_id', record.companies_id)
             .update(record)
 
+          record.id = existingRecord.id
+          fileRename.updateFileName(record)
+
         } else {
           // Faça a lógica de criação aqui
-          console.log("NÃO EXISTE...FAZER INSERT")
+          //console.log("NÃO EXISTE...FAZER INSERT")
           await Bookrecord.create(record)
         }
-      }
-      //const data = await Bookrecord.updateOrCreateMany(['cod', 'book', 'books_id', 'typebooks_id', 'companies_id'], bookrecords)
-      //  console.log("BOOKRECORDS>>>>", bookrecords, data)
-      if (generateBook > 0 && generateBookdestination > 0) {
-        const alterNumberBook = await Bookrecord.query()
-          .where("companies_id", "=", authenticate.companies_id)
-          .andWhere('book', '=', generateBook)
-          .andWhere('typebooks_id', '=', params.typebooks_id)
-          .update({ book: generateBookdestination })
-        //alterNumberBook.book = generateBookdestination
       }
 
       let successValidation = await new validations('bookrecord_success_100')
@@ -635,18 +614,43 @@ export default class BookrecordsController {
     let foldername
     try {
       foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
-      console.log("FOLDER NAME>>>", foldername?.name, foldername?.path, foldername?.id)
-
+      //console.log("FOLDER NAME>>>", foldername?.name, foldername?.path, foldername?.id)
       if (foldername) {
         await Typebook.query()
           .where('companies_id', '=', authenticate.companies_id)
           .andWhere('id', '=', foldername?.id)
           .update({ dateindex: 'Indexing', totalfiles: null })
-      }
 
+      } else
+        throw "ERROR::SEM PASTA DE IMAGENS"
+      //ROTINA DE ALTERAR NOME DOS ARQUIVOS MODIFICADOS ENTRA AQUI
+      const listFilesToModify =
+        await Indeximage.query()
+          .where("companies_id", "=", authenticate.companies_id)
+          .andWhere("typebooks_id", "=", params.typebooks_id)
+          .whereNotNull('previous_file_name')
+
+      if (listFilesToModify) {
+        for (const iterator of listFilesToModify) {
+          //1 - modificar o aquivo no gdrive
+          await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name)
+          //console.log("passo 5", iterator.file_name, foldername.path, iterator.previous_file_name)
+          //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
+          await Indeximage.query()
+            .where("companies_id", "=", authenticate.companies_id)
+            .andWhere("typebooks_id", "=", params.typebooks_id)
+            .andWhere("bookrecords_id", iterator.bookrecords_id)
+            .andWhere("seq", iterator.seq)
+            .andWhere("file_name", iterator.file_name)
+            .update({ file_name: iterator.previous_file_name, previous_file_name: null })
+          //console.log("LISTA DE ARQUIVOS modificados>>>>>", iterator.file_name, foldername.path, iterator.previous_file_name)
+
+        }
+      }
+      //************************************************** */
       listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
     } catch (error) {
-      return error
+      console.log(error)
     }
 
     for (const item of listFiles.bookRecord) {
@@ -685,7 +689,7 @@ export default class BookrecordsController {
     try {
       const bookSummaryPayload = await Database
         .from('bookrecords')
-        .select('book')
+        .select('book', 'indexbook')
         .min('cod as initialCod')
         .max('cod as finalCod')
         .count('* as totalRows')
@@ -704,7 +708,7 @@ export default class BookrecordsController {
   `))
         .where('companies_id', authenticate.companies_id)
         .where('typebooks_id', typebooks_id)
-        .groupBy('book')
+        .groupBy('book', 'indexbook')
         .orderBy('bookrecords.book')
 
       //console.log("SUMMARY", bookSummaryPayload)
