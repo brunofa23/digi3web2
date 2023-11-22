@@ -530,8 +530,9 @@ class BookrecordsController {
      WHERE bkr.companies_id = bookrecords.companies_id
        AND bkr.typebooks_id = bookrecords.typebooks_id
        AND bkr.book = bookrecords.book
-     GROUP BY bkr.book
-    ) as totalFiles
+       AND (IFNULL(bkr.indexbook,99) = IFNULL(bookrecords.indexbook,99))
+       GROUP BY bkr.book, bkr.indexbook 
+         ) as totalFiles
   `))
                 .where('companies_id', authenticate.companies_id)
                 .where('typebooks_id', typebooks_id)
