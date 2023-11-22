@@ -607,18 +607,44 @@ export default class BookrecordsController {
     let foldername
     try {
       foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
-      console.log("FOLDER NAME>>>", foldername?.name, foldername?.path, foldername?.id)
-
+      //console.log("FOLDER NAME>>>", foldername?.name, foldername?.path, foldername?.id)
       if (foldername) {
         await Typebook.query()
           .where('companies_id', '=', authenticate.companies_id)
           .andWhere('id', '=', foldername?.id)
           .update({ dateindex: 'Indexing', totalfiles: null })
-      }
 
+      } else
+        throw "ERROR::SEM PASTA DE IMAGENS"
+      //ROTINA DE ALTERAR NOME DOS ARQUIVOS MODIFICADOS ENTRA AQUI
+      const listFilesToModify =
+        await Indeximage.query()
+          .where("companies_id", "=", authenticate.companies_id)
+          .andWhere("typebooks_id", "=", params.typebooks_id)
+          .whereNotNull('previous_file_name')
+      console.log("passo 3", listFilesToModify.length)
+
+      if (listFilesToModify) {
+        for (const iterator of listFilesToModify) {
+          //1 - modificar o aquivo no gdrive
+          await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name)
+          //console.log("passo 5", iterator.file_name, foldername.path, iterator.previous_file_name)
+          //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
+          await Indeximage.query()
+            .where("companies_id", "=", authenticate.companies_id)
+            .andWhere("typebooks_id", "=", params.typebooks_id)
+            .andWhere("bookrecords_id", iterator.bookrecords_id)
+            .andWhere("seq", iterator.seq)
+            .andWhere("file_name", iterator.file_name)
+            .update({ file_name: iterator.previous_file_name, previous_file_name: null })
+          console.log("LISTA DE ARQUIVOS modificados>>>>>", iterator.file_name, foldername.path, iterator.previous_file_name)
+
+        }
+      }
+      //************************************************** */
       listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
     } catch (error) {
-      return error
+      console.log(error)
     }
 
     for (const item of listFiles.bookRecord) {

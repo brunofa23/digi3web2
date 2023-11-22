@@ -406,17 +406,17 @@ async function totalFilesInFolder(folderName) {
 //**************************************************** */
 
 async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
-
   let listFiles
   if (listFilesImages.length > 0) {
     listFiles = listFilesImages
-  } else
+  } else {
     listFiles = await totalFilesInFolder(folderName?.path)
+  }
 
+  listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"))
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
   const objlistFilesBookRecord = listFiles.map((file) => {
     const fileSplit = file.split("_")
-
     const id = fileSplit[0].match(/\d+/g)[0];
     const typebooks_id = fileSplit[2]
     const books_id = fileSplit[7].match(/\d+/g)[0];
@@ -434,6 +434,7 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
       id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
       approximate_term, indexbook, obs, letter, year
     }
+
   });
   const indexImages = listFiles.map((file) => {
     const fileSplit = file.split("_")
@@ -460,6 +461,8 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
   return { bookRecord, indexImages }
+
+
 }
 
 module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }
