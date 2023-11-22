@@ -703,7 +703,7 @@ export default class BookrecordsController {
      WHERE bkr.companies_id = bookrecords.companies_id
        AND bkr.typebooks_id = bookrecords.typebooks_id
        AND bkr.book = bookrecords.book
-       AND (IFNULL(bkr.indexbook,99) = IFNULL(bookrecords.indexbook,99))
+       AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
        GROUP BY bkr.book, bkr.indexbook 
          ) as totalFiles
   `))
