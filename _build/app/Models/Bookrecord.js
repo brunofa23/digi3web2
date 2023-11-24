@@ -41,7 +41,6 @@ class Bookrecord extends Orm_1.BaseModel {
         ];
     }
     static async verifyUpdate(bookRecord) {
-        console.log("PASSEI PELO AFTER UPDATE MODEL");
         fileRename.updateFileName(bookRecord);
     }
 }
