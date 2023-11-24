@@ -107,7 +107,7 @@ export default class Bookrecord extends BaseModel {
 
   @afterUpdate()
   public static async verifyUpdate(bookRecord: Bookrecord) {
-    console.log("PASSEI PELO AFTER UPDATE MODEL")
+    //console.log("PASSEI PELO AFTER UPDATE MODEL")
     fileRename.updateFileName(bookRecord)
 
   }
