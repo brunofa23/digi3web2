@@ -160,9 +160,9 @@ export default class BookrecordsController {
   }
 
   public async update({ auth, request, params, response }: HttpContextContract) {
+
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
-    //console.log("BODY>>>>", body)
     body.id = params.id
     body.companies_id = authenticate.companies_id
     body.userid = authenticate.id
