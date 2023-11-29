@@ -4,6 +4,10 @@ import Application from '@ioc:Adonis/Core/Application'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import Format from '../../Services/Dates/format'
 import Bookrecord from 'App/Models/Bookrecord'
+import { logInJson } from "App/Services/util"
+import { base64 } from '@ioc:Adonis/Core/Helpers'
+import ConfigsController from './ConfigsController'
+
 
 
 
@@ -171,7 +175,6 @@ export default class IndeximagesController {
     console.log("FILENAME:::", file_name)
 
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
-      //logtail.info('File created', { folderPath })
       console.log('File created', { folderPath })
     });
 
@@ -185,9 +188,11 @@ export default class IndeximagesController {
     const { typebook_id } = request.only(['typebook_id'])
     const body = request.only(Indeximage.fillable)
     const fileName = params.id
+
+    console.log("PASSEI NO DOWNLOAD DE IMAGENS...", fileName, typebook_id, authenticate.companies_id)
     const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id)
 
-    return { fileDownload, fileName, extension: path.extname(fileName), body }
+    return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }
 
   }
 
