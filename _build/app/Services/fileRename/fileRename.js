@@ -41,6 +41,7 @@ async function downloadImage(fileName, typebook_id, company_id) {
     const extension = path.extname(fileName);
     const fileId = await authorize.sendSearchFile(fileName, parent[0].id);
     const download = await authorize.sendDownloadFile(fileId[0].id, extension);
+    console.log("DOWNLOAD>>>", download.size);
     return download;
 }
 async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {

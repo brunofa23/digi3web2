@@ -267,7 +267,7 @@ async function downloadFile(authClient, fileId, extension) {
     try {
         const file = await drive.files.get({
             fileId: fileId,
-            alt: 'media'
+            alt: 'media',
         }, {
             responseType: 'arraybuffer',
             encoding: null
@@ -279,7 +279,8 @@ async function downloadFile(authClient, fileId, extension) {
             imageType = "application/pdf";
         const base64 = Buffer.from(file.data, "utf8").toString("base64");
         var dataURI = 'data:' + imageType + ';base64,' + base64;
-        return dataURI;
+        const fileDownload = { dataURI, size: file.data.byteLength };
+        return fileDownload;
     }
     catch (err) {
         throw err;

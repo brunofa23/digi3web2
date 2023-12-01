@@ -153,8 +153,9 @@ class IndeximagesController {
         const { typebook_id } = request.only(['typebook_id']);
         const body = request.only(Indeximage_1.default.fillable);
         const fileName = params.id;
+        console.log("PASSEI NO DOWNLOAD DE IMAGENS...", fileName, typebook_id, authenticate.companies_id);
         const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id);
-        return { fileDownload, fileName, extension: path.extname(fileName), body };
+        return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size };
     }
 }
 exports.default = IndeximagesController;
