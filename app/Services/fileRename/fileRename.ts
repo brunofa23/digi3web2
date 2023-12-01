@@ -7,6 +7,7 @@ import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
 import { DateTime } from "luxon";
+import { logInJson } from "App/Services/util"
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -35,6 +36,8 @@ async function deleteImage(folderPath) {
 
 async function downloadImage(fileName, typebook_id, company_id) {
 
+  //console.log("PASSEI NO DOWNLOAD DE IMAGENS FILERENAME")
+
   const directoryParent = await Typebook.query()
     .where('id', '=', typebook_id)
     .andWhere('companies_id', '=', company_id).first()
@@ -43,6 +46,8 @@ async function downloadImage(fileName, typebook_id, company_id) {
   const extension = path.extname(fileName);
   const fileId = await authorize.sendSearchFile(fileName, parent[0].id)
   const download = await authorize.sendDownloadFile(fileId[0].id, extension)
+  console.log("DOWNLOAD>>>", download.size)
+
   return download
 }
 

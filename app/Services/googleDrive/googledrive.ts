@@ -2,6 +2,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import { GoogleApis } from "googleapis";
 import { auth } from "googleapis/build/src/apis/file";
 import Encryption from '@ioc:Adonis/Core/Encryption'
+import { logInJson } from "App/Services/util"
 
 import Token from 'App/Models/Token';
 import { types } from '@ioc:Adonis/Core/Helpers'
@@ -344,7 +345,7 @@ async function downloadFile(authClient, fileId, extension) {
     const file = await drive.files.get({
       fileId: fileId,
       //mimeType: 'application/pdf',
-      alt: 'media'
+      alt: 'media',
     },
       {
         responseType: 'arraybuffer',
@@ -361,8 +362,8 @@ async function downloadFile(authClient, fileId, extension) {
 
     const base64 = Buffer.from(file.data, "utf8").toString("base64")
     var dataURI = 'data:' + imageType + ';base64,' + base64;
-
-    return dataURI
+    const fileDownload = { dataURI, size: file.data.byteLength }
+    return fileDownload
   } catch (err) {
     // TODO(developer) - Handle error
     throw err;
