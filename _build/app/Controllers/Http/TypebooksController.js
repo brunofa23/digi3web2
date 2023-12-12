@@ -80,7 +80,6 @@ class TypebooksController {
         return response.status(200).send(data);
     }
     async show({ auth, params, response }) {
-        console.log("PASSEI AQUI...");
         const authenticate = await auth.use('api').authenticate();
         const data = await Typebook_1.default.query()
             .where("companies_id", "=", authenticate.companies_id)

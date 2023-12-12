@@ -125,13 +125,12 @@ class BookrecordsController {
         body.companies_id = authenticate.companies_id;
         body.userid = authenticate.id;
         try {
-            const data = await Bookrecord_1.default.query()
+            await Bookrecord_1.default.query()
                 .where('id', '=', body.id)
                 .andWhere('typebooks_id', '=', body.typebooks_id)
-                .andWhere('companies_id', '=', authenticate.companies_id).first();
-            if (data)
-                await data.fill(body).save();
-            return response.status(201).send({ data, params: params.id });
+                .andWhere('companies_id', '=', authenticate.companies_id)
+                .update(body);
+            return response.status(201).send({ body, params: params.id });
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 401, error);
