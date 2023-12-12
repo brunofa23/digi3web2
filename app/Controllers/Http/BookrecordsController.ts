@@ -163,19 +163,19 @@ export default class BookrecordsController {
 
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
+
     body.id = params.id
     body.companies_id = authenticate.companies_id
     body.userid = authenticate.id
+
     try {
-      const data = await Bookrecord.query()
+      await Bookrecord.query()
         .where('id', '=', body.id)
         .andWhere('typebooks_id', '=', body.typebooks_id)
-        .andWhere('companies_id', '=', authenticate.companies_id).first()
+        .andWhere('companies_id', '=', authenticate.companies_id)
+        .update(body)
 
-      if (data)
-        await data.fill(body).save()
-
-      return response.status(201).send({ data, params: params.id })
+      return response.status(201).send({ body, params: params.id })
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
     }
