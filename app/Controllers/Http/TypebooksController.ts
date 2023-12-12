@@ -104,7 +104,7 @@ export default class TypebooksController {
   //retorna um registro
   public async show({ auth, params, response }: HttpContextContract) {
 
-    console.log("PASSEI AQUI...")
+
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
       .where("companies_id", "=", authenticate.companies_id)
