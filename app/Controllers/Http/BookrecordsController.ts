@@ -174,7 +174,7 @@ export default class BookrecordsController {
         .andWhere('typebooks_id', '=', body.typebooks_id)
         .andWhere('companies_id', '=', authenticate.companies_id)
         .update(body)
-
+      fileRename.updateFileName(body)
       return response.status(201).send({ body, params: params.id })
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -388,6 +388,7 @@ export default class BookrecordsController {
   //gera ou substitui um livro
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
     let {
       generateBooks_id,
       generateBook,
@@ -578,7 +579,7 @@ export default class BookrecordsController {
             //console.log("record", record, generateBookdestination)
           }
 
-          const bookrecord = await Bookrecord.query()
+          await Bookrecord.query()
             .where('cod', record.cod)
             .andWhere('book', book)
             .andWhere('books_id', record.books_id)
@@ -586,8 +587,16 @@ export default class BookrecordsController {
             .andWhere('companies_id', record.companies_id)
             .update(record)
 
+          const bookrecord = await Bookrecord.query()
+            .where('cod', record.cod)
+            .andWhere('book', book)
+            .andWhere('books_id', record.books_id)
+            .andWhere('typebooks_id', record.typebooks_id)
+            .andWhere('companies_id', record.companies_id).first()
+
           record.id = existingRecord.id
-          fileRename.updateFileName(record)
+
+          fileRename.updateFileName(bookrecord)
 
         } else {
           // Faça a lógica de criação aqui

@@ -4,12 +4,9 @@ import Application from '@ioc:Adonis/Core/Application'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import Format from '../../Services/Dates/format'
 import Bookrecord from 'App/Models/Bookrecord'
-import { logInJson } from "App/Services/util"
-import { base64 } from '@ioc:Adonis/Core/Helpers'
-import ConfigsController from './ConfigsController'
-
-
-
+// import { logInJson } from "App/Services/util"
+// import { base64 } from '@ioc:Adonis/Core/Helpers'
+// import ConfigsController from './ConfigsController'
 
 const formatDate = new Format(new Date)
 const FileRename = require('../../Services/fileRename/fileRename')
@@ -96,6 +93,8 @@ export default class IndeximagesController {
   }
 
   public async update({ request, params, response }: HttpContextContract) {
+
+
     const body = request.only(Indeximage.fillable)
     body.bookrecords_id = params.id
     body.typebooks_id = params.id2

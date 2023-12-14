@@ -73,7 +73,6 @@ export default class AuthenticationController {
       .first()
 
     if (userAuthorization) {
-      console.log("ACCESS IMAGES>>>>>>>>", userAuthorization.permission_level)
       if ((userAuthorization.permission_level < 5) && (!userAuthorization.superuser)) {
         const errorValidation = await new validations('user_error_201')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
@@ -94,9 +93,7 @@ export default class AuthenticationController {
     try {
       const limitDataAccess = DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm')
 
-      console.log("ACCESS IMAGE VALOR:", limitDataAccess)
-
-
+      //console.log("ACCESS IMAGE VALOR:", limitDataAccess)
       const user = await User.query()
         .where('username', username)
         .andWhere('companies_id', '=', companies_id)
