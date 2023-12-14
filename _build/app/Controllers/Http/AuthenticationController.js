@@ -54,7 +54,6 @@ class AuthenticationController {
             .andWhere('companies_id', '=', companies_id)
             .first();
         if (userAuthorization) {
-            console.log("ACCESS IMAGES>>>>>>>>", userAuthorization.permission_level);
             if ((userAuthorization.permission_level < 5) && (!userAuthorization.superuser)) {
                 const errorValidation = await new validations_1.default('user_error_201');
                 throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
@@ -70,7 +69,6 @@ class AuthenticationController {
         }
         try {
             const limitDataAccess = luxon_1.DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm');
-            console.log("ACCESS IMAGE VALOR:", limitDataAccess);
             const user = await User_1.default.query()
                 .where('username', username)
                 .andWhere('companies_id', '=', companies_id)

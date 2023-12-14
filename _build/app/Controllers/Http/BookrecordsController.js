@@ -130,6 +130,7 @@ class BookrecordsController {
                 .andWhere('typebooks_id', '=', body.typebooks_id)
                 .andWhere('companies_id', '=', authenticate.companies_id)
                 .update(body);
+            fileRename.updateFileName(body);
             return response.status(201).send({ body, params: params.id });
         }
         catch (error) {
@@ -428,15 +429,21 @@ class BookrecordsController {
                     if (generateBookdestination > 0) {
                         record.book = generateBookdestination;
                     }
-                    const bookrecord = await Bookrecord_1.default.query()
+                    await Bookrecord_1.default.query()
                         .where('cod', record.cod)
                         .andWhere('book', book)
                         .andWhere('books_id', record.books_id)
                         .andWhere('typebooks_id', record.typebooks_id)
                         .andWhere('companies_id', record.companies_id)
                         .update(record);
+                    const bookrecord = await Bookrecord_1.default.query()
+                        .where('cod', record.cod)
+                        .andWhere('book', book)
+                        .andWhere('books_id', record.books_id)
+                        .andWhere('typebooks_id', record.typebooks_id)
+                        .andWhere('companies_id', record.companies_id).first();
                     record.id = existingRecord.id;
-                    fileRename.updateFileName(record);
+                    fileRename.updateFileName(bookrecord);
                 }
                 else {
                     await Bookrecord_1.default.create(record);
