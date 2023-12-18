@@ -134,7 +134,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
 async function renameFileGoogle(filename, folderPath, newTitle) {
 
-
   try {
     const idFolderPath = await authorize.sendSearchFile(folderPath)
     const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id)

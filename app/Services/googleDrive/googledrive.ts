@@ -207,7 +207,6 @@ async function createFolder(authClient, folderName, parentId = undefined) {
 }
 
 async function searchFile(authClient, fileName, parentId = undefined) {
-
   const drive = google.drive({ version: 'v3', auth: authClient });
   const files: Object[] = []
   const fileNamedecoded = decodeURIComponent(fileName);
@@ -215,7 +214,6 @@ async function searchFile(authClient, fileName, parentId = undefined) {
   if (parentId)
     query += ` and parents in '${parentId}'`
   query += " and trashed=false "
-
 
   try {
     const res = await drive.files.list({

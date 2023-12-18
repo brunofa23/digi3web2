@@ -643,6 +643,7 @@ export default class BookrecordsController {
         for (const iterator of listFilesToModify) {
           //1 - modificar o aquivo no gdrive
           await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name)
+
           //console.log("passo 5", iterator.file_name, foldername.path, iterator.previous_file_name)
           //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
           await Indeximage.query()
