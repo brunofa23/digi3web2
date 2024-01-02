@@ -224,9 +224,9 @@ export default class BookrecordsController {
   }
   //EXCLUSÃO EM LOTES
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
-    //console.log("destroy many bookrecords>>>")
     const { companies_id } = await auth.use('api').authenticate()
-    const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages'])
+    const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages'])
+    //console.log("destroy many bookrecords>>>", typebooks_id, Book, Bookend, startCod, endCod, deleteImages)
 
     //deleteImages
     //se 1  = exclui somente o livro
@@ -294,10 +294,16 @@ export default class BookrecordsController {
     let query = '1 = 1'
     if (Book == undefined)
       return null
+
     if (typebooks_id != undefined) {
-      if (Book != undefined) {
-        query += ` and book=${Book} `
-      }
+
+      if (Book != undefined && (Bookend > 0 && Bookend !== undefined)) {
+        query += ` and book >=${Book} and book <=${Bookend}`
+      } else
+        if (Book != undefined) {
+          query += ` and book=${Book} `
+        }
+
       if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
         query += ` and cod>=${startCod} and cod <=${endCod} `
 
