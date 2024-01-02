@@ -170,7 +170,7 @@ class BookrecordsController {
     }
     async destroyManyBookRecords({ auth, request, response }) {
         const { companies_id } = await auth.use('api').authenticate();
-        const { typebooks_id, Book, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'startCod', 'endCod', 'deleteImages']);
+        const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages']);
         async function deleteIndexImages() {
             try {
                 const deleteData = await Indeximage_1.default
@@ -229,7 +229,10 @@ class BookrecordsController {
         if (Book == undefined)
             return null;
         if (typebooks_id != undefined) {
-            if (Book != undefined) {
+            if (Book != undefined && (Bookend > 0 && Bookend !== undefined)) {
+                query += ` and book >=${Book} and book <=${Bookend}`;
+            }
+            else if (Book != undefined) {
                 query += ` and book=${Book} `;
             }
             if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
