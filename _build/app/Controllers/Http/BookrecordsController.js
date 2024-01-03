@@ -173,14 +173,15 @@ class BookrecordsController {
         const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages']);
         async function deleteIndexImages() {
             try {
-                const deleteData = await Indeximage_1.default
-                    .query()
-                    .delete()
-                    .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
-                    .select('id')
-                    .where('typebooks_id', '=', typebooks_id)
-                    .andWhere('companies_id', '=', companies_id)
-                    .whereRaw(query));
+                const deleteData = await Database_1.default
+                    .from('indeximages')
+                    .innerJoin('bookrecords', function () {
+                    this.on('indeximages.bookrecords_id', 'bookrecords.id')
+                        .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
+                        .andOn('indeximages.companies_id', 'bookrecords.companies_id');
+                })
+                    .whereRaw(query)
+                    .delete();
                 return response.status(201).send({ deleteData });
             }
             catch (error) {
