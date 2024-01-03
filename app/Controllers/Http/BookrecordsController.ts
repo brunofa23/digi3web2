@@ -235,15 +235,16 @@ export default class BookrecordsController {
 
     async function deleteIndexImages() {
       try {
-        const deleteData = await Indeximage
-          .query()
+        const deleteData = await Database
+          .from('indeximages')
+          .innerJoin('bookrecords', function () {
+            this.on('indeximages.bookrecords_id', 'bookrecords.id')
+              .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
+              .andOn('indeximages.companies_id', 'bookrecords.companies_id');
+          })
+          .whereRaw(query)
           .delete()
-          .whereIn("bookrecords_id",
-            Database.from('bookrecords')
-              .select('id')
-              .where('typebooks_id', '=', typebooks_id)
-              .andWhere('companies_id', '=', companies_id)
-              .whereRaw(query))
+
         return response.status(201).send({ deleteData })
       } catch (error) {
         return error
