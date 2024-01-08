@@ -245,7 +245,7 @@ export default class BookrecordsController {
           .where('indeximages.typebooks_id', typebooks_id)
           .andWhere('indeximages.companies_id', companies_id)
           .whereRaw(query)
-          .delete()
+          .delete().toQuery()
 
         console.log(deleteData)
 
@@ -267,7 +267,7 @@ export default class BookrecordsController {
           .where('typebooks_id', typebooks_id)
           .andWhere('companies_id', companies_id)
           .whereRaw(query)
-          .delete()
+          .delete().toQuery()
 
 
         console.log(data)
