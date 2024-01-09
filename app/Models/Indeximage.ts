@@ -19,19 +19,37 @@ export default class Indeximage extends BaseModel {
     ]
   }
 
-
   @hasOne(() => Bookrecord, {
     foreignKey: 'id',
     localKey: 'bookrecords_id'
   })
   public bookrecord: HasOne<typeof Bookrecord>
 
-
-  @hasOne(() => Typebook, {
-    foreignKey: 'id',
+  @hasOne(() => Bookrecord, {
+    foreignKey: 'typebooks_id',
     localKey: 'typebooks_id'
   })
-  public typebooks: HasOne<typeof Typebook>
+  public typebooks: HasOne<typeof Bookrecord>
+
+  @hasOne(() => Bookrecord, {
+    foreignKey: 'companies_id',
+    localKey: 'companies_id'
+  })
+  public companies: HasOne<typeof Bookrecord>
+
+
+  // @hasOne(() => Bookrecord, {
+  //   foreignKey: 'id',
+  //   localKey: 'bookrecords_id'
+  // })
+  // public bookrecord: HasOne<typeof Bookrecord>
+
+
+  // @hasOne(() => Typebook, {
+  //   foreignKey: 'id',
+  //   localKey: 'typebooks_id'
+  // })
+  // public typebooks: HasOne<typeof Typebook>
 
 
   @column({ isPrimary: true })

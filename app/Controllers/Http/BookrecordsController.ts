@@ -233,7 +233,7 @@ export default class BookrecordsController {
     //se 2 = exclui somente as imagens
     //se 3 = exclui imagens e livro
 
-    async function deleteIndexImages() {
+    async function deleteIndexImages(query) {
       try {
         const deleteData = await Database
           .from('indeximages')
@@ -242,8 +242,11 @@ export default class BookrecordsController {
               .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
               .andOn('indeximages.companies_id', 'bookrecords.companies_id');
           })
+          .where('indeximages.typebooks_id', typebooks_id)
+          .andWhere('indeximages.companies_id', companies_id)
           .whereRaw(query)
           .delete()
+        console.log(deleteData)
 
         return response.status(201).send({ deleteData })
       } catch (error) {
@@ -252,21 +255,29 @@ export default class BookrecordsController {
 
     }
 
-    async function deleteBookrecord() {
+    async function deleteBookrecord(query) {
       try {
+
+        console.log("typebook", typebooks_id)
+        //await Database.rawQuery('delete from `bookrecords` where `typebooks_id` = 12 and `companies_id` = 9 and 1 = 1 and book=1 ')
+
         const data = await Bookrecord
           .query()
-          .where('typebooks_id', '=', typebooks_id)
-          .andWhere('companies_id', '=', companies_id)
+          .where('typebooks_id', typebooks_id)
+          .andWhere('companies_id', companies_id)
           .whereRaw(query)
           .delete()
+
+
+        console.log(data)
+
         return response.status(201).send({ data })
       } catch (error) {
         return error
       }
     }
 
-    async function deleteImagesGoogle() {
+    async function deleteImagesGoogle(query) {
       try {
         const listOfImagesToDeleteGDrive = await Indeximage
           .query()
@@ -312,21 +323,22 @@ export default class BookrecordsController {
         //se 1  = exclui somente o livro
         if (deleteImages == 1) {
 
-          await deleteIndexImages()
-          await deleteBookrecord()
+          deleteIndexImages(query)
+          deleteBookrecord(query)
+          return
         }
         //se 2 = exclui somente as imagens
         else if (deleteImages == 2) {
 
-          await deleteImagesGoogle()
-          await deleteIndexImages()
+          //await deleteImagesGoogle(query)
+          await deleteIndexImages(query)
         }
         //se 3 = exclui imagens e livro
         else if (deleteImages == 3) {
 
-          await deleteImagesGoogle()
-          await deleteIndexImages()
-          await deleteBookrecord()
+          //await deleteImagesGoogle(query)
+          await deleteIndexImages(query)
+          await deleteBookrecord(query)
         }
       } catch (error) {
         throw new BadRequest('Bad Request update', 401, 'bookrecord_error_102')
@@ -673,7 +685,8 @@ export default class BookrecordsController {
     for (const item of listFiles.bookRecord) {
       try {
         //console.log("ITEM>>>>>>>>>", item)
-        await Bookrecord.create(item)
+        const create = await Bookrecord.create(item)
+        console.log("create>>>", create)
       } catch (error) {
         //console.log("ERRO BOOKRECORD::", error)
       }

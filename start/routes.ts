@@ -2,7 +2,7 @@ import Route from '@ioc:Adonis/Core/Route'
 
 Route.group(() => {
   Route.get('/', async () => {
-    return { hello: 'Sistema de Gerenciamento de Imagens - v95' }
+    return { hello: 'Sistema de Gerenciamento de Imagens - v96' }
   })//.middleware('level_permission:1')
 
   //BOOK
