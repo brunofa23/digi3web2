@@ -171,7 +171,7 @@ class BookrecordsController {
     async destroyManyBookRecords({ auth, request, response }) {
         const { companies_id } = await auth.use('api').authenticate();
         const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages']);
-        async function deleteIndexImages() {
+        async function deleteIndexImages(query) {
             try {
                 const deleteData = await Database_1.default
                     .from('indeximages')
@@ -180,29 +180,34 @@ class BookrecordsController {
                         .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
                         .andOn('indeximages.companies_id', 'bookrecords.companies_id');
                 })
+                    .where('indeximages.typebooks_id', typebooks_id)
+                    .andWhere('indeximages.companies_id', companies_id)
                     .whereRaw(query)
                     .delete();
+                console.log(deleteData);
                 return response.status(201).send({ deleteData });
             }
             catch (error) {
                 return error;
             }
         }
-        async function deleteBookrecord() {
+        async function deleteBookrecord(query) {
             try {
+                console.log("typebook", typebooks_id);
                 const data = await Bookrecord_1.default
                     .query()
-                    .where('typebooks_id', '=', typebooks_id)
-                    .andWhere('companies_id', '=', companies_id)
+                    .where('typebooks_id', typebooks_id)
+                    .andWhere('companies_id', companies_id)
                     .whereRaw(query)
                     .delete();
+                console.log(data);
                 return response.status(201).send({ data });
             }
             catch (error) {
                 return error;
             }
         }
-        async function deleteImagesGoogle() {
+        async function deleteImagesGoogle(query) {
             try {
                 const listOfImagesToDeleteGDrive = await Indeximage_1.default
                     .query()
@@ -240,17 +245,16 @@ class BookrecordsController {
                 query += ` and cod>=${startCod} and cod <=${endCod} `;
             try {
                 if (deleteImages == 1) {
-                    await deleteIndexImages();
-                    await deleteBookrecord();
+                    deleteIndexImages(query);
+                    deleteBookrecord(query);
+                    return;
                 }
                 else if (deleteImages == 2) {
-                    await deleteImagesGoogle();
-                    await deleteIndexImages();
+                    await deleteIndexImages(query);
                 }
                 else if (deleteImages == 3) {
-                    await deleteImagesGoogle();
-                    await deleteIndexImages();
-                    await deleteBookrecord();
+                    await deleteIndexImages(query);
+                    await deleteBookrecord(query);
                 }
             }
             catch (error) {
@@ -497,7 +501,8 @@ class BookrecordsController {
         }
         for (const item of listFiles.bookRecord) {
             try {
-                await Bookrecord_1.default.create(item);
+                const create = await Bookrecord_1.default.create(item);
+                console.log("create>>>", create);
             }
             catch (error) {
             }
