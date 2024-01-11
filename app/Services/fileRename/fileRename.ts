@@ -350,6 +350,7 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
 }
 
 async function deleteFile(listFiles: [{}]) {
+
   try {
     const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
     let idFile

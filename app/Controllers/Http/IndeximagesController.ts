@@ -55,7 +55,6 @@ export default class IndeximagesController {
   }
 
   public async destroy({ auth, request, params, response }: HttpContextContract) {
-
     const { companies_id } = await auth.use('api').authenticate()
     try {
       //excluir imagens do google drive
@@ -67,14 +66,10 @@ export default class IndeximagesController {
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('bookrecords_id', "=", params.bookrecords_id)
         .andWhere('companies_id', "=", companies_id)
-        .andWhere('file_name', "like", params.file_name)
-
-      if (listOfImagesToDeleteGDrive.length > 0) {
-        var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-          return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
-        });
-        console.log("entrei do delete...", file_name)
-        FileRename.deleteFile(file_name)
+        .andWhere('file_name', "like", params.file_name).first()
+      if (listOfImagesToDeleteGDrive) {
+        var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path }
+        FileRename.deleteFile([file_name])
       }
 
       await Indeximage.query()
