@@ -53,13 +53,10 @@ class IndeximagesController {
                 .where('typebooks_id', '=', params.typebooks_id)
                 .andWhere('bookrecords_id', "=", params.bookrecords_id)
                 .andWhere('companies_id', "=", companies_id)
-                .andWhere('file_name', "like", params.file_name);
-            if (listOfImagesToDeleteGDrive.length > 0) {
-                var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-                    return { file_name: item.file_name, path: item.typebooks.path };
-                });
-                console.log("entrei do delete...", file_name);
-                FileRename.deleteFile(file_name);
+                .andWhere('file_name', "like", params.file_name).first();
+            if (listOfImagesToDeleteGDrive) {
+                var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path };
+                FileRename.deleteFile([file_name]);
             }
             await Indeximage_1.default.query()
                 .where('typebooks_id', '=', params.typebooks_id)
