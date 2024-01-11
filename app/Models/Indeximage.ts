@@ -25,11 +25,11 @@ export default class Indeximage extends BaseModel {
   })
   public bookrecord: HasOne<typeof Bookrecord>
 
-  @hasOne(() => Bookrecord, {
-    foreignKey: 'typebooks_id',
-    localKey: 'typebooks_id'
-  })
-  public typebooks: HasOne<typeof Bookrecord>
+  // @hasOne(() => Bookrecord, {
+  //   foreignKey: 'typebooks_id',
+  //   localKey: 'typebooks_id'
+  // })
+  // public typebooks: HasOne<typeof Bookrecord>
 
   @hasOne(() => Bookrecord, {
     foreignKey: 'companies_id',
@@ -45,11 +45,11 @@ export default class Indeximage extends BaseModel {
   // public bookrecord: HasOne<typeof Bookrecord>
 
 
-  // @hasOne(() => Typebook, {
-  //   foreignKey: 'id',
-  //   localKey: 'typebooks_id'
-  // })
-  // public typebooks: HasOne<typeof Typebook>
+  @hasOne(() => Typebook, {
+    foreignKey: 'id',
+    localKey: 'typebooks_id'
+  })
+  public typebooks: HasOne<typeof Typebook>
 
 
   @column({ isPrimary: true })
