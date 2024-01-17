@@ -14,6 +14,7 @@ export default class Indeximage extends BaseModel {
       'ext',
       'file_name',
       'previous_file_name',
+      'date_atualization',
       'created_at',
       'updated_at'
     ]
@@ -72,6 +73,9 @@ export default class Indeximage extends BaseModel {
 
   @column()
   public previous_file_name: string
+
+  @column()
+  public date_atualization: DateTime
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
