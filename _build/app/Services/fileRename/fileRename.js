@@ -134,8 +134,9 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
         }
         const sendUpload = await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`);
         if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+            const date_atualization = luxon_1.DateTime.now();
+            objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm');
             await Indeximage_1.default.create(objfileRename);
-            console.log("executando create indeximage");
         }
         await deleteImage(`${folderPath}/${objfileRename.file_name}`);
         console.log("DELETE>>", `${folderPath}/${objfileRename.file_name}`);

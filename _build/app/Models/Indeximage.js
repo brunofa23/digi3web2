@@ -26,6 +26,7 @@ class Indeximage extends Orm_1.BaseModel {
             'ext',
             'file_name',
             'previous_file_name',
+            'date_atualization',
             'created_at',
             'updated_at'
         ];
@@ -80,6 +81,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Indeximage.prototype, "previous_file_name", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", luxon_1.DateTime)
+], Indeximage.prototype, "date_atualization", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
