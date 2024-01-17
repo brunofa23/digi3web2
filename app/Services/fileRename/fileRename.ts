@@ -165,8 +165,9 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
 
     //chamar função para inserir na tabela indeximages
     if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+      const date_atualization = DateTime.now()
+      objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm')
       await Indeximage.create(objfileRename)
-      console.log("executando create indeximage")
     }
     //chamar função de exclusão da imagem
     await deleteImage(`${folderPath}/${objfileRename.file_name}`)
