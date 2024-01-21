@@ -43,6 +43,7 @@ Route.group(() => {
   Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords').middleware('bookrecord_permission:createorupdatebookrecords')
   Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords')
   Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial')
+  Route.get('/updatedfiles', 'BookrecordsController.updatedFiles')
 
 
 

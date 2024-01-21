@@ -751,5 +751,35 @@ export default class BookrecordsController {
 
   }
 
+
+  public async updatedFiles({ auth, request, response }: HttpContextContract) {
+    //const authenticate = await auth.use('api').authenticate()
+
+    const { datestart, dateend, companies_id, book, typebooks_id } = request.only(['datestart', 'dateend', 'companies_id', 'book', 'typebooks_id'])
+    console.log("ENTREI UPDATED FILES", datestart, dateend)
+    let query = '1=1'
+
+    if (book)
+      query += ` and book =${book}`
+
+    console.log('datestart', datestart)
+    try {
+      const payLoad = await Database.from('bookrecords')
+        .innerJoin('indeximages', 'bookrecords.id', 'bookrecords_id')
+        .select('bookrecords.*')
+        .select('indeximages.file_name', 'indeximages.date_atualization')
+        .whereBetween('indeximages.date_atualization', [datestart, dateend])
+        //.where('bookrecords.companies_id', companies_id)
+        .whereRaw(query)
+      return response.status(200).send(payLoad)
+
+    } catch (error) {
+      return error
+    }
+
+  }
+
+
+
   //********************************************************* */
 }
