@@ -6,7 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Route_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Route"));
 Route_1.default.group(() => {
     Route_1.default.get('/', async () => {
-        return { hello: 'Sistema de Gerenciamento de Imagens - v98' };
+        return { hello: 'Sistema de Gerenciamento de Imagens - v99' };
     });
     Route_1.default.get("/books", 'BooksController.index').middleware("level_permission:get");
     Route_1.default.post("/books", 'BooksController.store').middleware("level_permission:post");
@@ -35,6 +35,7 @@ Route_1.default.group(() => {
     Route_1.default.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords').middleware('bookrecord_permission:createorupdatebookrecords');
     Route_1.default.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords');
     Route_1.default.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial');
+    Route_1.default.get('/updatedfiles', 'BookrecordsController.updatedFiles');
     Route_1.default.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index');
     Route_1.default.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store');
     Route_1.default.patch("/typebooks/:typebooks_id/documents/:id", 'DocumentsController.update');
