@@ -246,7 +246,7 @@ export default class BookrecordsController {
           .andWhere('indeximages.companies_id', companies_id)
           .whereRaw(query)
           .delete()
-        console.log(deleteData)
+        //console.log(deleteData)
 
         return response.status(201).send({ deleteData })
       } catch (error) {
@@ -258,7 +258,7 @@ export default class BookrecordsController {
     async function deleteBookrecord(query) {
       try {
 
-        console.log("typebook", typebooks_id)
+        //console.log("typebook", typebooks_id)
         //await Database.rawQuery('delete from `bookrecords` where `typebooks_id` = 12 and `companies_id` = 9 and 1 = 1 and book=1 ')
 
         const data = await Bookrecord
@@ -269,7 +269,7 @@ export default class BookrecordsController {
           .delete()
 
 
-        console.log(data)
+        //console.log(data)
 
         return response.status(201).send({ data })
       } catch (error) {
@@ -686,7 +686,7 @@ export default class BookrecordsController {
       try {
         //console.log("ITEM>>>>>>>>>", item)
         const create = await Bookrecord.create(item)
-        console.log("create>>>", create)
+        //console.log("create>>>", create)
       } catch (error) {
         //console.log("ERRO BOOKRECORD::", error)
       }
@@ -761,7 +761,6 @@ export default class BookrecordsController {
     let query = '1=1'
 
     if (companies_id == undefined || companies_id == null) {
-      console.log('sem empresa 5454')
       throw new BadRequestException('Bad Request', 401, "Sem empresa Selecionada")
     }
     //book ************************************************
@@ -786,8 +785,6 @@ export default class BookrecordsController {
     //side *************************************************
     if (side != undefined)
       query += ` and side = '${side}' `
-
-    console.log("ENTREI UPDATED FILES", query)
 
     try {
       const payLoad = await Database.from('bookrecords')
