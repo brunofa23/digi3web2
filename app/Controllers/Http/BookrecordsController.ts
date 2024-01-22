@@ -246,7 +246,7 @@ export default class BookrecordsController {
           .andWhere('indeximages.companies_id', companies_id)
           .whereRaw(query)
           .delete()
-        console.log(deleteData)
+        //console.log(deleteData)
 
         return response.status(201).send({ deleteData })
       } catch (error) {
@@ -258,7 +258,7 @@ export default class BookrecordsController {
     async function deleteBookrecord(query) {
       try {
 
-        console.log("typebook", typebooks_id)
+        //console.log("typebook", typebooks_id)
         //await Database.rawQuery('delete from `bookrecords` where `typebooks_id` = 12 and `companies_id` = 9 and 1 = 1 and book=1 ')
 
         const data = await Bookrecord
@@ -269,7 +269,7 @@ export default class BookrecordsController {
           .delete()
 
 
-        console.log(data)
+        //console.log(data)
 
         return response.status(201).send({ data })
       } catch (error) {
@@ -686,7 +686,7 @@ export default class BookrecordsController {
       try {
         //console.log("ITEM>>>>>>>>>", item)
         const create = await Bookrecord.create(item)
-        console.log("create>>>", create)
+        //console.log("create>>>", create)
       } catch (error) {
         //console.log("ERRO BOOKRECORD::", error)
       }
@@ -750,6 +750,62 @@ export default class BookrecordsController {
     }
 
   }
+
+
+  public async updatedFiles({ auth, request, response }: HttpContextContract) {
+    //const authenticate = await auth.use('api').authenticate()
+
+    const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side } =
+      request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side'])
+
+    let query = '1=1'
+
+    if (companies_id == undefined || companies_id == null) {
+      throw new BadRequestException('Bad Request', 401, "Sem empresa Selecionada")
+    }
+    //book ************************************************
+    if (bookstart != undefined && bookend == undefined)
+      query += ` and book =${bookstart} `
+    else
+      if (bookstart != undefined && bookend != undefined)
+        query += ` and book >=${bookstart} `
+
+    if (bookend != undefined)
+      query += ` and book <= ${bookend}`
+
+    //sheet **********************************************
+    if (sheetstart != undefined && sheetend == undefined)
+      query += ` and sheet =${sheetstart} `
+    else
+      if (sheetstart != undefined && sheetend != undefined)
+        query += ` and sheet >=${sheetstart} `
+
+    if (sheetend != undefined)
+      query += ` and sheet <= ${sheetend}`
+    //side *************************************************
+    if (side != undefined)
+      query += ` and side = '${side}' `
+
+    try {
+      const payLoad = await Database.from('bookrecords')
+        .innerJoin('indeximages', 'bookrecords.id', 'bookrecords_id')
+        .select('bookrecords.*')
+        .select('indeximages.file_name', 'indeximages.date_atualization')
+        .whereBetween('indeximages.date_atualization', [datestart, dateend])
+        .andWhere('bookrecords.companies_id', companies_id)
+        .whereRaw(query)
+
+      //console.log(payLoad)
+
+      return response.status(200).send(payLoad)
+
+    } catch (error) {
+      return error
+    }
+
+  }
+
+
 
   //********************************************************* */
 }
