@@ -755,22 +755,51 @@ export default class BookrecordsController {
   public async updatedFiles({ auth, request, response }: HttpContextContract) {
     //const authenticate = await auth.use('api').authenticate()
 
-    const { datestart, dateend, companies_id, book, typebooks_id } = request.only(['datestart', 'dateend', 'companies_id', 'book', 'typebooks_id'])
-    console.log("ENTREI UPDATED FILES", datestart, dateend)
+    const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side } =
+      request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side'])
+
     let query = '1=1'
 
-    if (book)
-      query += ` and book =${book}`
+    if (companies_id == undefined || companies_id == null) {
+      console.log('sem empresa 5454')
+      throw new BadRequestException('Bad Request', 401, "Sem empresa Selecionada")
+    }
+    //book ************************************************
+    if (bookstart != undefined && bookend == undefined)
+      query += ` and book =${bookstart} `
+    else
+      if (bookstart != undefined && bookend != undefined)
+        query += ` and book >=${bookstart} `
 
-    console.log('datestart', datestart)
+    if (bookend != undefined)
+      query += ` and book <= ${bookend}`
+
+    //sheet **********************************************
+    if (sheetstart != undefined && sheetend == undefined)
+      query += ` and sheet =${sheetstart} `
+    else
+      if (sheetstart != undefined && sheetend != undefined)
+        query += ` and sheet >=${sheetstart} `
+
+    if (sheetend != undefined)
+      query += ` and sheet <= ${sheetend}`
+    //side *************************************************
+    if (side != undefined)
+      query += ` and side = '${side}' `
+
+    console.log("ENTREI UPDATED FILES", query)
+
     try {
       const payLoad = await Database.from('bookrecords')
         .innerJoin('indeximages', 'bookrecords.id', 'bookrecords_id')
         .select('bookrecords.*')
         .select('indeximages.file_name', 'indeximages.date_atualization')
         .whereBetween('indeximages.date_atualization', [datestart, dateend])
-        //.where('bookrecords.companies_id', companies_id)
+        .andWhere('bookrecords.companies_id', companies_id)
         .whereRaw(query)
+
+      //console.log(payLoad)
+
       return response.status(200).send(payLoad)
 
     } catch (error) {
