@@ -284,28 +284,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 
   try {
-    // const name = await Bookrecord.query()
-    //   .preload('typebooks')
-    //   .where('typebooks_id', '=', typebooks_id)
-    //   .andWhere('companies_id', '=', companies_id)
-    //   .whereRaw(query).first()
-
-    // //retorna o ultimo seq
-    // if (name === null)
-    //   return
-
-    // const _seq = await Indeximage.query()
-    //   .where('bookrecords_id', name.id)
-    //   .andWhere('typebooks_id', '=', typebooks_id)
-    //   .andWhere('companies_id', '=', companies_id)
-    //   .orderBy('seq', 'desc').first()
-    // const seq = (!_seq ? 0 : _seq.seq + 1)
 
     const bookRecord = await Bookrecord.query()
       .preload('indeximage')
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query).first()
+
+
 
     if (bookRecord === null)
       return

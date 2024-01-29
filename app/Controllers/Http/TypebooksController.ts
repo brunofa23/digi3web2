@@ -6,7 +6,6 @@ import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
 import Book from 'App/Models/Book'
 
-
 const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
 
@@ -52,7 +51,6 @@ export default class TypebooksController {
 
     if (!companies_id)
       throw new BadRequest('company not exists', 401)
-
     if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
       data = await Typebook.query()
         .where("companies_id", '=', companies_id)
@@ -152,12 +150,22 @@ export default class TypebooksController {
       return response.status(500).send(errorValidation.code)
 
     }
+  }
 
-    // return {
-    //   message: "Livro excluido com sucesso.",
-    //   data: data
-    // }
 
+  public async allTypebook({ auth, response, request }: HttpContextContract) {
+    await auth.use('api').authenticate()
+    const typebookPayload = request.only(['companies_id'])
+    let data
+    let query = " 1=1 "
+
+    if (typebookPayload.companies_id)
+      query += ` and companies_id=${typebookPayload.companies_id}`
+
+    data = await Typebook.query()
+      .whereRaw(query)
+
+    return response.status(200).send(data)
   }
 
 

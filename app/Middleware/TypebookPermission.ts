@@ -8,10 +8,6 @@ export default class TypebookPermission {
     const authenticate = await auth.use('api').authenticate()
     //console.log("gard TYPEBOOK::>>", customGuards)
 
-    // if (authenticate.superuser || authenticate.permission_level >= 5) {
-    //   await next()
-    // }
-
     for (const guard of customGuards) {
       if (guard === 'get' && authenticate.permission_level >= 0) {
         await next()
