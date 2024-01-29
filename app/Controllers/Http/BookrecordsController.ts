@@ -767,6 +767,10 @@ export default class BookrecordsController {
     if (companies_id == undefined || companies_id == null) {
       throw new BadRequestException('Bad Request', 401, "Sem empresa Selecionada")
     }
+    //typebooks**************************************************
+    if (typebooks_id)
+      query += ` and bookrecords.typebooks_id=${typebooks_id}`
+
     //book ************************************************
     if (bookstart != undefined && bookend == undefined)
       query += ` and book =${bookstart} `
@@ -792,17 +796,16 @@ export default class BookrecordsController {
 
     try {
       const payLoad = await Database.from('bookrecords')
-        .innerJoin('indeximages', (query) => {
-          query.on('indeximages.bookrecords_id', 'bookrecords.id')
+        .innerJoin('indeximages', (queryImages) => {
+          queryImages.on('indeximages.bookrecords_id', 'bookrecords.id')
             .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
             .andOn('indeximages.companies_id', 'bookrecords.companies_id');
         })
         .select('bookrecords.*')
-        .select('indeximages.file_name', 'indeximage  s.date_atualization')
+        .select('indeximages.file_name', 'indeximages.date_atualization')
         .whereBetween('indeximages.date_atualization', [datestart, dateend])
         .andWhere('bookrecords.companies_id', companies_id)
         .whereRaw(query)
-
       //console.log(payLoad)
 
       return response.status(200).send(payLoad)
