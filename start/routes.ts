@@ -14,9 +14,11 @@ Route.group(() => {
   //TYPEBOOK
   Route.get('/typebooks', 'TypebooksController.index')
   Route.get('/typebooks/:id', 'TypebooksController.show').middleware('typebook_permission:get')
+  Route.get('/alltypebook', 'TypebooksController.allTypebook').middleware('typebook_permission:get')
   Route.post('/typebooks', 'TypebooksController.store').middleware('typebook_permission:post')
   Route.patch('/typebooks/:id', 'TypebooksController.update').middleware('typebook_permission:patch')
   Route.delete('/typebooks/:id', 'TypebooksController.destroy').middleware('typebook_permission:destroy')
+
 
   //COMPANIES
   Route.get("/companies", 'CompaniesController.index')

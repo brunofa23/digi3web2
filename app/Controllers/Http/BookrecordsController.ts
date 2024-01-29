@@ -14,6 +14,10 @@ export default class BookrecordsController {
   //Listar Bookrecords
   public async index({ auth, request, params, response }: HttpContextContract) {
 
+
+    console.log("sem anexo>>>", request.only(['noAttachment']))
+
+
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -755,7 +759,7 @@ export default class BookrecordsController {
   public async updatedFiles({ auth, request, response }: HttpContextContract) {
     //const authenticate = await auth.use('api').authenticate()
 
-    const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side } =
+    const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side, typebooks_id } =
       request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side'])
 
     let query = '1=1'
@@ -788,9 +792,13 @@ export default class BookrecordsController {
 
     try {
       const payLoad = await Database.from('bookrecords')
-        .innerJoin('indeximages', 'bookrecords.id', 'bookrecords_id')
+        .innerJoin('indeximages', (query) => {
+          query.on('indeximages.bookrecords_id', 'bookrecords.id')
+            .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
+            .andOn('indeximages.companies_id', 'bookrecords.companies_id');
+        })
         .select('bookrecords.*')
-        .select('indeximages.file_name', 'indeximages.date_atualization')
+        .select('indeximages.file_name', 'indeximage  s.date_atualization')
         .whereBetween('indeximages.date_atualization', [datestart, dateend])
         .andWhere('bookrecords.companies_id', companies_id)
         .whereRaw(query)
