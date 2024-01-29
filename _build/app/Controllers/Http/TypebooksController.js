@@ -116,6 +116,17 @@ class TypebooksController {
             return response.status(500).send(errorValidation.code);
         }
     }
+    async allTypebook({ auth, response, request }) {
+        await auth.use('api').authenticate();
+        const typebookPayload = request.only(['companies_id']);
+        let data;
+        let query = " 1=1 ";
+        if (typebookPayload.companies_id)
+            query += ` and companies_id=${typebookPayload.companies_id}`;
+        data = await Typebook_1.default.query()
+            .whereRaw(query);
+        return response.status(200).send(data);
+    }
 }
 exports.default = TypebooksController;
 //# sourceMappingURL=TypebooksController.js.map

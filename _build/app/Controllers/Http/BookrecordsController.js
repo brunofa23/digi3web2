@@ -14,6 +14,7 @@ const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typ
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
+        console.log("sem anexo>>>", request.only(['noAttachment']));
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData;
         let query = " 1=1 ";
@@ -556,11 +557,13 @@ class BookrecordsController {
         }
     }
     async updatedFiles({ auth, request, response }) {
-        const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side } = request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side']);
+        const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side, typebooks_id } = request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side']);
         let query = '1=1';
         if (companies_id == undefined || companies_id == null) {
             throw new BadRequestException_1.default('Bad Request', 401, "Sem empresa Selecionada");
         }
+        if (typebooks_id)
+            query += ` and bookrecords.typebooks_id=${typebooks_id}`;
         if (bookstart != undefined && bookend == undefined)
             query += ` and book =${bookstart} `;
         else if (bookstart != undefined && bookend != undefined)
@@ -577,7 +580,11 @@ class BookrecordsController {
             query += ` and side = '${side}' `;
         try {
             const payLoad = await Database_1.default.from('bookrecords')
-                .innerJoin('indeximages', 'bookrecords.id', 'bookrecords_id')
+                .innerJoin('indeximages', (queryImages) => {
+                queryImages.on('indeximages.bookrecords_id', 'bookrecords.id')
+                    .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
+                    .andOn('indeximages.companies_id', 'bookrecords.companies_id');
+            })
                 .select('bookrecords.*')
                 .select('indeximages.file_name', 'indeximages.date_atualization')
                 .whereBetween('indeximages.date_atualization', [datestart, dateend])

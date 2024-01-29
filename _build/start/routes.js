@@ -14,6 +14,7 @@ Route_1.default.group(() => {
     Route_1.default.delete("/books/:id", 'BooksController.destroy').middleware("level_permission:destroy");
     Route_1.default.get('/typebooks', 'TypebooksController.index');
     Route_1.default.get('/typebooks/:id', 'TypebooksController.show').middleware('typebook_permission:get');
+    Route_1.default.get('/alltypebook', 'TypebooksController.allTypebook').middleware('typebook_permission:get');
     Route_1.default.post('/typebooks', 'TypebooksController.store').middleware('typebook_permission:post');
     Route_1.default.patch('/typebooks/:id', 'TypebooksController.update').middleware('typebook_permission:patch');
     Route_1.default.delete('/typebooks/:id', 'TypebooksController.destroy').middleware('typebook_permission:destroy');
