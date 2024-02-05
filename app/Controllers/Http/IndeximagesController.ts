@@ -119,18 +119,21 @@ export default class IndeximagesController {
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
 
+    console.log("UPLOADS 7788")
 
     if (indexImagesInitial == 'true') {
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
       })
+
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages)
-      //console.log("LISTA DE ARQUIVOS...", sendFiles)
+      //console.log("LISTA DE ARQUIVOS 77777...", listFiles)
+
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
-          console.log("CREATE>>>>", item)
+          //console.log("CREATE 15001>>>>", item)
         } catch (error) {
           console.log("ERRO BOOKRECORD::", error)
         }
@@ -145,7 +148,9 @@ export default class IndeximagesController {
       }
     }
 
+
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
+    console.log("upload 1222", files)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }

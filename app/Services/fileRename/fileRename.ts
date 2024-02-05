@@ -46,13 +46,15 @@ async function downloadImage(fileName, typebook_id, company_id) {
   const extension = path.extname(fileName);
   const fileId = await authorize.sendSearchFile(fileName, parent[0].id)
   const download = await authorize.sendDownloadFile(fileId[0].id, extension)
-  console.log("DOWNLOAD>>>", download.size)
+  //console.log("DOWNLOAD>>>", download.size)
 
   return download
 }
 
 
 async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
+
+  console.log("dataimages 33333", dataImages)
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
@@ -138,7 +140,7 @@ async function renameFileGoogle(filename, folderPath, newTitle) {
     const idFolderPath = await authorize.sendSearchFile(folderPath)
     const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id)
     const renameFile = await authorize.sendRenameFile(idFile[0].id, newTitle)
-    console.log("SUCESSO>>>", renameFile)
+    //console.log("SUCESSO>>>", renameFile)
   } catch (error) {
     console.log("ERROR 1456", error)
   }
@@ -171,7 +173,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
     }
     //chamar função de exclusão da imagem
     await deleteImage(`${folderPath}/${objfileRename.file_name}`)
-    console.log("DELETE>>", `${folderPath}/${objfileRename.file_name}`)
+    //console.log("DELETE>>", `${folderPath}/${objfileRename.file_name}`)
 
   } catch (error) {
     throw new BadRequestException(error + ' sendUploadFiles', 409)
@@ -330,8 +332,7 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
   let dateNow: DateTime = DateTime.now()
   dateNow = dateNow.toFormat('yyyyMMddHHmm')
 
-  // const teste = `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
-  // console.log("NOME DO ARQUIVO>>", teste)
+  console.log("NOME DO ARQUIVO 2000>>", extFile)
 
   return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
 }
@@ -401,6 +402,7 @@ async function totalFilesInFolder(folderName) {
 //**************************************************** */
 
 async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
+
   let listFiles
   if (listFilesImages.length > 0) {
     listFiles = listFilesImages
@@ -410,6 +412,7 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
 
   listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"))
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
+
   const objlistFilesBookRecord = listFiles.map((file) => {
     const fileSplit = file.split("_")
     const id = fileSplit[0].match(/\d+/g)[0];
