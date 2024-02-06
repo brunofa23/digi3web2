@@ -30,7 +30,7 @@ export default class IndeximagesController {
   }
 
   public async index({ auth, response }) {
-    console.log("TESTE INDEX API......")
+
     await auth.use('api').authenticate()
 
     const data = await Indeximage.query()
@@ -118,9 +118,7 @@ export default class IndeximagesController {
     })
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
-
-    console.log("UPLOADS 7788")
-
+    //console.log("UPLOADS 7788")
     if (indexImagesInitial == 'true') {
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
@@ -128,7 +126,8 @@ export default class IndeximagesController {
       })
 
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages)
-      //console.log("LISTA DE ARQUIVOS 77777...", listFiles)
+      // console.log("upload 1222", listFiles)
+      // return
 
       for (const item of listFiles.bookRecord) {
         try {
@@ -138,19 +137,18 @@ export default class IndeximagesController {
           console.log("ERRO BOOKRECORD::", error)
         }
       }
-      for (const item of listFiles.indexImages) {
-        try {
-          await Indeximage.create(item)
-        } catch (error) {
-          console.log("ERRO indeximage::", error)
+      // for (const item of listFiles.indexImages) {
+      //   try {
+      //     await Indeximage.create(item)
+      //     console.log("CREATE 15001>>>>", item)
+      //   } catch (error) {
+      //     console.log("ERRO indeximage::", error)
 
-        }
-      }
+      //   }
+      // }
     }
 
-
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
-    console.log("upload 1222", files)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
@@ -171,7 +169,7 @@ export default class IndeximagesController {
 
     const dateNow = formatDate.formatDate(new Date)
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
-    console.log("FILENAME:::", file_name)
+    //console.log("FILENAME:::", file_name)
 
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
       console.log('File created', { folderPath })
@@ -188,7 +186,7 @@ export default class IndeximagesController {
     const body = request.only(Indeximage.fillable)
     const fileName = params.id
 
-    console.log("PASSEI NO DOWNLOAD DE IMAGENS...", fileName, typebook_id, authenticate.companies_id)
+    //console.log("PASSEI NO DOWNLOAD DE IMAGENS...", fileName, typebook_id, authenticate.companies_id)
     const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id)
 
     return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }

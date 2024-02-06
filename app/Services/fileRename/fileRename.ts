@@ -54,7 +54,6 @@ async function downloadImage(fileName, typebook_id, company_id) {
 
 async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
 
-  console.log("dataimages 33333", dataImages)
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
@@ -65,7 +64,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
       fs.mkdirSync(folderPath)
     }
   } catch (error) {
-    throw new BadRequestException('could not create client directory', 409)
+    throw new BadRequestException('could not create client directory', 409, error)
   }
   const directoryParent = await Typebook.query()
     .where('id', '=', params.typebooks_id)
@@ -104,6 +103,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     }
   }
 
+
   let cont = 0
   let _fileRename
   //console.log("PASSEI AQUI>>>>1924")
@@ -121,7 +121,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     }
 
     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
-
     try {
       if (image && image.isValid) {
         //        console.log("Salvando arquivo", image)
@@ -214,7 +213,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       previous_file_name: originalFileName,
       typeBookFile: true
     }
-    //console.log("FILE RENAME>>>", fileRename)
+    //console.log("FILE RENAME LINHA 219>>>", fileRename)
     return fileRename
   } else
     if (regexBookAndCod.test(originalFileName.toUpperCase())) {
@@ -244,13 +243,17 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       //ARQUIVOS QUE INICIAM COM ID
       else if (path.basename(originalFileName).startsWith('Id')) {
         const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
+
         objFileName = {
           id: arrayFileName[0].replace('Id', ''),
           cod: arrayFileName[1].replace('(', '').replace(')', ''),
-          ext: `.${arrayFileName[4]}`
+          ext: `.${arrayFileName[arrayFileName.length - 1]}`
         }
         originalFileName = path.basename(originalFileName)
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `
+
+        //console.log("FILE RENAME 250>>>", arrayFileName)
+
 
       }
       //ARQUIVOS COM A MÁSCARA T1(121)
@@ -332,7 +335,7 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
   let dateNow: DateTime = DateTime.now()
   dateNow = dateNow.toFormat('yyyyMMddHHmm')
 
-  console.log("NOME DO ARQUIVO 2000>>", extFile)
+  //console.log("NOME DO ARQUIVO 2000>>", extFile)
 
   return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
 }
@@ -409,7 +412,6 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   } else {
     listFiles = await totalFilesInFolder(folderName?.path)
   }
-
   listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"))
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
 
@@ -434,6 +436,8 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
     }
 
   });
+
+
   const indexImages = listFiles.map((file) => {
     const fileSplit = file.split("_")
     const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
@@ -456,8 +460,10 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
     return false;
   });
 
+
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
+
   return { bookRecord, indexImages }
 
 
