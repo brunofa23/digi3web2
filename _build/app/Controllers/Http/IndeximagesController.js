@@ -24,7 +24,6 @@ class IndeximagesController {
         }
     }
     async index({ auth, response }) {
-        console.log("TESTE INDEX API......");
         await auth.use('api').authenticate();
         const data = await Indeximage_1.default.query()
             .preload('typebooks', (queryIndex) => {
@@ -105,18 +104,9 @@ class IndeximagesController {
             for (const item of listFiles.bookRecord) {
                 try {
                     await Bookrecord_1.default.create(item);
-                    console.log("CREATE>>>>", item);
                 }
                 catch (error) {
                     console.log("ERRO BOOKRECORD::", error);
-                }
-            }
-            for (const item of listFiles.indexImages) {
-                try {
-                    await Indeximage_1.default.create(item);
-                }
-                catch (error) {
-                    console.log("ERRO indeximage::", error);
                 }
             }
         }
@@ -138,7 +128,6 @@ class IndeximagesController {
         }
         const dateNow = formatDate.formatDate(new Date);
         const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`;
-        console.log("FILENAME:::", file_name);
         fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
             console.log('File created', { folderPath });
         });
@@ -150,7 +139,6 @@ class IndeximagesController {
         const { typebook_id } = request.only(['typebook_id']);
         const body = request.only(Indeximage_1.default.fillable);
         const fileName = params.id;
-        console.log("PASSEI NO DOWNLOAD DE IMAGENS...", fileName, typebook_id, authenticate.companies_id);
         const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id);
         return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size };
     }

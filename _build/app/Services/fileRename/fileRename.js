@@ -41,7 +41,6 @@ async function downloadImage(fileName, typebook_id, company_id) {
     const extension = path.extname(fileName);
     const fileId = await authorize.sendSearchFile(fileName, parent[0].id);
     const download = await authorize.sendDownloadFile(fileId[0].id, extension);
-    console.log("DOWNLOAD>>>", download.size);
     return download;
 }
 async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
@@ -54,7 +53,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         }
     }
     catch (error) {
-        throw new BadRequestException_1.default('could not create client directory', 409);
+        throw new BadRequestException_1.default('could not create client directory', 409, error);
     }
     const directoryParent = await Typebook_1.default.query()
         .where('id', '=', params.typebooks_id)
@@ -112,7 +111,6 @@ async function renameFileGoogle(filename, folderPath, newTitle) {
         const idFolderPath = await authorize.sendSearchFile(folderPath);
         const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id);
         const renameFile = await authorize.sendRenameFile(idFile[0].id, newTitle);
-        console.log("SUCESSO>>>", renameFile);
     }
     catch (error) {
         console.log("ERROR 1456", error);
@@ -139,7 +137,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
             await Indeximage_1.default.create(objfileRename);
         }
         await deleteImage(`${folderPath}/${objfileRename.file_name}`);
-        console.log("DELETE>>", `${folderPath}/${objfileRename.file_name}`);
     }
     catch (error) {
         throw new BadRequestException_1.default(error + ' sendUploadFiles', 409);
@@ -202,7 +199,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         objFileName = {
             id: arrayFileName[0].replace('Id', ''),
             cod: arrayFileName[1].replace('(', '').replace(')', ''),
-            ext: `.${arrayFileName[4]}`
+            ext: `.${arrayFileName[arrayFileName.length - 1]}`
         };
         originalFileName = path.basename(originalFileName);
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `;
