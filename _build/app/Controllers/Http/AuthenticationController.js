@@ -33,10 +33,8 @@ class AuthenticationController {
         }
         const token = await auth.use('api').generate(user, {
             expiresIn: '7 days',
-            name: 'For the CLI app'
+            name: username
         });
-        logtail.debug("debug", { token, user });
-        logtail.flush();
         return response.status(200).send({ token, user });
     }
     async logout({ auth }) {
