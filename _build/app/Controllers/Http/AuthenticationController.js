@@ -8,8 +8,6 @@ const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash")
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const luxon_1 = require("luxon");
-const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
 class AuthenticationController {
     async login({ auth, request, response }) {
         const username = request.input('username');
