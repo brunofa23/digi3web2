@@ -5,9 +5,6 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import { DateTime } from 'luxon'
 
-const { Logtail } = require("@logtail/node");
-const logtail = new Logtail("2QyWC3ehQAWeC6343xpMSjTQ");
-
 export default class AuthenticationController {
 
   public async login({ auth, request, response }: HttpContextContract) {
