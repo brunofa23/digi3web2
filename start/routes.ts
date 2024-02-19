@@ -75,7 +75,13 @@ Route.group(() => {
 
   //TOKEN
   Route.post("/token", "TokensController.store")
-  //Route.get("/token", "TokensController.index")
+
+  //EVENTTYPES
+  Route.resource("eventtypes", "EventtypesController").apiOnly()
+
+  //EVENTS
+  Route.resource("events", "EventsController").apiOnly()
+
 
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
