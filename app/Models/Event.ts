@@ -1,6 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
-
+import { BaseModel, column, hasOne, HasOne } from '@ioc:Adonis/Lucid/Orm'
+import Company from "./Company"
+import User from './User'
+import Eventtype from './Eventtype'
 export default class Event extends BaseModel {
 
   public static get fillable() {
@@ -14,6 +16,26 @@ export default class Event extends BaseModel {
       'response',
     ]
   }
+
+  @hasOne(() => Company, {
+    foreignKey: 'id',
+    localKey: 'companies_id'
+  })
+  public company: HasOne<typeof Company>
+
+
+  @hasOne(() => User, {
+    foreignKey: 'id',
+    localKey: 'user_id'
+  })
+  public user: HasOne<typeof User>
+
+  @hasOne(() => Eventtype, {
+    foreignKey: 'id',
+    localKey: 'eventtype_id'
+  })
+  public eventtype: HasOne<typeof Eventtype>
+
 
   @column({ isPrimary: true })
   public id: number

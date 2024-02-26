@@ -5,11 +5,21 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 export default class EventsController {
 
     public async index({ auth, response, request }) {
+        console.log("CHAMEI API EVENTOS...")
         const authenticate = await auth.use('api').authenticate()
 
         try {
             const event = await Event
                 .query()
+                .preload('company', query => {
+                    query.select('name')
+                })
+                .preload('user', query => {
+                    query.select('name')
+                })
+                .preload('eventtype', query => {
+                    query.select('name')
+                })
             return response.status(200).send(event)
         } catch (error) {
             throw new BadRequest('Bad Request', 401, 'erro')
