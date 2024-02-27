@@ -5,9 +5,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 export default class EventsController {
 
     public async index({ auth, response, request }) {
-        console.log("CHAMEI API EVENTOS...")
         const authenticate = await auth.use('api').authenticate()
-
         try {
             const event = await Event
                 .query()
@@ -30,42 +28,32 @@ export default class EventsController {
 
 
     public async store({ request, response }: HttpContextContract) {
+        //const authenticate = await auth.use('api').authenticate()
         const body = request.only(Event.fillable)
-        response.send(body)
+        //console.log("EVENTOS STORE>>", body)
         const data = await Event.create(body)
-
-        response.status(201)
-        return {
-            message: "Criado com sucesso",
-            data: data,
-        }
+        return response.status(201).send(data)
 
     }
 
 
-    public async update({ request, params }: HttpContextContract) {
+    public async update({ request, params, response }: HttpContextContract) {
         const body = request.only(Event.fillable)
         body.id = params.id
+        //console.log("data>>44:", body)
         const data = await Event.findOrFail(body.id)
+        body.createdAt = data.$attributes.createdAt
         await data.fill(body).save()
-        return {
-            message: 'Tipo de Livro alterado com sucesso!!',
-            data: data,
-            body: body,
-            params: params.id
-        }
+        return response.status(201).send(data)
+
 
     }
 
-    public async destroy({ params }: HttpContextContract) {
-        const data = await Book.findOrFail(params.id)
-
+    public async destroy({ params, response }: HttpContextContract) {
+        const data = await Event.findOrFail(params.id)
         await data.delete()
+        return response.status(204).send({ message: "Excluido" })
 
-        return {
-            message: "Livro excluido com sucesso.",
-            data: data
-        }
 
     }
 
