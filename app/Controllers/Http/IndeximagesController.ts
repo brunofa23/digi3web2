@@ -113,7 +113,7 @@ export default class IndeximagesController {
   public async uploads({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const images = request.files('images', {
-      size: '8mb',
+      size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
     const { dataImages } = request['requestBody']
