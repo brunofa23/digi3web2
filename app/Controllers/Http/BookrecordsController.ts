@@ -154,6 +154,7 @@ export default class BookrecordsController {
 
     try {
       const data = await Bookrecord.create(body)
+
       return response.status(201).send(data)
 
     } catch (error) {

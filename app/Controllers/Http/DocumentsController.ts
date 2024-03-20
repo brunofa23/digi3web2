@@ -9,12 +9,9 @@ const fileRename = require('../../Services/fileRename/fileRename')
 
 export default class DocumentsController {
 
-
     public async index({ auth, request, params, response }: HttpContextContract) {
-
         const documentPayload = request.only(Document.fillable)
         console.log("ONLY>>")
-
         try {
             const data = await Document.all()//.whereILike('stringfield1', `%${documentPayload.stringfield1}%`)
             //console.log("DATA", data)
@@ -22,8 +19,6 @@ export default class DocumentsController {
         } catch (error) {
             return error
         }
-
-
 
 
     }
