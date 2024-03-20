@@ -8,10 +8,10 @@ export default class extends BaseSchema {
       table.increments('id').notNullable()
       table.integer('documents_id').notNullable().unsigned().references('documents.id').onDelete('CASCADE')
 
-      table.string('cod')
       table.string('prot')
       table.string('box')
-      table.string('classification')
+      table.string('month')
+      table.string('year')
 
       table.string('intfield1')
       table.string('stringfield1')

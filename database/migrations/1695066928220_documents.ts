@@ -6,17 +6,13 @@ export default class extends BaseSchema {
   public async up() {
     this.schema.createTable(this.tableName, (table) => {
 
-      table.primary(['id', 'typebooks_id', 'books_id', 'companies_id'])
-      table.increments('id')
+      table.increments('id').notNullable().unsigned()
+      table.integer('bookrecords_id').notNullable().unsigned().references('bookrecords.id').onDelete('CASCADE')
 
-      table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id')
-      table.integer('books_id').notNullable().unsigned().references('typebooks.books_id').onDelete('CASCADE')
-      table.integer('companies_id').notNullable().unsigned().references('companies.id').onDelete('CASCADE')
-
-      table.integer('cod')
-      table.integer('prot')
       table.integer('box')
-      table.integer('classification')
+      table.integer('prot')
+      table.integer('year')
+      table.integer('month')
 
       table.integer('intfield1')
       table.string('stringfield1', 350)

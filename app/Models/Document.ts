@@ -9,13 +9,10 @@ export default class Document extends BaseModel {
   public static get fillable() {
     return [
       'id',
-      'typebooks_id',
-      'books_id',
-      'companies_id',
-      'cod',
-      'prot',
       'box',
-      'classification',
+      'prot',
+      'year',
+      'month',
       'intfield1',
       'stringfield1',
       'datefield1',
@@ -65,111 +62,85 @@ export default class Document extends BaseModel {
   public id: number
 
   @column()
-  public typebooks_id: number
-
+  public box: number
   @column()
-  public companies_id: number
-
+  public year: number
   @column()
-  public books_id: number
-
-  @column()
-  public cod: number
-
+  public month: number
   @column()
   public prot: number
-
-  @column()
-  public box: number
-
-  @column()
-  public classification: number
-
   @column()
   public intfield1: number
-
   @column()
   public stringfield1: string
   @column()
   public datefield1: DateTime
-
   @column()
   public intfield2: number
   @column()
   public stringfield2: string
   @column()
   public datefield2: DateTime
-
   @column()
   public intfield3: number
   @column()
   public stringfield3: string
   @column()
   public datefield3: DateTime
-
   @column()
   public intfield4: number
   @column()
   public stringfield4: string
   @column()
   public datefield4: DateTime
-
   @column()
   public intfield5: number
   @column()
   public stringfield5: string
   @column()
   public datefield5: DateTime
-
   @column()
   public intfield6: number
   @column()
   public stringfield6: string
   @column()
   public datefield6: DateTime
-
   @column()
   public intfield7: number
   @column()
   public stringfield7: string
   @column()
   public datefield7: DateTime
-
   @column()
   public intfield8: number
   @column()
   public stringfield8: string
   @column()
   public datefield8: DateTime
-
   @column()
   public intfield9: number
   @column()
   public stringfield9: string
   @column()
   public datefield9: DateTime
-
   @column()
   public intfield10: number
   @column()
   public stringfield10: string
   @column()
   public datefield10: DateTime
-
   @column()
   public intfield11: number
   @column()
   public stringfield11: string
   @column()
   public datefield11: DateTime
-
   @column()
   public intfield12: number
   @column()
   public stringfield12: string
   @column()
   public datefield12: DateTime
-
   @column()
   public intfield13: number
   @column()

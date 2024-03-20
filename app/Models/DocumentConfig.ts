@@ -9,6 +9,8 @@ export default class DocumentConfig extends BaseModel {
       'cod',
       'prot',
       'box',
+      'month',
+      'year',
       'classification',
       'intfield1',
       'stringfield1',
@@ -60,16 +62,17 @@ export default class DocumentConfig extends BaseModel {
   public documents_id: number
 
   @column()
-  public cod: string
-
-  @column()
   public prot: string
 
   @column()
   public box: string
 
   @column()
-  public classification: string
+  public month: string
+
+  @column()
+  public year: string
+
 
   @column()
   public intfield1: string
