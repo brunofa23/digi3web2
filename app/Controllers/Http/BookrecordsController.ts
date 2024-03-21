@@ -7,17 +7,15 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import Typebook from 'App/Models/Typebook'
+import Document from 'App/Models/Document'
+import BookrecordValidator from 'App/Validators/BookrecordValidator'
+import DocumentValidator from 'App/Validators/DocumentValidator'
 const fileRename = require('../../Services/fileRename/fileRename')
 
 export default class BookrecordsController {
 
   //Listar Bookrecords
   public async index({ auth, request, params, response }: HttpContextContract) {
-
-
-    console.log("sem anexo>>>", request.only(['noAttachment']))
-
-
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -148,13 +146,20 @@ export default class BookrecordsController {
   }
 
   public async store({ auth, request, params, response }: HttpContextContract) {
+    //console.log("PASSEI NO STORE...", request.body())
     const { companies_id } = await auth.use('api').authenticate()
-    const body = request.only(Bookrecord.fillable)
+    const body = await request.validate(BookrecordValidator)
+    const { document } = await request.only(['document'])
     body.companies_id = companies_id
+
 
     try {
       const data = await Bookrecord.create(body)
-
+      if (body.books_id == 13) {
+        //body.document.bookrecords_id = data.id
+        console.log("Salvar documentos aqui...", document)
+        //const dataDocument = await Document.create(body.document)
+      }
       return response.status(201).send(data)
 
     } catch (error) {
@@ -165,7 +170,7 @@ export default class BookrecordsController {
   }
 
   public async update({ auth, request, params, response }: HttpContextContract) {
-
+    console.log("Passei generateOrUpdateBookrecords...")
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
 
@@ -354,7 +359,7 @@ export default class BookrecordsController {
 
   //Cria uma linha 
   public async createorupdatebookrecords({ auth, request, response }) {
-
+    console.log("Passei createorupdatebookrecords...")
     const authenticate = await auth.use('api').authenticate()
     const _request = request.requestBody
     let newRecord: Object[] = []
@@ -411,6 +416,7 @@ export default class BookrecordsController {
 
   //gera ou substitui um livro
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
+    console.log("Passei generateOrUpdateBookrecords...")
     const authenticate = await auth.use('api').authenticate()
 
     let {
