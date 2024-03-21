@@ -13,7 +13,7 @@ export default class BookrecordValidator {
     sheet: schema.number.optional([rules.range(1, 10000000000)]),
     side: schema.string.optional(),
     approximate_term: schema.number(),
-    indexbook: schema.number.optional([rules.range(1, 5)]),
+    indexbook: schema.number.optional([rules.range(1, 99)]),
     obs: schema.string.optional([rules.maxLength(255)]),
     letter: schema.string.optional(),
     year: schema.string.nullableAndOptional(),

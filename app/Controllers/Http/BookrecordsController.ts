@@ -11,6 +11,9 @@ import Document from 'App/Models/Document'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
 import DocumentValidator from 'App/Validators/DocumentValidator'
 const fileRename = require('../../Services/fileRename/fileRename')
+import { validator, schema } from '@ioc:Adonis/Core/Validator'
+
+
 
 export default class BookrecordsController {
 
@@ -146,19 +149,17 @@ export default class BookrecordsController {
   }
 
   public async store({ auth, request, params, response }: HttpContextContract) {
-    //console.log("PASSEI NO STORE...", request.body())
     const { companies_id } = await auth.use('api').authenticate()
     const body = await request.validate(BookrecordValidator)
-    const { document } = await request.only(['document'])
+    const bodyDocument = await request.validate(DocumentValidator)
     body.companies_id = companies_id
-
 
     try {
       const data = await Bookrecord.create(body)
-      if (body.books_id == 13) {
-        //body.document.bookrecords_id = data.id
-        console.log("Salvar documentos aqui...", document)
-        //const dataDocument = await Document.create(body.document)
+      if (body.books_id == 13 && data.id) {
+        bodyDocument.bookrecords_id = data.id
+        console.log("Salvar documentos aqui...", bodyDocument)
+        await Document.create(bodyDocument)
       }
       return response.status(201).send(data)
 

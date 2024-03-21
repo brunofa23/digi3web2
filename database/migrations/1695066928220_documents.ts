@@ -11,7 +11,6 @@ export default class extends BaseSchema {
 
       table.integer('box')
       table.integer('prot')
-      table.integer('year')
       table.integer('month')
 
       table.integer('intfield1')
