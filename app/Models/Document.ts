@@ -1,8 +1,6 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, HasMany, hasMany, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
-import Indeximage from './Indeximage'
-import Typebook from './Typebook'
-import Company from './Company'
+import Bookrecord from './Bookrecord'
 
 export default class Document extends BaseModel {
 
@@ -13,6 +11,7 @@ export default class Document extends BaseModel {
       'box',
       'prot',
       'month',
+      'yeardoc',
       'intfield1',
       'stringfield1',
       'datefield1',
@@ -56,7 +55,11 @@ export default class Document extends BaseModel {
     ]
   }
 
-
+  @hasOne(() => Bookrecord, {
+    foreignKey: 'id',
+    localKey: 'bookrecords_id'
+  })
+  public bookrecord: HasOne<typeof Bookrecord>
 
   @column({ isPrimary: true })
   public id: number
@@ -66,6 +69,8 @@ export default class Document extends BaseModel {
   public box: number
   @column()
   public month: number
+  @column()
+  public yeardoc: number
   @column()
   public prot: number
   @column()

@@ -10,6 +10,7 @@ export default class DocumentValidator {
     box: schema.number.nullableAndOptional(),
     prot: schema.number.nullableAndOptional(),
     month: schema.number.nullableAndOptional([rules.range(1, 12)]),
+    yeardoc: schema.number.nullableAndOptional(),
     intfield1: schema.number.nullableAndOptional(),
     stringfield1: schema.string.nullableAndOptional(),
     datefield1: schema.date.nullableAndOptional(),

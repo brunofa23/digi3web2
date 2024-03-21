@@ -12,6 +12,7 @@ export default class extends BaseSchema {
       table.integer('box')
       table.integer('prot')
       table.integer('month')
+      table.integer('yeardoc')
 
       table.integer('intfield1')
       table.string('stringfield1', 350)

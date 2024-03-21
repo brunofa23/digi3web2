@@ -20,6 +20,15 @@ export default class BookrecordsController {
   //Listar Bookrecords
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
+    // const result = Bookrecord.query()
+    //   .where('companies_id', '=', authenticate.companies_id)
+    //   .andWhere('typebooks_id', '=', params.typebooks_id)
+    //   .andWhere('id', 669133)
+    //   .preload('document')
+    // return result
+
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -28,13 +37,13 @@ export default class BookrecordsController {
       letter,
       sheetstart, sheetend,
       side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData
+
     let query = " 1=1 "
+
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
       (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
       return null
     else {
-
-
       //cod**************************************************
       if (codstart != undefined && codend == undefined)
         query += ` and cod =${codstart} `
@@ -132,6 +141,7 @@ export default class BookrecordsController {
           queryIndex.where("typebooks_id", '=', params.typebooks_id)
             .andWhere("companies_id", '=', authenticate.companies_id)
         })
+        .preload('document')
         .whereRaw(query)
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
