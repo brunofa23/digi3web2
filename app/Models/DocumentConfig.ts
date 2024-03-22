@@ -7,6 +7,8 @@ export default class DocumentConfig extends BaseModel {
   public static get fillable() {
     return [
       'cod',
+      'typebooks_id',
+      'companies_id',
       'box',
       'prot',
       'month',
@@ -58,7 +60,10 @@ export default class DocumentConfig extends BaseModel {
   public id: number
 
   @column()
-  public documents_id: number
+  public typebooks_id: number
+
+  @column()
+  public companies_id: number
 
   @column()
   public prot: string

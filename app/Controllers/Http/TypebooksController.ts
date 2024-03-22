@@ -5,6 +5,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
 import Book from 'App/Models/Book'
+import DocumentConfig from 'App/Models/DocumentConfig'
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
@@ -21,6 +22,12 @@ export default class TypebooksController {
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(typebookPayload)
+
+      if (data.$attributes.books_id == 13) {
+        console.log("criando document config....", data.$attributes.id)
+        await DocumentConfig.create({ typebooks_id: data.$attributes.id, companies_id: authenticate.companies_id })
+      }
+
       const path = `Client_${typebookPayload.companies_id}.Book_${data.id}.${book?.namefolder}`
 
       await Typebook.query().where('id', '=', data.id)
@@ -44,6 +51,7 @@ export default class TypebooksController {
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
 
+    console.log("index typpebook...")
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
@@ -105,6 +113,7 @@ export default class TypebooksController {
 
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
+
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).firstOrFail()
 

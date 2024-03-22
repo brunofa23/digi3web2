@@ -12,7 +12,7 @@ import Indeximage from './Indeximage'
 import Book from './Book'
 import Company from './Company'
 import Bookrecord from './Bookrecord'
-
+import DocumentConfig from './DocumentConfig'
 export default class Typebook extends BaseModel {
   public static get fillable() {
     return [
@@ -34,6 +34,13 @@ export default class Typebook extends BaseModel {
     localKey: 'id'
   })
   public bookrecords: HasMany<typeof Bookrecord>
+
+  @hasMany(() => DocumentConfig, {
+    foreignKey: 'typebooks_id',
+    localKey: 'id'
+  })
+  public documentconfig: HasMany<typeof DocumentConfig>
+
 
   @hasMany(() => Indeximage, {
     foreignKey: 'typebooks_id',

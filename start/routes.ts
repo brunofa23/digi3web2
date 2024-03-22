@@ -54,6 +54,9 @@ Route.group(() => {
   Route.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store')
   Route.patch("/typebooks/:typebooks_id/documents/:id", 'DocumentsController.update')
 
+  //DOCUMENT_CONFIG
+  Route.resource("documentconfig", "DocumentconfigsController")
+
 
   //INDEXIMAGES
   //Route.resource("/indeximages", "IndeximagesController").apiOnly()
