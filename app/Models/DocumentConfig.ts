@@ -7,11 +7,10 @@ export default class DocumentConfig extends BaseModel {
   public static get fillable() {
     return [
       'cod',
-      'prot',
       'box',
+      'prot',
       'month',
-      'year',
-      'classification',
+      'yeardoc',
       'intfield1',
       'stringfield1',
       'datefield1',
@@ -71,8 +70,7 @@ export default class DocumentConfig extends BaseModel {
   public month: string
 
   @column()
-  public year: string
-
+  public yeardoc: string
 
   @column()
   public intfield1: string
