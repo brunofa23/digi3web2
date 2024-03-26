@@ -27,7 +27,7 @@ export default class BookrecordsController {
     //   .andWhere('id', 669133)
     //   .preload('document')
     // return result
-    console.log("teste 123...", request.requestData)
+    //console.log("teste 123...", request.requestData)
 
     const { codstart, codend,
       bookstart, bookend,
