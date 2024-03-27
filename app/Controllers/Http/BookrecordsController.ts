@@ -18,16 +18,8 @@ import { validator, schema } from '@ioc:Adonis/Core/Validator'
 export default class BookrecordsController {
 
   //Listar Bookrecords
-  public async index({ auth, request, params, response }: HttpContextContract) {
+  public async index1({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
-    // const result = Bookrecord.query()
-    //   .where('companies_id', '=', authenticate.companies_id)
-    //   .andWhere('typebooks_id', '=', params.typebooks_id)
-    //   .andWhere('id', 669133)
-    //   .preload('document')
-    // return result
-    //console.log("teste 123...", request.requestData)
 
     const { codstart, codend,
       bookstart, bookend,
@@ -105,7 +97,6 @@ export default class BookrecordsController {
     const page = request.input('page', 1)
     const limit = Env.get('PAGINATION')
 
-
     let data
     if (noAttachment) {
       data = await Bookrecord.query()
@@ -147,6 +138,206 @@ export default class BookrecordsController {
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
         .paginate(page, limit)
+    }
+    return response.status(200).send(data)
+  }
+
+  public async index({ auth, request, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const { codstart, codend,
+      bookstart, bookend,
+      approximateterm,
+      indexbook,
+      year,
+      letter,
+      sheetstart, sheetend,
+      side, obs, sheetzero,
+      noAttachment,
+      lastPagesOfEachBook,
+      codMax,
+      //VARIÁVEIS DE DOCUMENTO
+      document,
+      prot,
+      month,
+      yeardoc,
+      intfield1,
+      stringfield1,
+      datefield1,
+      intfield2,
+      stringfield2,
+      datefield2,
+      intfield3,
+      stringfield3,
+      datefield3,
+      intfield4,
+      stringfield4,
+      datefield4,
+    }
+      = request.requestData
+
+    let query = " 1=1 "
+    let queryDocument = "1=1"
+    let queryParams = []
+
+    if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
+      return null
+    else {
+      //cod**************************************************
+      if (codstart != undefined && codend == undefined)
+        query += ` and cod =${codstart} `
+      else
+        if (codstart != undefined && codend != undefined)
+          query += ` and cod >=${codstart} `
+      if (codend != undefined)
+        query += ` and cod <= ${codend}`
+      //book ************************************************
+      if (bookstart != undefined && bookend == undefined)
+        query += ` and book =${bookstart} `
+      else
+        if (bookstart != undefined && bookend != undefined)
+          query += ` and book >=${bookstart} `
+      if (bookend != undefined)
+        query += ` and book <= ${bookend}`
+      //sheet **********************************************
+      if (sheetstart != undefined && sheetend == undefined)
+        query += ` and sheet =${sheetstart} `
+      else
+        if (sheetstart != undefined && sheetend != undefined)
+          query += ` and sheet >=${sheetstart} `
+      if (sheetend != undefined)
+        query += ` and sheet <= ${sheetend}`
+
+      //side *************************************************
+      if (side != undefined)
+        query += ` and side = '${side}' `
+      //aproximate_term **************************************
+      if (approximateterm != undefined)
+        query += ` and approximate_term=${approximateterm}`
+      //obs **************************************
+      if (obs != undefined)
+        query += ` and obs like '${obs}%'`
+      //Index **************************************
+      if (indexbook != undefined)
+        query += ` and indexbook=${indexbook} `
+      //year ***********************************************
+      if (year != undefined)
+        query += ` and year like '${year}%' `
+      //letter ***********************************************
+      if (letter != undefined)
+        query += ` and letter like '${letter}' `
+      //sheetzero*****************************************
+      if (!document) {
+        if (!sheetzero || (sheetzero == 'false'))
+          query += ` and sheet>0`
+      }
+      //DOCUMENTS***************************************************************** */
+
+      if (prot)
+        queryDocument += ` and prot =${prot}`
+      if (month)
+        queryDocument += ` and month=${month}`
+      if (yeardoc)
+        queryDocument += ` and yeardoc=${yeardoc} `
+      if (intfield1)
+        queryDocument += ` and intfield1=${intfield1}`
+      if (stringfield1) {
+        queryDocument += ` and stringfield1=?`
+        queryParams.push(stringfield1)
+      }
+      if (datefield1) {
+        queryDocument += ` and datefield1=?`
+        queryParams.push(datefield1)
+      }
+      if (intfield2)
+        queryDocument += ` and intfield2=${intfield2}`
+      if (stringfield2) {
+        queryDocument += ` and stringfield2=?`
+        queryParams.push(stringfield2)
+      }
+      if (datefield2) {
+        queryDocument += ` and datefield2=?`
+        queryParams.push(datefield2)
+      }
+      if (intfield3)
+        queryDocument += ` and intfield3=${intfield3}`
+      if (stringfield3) {
+        queryDocument += ` and stringfield3=?`
+        queryParams.push(stringfield3)
+      }
+      if (datefield3) {
+        queryDocument += ` and datefield3=?`
+        queryParams.push(datefield3)
+      }
+      if (intfield4)
+        queryDocument += ` and intfield4=${intfield4}`
+      if (stringfield4) {
+        queryDocument += ` and stringfield4=?`
+        queryParams.push(stringfield4)
+      }
+      if (datefield4) {
+        queryDocument += ` and datefield4=?`
+        queryParams.push(datefield4)
+      }
+    }
+
+    //last pages of each book****************************
+    if (lastPagesOfEachBook) {
+      query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
+    }
+
+    //pagination paginação
+    const page = request.input('page', 1)
+    const limit = Env.get('PAGINATION')
+
+    queryDocument = await Database.raw(queryDocument, queryParams)
+    let data
+    if (noAttachment) {
+      data = await Bookrecord.query()
+        .where('companies_id', '=', authenticate.companies_id)
+        .andWhere('typebooks_id', '=', params.typebooks_id)
+        .whereNotExists((subquery) => {
+          subquery
+            .select('id')
+            .from('indeximages')
+            .whereColumn('indeximages.bookrecords_id', '=', 'bookrecords.id')
+            .andWhere('indeximages.typebooks_id', '=', params.typebooks_id)
+            .andWhere("companies_id", '=', authenticate.companies_id)
+        })
+        .whereRaw(query)
+        .orderBy("book", "asc")
+        .orderBy("cod", "asc")
+        .orderBy("sheet", "asc")
+        .paginate(page, limit)
+    }
+    else if (codMax) {
+      data = await Database.from('bookrecords')
+        .where('companies_id', authenticate.companies_id)
+        .where('typebooks_id', params.typebooks_id)
+        .max('cod as codMax');
+    }
+
+    else {
+
+      data = await Bookrecord.query()
+        .where("companies_id", '=', authenticate.companies_id)
+        .andWhere("typebooks_id", '=', params.typebooks_id)
+        .preload('indeximage', (queryIndex) => {
+          queryIndex.where("typebooks_id", '=', params.typebooks_id)
+            .andWhere("companies_id", '=', authenticate.companies_id)
+        })
+        .preload('document')
+        .whereHas('document', (query) => {
+          query.whereRaw(queryDocument)
+        })
+        .whereRaw(query)
+        .orderBy("book", "asc")
+        .orderBy("cod", "asc")
+        .orderBy("sheet", "asc")//.toQuery()
+      //.paginate(page, limit)
+
+
     }
     return response.status(200).send(data)
   }
