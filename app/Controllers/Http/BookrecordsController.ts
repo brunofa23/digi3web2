@@ -145,6 +145,8 @@ export default class BookrecordsController {
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
+    console.log("PASSEI NA PESQUISA")
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -328,15 +330,15 @@ export default class BookrecordsController {
             .andWhere("companies_id", '=', authenticate.companies_id)
         })
         .preload('document')
-        .whereHas('document', (query) => {
+        .orWhereHas('document', (query) => {
           query.whereRaw(queryDocument)
         })
         .whereRaw(query)
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
-        .orderBy("sheet", "asc")//.toQuery()
-      //.paginate(page, limit)
-
+        .orderBy("sheet", "asc")
+        .paginate(page, limit)
+      //console.log(data)
 
     }
     return response.status(200).send(data)
