@@ -145,7 +145,6 @@ export default class BookrecordsController {
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
-    console.log("PASSEI NA PESQUISA")
 
     const { codstart, codend,
       bookstart, bookend,
@@ -182,8 +181,9 @@ export default class BookrecordsController {
     let queryDocument = "1=1"
     let queryParams = []
 
+
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !document)
       return null
     else {
       //cod**************************************************
@@ -322,7 +322,8 @@ export default class BookrecordsController {
 
     else {
 
-      data = await Bookrecord.query()
+      console.log("cheguei no 1550", queryDocument)
+      let queryFull = Bookrecord.query()
         .where("companies_id", '=', authenticate.companies_id)
         .andWhere("typebooks_id", '=', params.typebooks_id)
         .preload('indeximage', (queryIndex) => {
@@ -330,15 +331,17 @@ export default class BookrecordsController {
             .andWhere("companies_id", '=', authenticate.companies_id)
         })
         .preload('document')
-        .orWhereHas('document', (query) => {
-          query.whereRaw(queryDocument)
-        })
         .whereRaw(query)
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
-        .paginate(page, limit)
-      //console.log(data)
+      if (document)
+        queryFull.whereHas('document', (query) => {
+          query.whereRaw(queryDocument)
+        })
+      queryFull.paginate(page, limit)
+      data = await queryFull
+      console.log(data)
 
     }
     return response.status(200).send(data)
