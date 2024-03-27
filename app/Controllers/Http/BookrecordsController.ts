@@ -11,7 +11,7 @@ import Document from 'App/Models/Document'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
 import DocumentValidator from 'App/Validators/DocumentValidator'
 const fileRename = require('../../Services/fileRename/fileRename')
-import { validator, schema } from '@ioc:Adonis/Core/Validator'
+
 
 
 
