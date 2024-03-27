@@ -7,7 +7,6 @@ export default class IndexImagePermission {
   public async handle({ auth, response }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
 
     const authenticate = await auth.use('api').authenticate()
-    //console.log("gard::>>", customGuards)
 
     for (const guard of customGuards) {
       if (guard === 'get' && authenticate.permission_level >= 0) {
@@ -36,7 +35,6 @@ export default class IndexImagePermission {
                 }
                 else
                   if (guard === 'uploadCapture' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
-                    //console.log("uploadCapture....")
                     await next()
                   }
                   else {

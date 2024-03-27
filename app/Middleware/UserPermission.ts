@@ -22,7 +22,6 @@ export default class UserPermission {
             await next()
           }
           else if (guard === 'authorizeAccessImages' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
-            //console.log("AUTORIZAÇÃO PARA IMAGENS...")
             await next()
           }
           else {

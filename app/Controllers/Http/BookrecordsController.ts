@@ -322,7 +322,6 @@ export default class BookrecordsController {
 
     else {
 
-      console.log("cheguei no 1550", queryDocument)
       let queryFull = Bookrecord.query()
         .where("companies_id", '=', authenticate.companies_id)
         .andWhere("typebooks_id", '=', params.typebooks_id)
@@ -341,8 +340,6 @@ export default class BookrecordsController {
         })
       queryFull.paginate(page, limit)
       data = await queryFull
-      console.log(data)
-
     }
     return response.status(200).send(data)
   }
@@ -364,7 +361,6 @@ export default class BookrecordsController {
       const data = await Bookrecord.create(body)
       if (body.books_id == 13 && data.id) {
         bodyDocument.bookrecords_id = data.id
-        console.log("Salvar documentos aqui...", bodyDocument)
         await Document.create(bodyDocument)
       }
       return response.status(201).send(data)
@@ -377,7 +373,6 @@ export default class BookrecordsController {
   }
 
   public async update({ auth, request, params, response }: HttpContextContract) {
-    console.log("Passei generateOrUpdateBookrecords...")
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
 
@@ -443,7 +438,6 @@ export default class BookrecordsController {
   public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
     const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages'])
-    //console.log("destroy many bookrecords>>>", typebooks_id, Book, Bookend, startCod, endCod, deleteImages)
 
     //deleteImages
     //se 1  = exclui somente o livro
@@ -463,7 +457,6 @@ export default class BookrecordsController {
           .andWhere('indeximages.companies_id', companies_id)
           .whereRaw(query)
           .delete()
-        //console.log(deleteData)
 
         return response.status(201).send({ deleteData })
       } catch (error) {
@@ -474,19 +467,12 @@ export default class BookrecordsController {
 
     async function deleteBookrecord(query) {
       try {
-
-        //console.log("typebook", typebooks_id)
-        //await Database.rawQuery('delete from `bookrecords` where `typebooks_id` = 12 and `companies_id` = 9 and 1 = 1 and book=1 ')
-
         const data = await Bookrecord
           .query()
           .where('typebooks_id', typebooks_id)
           .andWhere('companies_id', companies_id)
           .whereRaw(query)
           .delete()
-
-
-        //console.log(data)
 
         return response.status(201).send({ data })
       } catch (error) {
@@ -566,7 +552,6 @@ export default class BookrecordsController {
 
   //Cria uma linha 
   public async createorupdatebookrecords({ auth, request, response }) {
-    console.log("Passei createorupdatebookrecords...")
     const authenticate = await auth.use('api').authenticate()
     const _request = request.requestBody
     let newRecord: Object[] = []
@@ -623,7 +608,6 @@ export default class BookrecordsController {
 
   //gera ou substitui um livro
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
-    console.log("Passei generateOrUpdateBookrecords...")
     const authenticate = await auth.use('api').authenticate()
 
     let {
@@ -715,29 +699,6 @@ export default class BookrecordsController {
         }
       }
 
-      //INDEX******************************************************************************
-      // if (indexIncrement > 0) {
-      //   if (index == (generateStartCode + 1))
-      //     indexBook = generateIndex
-      //   else
-      //     generateIndex++
-      // }
-      // if (generateIndex > 0) {
-      //   if (index == 0) {
-      //     indexBook = generateIndex
-      //     indexIncrement++
-      //     if (indexIncrement >= generateIndexIncrement && generateIndexIncrement > 1) {
-      //       indexIncrement = 0
-      //     }
-      //   }
-      //   else {
-      //     if (indexIncrement >= generateIndexIncrement) {
-      //       indexIncrement = 0
-      //       indexBook++
-      //     }
-      //     indexIncrement++
-      //   }
-      // }
       //********************************************************************************************** */
       if (generateStartSheetInCodReference <= generateStartCode) {
         if (generateSheetIncrement == 1) {
@@ -778,7 +739,6 @@ export default class BookrecordsController {
         }
       }
 
-      //console.log("indexbook", generateIndex, indexIncrement)
       bookrecords.push({
         cod: generateStartCode++,
         book: generateBook,
@@ -794,7 +754,6 @@ export default class BookrecordsController {
       })
 
     }
-    //}
 
     try {
       for (const record of bookrecords) {
@@ -808,12 +767,10 @@ export default class BookrecordsController {
           .first()
 
         if (existingRecord) {
-          //console.log("record", record, generateBookdestination)
           const book = record.book
 
           if (generateBookdestination > 0) {
             record.book = generateBookdestination
-            //console.log("record", record, generateBookdestination)
           }
 
           await Bookrecord.query()
@@ -837,7 +794,6 @@ export default class BookrecordsController {
 
         } else {
           // Faça a lógica de criação aqui
-          //console.log("NÃO EXISTE...FAZER INSERT")
           await Bookrecord.create(record)
         }
       }
@@ -860,7 +816,6 @@ export default class BookrecordsController {
     let foldername
     try {
       foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
-      //console.log("FOLDER NAME>>>", foldername?.name, foldername?.path, foldername?.id)
       if (foldername) {
         await Typebook.query()
           .where('companies_id', '=', authenticate.companies_id)
@@ -881,7 +836,6 @@ export default class BookrecordsController {
           //1 - modificar o aquivo no gdrive
           await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name)
 
-          //console.log("passo 5", iterator.file_name, foldername.path, iterator.previous_file_name)
           //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
           await Indeximage.query()
             .where("companies_id", "=", authenticate.companies_id)
@@ -890,7 +844,6 @@ export default class BookrecordsController {
             .andWhere("seq", iterator.seq)
             .andWhere("file_name", iterator.file_name)
             .update({ file_name: iterator.previous_file_name, previous_file_name: null })
-          //console.log("LISTA DE ARQUIVOS modificados>>>>>", iterator.file_name, foldername.path, iterator.previous_file_name)
 
         }
       }
@@ -902,11 +855,9 @@ export default class BookrecordsController {
 
     for (const item of listFiles.bookRecord) {
       try {
-        //console.log("ITEM>>>>>>>>>", item)
         const create = await Bookrecord.create(item)
-        //console.log("create>>>", create)
       } catch (error) {
-        //console.log("ERRO BOOKRECORD::", error)
+        return error
       }
     }
 
@@ -914,7 +865,7 @@ export default class BookrecordsController {
       try {
         await Indeximage.create(item)
       } catch (error) {
-        //console.log("ERRO indeximage::", error)
+        return error
 
       }
     }
@@ -960,7 +911,6 @@ export default class BookrecordsController {
         .groupBy('book', 'indexbook')
         .orderBy('bookrecords.book')
 
-      //console.log("SUMMARY", bookSummaryPayload)
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
@@ -1020,7 +970,6 @@ export default class BookrecordsController {
         .whereBetween('indeximages.date_atualization', [datestart, dateend])
         .andWhere('bookrecords.companies_id', companies_id)
         .whereRaw(query)
-      //console.log(payLoad)
 
       return response.status(200).send(payLoad)
 

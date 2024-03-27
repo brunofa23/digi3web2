@@ -6,11 +6,7 @@ export default class BookRecordPermission {
   public async handle({ auth, response }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
 
     const authenticate = await auth.use('api').authenticate()
-    //console.log("gard::>> BOOKRECORD", customGuards)
 
-    // if (authenticate.superuser || authenticate.permission_level >= 5) {
-    //   await next()
-    // }
 
     for (const guard of customGuards) {
       if (guard === 'get' && authenticate.permission_level >= 0) {

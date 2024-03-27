@@ -44,7 +44,6 @@ export default class UserPasswordsController {
 
     public async resetPassword({ request, response }: HttpContextContract) {
 
-        console.log("reset Acionado!!!")
         const body = await request.only(User.fillable)
         const user = await User.query().select('users.*').preload('company')
             .innerJoin('companies', 'users.companies_id', 'companies.id')
@@ -57,7 +56,6 @@ export default class UserPasswordsController {
                 //const random = await promisify(randomBytes)(15)
                 //const passwordReset = random.toString('hex')
                 const passwordReset = '#$1A' + string.generateRandom(32)
-                console.log('PASSWOPRD', passwordReset)
                 user.password = passwordReset
                 user.save()
                 //Enviar por email
@@ -72,8 +70,6 @@ export default class UserPasswordsController {
                             newPassword: passwordReset
                         })
                 })
-
-                console.log("enviado!!!!")
                 let successValidation = await new validations('user_success_203')
                 return response.status(201).send({ user: user.name, email: user.email, status: successValidation.code })
 

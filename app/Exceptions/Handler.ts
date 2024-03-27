@@ -34,8 +34,6 @@ export default class ExceptionHandler extends HttpExceptionHandler {
         errors: error['messages']?.errors ? error['messages'].errors : ''
       })
     }
-
-
     console.log("ERROR HANDLE", error)
     return super.handle(error, ctx)
   }

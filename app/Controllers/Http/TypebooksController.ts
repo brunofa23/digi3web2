@@ -24,7 +24,6 @@ export default class TypebooksController {
       const data = await Typebook.create(typebookPayload)
 
       if (data.$attributes.books_id == 13) {
-        console.log("criando document config....", data.$attributes.id)
         await DocumentConfig.create({ typebooks_id: data.$attributes.id, companies_id: authenticate.companies_id })
       }
 
@@ -51,7 +50,6 @@ export default class TypebooksController {
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
 
-    console.log("index typpebook...")
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
@@ -86,15 +84,12 @@ export default class TypebooksController {
     }
 
     if (typebookPayload.totalfiles) {
-
-      console.log("PASSEI PELO TOTAL FILES.....")
       data = await Typebook.query()
         .where("companies_id", '=', companies_id)
         .whereRaw(query).andWhere("status", "=", 1)
 
       for (let i = 0; i < data.length; i++) {
         const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
-        console.log("TOTAL FILES>>>", totalFiles)
         data[i].totalFiles = totalFiles.length
       }
 
@@ -150,7 +145,6 @@ export default class TypebooksController {
       const data = await Typebook.query()
         .where("companies_id", "=", authenticate.companies_id)
         .andWhere('id', "=", params.id).delete()
-      //console.log("DELETE DELETE>>>")
       let successValidation = await new validations('typebook_success_102')
       return response.status(200).send(data, successValidation.code)
     } catch (error) {

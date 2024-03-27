@@ -53,7 +53,6 @@ export default class Token extends BaseModel {
 
   @afterFind()
   public static afterFind(token: Token) {
-    //console.log("TOKEN MODEL", token.token)
     if (!types.isNull(token.token))
       token.token = Encryption.decrypt(token.token)
     if (!types.isNull(token.credentials))

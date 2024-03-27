@@ -85,13 +85,11 @@ export default class AuthenticationController {
     try {
       const limitDataAccess = DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm')
 
-      //console.log("ACCESS IMAGE VALOR:", limitDataAccess)
       const user = await User.query()
         .where('username', username)
         .andWhere('companies_id', '=', companies_id)
         .first()
       if (user) {
-        //console.log("DATA", DateTime.fromISO(limitDataAccess))
         user.access_image = limitDataAccess
         user.save()
         return response.status(201).send({ valor: true, tempo: accessImage })
