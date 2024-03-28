@@ -10,7 +10,7 @@ export default class extends BaseSchema {
       table.integer('companies_id').notNullable().unsigned().references('typebooks.companies_id').onDelete('CASCADE').onUpdate('CASCADE')
 
 
-      table.string('box')
+      table.string('box2')
       table.string('prot')
       table.string('month')
       table.string('yeardoc')

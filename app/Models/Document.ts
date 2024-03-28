@@ -8,7 +8,7 @@ export default class Document extends BaseModel {
     return [
       'id',
       'bookrecords_id',
-      'box',
+      'box2',
       'prot',
       'month',
       'yeardoc',
@@ -66,7 +66,7 @@ export default class Document extends BaseModel {
   @column()
   public bookrecords_id: number
   @column()
-  public box: number
+  public box2: number
   @column()
   public month: number
   @column()

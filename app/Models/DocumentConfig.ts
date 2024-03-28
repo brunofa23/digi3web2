@@ -9,7 +9,7 @@ export default class DocumentConfig extends BaseModel {
       'cod',
       'typebooks_id',
       'companies_id',
-      'box',
+      'box2',
       'prot',
       'month',
       'yeardoc',
@@ -69,7 +69,7 @@ export default class DocumentConfig extends BaseModel {
   public prot: string
 
   @column()
-  public box: string
+  public box2: string
 
   @column()
   public month: string
