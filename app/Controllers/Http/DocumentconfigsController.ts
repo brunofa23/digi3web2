@@ -33,5 +33,30 @@ export default class DocumentconfigsController {
     }
 
 
+    public async update({ auth, request, params, response }: HttpContextContract) {
+        //const authenticate = await auth.use('api').authenticate()
+        // const typebookPayload = await request.validate(TypebookValidator)
+        // typebookPayload.id = params.id
+        // typebookPayload.companies_id = authenticate.companies_id
+
+        try {
+            await DocumentConfig.query()
+                .where("companies_id", "=", authenticate.companies_id)
+                .andWhere('id', "=", params.id).update(typebookPayload)
+
+            let successValidation = await new validations('typebook_success_101')
+            return response.status(201).send(typebookPayload, successValidation.code)
+        } catch (error) {
+            throw new BadRequest('Bad Request - update', 401)
+        }
+
+
+    }
+
+
+
+
+
+
 
 }

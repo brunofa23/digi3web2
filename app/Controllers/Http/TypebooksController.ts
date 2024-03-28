@@ -24,7 +24,14 @@ export default class TypebooksController {
       const data = await Typebook.create(typebookPayload)
 
       if (data.$attributes.books_id == 13) {
-        await DocumentConfig.create({ typebooks_id: data.$attributes.id, companies_id: authenticate.companies_id })
+        await DocumentConfig
+          .create({
+            typebooks_id: data.$attributes.id,
+            companies_id: authenticate.companies_id,
+            prot: "Protocolo",
+            month: "Mês",
+            yeardoc: "Ano"
+          })
       }
 
       const path = `Client_${typebookPayload.companies_id}.Book_${data.id}.${book?.namefolder}`
@@ -50,6 +57,7 @@ export default class TypebooksController {
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
 
+
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
@@ -58,7 +66,9 @@ export default class TypebooksController {
     if (!companies_id)
       throw new BadRequest('company not exists', 401)
     if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
+
       data = await Typebook.query()
+        .preload('documentconfig')
         .where("companies_id", '=', companies_id)
     }
     else {
@@ -78,42 +88,35 @@ export default class TypebooksController {
         query += ` and books_id = ${typebookPayload.books_id} `
       }
 
+
       data = await Typebook.query()
         .where("companies_id", '=', companies_id)
         .whereRaw(query)
+      console.log("passei aqui 100")
     }
 
     if (typebookPayload.totalfiles) {
       data = await Typebook.query()
         .where("companies_id", '=', companies_id)
         .whereRaw(query).andWhere("status", "=", 1)
-
       for (let i = 0; i < data.length; i++) {
         const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
         data[i].totalFiles = totalFiles.length
       }
-
-
     }
-
-
     return response.status(200).send(data)
-
-
   }
 
   //retorna um registro
   public async show({ auth, params, response }: HttpContextContract) {
-
-
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
-
+      .preload('documentconfig')
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).firstOrFail()
 
+    console.log("passei no show", data.documentconfig)
     return response.status(200).send(data)
-
   }
 
   //patch ou put
