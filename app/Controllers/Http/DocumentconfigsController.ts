@@ -14,6 +14,7 @@ export default class DocumentconfigsController {
             const docConfig = await DocumentConfig.query()
                 .where('companies_id', authenticate.companies_id)
                 .whereRaw(query)
+            console.log("DOC 4444")
             return response.status(200).send(docConfig)
         } catch (error) {
             throw new BadRequest('Bad Request', 401, 'erro')
@@ -34,6 +35,7 @@ export default class DocumentconfigsController {
 
 
     public async update({ auth, request, params, response }: HttpContextContract) {
+        console.log("passei aqui no update documento")
         const authenticate = await auth.use('api').authenticate()
         const payLoad = request.only(DocumentConfig.fillable)
         try {

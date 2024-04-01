@@ -115,7 +115,7 @@ export default class TypebooksController {
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).firstOrFail()
 
-    console.log("passei no show", data.documentconfig)
+    console.log("passei no show")
     return response.status(200).send(data)
   }
 
