@@ -18,7 +18,7 @@ const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
 
   //Listar Bookrecords
-  public async index1({ auth, request, params, response }: HttpContextContract) {
+  public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
     const { codstart, codend,
@@ -142,7 +142,7 @@ export default class BookrecordsController {
     return response.status(200).send(data)
   }
 
-  public async index({ auth, request, params, response }: HttpContextContract) {
+  public async index1({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
 
@@ -338,8 +338,8 @@ export default class BookrecordsController {
         queryFull.whereHas('document', (query) => {
           query.whereRaw(queryDocument)
         })
-      queryFull.paginate(page, limit)
-      data = await queryFull
+      //queryFull.paginate(page, limit)
+      data = await queryFull.paginate(page, limit)
     }
     return response.status(200).send(data)
   }
