@@ -5,6 +5,7 @@ import DocumentConfig from 'App/Models/DocumentConfig'
 export default class DocumentconfigsController {
 
     public async index({ auth, request, response }: HttpContextContract) {
+        console.log("passei aqui...")
         const authenticate = await auth.use('api').authenticate()
         const { typebooks_id } = request.only(['typebooks_id'])
         let query = "1=1"
@@ -23,6 +24,7 @@ export default class DocumentconfigsController {
 
 
     public async show({ auth, params, request, response }: HttpContextContract) {
+
         const authenticate = await auth.use('api').authenticate()
         try {
             const docConfig = await DocumentConfig.find(params.id)
