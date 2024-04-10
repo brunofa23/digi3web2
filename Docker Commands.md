@@ -49,7 +49,7 @@
       select user, host from mysql.user
       update mysql.user set host='%' where user='root'
 
-   
+10. **Verificar ip do WSL   
 
 
 
