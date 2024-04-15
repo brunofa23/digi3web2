@@ -28,7 +28,9 @@ export default class BookrecordsController {
       year,
       letter,
       sheetstart, sheetend,
-      side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax } = request.requestData
+      side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData
+
+    console.log(request.requestData)
 
     let query = " 1=1 "
 
@@ -83,8 +85,9 @@ export default class BookrecordsController {
       if (letter != undefined)
         query += ` and letter like '${letter}' `
       //sheetzero*****************************************
-      if (!sheetzero || (sheetzero == 'false'))
-        query += ` and sheet>0`
+      if (document != 'true')
+        if (!sheetzero || (sheetzero == 'false'))
+          query += ` and sheet>0`
     }
 
 
@@ -138,14 +141,13 @@ export default class BookrecordsController {
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
         .paginate(page, limit)
+      //console.log("PASSEI AQUI 5555", data)
     }
     return response.status(200).send(data)
   }
 
   public async index1({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
-
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -354,14 +356,16 @@ export default class BookrecordsController {
   public async store({ auth, request, params, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
     const body = await request.validate(BookrecordValidator)
-    const bodyDocument = await request.validate(DocumentValidator)
+    const { document } = request.only(['document'])//await request.validate(DocumentValidator)
     body.companies_id = companies_id
-
+    const bodyDocument = document
+    console.log("BODY::", bodyDocument)
     try {
       const data = await Bookrecord.create(body)
       if (body.books_id == 13 && data.id) {
         bodyDocument.bookrecords_id = data.id
         await Document.create(bodyDocument)
+        console.log(bodyDocument)
       }
       return response.status(201).send(data)
 
@@ -375,10 +379,13 @@ export default class BookrecordsController {
   public async update({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
+    const {document} = request.only(['document'])
 
     body.id = params.id
     body.companies_id = authenticate.companies_id
     body.userid = authenticate.id
+
+
 
     try {
       await Bookrecord.query()
@@ -386,6 +393,14 @@ export default class BookrecordsController {
         .andWhere('typebooks_id', '=', body.typebooks_id)
         .andWhere('companies_id', '=', authenticate.companies_id)
         .update(body)
+
+        if(body.books_id==13 && body.id)
+          {
+            await Document.query()
+            .where('id',document.id).update(document)
+            console.log('UPDATE....', document)
+          }
+
       fileRename.updateFileName(body)
       return response.status(201).send({ body, params: params.id })
     } catch (error) {
@@ -395,10 +410,8 @@ export default class BookrecordsController {
   }
 
   public async destroy({ auth, request, params, response }: HttpContextContract) {
-
     const { companies_id } = await auth.use('api').authenticate()
     try {
-
       //excluir imagens do google drive
       const listOfImagesToDeleteGDrive = await Indeximage.query()
         .preload('typebooks', (query) => {
@@ -550,7 +563,7 @@ export default class BookrecordsController {
     }
   }
 
-  //Cria uma linha 
+  //Cria uma linha
   public async createorupdatebookrecords({ auth, request, response }) {
     const authenticate = await auth.use('api').authenticate()
     const _request = request.requestBody
@@ -903,7 +916,7 @@ export default class BookrecordsController {
        AND bkr.typebooks_id = bookrecords.typebooks_id
        AND bkr.book = bookrecords.book
        AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
-       GROUP BY bkr.book, bkr.indexbook 
+       GROUP BY bkr.book, bkr.indexbook
          ) as totalFiles
   `))
         .where('companies_id', authenticate.companies_id)
