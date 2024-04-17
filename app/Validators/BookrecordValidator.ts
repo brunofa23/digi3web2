@@ -9,7 +9,7 @@ export default class BookrecordValidator {
     books_id: schema.number(),
     companies_id: schema.number.nullableAndOptional(),
     cod: schema.number(),
-    book: schema.number([rules.range(1, 10000000000)]),
+    book: schema.number([rules.range(0, 10000000000)]),
     sheet: schema.number.optional([rules.range(1, 10000000000)]),
     side: schema.string.optional(),
     approximate_term: schema.string.nullableAndOptional(),

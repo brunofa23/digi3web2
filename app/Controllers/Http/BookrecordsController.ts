@@ -10,6 +10,8 @@ import Typebook from 'App/Models/Typebook'
 import Document from 'App/Models/Document'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
 import DocumentValidator from 'App/Validators/DocumentValidator'
+
+
 const fileRename = require('../../Services/fileRename/fileRename')
 
 
@@ -379,7 +381,7 @@ export default class BookrecordsController {
   public async update({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
-    const {document} = request.only(['document'])
+    const { document } = request.only(['document'])
 
     body.id = params.id
     body.companies_id = authenticate.companies_id
@@ -394,12 +396,11 @@ export default class BookrecordsController {
         .andWhere('companies_id', '=', authenticate.companies_id)
         .update(body)
 
-        if(body.books_id==13 && body.id)
-          {
-            await Document.query()
-            .where('id',document.id).update(document)
-            console.log('UPDATE....', document)
-          }
+      if (body.books_id == 13 && body.id) {
+        await Document.query()
+          .where('id', document.id).update(document)
+        console.log('UPDATE....', document)
+      }
 
       fileRename.updateFileName(body)
       return response.status(201).send({ body, params: params.id })
@@ -992,6 +993,82 @@ export default class BookrecordsController {
 
   }
 
+
+  public async generateOrUpdateBookrecordsDocument({ auth, request, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    console.log("GERANDO DOCUMENTS")
+    let {
+      startCode,
+      endCode,
+      year,
+      month,
+      box
+    } = request.requestData
+
+    // //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
+    // if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
+    //   let errorValidation = await new validations('bookrecord_error_100')
+    //   throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
+    // }
+    // if (!generateStartCode || generateStartCode <= 0) {
+    //   let errorValidation = await new validations('bookrecord_error_101')
+    //   throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
+    // }
+    // if (!generateEndCode || generateEndCode <= 0) {
+    //   let errorValidation = await new validations('bookrecord_error_102')
+    //   throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
+    // }
+
+
+    console.log("parametros", authenticate.companies_id)
+
+    let bookRecord={}
+    let document={}
+    let cod=startCode
+
+    if(startCode>endCode)
+       //   let errorValidation = await new validations('bookrecord_error_102')
+       throw new BadRequestException("erro: codigo inicial maior que o final")
+
+
+    while (startCode <= endCode){
+      try {
+        bookRecord={
+          cod:startCode,
+          typebooks_id:params.typebooks_id,
+          books_id:13,
+          book:box,
+          companies_id:authenticate.companies_id
+        }
+        const bookRecordId = await Bookrecord.create(bookRecord)
+        document={
+          bookrecords_id:bookRecordId.id,
+          month:month,
+          yeardoc:year
+        }
+        await Document.create(document)
+        console.log("document>>", document)
+        startCode++
+
+      } catch (error) {
+        throw new BadRequestException("Bad Request", 402, error)
+      }
+    }
+
+    let successValidation = await new validations('bookrecord_success_100')
+    return response.status(201).send(successValidation.code)
+
+
+
+    //   let successValidation = await new validations('bookrecord_success_100')
+    //   return response.status(201).send(successValidation.code)
+
+    // } catch (error) {
+    //   throw new BadRequestException("Bad Request", 402, error)
+    // }
+
+    //SUBSTITUI O NUMERO DO LIVRO
+  }
 
 
   //********************************************************* */
