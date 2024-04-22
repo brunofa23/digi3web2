@@ -997,13 +997,11 @@ export default class BookrecordsController {
   public async generateOrUpdateBookrecordsDocument({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     console.log("GERANDO DOCUMENTS")
-    let {
-      startCode,
-      endCode,
-      year,
-      month,
-      box
-    } = request.requestData
+
+    let {startCod,endCod,year,month,box} = request.requestData
+
+    // console.log("valores",startCod,endCod,year,month,box )
+    // console.log("request data:",request.requestData)
 
     // //AQUI - FAZER VALIDAÇÃO DOS CAMPOS ANTES DE EXECUTAR
     // if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
@@ -1019,22 +1017,16 @@ export default class BookrecordsController {
     //   throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
     // }
 
-
-    console.log("parametros", authenticate.companies_id)
-
     let bookRecord={}
     let document={}
-    let cod=startCode
-
-    if(startCode>endCode)
+    let cod=startCod
+    if(startCod>endCod)
        //   let errorValidation = await new validations('bookrecord_error_102')
        throw new BadRequestException("erro: codigo inicial maior que o final")
-
-
-    while (startCode <= endCode){
+    while (startCod <= endCod){
       try {
         bookRecord={
-          cod:startCode,
+          cod:startCod,
           typebooks_id:params.typebooks_id,
           books_id:13,
           book:box,
@@ -1046,19 +1038,18 @@ export default class BookrecordsController {
           month:month,
           yeardoc:year
         }
+
         await Document.create(document)
-        console.log("document>>", document)
-        startCode++
+        startCod++
 
       } catch (error) {
+        console.log("PASSO 4>>")
         throw new BadRequestException("Bad Request", 402, error)
       }
     }
 
     let successValidation = await new validations('bookrecord_success_100')
     return response.status(201).send(successValidation.code)
-
-
 
     //   let successValidation = await new validations('bookrecord_success_100')
     //   return response.status(201).send(successValidation.code)
