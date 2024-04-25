@@ -998,7 +998,7 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     console.log("GERANDO DOCUMENTS")
 
-    let {startCod,endCod,year,month,box} = request.requestData
+    let { startCod, endCod, year, month, box } = request.requestData
 
     // console.log("valores",startCod,endCod,year,month,box )
     // console.log("request data:",request.requestData)
@@ -1017,29 +1017,54 @@ export default class BookrecordsController {
     //   throw new BadRequestException(errorValidation.message, errorValidation.status, errorValidation.code)
     // }
 
-    let bookRecord={}
-    let document={}
-    let cod=startCod
-    if(startCod>endCod)
-       //   let errorValidation = await new validations('bookrecord_error_102')
-       throw new BadRequestException("erro: codigo inicial maior que o final")
-    while (startCod <= endCod){
+    let bookRecord = {}
+    let document = {}
+    let cod = startCod
+    if (startCod > endCod)
+      //   let errorValidation = await new validations('bookrecord_error_102')
+      throw new BadRequestException("erro: codigo inicial maior que o final")
+    while (startCod <= endCod) {
       try {
-        bookRecord={
-          cod:startCod,
-          typebooks_id:params.typebooks_id,
-          books_id:13,
-          book:box,
-          companies_id:authenticate.companies_id
+
+        bookRecord = {
+          cod: startCod,
+          typebooks_id: params.typebooks_id,
+          books_id: 13,
+          book: box,
+          companies_id: authenticate.companies_id
         }
-        const bookRecordId = await Bookrecord.create(bookRecord)
-        document={
-          bookrecords_id:bookRecordId.id,
-          month:month,
-          yeardoc:year
+        //console.log("passo 3>>", bookRecord)
+        const verifyBookRecord = await Bookrecord.query()
+          .where('cod', bookRecord.cod)
+          .andWhere('companies_id', authenticate.companies_id)
+          .andWhere('typebooks_id', bookRecord.typebooks_id)
+          .andWhere('books_id', 13)
+          .andWhere('book', bookRecord.book).first()
+          //console.log("passo 4>>", verifyBookRecord)
+        if (verifyBookRecord) {
+          //update
+          console.log("update...",verifyBookRecord.id)
+          const bookRecordId = await Bookrecord.query()
+          .where('id',verifyBookRecord.id)
+          .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
+          .andWhere('companies_id', verifyBookRecord.companies_id)
+          .andWhere('books_id',13)
+          .update(bookRecord)
+          const document = await Document.query()
+          .where('bookrecords_id', verifyBookRecord.id)
+          .update({ month: month, yeardoc: year})
+        } else {
+          //create
+          console.log("create...")
+          const bookRecordId = await Bookrecord.create(bookRecord)
+          document = {
+            bookrecords_id: bookRecordId.id,
+            month: month,
+            yeardoc: year
+          }
+          await Document.create(document)
         }
 
-        await Document.create(document)
         startCod++
 
       } catch (error) {
