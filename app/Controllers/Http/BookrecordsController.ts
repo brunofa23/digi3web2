@@ -458,7 +458,7 @@ export default class BookrecordsController {
     //se 2 = exclui somente as imagens
     //se 3 = exclui imagens e livro
 
-//    console.log("deleção>>", typebooks_id, Book, Bookend, startCod, endCod, deleteImages)
+    //    console.log("deleção>>", typebooks_id, Book, Bookend, startCod, endCod, deleteImages)
 
     async function deleteIndexImages(query) {
       try {
@@ -535,8 +535,11 @@ export default class BookrecordsController {
           query += ` and book=${Book} `
         }
 
-      if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
-        query += ` and cod>=${startCod} and cod <=${endCod} `
+      if (startCod > 0 && (endCod == undefined || endCod == 0))
+        query += ` and cod=${startCod} `
+      else
+        if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
+          query += ` and cod>=${startCod} and cod <=${endCod} `
 
       try {
         //se 1  = exclui somente o livro
@@ -1062,8 +1065,8 @@ export default class BookrecordsController {
             .andWhere('companies_id', verifyBookRecord.companies_id)
             .andWhere('books_id', 13)
             .update(bookRecord)
-            document.bookrecords_id = verifyBookRecord.id
-            const documentUpdate = await Document.query()
+          document.bookrecords_id = verifyBookRecord.id
+          const documentUpdate = await Document.query()
             .where('bookrecords_id', verifyBookRecord.id)
             .update(document)
         } else {
