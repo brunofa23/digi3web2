@@ -458,6 +458,8 @@ export default class BookrecordsController {
     //se 2 = exclui somente as imagens
     //se 3 = exclui imagens e livro
 
+//    console.log("deleção>>", typebooks_id, Book, Bookend, startCod, endCod, deleteImages)
+
     async function deleteIndexImages(query) {
       try {
         const deleteData = await Database
