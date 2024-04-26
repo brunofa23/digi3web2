@@ -3,6 +3,7 @@ import { BaseModel, column, HasMany, hasMany, HasOne, hasOne, afterUpdate } from
 import Indeximage from './Indeximage'
 import Typebook from './Typebook'
 import Company from './Company'
+import Document from './Document'
 const fileRename = require('../Services/fileRename/fileRename')
 
 export default class Bookrecord extends BaseModel {
@@ -27,6 +28,13 @@ export default class Bookrecord extends BaseModel {
       'updatedAt',
     ]
   }
+
+  @hasOne(() => Document, {
+    foreignKey: 'bookrecords_id',
+    localKey: 'id'
+  })
+  public document: HasOne<typeof Document>
+
 
   @hasMany(() => Indeximage, {
     foreignKey: 'bookrecords_id',
@@ -107,7 +115,6 @@ export default class Bookrecord extends BaseModel {
 
   @afterUpdate()
   public static async verifyUpdate(bookRecord: Bookrecord) {
-    //console.log("PASSEI PELO AFTER UPDATE MODEL")
     fileRename.updateFileName(bookRecord)
 
   }

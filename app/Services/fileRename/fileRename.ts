@@ -25,7 +25,6 @@ async function deleteImage(folderPath) {
       if (err) {
         throw "ERRO DELETE::" + err;
       }
-      console.log("Delete File successfully.");
       return true
     });
   } catch (error) {
@@ -35,9 +34,6 @@ async function deleteImage(folderPath) {
 }
 
 async function downloadImage(fileName, typebook_id, company_id) {
-
-  //console.log("PASSEI NO DOWNLOAD DE IMAGENS FILERENAME")
-
   const directoryParent = await Typebook.query()
     .where('id', '=', typebook_id)
     .andWhere('companies_id', '=', company_id).first()
@@ -46,7 +42,6 @@ async function downloadImage(fileName, typebook_id, company_id) {
   const extension = path.extname(fileName);
   const fileId = await authorize.sendSearchFile(fileName, parent[0].id)
   const download = await authorize.sendDownloadFile(fileId[0].id, extension)
-  //console.log("DOWNLOAD>>>", download.size)
 
   return download
 }
@@ -86,11 +81,9 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     //return "Erro: Esta pasta não existe no GoogleDrive"
   }
 
-  //console.log("PASSEI AQUI>>>>>> UPLOAD", directoryParent.path)
   await sleep(1000);
   const idParent = await authorize.sendSearchFile(directoryParent?.path)
   //******************************************************************************** */
-
   //imagem única para upload
   if (capture) {
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
@@ -106,7 +99,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
 
   let cont = 0
   let _fileRename
-  //console.log("PASSEI AQUI>>>>1924")
   for (let image of images) {
     cont++
     if (cont >= 6) {
@@ -123,7 +115,6 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
     try {
       if (image && image.isValid) {
-        //        console.log("Salvando arquivo", image)
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
       }
     } catch (error) {
@@ -139,7 +130,6 @@ async function renameFileGoogle(filename, folderPath, newTitle) {
     const idFolderPath = await authorize.sendSearchFile(folderPath)
     const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id)
     const renameFile = await authorize.sendRenameFile(idFile[0].id, newTitle)
-    //console.log("SUCESSO>>>", renameFile)
   } catch (error) {
     console.log("ERROR 1456", error)
   }
@@ -172,7 +162,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
     }
     //chamar função de exclusão da imagem
     await deleteImage(`${folderPath}/${objfileRename.file_name}`)
-    //console.log("DELETE>>", `${folderPath}/${objfileRename.file_name}`)
 
   } catch (error) {
     throw new BadRequestException(error + ' sendUploadFiles', 409)
@@ -195,7 +184,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
 
   if (dataImages.typeBookFile) {
-    //console.log("Vindo do typebook File Vandir....", dataImages)
     let fileName
     if (dataImages.book && dataImages.sheet && dataImages.side) {
       fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
@@ -213,7 +201,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       previous_file_name: originalFileName,
       typeBookFile: true
     }
-    //console.log("FILE RENAME LINHA 219>>>", fileRename)
     return fileRename
   } else
     if (regexBookAndCod.test(originalFileName.toUpperCase())) {
@@ -252,9 +239,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         originalFileName = path.basename(originalFileName)
         query = ` id=${objFileName.id} and cod=${objFileName.cod} `
 
-        //console.log("FILE RENAME 250>>>", arrayFileName)
-
-
       }
       //ARQUIVOS COM A MÁSCARA T1(121)
       else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
@@ -269,7 +253,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
 
       else {
-        //console.log("ARQUIVO COM MÁSCARA NÃO IDENTIFICADA", originalFileName, dataImages)
         if (dataImages.book)
           query = ` book = ${dataImages.book} `
         if (dataImages.sheet)
@@ -281,7 +264,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         if (dataImages.approximateTerm)
           query += ` and approximate_term = '${dataImages.approximateTerm}' `
 
-        //console.log("ORIGINAL FILE NAME:", originalFileName)
         objFileName = {
           ext: path.extname(originalFileName).toLowerCase()
         }
@@ -313,10 +295,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         ext: objFileName.ext,
         //previous_file_name: originalFileName
       }
-      //console.log("FILERENAME::::", fileRename)
 
     } catch (error) {
-      //console.log("FILERENAME ERROR::::", error)
+      return error
     }
 
     return fileRename
@@ -335,7 +316,6 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
   let dateNow: DateTime = DateTime.now()
   dateNow = dateNow.toFormat('yyyyMMddHHmm')
 
-  //console.log("NOME DO ARQUIVO 2000>>", extFile)
 
   return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
 }
@@ -366,7 +346,6 @@ async function updateFileName(bookRecord: Bookrecord) {
       .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
       .andWhere('indeximages.companies_id', bookRecord.companies_id)
 
-    //console.log("intex", _indexImage)
 
     if (_indexImage.length > 0) {
       for (const data of _indexImage) {
@@ -377,7 +356,6 @@ async function updateFileName(bookRecord: Bookrecord) {
           .andWhere('companies_id', '=', data.companies_id)
           .andWhere('seq', '=', data.seq)
           .update({ previous_file_name: newFileName })
-        // console.log("ARQUIVO RENOMEADO NO INDEXIMAGE 5666", newFileName)
       }
     }
 
@@ -394,7 +372,6 @@ async function totalFilesInFolder(folderName) {
     const idFolder = await authorize.sendSearchFile(folderName)
     const listFiles = await authorize.sendListAllFiles(idFolder)
     if (listFiles) {
-      //console.log("TOTAL DE ARQUIVOS::", listFiles.length)
       return listFiles
     }
     else return 0

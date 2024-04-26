@@ -5,6 +5,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
 import Book from 'App/Models/Book'
+import DocumentConfig from 'App/Models/DocumentConfig'
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
@@ -21,6 +22,18 @@ export default class TypebooksController {
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(typebookPayload)
+
+      if (data.$attributes.books_id == 13) {
+        await DocumentConfig
+          .create({
+            typebooks_id: data.$attributes.id,
+            companies_id: authenticate.companies_id,
+            prot: "Protocolo",
+            month: "Mês",
+            yeardoc: "Ano"
+          })
+      }
+
       const path = `Client_${typebookPayload.companies_id}.Book_${data.id}.${book?.namefolder}`
 
       await Typebook.query().where('id', '=', data.id)
@@ -44,6 +57,7 @@ export default class TypebooksController {
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
 
+
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
@@ -52,7 +66,9 @@ export default class TypebooksController {
     if (!companies_id)
       throw new BadRequest('company not exists', 401)
     if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
+
       data = await Typebook.query()
+        .preload('documentconfig')
         .where("companies_id", '=', companies_id)
     }
     else {
@@ -72,44 +88,35 @@ export default class TypebooksController {
         query += ` and books_id = ${typebookPayload.books_id} `
       }
 
+
       data = await Typebook.query()
         .where("companies_id", '=', companies_id)
         .whereRaw(query)
+      console.log("passei aqui 100")
     }
 
     if (typebookPayload.totalfiles) {
-
-      console.log("PASSEI PELO TOTAL FILES.....")
       data = await Typebook.query()
         .where("companies_id", '=', companies_id)
         .whereRaw(query).andWhere("status", "=", 1)
-
       for (let i = 0; i < data.length; i++) {
         const totalFiles = await fileRename.totalFilesInFolder(data[i].path)
-        console.log("TOTAL FILES>>>", totalFiles)
         data[i].totalFiles = totalFiles.length
       }
-
-
     }
-
-
     return response.status(200).send(data)
-
-
   }
 
   //retorna um registro
   public async show({ auth, params, response }: HttpContextContract) {
-
-
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
+      .preload('documentconfig')
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).firstOrFail()
 
+    console.log("passei no show")
     return response.status(200).send(data)
-
   }
 
   //patch ou put
@@ -141,7 +148,6 @@ export default class TypebooksController {
       const data = await Typebook.query()
         .where("companies_id", "=", authenticate.companies_id)
         .andWhere('id', "=", params.id).delete()
-      //console.log("DELETE DELETE>>>")
       let successValidation = await new validations('typebook_success_102')
       return response.status(200).send(data, successValidation.code)
     } catch (error) {

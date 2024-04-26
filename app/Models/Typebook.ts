@@ -12,7 +12,7 @@ import Indeximage from './Indeximage'
 import Book from './Book'
 import Company from './Company'
 import Bookrecord from './Bookrecord'
-
+import DocumentConfig from './DocumentConfig'
 export default class Typebook extends BaseModel {
   public static get fillable() {
     return [
@@ -34,6 +34,13 @@ export default class Typebook extends BaseModel {
     localKey: 'id'
   })
   public bookrecords: HasMany<typeof Bookrecord>
+
+  @hasMany(() => DocumentConfig, {
+    foreignKey: 'typebooks_id',
+    localKey: 'id'
+  })
+  public documentconfig: HasMany<typeof DocumentConfig>
+
 
   @hasMany(() => Indeximage, {
     foreignKey: 'typebooks_id',
@@ -84,23 +91,4 @@ export default class Typebook extends BaseModel {
   @column()
   public dateindex: string
 
-  // @afterSave()
-  // public static async afterSaveHook(typebook: Typebook) {
-  //   const book = await Book.find(typebook.books_id)
-  //   typebook.path = `Client_${typebook.companies_id}.Book_${typebook.id}.${book?.namefolder}`
-  //   console.log("TYPEBOOK GRAVAÇÃO>>>", typebook.id, typebook.companies_id, typebook.path, typebook.books_id, typebook.path)
-  //   await typebook.save()
-
-  // }
-
-
-
-
-  /**
-   * Relatioship
-   */
-  //  @belongsTo(() => Book, {
-  //   foreignKey: 'books_id'
-  // })
-  // public books: BelongsTo<typeof Book>
 }

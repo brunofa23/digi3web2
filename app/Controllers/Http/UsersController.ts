@@ -84,9 +84,7 @@ export default class UsersController {
       let successValidation = await new validations('user_success_201')
       return response.status(201).send(userUpdated, successValidation.code)
     } catch (error) {
-      //throw new BadRequest('Bad Request', 401)
-      console.log("ERRO UPDATE")
-
+      throw new BadRequest('Bad Request', 401, error)
     }
 
 

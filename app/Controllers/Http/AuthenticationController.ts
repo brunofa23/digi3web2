@@ -33,6 +33,7 @@ export default class AuthenticationController {
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
+
     // Generate token
     const token = await auth.use('api').generate(user, {
       expiresIn: '7 days',

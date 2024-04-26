@@ -30,7 +30,6 @@ export default class EventsController {
     public async store({ request, response }: HttpContextContract) {
         //const authenticate = await auth.use('api').authenticate()
         const body = request.only(Event.fillable)
-        //console.log("EVENTOS STORE>>", body)
         const data = await Event.create(body)
         return response.status(201).send(data)
 
@@ -40,7 +39,6 @@ export default class EventsController {
     public async update({ request, params, response }: HttpContextContract) {
         const body = request.only(Event.fillable)
         body.id = params.id
-        //console.log("data>>44:", body)
         const data = await Event.findOrFail(body.id)
         body.createdAt = data.$attributes.createdAt
         await data.fill(body).save()

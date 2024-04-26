@@ -49,8 +49,10 @@
       select user, host from mysql.user
       update mysql.user set host='%' where user='root'
 
-   
+10. **Verificar ip do WSL   
 
 
 
 Esses são alguns dos comandos Docker mais utilizados. Você pode obter informações adicionais sobre um comando específico usando `docker <comando> --help` para ver a documentação de ajuda relacionada a esse comando.
+
+

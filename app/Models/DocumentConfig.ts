@@ -7,9 +7,12 @@ export default class DocumentConfig extends BaseModel {
   public static get fillable() {
     return [
       'cod',
+      'typebooks_id',
+      'companies_id',
+      'box2',
       'prot',
-      'box',
-      'classification',
+      'month',
+      'yeardoc',
       'intfield1',
       'stringfield1',
       'datefield1',
@@ -57,19 +60,22 @@ export default class DocumentConfig extends BaseModel {
   public id: number
 
   @column()
-  public documents_id: number
+  public typebooks_id: number
 
   @column()
-  public cod: string
+  public companies_id: number
 
   @column()
   public prot: string
 
   @column()
-  public box: string
+  public box2: string
 
   @column()
-  public classification: string
+  public month: string
+
+  @column()
+  public yeardoc: string
 
   @column()
   public intfield1: string
