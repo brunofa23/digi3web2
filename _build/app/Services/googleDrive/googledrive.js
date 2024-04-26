@@ -47,7 +47,6 @@ async function generateCredentialsToJson() {
     const content = JSON.stringify(credentialsDB?.credentials, null, 2);
     try {
         if (!fs.existsSync(CREDENTIALS_PATH_FOLDER)) {
-            console.log("ERRO SEM PASTA CREDENTIALS");
             fs.mkdirSync(CREDENTIALS_PATH_FOLDER);
         }
         await fs.writeFileSync(fileNameCredentials, content, 'utf8');
@@ -63,7 +62,6 @@ async function loadSavedCredentialsIfExist() {
             return google.auth.fromJSON(tokenNumber.token);
         }
         catch (err) {
-            console.log("ERRO DO TOKEN", err);
             return null;
         }
     }
@@ -107,7 +105,6 @@ async function authorize() {
         if (client.credentials) {
             await saveCredentials(client);
         }
-        console.log("CLIENT>>>>>", client);
         return client;
     }
     catch (error) {
@@ -185,7 +182,6 @@ async function searchFile(authClient, fileName, parentId = undefined) {
         Array.prototype.push.apply(files, res.files);
         res.data.files.forEach(function (file) {
             files.push({ name: file.name, id: file.id });
-            console.log('Found file:', file.name, file.id);
         });
         return res.data.files;
     }
@@ -215,7 +211,6 @@ async function renameFile(authClient, fileId, newTitle) {
             fileId,
             resource: fileMetadata,
         });
-        console.log(`Arquivo renomeado para: ${updatedFile.data.name}`);
     }
     catch (error) {
         console.error('Erro ao renomear o arquivo:', error);

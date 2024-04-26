@@ -21,9 +21,6 @@ class Config extends Orm_1.BaseModel {
             'valueinteger'
         ];
     }
-    static afterFetchHook(config) {
-        console.log("afterFetch...");
-    }
 }
 __decorate([
     (0, Orm_1.column)({ isPrimary: true }),
@@ -53,11 +50,5 @@ __decorate([
     Orm_1.column.dateTime({ autoCreate: true, autoUpdate: true }),
     __metadata("design:type", luxon_1.DateTime)
 ], Config.prototype, "updatedAt", void 0);
-__decorate([
-    (0, Orm_1.afterFetch)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Array]),
-    __metadata("design:returntype", void 0)
-], Config, "afterFetchHook", null);
 exports.default = Config;
 //# sourceMappingURL=Config.js.map

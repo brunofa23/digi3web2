@@ -19,9 +19,12 @@ class DocumentConfig extends Orm_1.BaseModel {
     static get fillable() {
         return [
             'cod',
+            'typebooks_id',
+            'companies_id',
+            'box2',
             'prot',
-            'box',
-            'classification',
+            'month',
+            'yeardoc',
             'intfield1',
             'stringfield1',
             'datefield1',
@@ -71,11 +74,11 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], DocumentConfig.prototype, "documents_id", void 0);
+], DocumentConfig.prototype, "typebooks_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", String)
-], DocumentConfig.prototype, "cod", void 0);
+    __metadata("design:type", Number)
+], DocumentConfig.prototype, "companies_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
@@ -83,11 +86,15 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
-], DocumentConfig.prototype, "box", void 0);
+], DocumentConfig.prototype, "box2", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
-], DocumentConfig.prototype, "classification", void 0);
+], DocumentConfig.prototype, "month", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], DocumentConfig.prototype, "yeardoc", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

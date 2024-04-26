@@ -37,9 +37,11 @@ Route_1.default.group(() => {
     Route_1.default.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords');
     Route_1.default.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial');
     Route_1.default.get('/updatedfiles', 'BookrecordsController.updatedFiles');
+    Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument');
     Route_1.default.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index');
     Route_1.default.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store');
     Route_1.default.patch("/typebooks/:typebooks_id/documents/:id", 'DocumentsController.update');
+    Route_1.default.resource("documentconfig", "DocumentconfigsController");
     Route_1.default.get("/indeximages", "IndeximagesController.index");
     Route_1.default.get("/indeximages/:id", "IndeximagesController.show");
     Route_1.default.delete("/indeximages/:typebooks_id/:bookrecords_id/:file_name", "IndeximagesController.destroy");

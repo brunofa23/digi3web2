@@ -12,7 +12,6 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class DocumentsController {
     async index({ auth, request, params, response }) {
         const documentPayload = request.only(Document_1.default.fillable);
-        console.log("ONLY>>");
         try {
             const data = await Document_1.default.all();
             return response.status(200).send(data);

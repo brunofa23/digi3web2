@@ -64,7 +64,7 @@ class UsersController {
             return response.status(201).send(userUpdated, successValidation.code);
         }
         catch (error) {
-            console.log("ERRO UPDATE");
+            throw new BadRequestException_1.default('Bad Request', 401, error);
         }
     }
 }

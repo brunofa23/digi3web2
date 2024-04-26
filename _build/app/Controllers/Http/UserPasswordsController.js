@@ -34,7 +34,6 @@ class UserPasswordsController {
         return response.status(400).send("Erro, verifique o nome da Empresa ou do Usuário.");
     }
     async resetPassword({ request, response }) {
-        console.log("reset Acionado!!!");
         const body = await request.only(User_1.default.fillable);
         const user = await User_1.default.query().select('users.*').preload('company')
             .innerJoin('companies', 'users.companies_id', 'companies.id')
@@ -43,7 +42,6 @@ class UserPasswordsController {
         if (user instanceof User_1.default && user.email) {
             try {
                 const passwordReset = '#$1A' + Helpers_1.string.generateRandom(32);
-                console.log('PASSWOPRD', passwordReset);
                 user.password = passwordReset;
                 user.save();
                 await Mail_1.default.send((message) => {
@@ -57,7 +55,6 @@ class UserPasswordsController {
                         newPassword: passwordReset
                     });
                 });
-                console.log("enviado!!!!");
                 let successValidation = await new validations_1.default('user_success_203');
                 return response.status(201).send({ user: user.name, email: user.email, status: successValidation.code });
             }

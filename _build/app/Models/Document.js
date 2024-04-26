@@ -14,20 +14,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
-const Indeximage_1 = __importDefault(require("./Indeximage"));
-const Typebook_1 = __importDefault(require("./Typebook"));
-const Company_1 = __importDefault(require("./Company"));
+const Bookrecord_1 = __importDefault(require("./Bookrecord"));
 class Document extends Orm_1.BaseModel {
     static get fillable() {
         return [
             'id',
-            'typebooks_id',
-            'books_id',
-            'companies_id',
-            'cod',
+            'bookrecords_id',
+            'box2',
             'prot',
-            'box',
-            'classification',
+            'month',
+            'yeardoc',
             'intfield1',
             'stringfield1',
             'datefield1',
@@ -71,37 +67,36 @@ class Document extends Orm_1.BaseModel {
     }
 }
 __decorate([
+    (0, Orm_1.hasOne)(() => Bookrecord_1.default, {
+        foreignKey: 'id',
+        localKey: 'bookrecords_id'
+    }),
+    __metadata("design:type", Object)
+], Document.prototype, "bookrecord", void 0);
+__decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
 ], Document.prototype, "id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], Document.prototype, "typebooks_id", void 0);
+], Document.prototype, "bookrecords_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], Document.prototype, "companies_id", void 0);
+], Document.prototype, "box2", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], Document.prototype, "books_id", void 0);
+], Document.prototype, "month", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], Document.prototype, "cod", void 0);
+], Document.prototype, "yeardoc", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], Document.prototype, "prot", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Number)
-], Document.prototype, "box", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Number)
-], Document.prototype, "classification", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
@@ -111,7 +106,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield1", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield1", void 0);
 __decorate([
@@ -123,7 +118,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield2", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield2", void 0);
 __decorate([
@@ -135,7 +130,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield3", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield3", void 0);
 __decorate([
@@ -147,7 +142,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield4", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield4", void 0);
 __decorate([
@@ -159,7 +154,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield5", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield5", void 0);
 __decorate([
@@ -171,7 +166,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield6", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield6", void 0);
 __decorate([
@@ -183,7 +178,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield7", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield7", void 0);
 __decorate([
@@ -195,7 +190,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield8", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield8", void 0);
 __decorate([
@@ -207,7 +202,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield9", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield9", void 0);
 __decorate([
@@ -219,7 +214,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield10", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield10", void 0);
 __decorate([
@@ -231,7 +226,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield11", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield11", void 0);
 __decorate([
@@ -243,7 +238,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield12", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield12", void 0);
 __decorate([
@@ -255,7 +250,7 @@ __decorate([
     __metadata("design:type", String)
 ], Document.prototype, "stringfield13", void 0);
 __decorate([
-    (0, Orm_1.column)(),
+    Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "datefield13", void 0);
 __decorate([
@@ -267,28 +262,28 @@ __decorate([
     __metadata("design:type", luxon_1.DateTime)
 ], Document.prototype, "updatedAt", void 0);
 __decorate([
-    (0, Orm_1.hasMany)(() => Indeximage_1.default, {
+    (0, Orm_1.hasMany)(() => Indeximage, {
         foreignKey: 'documents_id',
         localKey: 'id'
     }),
     __metadata("design:type", Object)
 ], Document.prototype, "bookrecords", void 0);
 __decorate([
-    (0, Orm_1.hasMany)(() => Indeximage_1.default, {
+    (0, Orm_1.hasMany)(() => Indeximage, {
         foreignKey: 'documents_id',
         localKey: 'id'
     }),
     __metadata("design:type", Object)
 ], Document.prototype, "indeximage", void 0);
 __decorate([
-    (0, Orm_1.hasOne)(() => Typebook_1.default, {
+    (0, Orm_1.hasOne)(() => Typebook, {
         foreignKey: 'id',
         localKey: 'typebooks_id'
     }),
     __metadata("design:type", Object)
 ], Document.prototype, "typebooks", void 0);
 __decorate([
-    (0, Orm_1.hasOne)(() => Company_1.default, {
+    (0, Orm_1.hasOne)(() => Company, {
         foreignKey: 'id',
         localKey: 'companies_id'
     }),

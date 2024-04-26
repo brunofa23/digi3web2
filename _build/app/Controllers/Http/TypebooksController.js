@@ -9,6 +9,7 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const TypebookValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/TypebookValidator"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const Book_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Book"));
+const DocumentConfig_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DocumentConfig"));
 const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
 const fileRename = global[Symbol.for('ioc.use')]('App/Services/fileRename/fileRename');
 class TypebooksController {
@@ -20,6 +21,16 @@ class TypebooksController {
         try {
             const company = await Company_1.default.findByOrFail('id', authenticate.companies_id);
             const data = await Typebook_1.default.create(typebookPayload);
+            if (data.$attributes.books_id == 13) {
+                await DocumentConfig_1.default
+                    .create({
+                    typebooks_id: data.$attributes.id,
+                    companies_id: authenticate.companies_id,
+                    prot: "Protocolo",
+                    month: "Mês",
+                    yeardoc: "Ano"
+                });
+            }
             const path = `Client_${typebookPayload.companies_id}.Book_${data.id}.${book?.namefolder}`;
             await Typebook_1.default.query().where('id', '=', data.id)
                 .andWhere('companies_id', '=', typebookPayload.companies_id)
@@ -46,6 +57,7 @@ class TypebooksController {
             throw new BadRequestException_1.default('company not exists', 401);
         if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
             data = await Typebook_1.default.query()
+                .preload('documentconfig')
                 .where("companies_id", '=', companies_id);
         }
         else {
@@ -65,15 +77,14 @@ class TypebooksController {
             data = await Typebook_1.default.query()
                 .where("companies_id", '=', companies_id)
                 .whereRaw(query);
+            console.log("passei aqui 100");
         }
         if (typebookPayload.totalfiles) {
-            console.log("PASSEI PELO TOTAL FILES.....");
             data = await Typebook_1.default.query()
                 .where("companies_id", '=', companies_id)
                 .whereRaw(query).andWhere("status", "=", 1);
             for (let i = 0; i < data.length; i++) {
                 const totalFiles = await fileRename.totalFilesInFolder(data[i].path);
-                console.log("TOTAL FILES>>>", totalFiles);
                 data[i].totalFiles = totalFiles.length;
             }
         }
@@ -82,8 +93,10 @@ class TypebooksController {
     async show({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const data = await Typebook_1.default.query()
+            .preload('documentconfig')
             .where("companies_id", "=", authenticate.companies_id)
             .andWhere('id', "=", params.id).firstOrFail();
+        console.log("passei no show");
         return response.status(200).send(data);
     }
     async update({ auth, request, params, response }) {

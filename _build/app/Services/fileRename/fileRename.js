@@ -25,7 +25,6 @@ async function deleteImage(folderPath) {
             if (err) {
                 throw "ERRO DELETE::" + err;
             }
-            console.log("Delete File successfully.");
             return true;
         });
     }
@@ -249,6 +248,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             };
         }
         catch (error) {
+            return error;
         }
         return fileRename;
     }

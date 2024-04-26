@@ -10,7 +10,6 @@ async function DeleteFiles(folderPath) {
         if (err) {
             throw "ERRO DELETE::" + err;
         }
-        console.log("Delete File successfully.");
         return true;
     });
 }

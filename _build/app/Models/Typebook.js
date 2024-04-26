@@ -18,6 +18,7 @@ const Indeximage_1 = __importDefault(require("./Indeximage"));
 const Book_1 = __importDefault(require("./Book"));
 const Company_1 = __importDefault(require("./Company"));
 const Bookrecord_1 = __importDefault(require("./Bookrecord"));
+const DocumentConfig_1 = __importDefault(require("./DocumentConfig"));
 class Typebook extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -41,6 +42,13 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], Typebook.prototype, "bookrecords", void 0);
+__decorate([
+    (0, Orm_1.hasMany)(() => DocumentConfig_1.default, {
+        foreignKey: 'typebooks_id',
+        localKey: 'id'
+    }),
+    __metadata("design:type", Object)
+], Typebook.prototype, "documentconfig", void 0);
 __decorate([
     (0, Orm_1.hasMany)(() => Indeximage_1.default, {
         foreignKey: 'typebooks_id',

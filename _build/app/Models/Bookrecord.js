@@ -17,6 +17,7 @@ const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Indeximage_1 = __importDefault(require("./Indeximage"));
 const Typebook_1 = __importDefault(require("./Typebook"));
 const Company_1 = __importDefault(require("./Company"));
+const Document_1 = __importDefault(require("./Document"));
 const fileRename = require('../Services/fileRename/fileRename');
 class Bookrecord extends Orm_1.BaseModel {
     static get fillable() {
@@ -44,6 +45,13 @@ class Bookrecord extends Orm_1.BaseModel {
         fileRename.updateFileName(bookRecord);
     }
 }
+__decorate([
+    (0, Orm_1.hasOne)(() => Document_1.default, {
+        foreignKey: 'bookrecords_id',
+        localKey: 'id'
+    }),
+    __metadata("design:type", Object)
+], Bookrecord.prototype, "document", void 0);
 __decorate([
     (0, Orm_1.hasMany)(() => Indeximage_1.default, {
         foreignKey: 'bookrecords_id',

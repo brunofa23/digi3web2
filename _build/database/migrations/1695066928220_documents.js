@@ -11,15 +11,12 @@ class default_1 extends Schema_1.default {
     }
     async up() {
         this.schema.createTable(this.tableName, (table) => {
-            table.primary(['id', 'typebooks_id', 'books_id', 'companies_id']);
-            table.increments('id');
-            table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id');
-            table.integer('books_id').notNullable().unsigned().references('typebooks.books_id').onDelete('CASCADE');
-            table.integer('companies_id').notNullable().unsigned().references('companies.id').onDelete('CASCADE');
-            table.integer('cod');
+            table.increments('id').notNullable().unsigned();
+            table.integer('bookrecords_id').notNullable().unsigned().references('bookrecords.id').onDelete('CASCADE');
+            table.integer('box2');
             table.integer('prot');
-            table.integer('box');
-            table.integer('classification');
+            table.integer('month');
+            table.integer('yeardoc');
             table.integer('intfield1');
             table.string('stringfield1', 350);
             table.dateTime('datefield1');
