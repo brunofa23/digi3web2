@@ -1,9 +1,4 @@
 import Application from '@ioc:Adonis/Core/Application'
-import { GoogleApis } from "googleapis";
-import { auth } from "googleapis/build/src/apis/file";
-import Encryption from '@ioc:Adonis/Core/Encryption'
-import { logInJson } from "App/Services/util"
-
 import Token from 'App/Models/Token';
 import { types } from '@ioc:Adonis/Core/Helpers'
 
@@ -127,9 +122,6 @@ async function authorize() {
     console.error('Erro ao autenticar:', error);
     throw error;
   }
-
-
-
 }
 
 
@@ -152,9 +144,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
     useResumableUpload: true,
   }, {
     onUploadProgress: (event) => {
-
       const progress = Math.round((event.bytesRead / event.bytesTotal) * 100);
-
     },
     onError: (err) => {
       console.error(`Ocorreu um erro durante o upload: ${err}`);
@@ -174,16 +164,13 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
   const response = await resumableUpload;
   return response
   console.log(`Arquivo carregado com sucesso! ID do arquivo: ${response.data.id}`);
-
 }
 
 async function createFolder(authClient, folderName, parentId = undefined) {
   const drive = google.drive({ version: 'v3', auth: authClient });
-
   var _parentId = []
   if (parentId)
     _parentId = [parentId]
-
   const fileMetadata = {
     name: folderName,
     mimeType: 'application/vnd.google-apps.folder',
@@ -243,12 +230,10 @@ async function deleteFile(authClient, fileId) {
 //RENOMERAR ARQUIVOS**************************************************************** */
 async function renameFile(authClient, fileId: String, newTitle: String) {
   const drive = google.drive({ version: 'v3', auth: authClient });
-
   try {
     const fileMetadata = {
       name: newTitle,
     };
-
     const updatedFile = await drive.files.update({
       fileId,
       resource: fileMetadata,
@@ -259,8 +244,6 @@ async function renameFile(authClient, fileId: String, newTitle: String) {
 }
 
 //******************************************************************* */
-
-
 async function listFiles(authClient, folderId = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
@@ -361,8 +344,6 @@ async function downloadFile(authClient, fileId, extension) {
   }
 }
 
-
-
 //****************************************************************** */
 async function sendAuthorize() {
   await authorize()
@@ -431,7 +412,5 @@ async function sendRenameFile(fileId, newTitle) {
   return renameFile(auth, fileId, newTitle)
 
 }
-
-
 
 module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles, sendRenameFile }

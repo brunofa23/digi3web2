@@ -7,7 +7,6 @@ import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
 import { DateTime } from "luxon";
-import { logInJson } from "App/Services/util"
 
 const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');

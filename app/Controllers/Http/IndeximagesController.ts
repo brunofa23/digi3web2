@@ -17,8 +17,7 @@ const path = require('path')
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
-    const body = request.only(Indeximage.fillable)
-
+        const body = request.only(Indeximage.fillable)
     try {
       const data = await Indeximage.create(body)
       return response.status(201).send(data)
@@ -30,9 +29,7 @@ export default class IndeximagesController {
   }
 
   public async index({ auth, response }) {
-
     await auth.use('api').authenticate()
-
     const data = await Indeximage.query()
       .preload('typebooks', (queryIndex) => {
         queryIndex.where("id", 2)
@@ -88,7 +85,7 @@ export default class IndeximagesController {
   }
 
   public async update({ request, params, response }: HttpContextContract) {
-
+    console.log("passei aqui 2322")
 
     const body = request.only(Indeximage.fillable)
     body.bookrecords_id = params.id

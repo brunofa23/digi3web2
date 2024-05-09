@@ -87,12 +87,9 @@ export default class TypebooksController {
       if (typebookPayload.books_id !== undefined) {
         query += ` and books_id = ${typebookPayload.books_id} `
       }
-
-
       data = await Typebook.query()
         .where("companies_id", '=', companies_id)
         .whereRaw(query)
-      console.log("passei aqui 100")
     }
 
     if (typebookPayload.totalfiles) {
