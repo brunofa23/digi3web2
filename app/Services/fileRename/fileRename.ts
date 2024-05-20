@@ -83,6 +83,8 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     //criar a pasta
     const company = await Company.findByOrFail('id', _companies_id)
     const idFolderCompany = await sendSearchFile(company.foldername, cloud_number)
+    console.log("id da pasta 666>>", idFolderCompany)
+
     await sendCreateFolder(directoryParent?.path, cloud_number, idFolderCompany[0].id)
     await sleep(2000)
     //return "Erro: Esta pasta não existe no GoogleDrive"

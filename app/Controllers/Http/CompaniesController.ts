@@ -3,7 +3,9 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import Company from 'App/Models/Company'
 import validations from 'App/Services/Validations/validations'
 import CompanyValidator from 'App/Validators/CompanyValidator'
-const authorize = require('App/Services/googleDrive/googledrive')
+import {sendSearchOrCreateFolder} from "App/Services/googleDrive/googledrive"
+
+//const authorize = require('App/Services/googleDrive/googledrive')
 
 export default class CompaniesController {
 
@@ -35,15 +37,12 @@ export default class CompaniesController {
 
   //inserir
   public async store({ auth, request, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
       let errorValidation = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
-
     const body = await request.validate(CompanyValidator)
-
     const companyByName = await Company.findBy('name', body.name)
 
     if (companyByName) {
@@ -51,16 +50,15 @@ export default class CompaniesController {
       throw new BadRequest(errorValidation['messages'], errorValidation.status, errorValidation.code)
     }
 
+
     const companyByShortname = await Company.findBy('shortname', body.shortname)
     if (companyByShortname) {
       let errorValidation = await new validations('company_error_102')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
-
     try {
       const data = await Company.create(body)
-      let parent = await authorize.sendSearchOrCreateFolder(data.foldername)
-
+      let parent = await sendSearchOrCreateFolder(data.foldername, data.cloud)
       let successValidation = await new validations('company_success_100')
       return response.status(201).send({ data, idfoder: parent, successValidation: successValidation.code })
 

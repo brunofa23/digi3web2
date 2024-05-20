@@ -4,6 +4,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import Format from '../../Services/Dates/format'
 import Bookrecord from 'App/Models/Bookrecord'
+import Company from 'App/Models/Company'
 // import { logInJson } from "App/Services/util"
 // import { base64 } from '@ioc:Adonis/Core/Helpers'
 // import ConfigsController from './ConfigsController'
@@ -51,7 +52,7 @@ export default class IndeximagesController {
     }
   }
 
-  public async destroy({ auth, request, params, response }: HttpContextContract) {
+  public async destroy({ auth, params, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
     try {
       //excluir imagens do google drive
@@ -109,14 +110,13 @@ export default class IndeximagesController {
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
+    const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
-
     if (indexImagesInitial == 'true') {
       console.log("PASSEI UPLOAD...passo 1.1")
       const listFilesImages = images.map((image) => {
@@ -124,7 +124,8 @@ export default class IndeximagesController {
         return imageName
       })
       console.log("PASSEI UPLOAD...passo 1.2")
-      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages, 1)
+
+      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages, company?.cloud)
       console.log("PASSEI UPLOAD...passo 1.3")
 
       for (const item of listFiles.bookRecord) {
@@ -138,7 +139,7 @@ export default class IndeximagesController {
     }
 
     console.log("PASSEI UPLOAD...passo 1.4")
-    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id,1, false, dataImages)
+    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id,company?.cloud, false, dataImages)
     console.log("PASSEI UPLOAD...passo 1.5")
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
@@ -169,12 +170,13 @@ export default class IndeximagesController {
   }
 
   public async download({ auth, params, request }: HttpContextContract) {
-
+    console.log('PASSEI NO DOWNLOAD>>>')
     const authenticate = await auth.use('api').authenticate()
     const { typebook_id } = request.only(['typebook_id'])
     const body = request.only(Indeximage.fillable)
     const fileName = params.id
-    const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id)
+    const company = await Company.find(authenticate.companies_id)
+    const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
 
     return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }
 

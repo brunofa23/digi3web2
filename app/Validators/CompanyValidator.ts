@@ -18,7 +18,8 @@ export default class CompanyValidator {
     responsablename: schema.string.optional(),
     phoneresponsable: schema.string.optional(),
     email: schema.string.optional({}, [rules.email(),]),
-    status: schema.boolean()
+    status: schema.boolean(),
+    cloud:schema.number()
   })
 
 

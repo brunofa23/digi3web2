@@ -21,7 +21,7 @@ async function getToken(cloud_number:number) {
   try {
     //const token = await Token.findBy("name", 'tokenGoogle')
     console.log("cloud number:", cloud_number)
-    const token = await Token.findOrFail(1)
+    const token = await Token.findOrFail(cloud_number)
     if (!types.isNull(token?.token)) {
       token.token = JSON.parse(token.token)
       return token
@@ -44,8 +44,8 @@ async function getCredentials(cloud_number:number) {
   }
 }
 
-async function generateCredentialsToJson() {
-  const credentialsDB = await getCredentials()
+async function generateCredentialsToJson(cloud_number:number) {
+  const credentialsDB = await getCredentials(cloud_number)
   const fileNameCredentials = CREDENTIALS_PATH
   const content = JSON.stringify(credentialsDB?.credentials, null, 2);
   try {
@@ -102,7 +102,7 @@ async function authorize(cloud_number:number) {
   }
 
   if (!fs.existsSync(CREDENTIALS_PATH)) {
-    await generateCredentialsToJson();
+    await generateCredentialsToJson(cloud_number);
     return
   }
 
@@ -388,11 +388,9 @@ async function sendDeleteFile(fileId,cloud_number:number) {
   return deleteFile(auth, fileId)
 }
 
-async function sendSearchOrCreateFolder(folderName, parent = undefined, cloud_number:number) {
-
+async function sendSearchOrCreateFolder(folderName,cloud_number:number, parent = undefined ) {
   const auth = await authorize(cloud_number)
   let findFolder = await searchFile(auth, folderName)
-
   if (findFolder.length > 0)
     return findFolder
   else {
@@ -400,8 +398,6 @@ async function sendSearchOrCreateFolder(folderName, parent = undefined, cloud_nu
     findFolder = await searchFile(auth, folderName)
     return findFolder
   }
-
-
 }
 
 async function sendDownloadFile(fileId, extension, cloud_number:number) {

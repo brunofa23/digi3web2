@@ -5,13 +5,12 @@ export default class extends BaseSchema {
 
   public async up() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.integer('cloud').notNullable()
+      table.integer('cloud').notNullable().unsigned().references('tokens.id').defaultTo(1)
     })
   }
 
   public async down() {
     this.schema.alterTable(this.tableName, (table) => {
-      // Reverter as alterações feitas no método "up"
       table.dropColumn('cloud')
     })
   }

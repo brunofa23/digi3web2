@@ -6,8 +6,8 @@ import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
 import Book from 'App/Models/Book'
 import DocumentConfig from 'App/Models/DocumentConfig'
-
-const authorize = require('App/Services/googleDrive/googledrive')
+import {sendSearchFile, sendCreateFolder} from "App/Services/googleDrive/googledrive"
+//const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
 
 export default class TypebooksController {
@@ -40,12 +40,12 @@ export default class TypebooksController {
         .andWhere('companies_id', '=', typebookPayload.companies_id)
         .update({ path: path })
 
-      const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-      const verifyFolder = await authorize.sendSearchFile(path)
+      const idFolderCompany = await sendSearchFile(company.foldername,company.cloud)
+      const verifyFolder = await sendSearchFile(path, company.cloud)
       if (verifyFolder.length > 0) {
         return
       }
-      await authorize.sendCreateFolder(path, idFolderCompany[0].id)
+      await sendCreateFolder(path,company.cloud, idFolderCompany[0].id)
       let successValidation = await new validations('typebook_success_100')
       return response.status(201).send(typebookPayload, successValidation.code)
 
@@ -56,8 +56,6 @@ export default class TypebooksController {
   }
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
-
-
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles'])
     let data
