@@ -109,19 +109,24 @@ export default class IndeximagesController {
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
+
     if (indexImagesInitial == 'true') {
+      console.log("PASSEI UPLOAD...passo 1.1")
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
       })
+      console.log("PASSEI UPLOAD...passo 1.2")
+      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages, 1)
+      console.log("PASSEI UPLOAD...passo 1.3")
 
-      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages)
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
@@ -132,7 +137,9 @@ export default class IndeximagesController {
 
     }
 
-    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
+    console.log("PASSEI UPLOAD...passo 1.4")
+    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id,1, false, dataImages)
+    console.log("PASSEI UPLOAD...passo 1.5")
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
