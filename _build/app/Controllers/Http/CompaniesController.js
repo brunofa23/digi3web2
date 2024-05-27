@@ -7,7 +7,7 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const CompanyValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/CompanyValidator"));
-const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
+const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 class CompaniesController {
     async index({ auth, response, request }) {
         const authenticate = await auth.use('api').authenticate();
@@ -49,7 +49,7 @@ class CompaniesController {
         }
         try {
             const data = await Company_1.default.create(body);
-            let parent = await authorize.sendSearchOrCreateFolder(data.foldername);
+            let parent = await (0, googledrive_1.sendSearchOrCreateFolder)(data.foldername, data.cloud);
             let successValidation = await new validations_1.default('company_success_100');
             return response.status(201).send({ data, idfoder: parent, successValidation: successValidation.code });
         }

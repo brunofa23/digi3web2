@@ -18,7 +18,8 @@ class CompanyValidator {
             responsablename: Validator_1.schema.string.optional(),
             phoneresponsable: Validator_1.schema.string.optional(),
             email: Validator_1.schema.string.optional({}, [Validator_1.rules.email(),]),
-            status: Validator_1.schema.boolean()
+            status: Validator_1.schema.boolean(),
+            cloud: Validator_1.schema.number()
         });
         this.messages = {
             required: 'The {{field}} is required to create a new company',

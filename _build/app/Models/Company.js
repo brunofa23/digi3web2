@@ -35,6 +35,7 @@ class Company extends Orm_1.BaseModel {
             'phoneresponsable',
             'email',
             'status',
+            'cloud',
             'created_at',
             'updated_at'
         ];
@@ -122,6 +123,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
 ], Company.prototype, "status", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Company.prototype, "cloud", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

@@ -11,7 +11,7 @@ const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Comp
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const pino_std_serializers_1 = require("pino-std-serializers");
 const luxon_1 = require("luxon");
-const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
+const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const fs = require('fs');
 const path = require('path');
 function sleep(ms) {
@@ -32,17 +32,17 @@ async function deleteImage(folderPath) {
         return { "ERRO DELETE::>": pino_std_serializers_1.err, error };
     }
 }
-async function downloadImage(fileName, typebook_id, company_id) {
+async function downloadImage(fileName, typebook_id, company_id, cloud_number) {
     const directoryParent = await Typebook_1.default.query()
         .where('id', '=', typebook_id)
         .andWhere('companies_id', '=', company_id).first();
-    const parent = await authorize.sendSearchFile(directoryParent?.path);
+    const parent = await (0, googledrive_1.sendSearchFile)(directoryParent?.path, cloud_number);
     const extension = path.extname(fileName);
-    const fileId = await authorize.sendSearchFile(fileName, parent[0].id);
-    const download = await authorize.sendDownloadFile(fileId[0].id, extension);
+    const fileId = await (0, googledrive_1.sendSearchFile)(fileName, cloud_number, parent[0].id);
+    const download = await (0, googledrive_1.sendDownloadFile)(fileId[0].id, extension, cloud_number);
     return download;
 }
-async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
+async function transformFilesNameToId(images, params, companies_id, cloud_number, capture = false, dataImages = {}) {
     const _companies_id = companies_id;
     let result = [];
     const folderPath = Application_1.default.tmpPath(`/uploads/Client_${companies_id}`);
@@ -59,19 +59,20 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         .andWhere('companies_id', '=', companies_id).first();
     if (!directoryParent || directoryParent == undefined)
         throw new BadRequestException_1.default('undefined book', 409);
-    let parent = await authorize.sendSearchFile(directoryParent?.path);
+    let parent = await (0, googledrive_1.sendSearchFile)(directoryParent?.path, cloud_number);
     if (parent.length == 0) {
         const company = await Company_1.default.findByOrFail('id', _companies_id);
-        const idFolderCompany = await authorize.sendSearchFile(company.foldername);
-        await authorize.sendCreateFolder(directoryParent?.path, idFolderCompany[0].id);
+        const idFolderCompany = await (0, googledrive_1.sendSearchFile)(company.foldername, cloud_number);
+        console.log("id da pasta 666>>", idFolderCompany);
+        await (0, googledrive_1.sendCreateFolder)(directoryParent?.path, cloud_number, idFolderCompany[0].id);
         await sleep(2000);
     }
     await sleep(1000);
-    const idParent = await authorize.sendSearchFile(directoryParent?.path);
+    const idParent = await (0, googledrive_1.sendSearchFile)(directoryParent?.path, cloud_number);
     if (capture) {
         const _fileRename = await fileRename(images, params.typebooks_id, companies_id);
         try {
-            await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, true);
+            await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, cloud_number, true);
             return images;
         }
         catch (error) {
@@ -96,7 +97,7 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
         _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
         try {
             if (image && image.isValid) {
-                result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id));
+                result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number));
             }
         }
         catch (error) {
@@ -105,17 +106,18 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     }
     return result;
 }
-async function renameFileGoogle(filename, folderPath, newTitle) {
+async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
+    console.log("renameFile>>>", cloud_number);
     try {
-        const idFolderPath = await authorize.sendSearchFile(folderPath);
-        const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id);
-        const renameFile = await authorize.sendRenameFile(idFile[0].id, newTitle);
+        const idFolderPath = await (0, googledrive_1.sendSearchFile)(folderPath, cloud_number);
+        const idFile = await (0, googledrive_1.sendSearchFile)(filename, cloud_number, idFolderPath[0].id);
+        const renameFile = await (0, googledrive_1.sendRenameFile)(idFile[0].id, newTitle, cloud_number);
     }
     catch (error) {
         console.log("ERROR 1456", error);
     }
 }
-async function pushImageToGoogle(image, folderPath, objfileRename, idParent, capture = false) {
+async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
     try {
         if (capture) {
             await fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
@@ -129,7 +131,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
         else {
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
         }
-        const sendUpload = await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`);
+        await (0, googledrive_1.sendUploadFiles)(idParent, folderPath, `${objfileRename.file_name}`, cloud_number);
         if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
             const date_atualization = luxon_1.DateTime.now();
             objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm');
@@ -263,13 +265,13 @@ async function mountNameFile(bookRecord, seq, extFile) {
     dateNow = dateNow.toFormat('yyyyMMddHHmm');
     return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`;
 }
-async function deleteFile(listFiles) {
+async function deleteFile(listFiles, cloud_number) {
     try {
-        const idFolder = await authorize.sendSearchFile(listFiles[0]['path']);
+        const idFolder = await (0, googledrive_1.sendSearchFile)(listFiles[0]['path'], cloud_number);
         let idFile;
         for (const file of listFiles) {
-            idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id);
-            await authorize.sendDeleteFile(idFile[0].id);
+            idFile = await (0, googledrive_1.sendSearchFile)(file['file_name'], cloud_number, idFolder[0].id);
+            await (0, googledrive_1.sendDeleteFile)(idFile[0].id, cloud_number);
         }
         return "excluido!!!";
     }
@@ -303,10 +305,11 @@ async function updateFileName(bookRecord) {
         throw error;
     }
 }
-async function totalFilesInFolder(folderName) {
+async function totalFilesInFolder(folderName, cloud_number) {
     try {
-        const idFolder = await authorize.sendSearchFile(folderName);
-        const listFiles = await authorize.sendListAllFiles(idFolder);
+        console.log("PASSEI UPLOAD...passo 4", cloud_number);
+        const idFolder = await (0, googledrive_1.sendSearchFile)(folderName, cloud_number);
+        const listFiles = await (0, googledrive_1.sendListAllFiles)(cloud_number, idFolder);
         if (listFiles) {
             return listFiles;
         }
@@ -317,13 +320,13 @@ async function totalFilesInFolder(folderName) {
         return 0;
     }
 }
-async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
+async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
     let listFiles;
     if (listFilesImages.length > 0) {
         listFiles = listFilesImages;
     }
     else {
-        listFiles = await totalFilesInFolder(folderName?.path);
+        listFiles = await totalFilesInFolder(folderName?.path, cloud_number);
     }
     listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"));
     const objlistFilesBookRecord = listFiles.map((file) => {
@@ -366,6 +369,7 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
     });
     bookRecord.sort((a, b) => a.id - b.id);
     indexImages.sort((a, b) => a.id - b.id);
+    console.log("PASSEI UPLOAD...passo 3");
     return { bookRecord, indexImages };
 }
 module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName };

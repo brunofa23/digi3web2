@@ -10,7 +10,7 @@ const TypebookValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/V
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const Book_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Book"));
 const DocumentConfig_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DocumentConfig"));
-const authorize = global[Symbol.for('ioc.use')]('App/Services/googleDrive/googledrive');
+const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const fileRename = global[Symbol.for('ioc.use')]('App/Services/fileRename/fileRename');
 class TypebooksController {
     async store({ auth, request, response }) {
@@ -35,12 +35,12 @@ class TypebooksController {
             await Typebook_1.default.query().where('id', '=', data.id)
                 .andWhere('companies_id', '=', typebookPayload.companies_id)
                 .update({ path: path });
-            const idFolderCompany = await authorize.sendSearchFile(company.foldername);
-            const verifyFolder = await authorize.sendSearchFile(path);
+            const idFolderCompany = await (0, googledrive_1.sendSearchFile)(company.foldername, company.cloud);
+            const verifyFolder = await (0, googledrive_1.sendSearchFile)(path, company.cloud);
             if (verifyFolder.length > 0) {
                 return;
             }
-            await authorize.sendCreateFolder(path, idFolderCompany[0].id);
+            await (0, googledrive_1.sendCreateFolder)(path, company.cloud, idFolderCompany[0].id);
             let successValidation = await new validations_1.default('typebook_success_100');
             return response.status(201).send(typebookPayload, successValidation.code);
         }
@@ -77,7 +77,6 @@ class TypebooksController {
             data = await Typebook_1.default.query()
                 .where("companies_id", '=', companies_id)
                 .whereRaw(query);
-            console.log("passei aqui 100");
         }
         if (typebookPayload.totalfiles) {
             data = await Typebook_1.default.query()

@@ -8,6 +8,7 @@ const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const format_1 = __importDefault(require("../../Services/Dates/format"));
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
+const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
@@ -41,7 +42,7 @@ class IndeximagesController {
             data: data,
         };
     }
-    async destroy({ auth, request, params, response }) {
+    async destroy({ auth, params, response }) {
         const { companies_id } = await auth.use('api').authenticate();
         try {
             const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()
@@ -70,6 +71,7 @@ class IndeximagesController {
         }
     }
     async update({ request, params, response }) {
+        console.log("passei aqui 2322");
         const body = request.only(Indeximage_1.default.fillable);
         body.bookrecords_id = params.id;
         body.typebooks_id = params.id2;
@@ -88,7 +90,9 @@ class IndeximagesController {
         }
     }
     async uploads({ auth, request, params, response }) {
+        console.log("passei uploads::::1500");
         const authenticate = await auth.use('api').authenticate();
+        const company = await Company_1.default.find(authenticate.companies_id);
         const images = request.files('images', {
             size: '100mb',
             extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
@@ -96,11 +100,14 @@ class IndeximagesController {
         const { dataImages } = request['requestBody'];
         const { indexImagesInitial } = request['requestData'];
         if (indexImagesInitial == 'true') {
+            console.log("PASSEI UPLOAD...passo 1.1");
             const listFilesImages = images.map((image) => {
                 const imageName = image.clientName;
                 return imageName;
             });
-            const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages);
+            console.log("PASSEI UPLOAD...passo 1.2");
+            const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages);
+            console.log("PASSEI UPLOAD...passo 1.3");
             for (const item of listFiles.bookRecord) {
                 try {
                     await Bookrecord_1.default.create(item);
@@ -110,7 +117,9 @@ class IndeximagesController {
                 }
             }
         }
-        const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages);
+        console.log("PASSEI UPLOAD...passo 1.4");
+        const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
+        console.log("PASSEI UPLOAD...passo 1.5");
         return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" });
     }
     async uploadCapture({ auth, request, params }) {
@@ -135,11 +144,13 @@ class IndeximagesController {
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }
     async download({ auth, params, request }) {
+        console.log('PASSEI NO DOWNLOAD>>>');
         const authenticate = await auth.use('api').authenticate();
         const { typebook_id } = request.only(['typebook_id']);
         const body = request.only(Indeximage_1.default.fillable);
         const fileName = params.id;
-        const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id);
+        const company = await Company_1.default.find(authenticate.companies_id);
+        const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud);
         return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size };
     }
 }
