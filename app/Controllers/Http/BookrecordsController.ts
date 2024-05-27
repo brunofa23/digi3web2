@@ -808,12 +808,17 @@ export default class BookrecordsController {
 
 
   public async indeximagesinitial({ auth, params, response }: HttpContextContract) {
-    const authenticate = await auth.use('api').authenticate()
 
+    const authenticate = await auth.use('api').authenticate()
     let listFiles
     let foldername
     try {
-      foldername = await Typebook.query().where("companies_id", "=", authenticate.companies_id).andWhere("id", "=", params.typebooks_id).first()
+      foldername = await Typebook
+        .query()
+        .preload('company')
+        .where("companies_id", "=", authenticate.companies_id)
+        .andWhere("id", "=", params.typebooks_id).first()
+
       if (foldername) {
         await Typebook.query()
           .where('companies_id', '=', authenticate.companies_id)
@@ -822,6 +827,7 @@ export default class BookrecordsController {
 
       } else
         throw "ERROR::SEM PASTA DE IMAGENS"
+
       //ROTINA DE ALTERAR NOME DOS ARQUIVOS MODIFICADOS ENTRA AQUI
       const listFilesToModify =
         await Indeximage.query()
@@ -829,10 +835,12 @@ export default class BookrecordsController {
           .andWhere("typebooks_id", "=", params.typebooks_id)
           .whereNotNull('previous_file_name')
 
+
       if (listFilesToModify) {
         for (const iterator of listFilesToModify) {
+          console.log("chequiei aqui 666")
           //1 - modificar o aquivo no gdrive
-          await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name)
+          await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud)
 
           //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
           await Indeximage.query()
@@ -845,30 +853,35 @@ export default class BookrecordsController {
 
         }
       }
-      //************************************************** */
-      listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id)
+
+      listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id, foldername.company.cloud)
     } catch (error) {
       console.log(error)
     }
-
+    //***************************************************** */
     for (const item of listFiles.bookRecord) {
       try {
         const create = await Bookrecord.create(item)
+        console.log("chequiei aqui 88 create")
       } catch (error) {
-        return error
+        console.log("chequiei aqui 77 error")
+        //return error
       }
     }
 
+    console.log("chequiei aqui 8888", listFiles.indexImages)
     for (const item of listFiles.indexImages) {
       try {
         await Indeximage.create(item)
       } catch (error) {
-        return error
-
+        //return error
       }
     }
 
+
+
     try {
+      console.log("chequiei aqui 999")
       const typebookPayload = await Typebook.query()
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('id', '=', foldername.id)

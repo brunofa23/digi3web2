@@ -109,6 +109,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+    console.log("passei uploads::::1500")
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
@@ -125,7 +126,7 @@ export default class IndeximagesController {
       })
       console.log("PASSEI UPLOAD...passo 1.2")
 
-      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages, company?.cloud)
+      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id,company?.cloud, listFilesImages )
       console.log("PASSEI UPLOAD...passo 1.3")
 
       for (const item of listFiles.bookRecord) {
