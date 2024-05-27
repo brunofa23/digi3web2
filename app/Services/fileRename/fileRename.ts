@@ -7,9 +7,18 @@ import Company from 'App/Models/Company'
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
 import { DateTime } from "luxon";
-import { logInJson } from "App/Services/util"
 
-const authorize = require('App/Services/googleDrive/googledrive')
+import {
+  sendUploadFiles,
+  sendCreateFolder,
+  sendSearchFile,
+  sendDownloadFile,
+  sendDeleteFile,
+  sendListAllFiles,
+  sendRenameFile
+}  from "App/Services/googleDrive/googledrive"
+
+//const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
 const path = require('path')
 
@@ -33,21 +42,19 @@ async function deleteImage(folderPath) {
 
 }
 
-async function downloadImage(fileName, typebook_id, company_id) {
+async function downloadImage(fileName, typebook_id, company_id, cloud_number: number) {
   const directoryParent = await Typebook.query()
     .where('id', '=', typebook_id)
     .andWhere('companies_id', '=', company_id).first()
-
-  const parent = await authorize.sendSearchFile(directoryParent?.path)
+  const parent = await sendSearchFile(directoryParent?.path, cloud_number)
   const extension = path.extname(fileName);
-  const fileId = await authorize.sendSearchFile(fileName, parent[0].id)
-  const download = await authorize.sendDownloadFile(fileId[0].id, extension)
+  const fileId = await sendSearchFile(fileName, cloud_number, parent[0].id)
+  const download = await sendDownloadFile(fileId[0].id, extension, cloud_number)
 
   return download
 }
 
-
-async function transformFilesNameToId(images, params, companies_id, capture = false, dataImages = {}) {
+async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
 
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
@@ -69,33 +76,34 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     throw new BadRequestException('undefined book', 409)
 
   //verifica se existe essa pasta no Google e retorna o id do google
-  let parent = await authorize.sendSearchFile(directoryParent?.path)
+  let parent = await sendSearchFile(directoryParent?.path, cloud_number)
 
   //se não tiver a pasta vai criar
   if (parent.length == 0) {
     //criar a pasta
     const company = await Company.findByOrFail('id', _companies_id)
-    const idFolderCompany = await authorize.sendSearchFile(company.foldername)
-    await authorize.sendCreateFolder(directoryParent?.path, idFolderCompany[0].id)
+    const idFolderCompany = await sendSearchFile(company.foldername, cloud_number)
+    console.log("id da pasta 666>>", idFolderCompany)
+
+    await sendCreateFolder(directoryParent?.path, cloud_number, idFolderCompany[0].id)
     await sleep(2000)
     //return "Erro: Esta pasta não existe no GoogleDrive"
   }
-
   await sleep(1000);
-  const idParent = await authorize.sendSearchFile(directoryParent?.path)
+  const idParent = await sendSearchFile(directoryParent?.path, cloud_number)
+
   //******************************************************************************** */
   //imagem única para upload
   if (capture) {
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
     try {
-      await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, true)
+      await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, cloud_number, true)
       return images
     } catch (error) {
       console.log(error);
       return error
     }
   }
-
 
   let cont = 0
   let _fileRename
@@ -113,9 +121,11 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
     }
 
     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
+
     try {
       if (image && image.isValid) {
-        result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id))
+        //console.log("PASSO 1555>>", folderPath, _fileRename, idParent[0].id,cloud_number)
+        result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
       }
     } catch (error) {
       await new BadRequestException(error + 'pushImageToGoogle', 409)
@@ -124,19 +134,18 @@ async function transformFilesNameToId(images, params, companies_id, capture = fa
   return result
 }
 
-async function renameFileGoogle(filename, folderPath, newTitle) {
-
+async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: number) {
+  console.log("renameFile>>>", cloud_number)
   try {
-    const idFolderPath = await authorize.sendSearchFile(folderPath)
-    const idFile = await authorize.sendSearchFile(filename, idFolderPath[0].id)
-    const renameFile = await authorize.sendRenameFile(idFile[0].id, newTitle)
+    const idFolderPath = await sendSearchFile(folderPath, cloud_number)
+    const idFile = await sendSearchFile(filename, cloud_number, idFolderPath[0].id)
+    const renameFile = await sendRenameFile(idFile[0].id, newTitle, cloud_number)
   } catch (error) {
     console.log("ERROR 1456", error)
   }
 }
 
-async function pushImageToGoogle(image, folderPath, objfileRename, idParent, capture = false) {
-
+async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
   try {
     //copia o arquivo para servidor
     if (capture) {
@@ -152,8 +161,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cap
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
     }
     //copia o arquivo para o googledrive
-    const sendUpload = await authorize.sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`)
-
+    await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
     //chamar função para inserir na tabela indeximages
     if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
       const date_atualization = DateTime.now()
@@ -320,14 +328,14 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
   return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
 }
 
-async function deleteFile(listFiles: [{}]) {
+async function deleteFile(listFiles: [{}], cloud_number: number) {
 
   try {
-    const idFolder = await authorize.sendSearchFile(listFiles[0]['path'])
+    const idFolder = await sendSearchFile(listFiles[0]['path'], cloud_number)
     let idFile
     for (const file of listFiles) {
-      idFile = await authorize.sendSearchFile(file['file_name'], idFolder[0].id)
-      await authorize.sendDeleteFile(idFile[0].id)
+      idFile = await sendSearchFile(file['file_name'], cloud_number, idFolder[0].id)
+      await sendDeleteFile(idFile[0].id, cloud_number)
     }
     return "excluido!!!"
   } catch (error) {
@@ -367,10 +375,11 @@ async function updateFileName(bookRecord: Bookrecord) {
 
 }
 
-async function totalFilesInFolder(folderName) {
+async function totalFilesInFolder(folderName, cloud_number: number) {
   try {
-    const idFolder = await authorize.sendSearchFile(folderName)
-    const listFiles = await authorize.sendListAllFiles(idFolder)
+    console.log("PASSEI UPLOAD...passo 4", cloud_number)
+    const idFolder = await sendSearchFile(folderName, cloud_number)
+    const listFiles = await sendListAllFiles(cloud_number, idFolder)
     if (listFiles) {
       return listFiles
     }
@@ -381,15 +390,16 @@ async function totalFilesInFolder(folderName) {
 }
 //**************************************************** */
 
-async function indeximagesinitial(folderName, companies_id, listFilesImages = []) {
+async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
 
   let listFiles
   if (listFilesImages.length > 0) {
     listFiles = listFilesImages
   } else {
-    listFiles = await totalFilesInFolder(folderName?.path)
+    listFiles = await totalFilesInFolder(folderName?.path, cloud_number)
   }
   listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"))
+
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
 
   const objlistFilesBookRecord = listFiles.map((file) => {
@@ -441,6 +451,7 @@ async function indeximagesinitial(folderName, companies_id, listFilesImages = []
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
 
+  console.log("PASSEI UPLOAD...passo 3")
   return { bookRecord, indexImages }
 
 

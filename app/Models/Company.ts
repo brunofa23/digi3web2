@@ -26,6 +26,7 @@ export default class Company extends BaseModel {
       'phoneresponsable',
       'email',
       'status',
+      'cloud',
       'created_at',
       'updated_at'
     ]
@@ -55,7 +56,6 @@ export default class Company extends BaseModel {
 
   @column()
   public foldername: string
-
 
   @column()
   public address: string
@@ -92,6 +92,9 @@ export default class Company extends BaseModel {
 
   @column()
   public status: Boolean
+
+  @column()
+  public cloud: number
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

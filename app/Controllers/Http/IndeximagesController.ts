@@ -4,6 +4,7 @@ import Application from '@ioc:Adonis/Core/Application'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import Format from '../../Services/Dates/format'
 import Bookrecord from 'App/Models/Bookrecord'
+import Company from 'App/Models/Company'
 // import { logInJson } from "App/Services/util"
 // import { base64 } from '@ioc:Adonis/Core/Helpers'
 // import ConfigsController from './ConfigsController'
@@ -17,8 +18,7 @@ const path = require('path')
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
-    const body = request.only(Indeximage.fillable)
-
+        const body = request.only(Indeximage.fillable)
     try {
       const data = await Indeximage.create(body)
       return response.status(201).send(data)
@@ -30,9 +30,7 @@ export default class IndeximagesController {
   }
 
   public async index({ auth, response }) {
-
     await auth.use('api').authenticate()
-
     const data = await Indeximage.query()
       .preload('typebooks', (queryIndex) => {
         queryIndex.where("id", 2)
@@ -54,7 +52,7 @@ export default class IndeximagesController {
     }
   }
 
-  public async destroy({ auth, request, params, response }: HttpContextContract) {
+  public async destroy({ auth, params, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
     try {
       //excluir imagens do google drive
@@ -88,7 +86,7 @@ export default class IndeximagesController {
   }
 
   public async update({ request, params, response }: HttpContextContract) {
-
+    console.log("passei aqui 2322")
 
     const body = request.only(Indeximage.fillable)
     body.bookrecords_id = params.id
@@ -111,7 +109,9 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+    console.log("passei uploads::::1500")
     const authenticate = await auth.use('api').authenticate()
+    const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
@@ -119,12 +119,16 @@ export default class IndeximagesController {
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
     if (indexImagesInitial == 'true') {
+      console.log("PASSEI UPLOAD...passo 1.1")
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
       })
+      console.log("PASSEI UPLOAD...passo 1.2")
 
-      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, listFilesImages)
+      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id,company?.cloud, listFilesImages )
+      console.log("PASSEI UPLOAD...passo 1.3")
+
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
@@ -135,7 +139,9 @@ export default class IndeximagesController {
 
     }
 
-    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, false, dataImages)
+    console.log("PASSEI UPLOAD...passo 1.4")
+    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id,company?.cloud, false, dataImages)
+    console.log("PASSEI UPLOAD...passo 1.5")
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
@@ -165,12 +171,13 @@ export default class IndeximagesController {
   }
 
   public async download({ auth, params, request }: HttpContextContract) {
-
+    console.log('PASSEI NO DOWNLOAD>>>')
     const authenticate = await auth.use('api').authenticate()
     const { typebook_id } = request.only(['typebook_id'])
     const body = request.only(Indeximage.fillable)
     const fileName = params.id
-    const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id)
+    const company = await Company.find(authenticate.companies_id)
+    const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
 
     return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }
 
