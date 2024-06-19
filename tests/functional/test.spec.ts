@@ -4,9 +4,9 @@ import supertest from 'supertest'
 
 const BASE_URL = 'http://127.0.0.1:3333/api'
 
-//CAREACU 
+//CAREACU
 //const token = 'MTA.EkuHcWEQST7-SO1Dv5_vszK33nCMS2AoHESOEfSrMUlFyul6m3o0QrON6cjK'
-//DIGI3 
+//DIGI3
 const token = 'MTE.bohAV-lIRI496INqPgKLb4mstvJP1oieEN5useiyAqYYq8KIOCwAxXIHDFKP'
 test.group('Companies', (group) => {
   test('Get Company', async ({ client }) => {
@@ -41,7 +41,6 @@ test.group('Companies', (group) => {
       .set('Authorization', 'bearer ' + token)
       .send(companyPayload)
     //.expect(201)
-    console.log(">>>CLIENT", body)
 
   }).tags(['storeCompany'])
 
@@ -81,7 +80,6 @@ test.group('Users', (group) => {
     const body = await supertest(BASE_URL).get('/users')
       .set('Authorization', 'bearer ' + token)
       .expect(200)
-    console.log(">>>User", body)
   }).tags(['GetUser'])
 
   test('Store User', async ({ client }) => {
@@ -117,7 +115,7 @@ test.group('Typebook', (group) => {
     const body = await supertest(BASE_URL).get('/typebooks')
       .set('Authorization', 'bearer ' + token)
       .expect(200)
-    console.log(">>>typebooks", body)
+    //console.log(">>>typebooks", body)
   }).tags(['GetTypebook'])
 
 

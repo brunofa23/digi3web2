@@ -838,7 +838,6 @@ export default class BookrecordsController {
 
       if (listFilesToModify) {
         for (const iterator of listFilesToModify) {
-          console.log("chequiei aqui 666")
           //1 - modificar o aquivo no gdrive
           await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud)
 
@@ -861,15 +860,16 @@ export default class BookrecordsController {
     //***************************************************** */
     for (const item of listFiles.bookRecord) {
       try {
-        const create = await Bookrecord.create(item)
-        console.log("chequiei aqui 88 create")
+        const {yeardoc,month, ...itemBook } = item
+        const create = await Bookrecord.create(itemBook)
+        if (item.books_id == 13)
+          await Document.create({ bookrecords_id: create.id, month: item.month, yeardoc: item.yeardoc })
       } catch (error) {
-        console.log("chequiei aqui 77 error")
+        console.log("chequiei aqui 77 error", error)
         //return error
       }
     }
 
-    console.log("chequiei aqui 8888", listFiles.indexImages)
     for (const item of listFiles.indexImages) {
       try {
         await Indeximage.create(item)
@@ -881,7 +881,6 @@ export default class BookrecordsController {
 
 
     try {
-      console.log("chequiei aqui 999")
       const typebookPayload = await Typebook.query()
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('id', '=', foldername.id)
