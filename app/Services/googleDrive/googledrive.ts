@@ -20,7 +20,6 @@ const CREDENTIALS_PATH_FOLDER = Application.configPath('/credentials/')
 async function getToken(cloud_number:number) {
   try {
     //const token = await Token.findBy("name", 'tokenGoogle')
-    console.log("cloud number:", cloud_number)
     const token = await Token.findOrFail(cloud_number)
     if (!types.isNull(token?.token)) {
       token.token = JSON.parse(token.token)
@@ -163,7 +162,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
   // Inicie o upload
   const response = await resumableUpload;
   return response
-  console.log(`Arquivo carregado com sucesso! ID do arquivo: ${response.data.id}`);
+
 }
 
 async function createFolder(authClient, folderName, parentId = undefined) {
@@ -378,7 +377,6 @@ async function sendCreateFolder(folderName,cloud_number:number, parentId = undef
 }
 
 async function sendSearchFile(fileName,cloud_number:number, parentId = undefined) {
-  console.log("send searc cloud::", cloud_number)
   const auth = await authorize(cloud_number)
   return searchFile(auth, fileName, parentId)
 }

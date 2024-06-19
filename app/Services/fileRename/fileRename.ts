@@ -83,7 +83,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     //criar a pasta
     const company = await Company.findByOrFail('id', _companies_id)
     const idFolderCompany = await sendSearchFile(company.foldername, cloud_number)
-    console.log("id da pasta 666>>", idFolderCompany)
 
     await sendCreateFolder(directoryParent?.path, cloud_number, idFolderCompany[0].id)
     await sleep(2000)
@@ -124,7 +123,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 
     try {
       if (image && image.isValid) {
-        //console.log("PASSO 1555>>", folderPath, _fileRename, idParent[0].id,cloud_number)
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
       }
     } catch (error) {
@@ -377,7 +375,6 @@ async function updateFileName(bookRecord: Bookrecord) {
 
 async function totalFilesInFolder(folderName, cloud_number: number) {
   try {
-    console.log("PASSEI UPLOAD...passo 4", cloud_number)
     const idFolder = await sendSearchFile(folderName, cloud_number)
     const listFiles = await sendListAllFiles(cloud_number, idFolder)
     if (listFiles) {
@@ -399,9 +396,7 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     listFiles = await totalFilesInFolder(folderName?.path, cloud_number)
   }
   listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"))
-
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
-
   const objlistFilesBookRecord = listFiles.map((file) => {
     const fileSplit = file.split("_")
     const id = fileSplit[0].match(/\d+/g)[0];
@@ -416,10 +411,13 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     const obs = fileSplit[9]
     const letter = fileSplit[10]
     const year = fileSplit[11]
+    //para documentos
+    const yeardoc = fileSplit[4] == '' ? null : fileSplit[4] //documentos
+    const month =fileSplit[6] //documentos
 
     return {
       id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
-      approximate_term, indexbook, obs, letter, year
+      approximate_term, indexbook, obs, letter, year, yeardoc, month
     }
 
   });
@@ -451,7 +449,9 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
 
-  console.log("PASSEI UPLOAD...passo 3")
+ //console.log("tupla", bookRecord)
+// console.log("tupla2", indexImages)
+
   return { bookRecord, indexImages }
 
 
