@@ -505,7 +505,6 @@ class BookrecordsController {
                 .whereNotNull('previous_file_name');
             if (listFilesToModify) {
                 for (const iterator of listFilesToModify) {
-                    console.log("chequiei aqui 666");
                     await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud);
                     await Indeximage_1.default.query()
                         .where("companies_id", "=", authenticate.companies_id)
@@ -523,14 +522,15 @@ class BookrecordsController {
         }
         for (const item of listFiles.bookRecord) {
             try {
-                const create = await Bookrecord_1.default.create(item);
-                console.log("chequiei aqui 88 create");
+                const { yeardoc, month, ...itemBook } = item;
+                const create = await Bookrecord_1.default.create(itemBook);
+                if (item.books_id == 13)
+                    await Document_1.default.create({ bookrecords_id: create.id, month: item.month, yeardoc: item.yeardoc });
             }
             catch (error) {
-                console.log("chequiei aqui 77 error");
+                console.log("chequiei aqui 77 error", error);
             }
         }
-        console.log("chequiei aqui 8888", listFiles.indexImages);
         for (const item of listFiles.indexImages) {
             try {
                 await Indeximage_1.default.create(item);
@@ -539,7 +539,6 @@ class BookrecordsController {
             }
         }
         try {
-            console.log("chequiei aqui 999");
             const typebookPayload = await Typebook_1.default.query()
                 .where('companies_id', '=', authenticate.companies_id)
                 .andWhere('id', '=', foldername.id)

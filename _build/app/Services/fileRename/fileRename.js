@@ -63,7 +63,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     if (parent.length == 0) {
         const company = await Company_1.default.findByOrFail('id', _companies_id);
         const idFolderCompany = await (0, googledrive_1.sendSearchFile)(company.foldername, cloud_number);
-        console.log("id da pasta 666>>", idFolderCompany);
         await (0, googledrive_1.sendCreateFolder)(directoryParent?.path, cloud_number, idFolderCompany[0].id);
         await sleep(2000);
     }
@@ -307,7 +306,6 @@ async function updateFileName(bookRecord) {
 }
 async function totalFilesInFolder(folderName, cloud_number) {
     try {
-        console.log("PASSEI UPLOAD...passo 4", cloud_number);
         const idFolder = await (0, googledrive_1.sendSearchFile)(folderName, cloud_number);
         const listFiles = await (0, googledrive_1.sendListAllFiles)(cloud_number, idFolder);
         if (listFiles) {
@@ -343,9 +341,11 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
         const obs = fileSplit[9];
         const letter = fileSplit[10];
         const year = fileSplit[11];
+        const yeardoc = fileSplit[4] == '' ? null : fileSplit[4];
+        const month = fileSplit[6];
         return {
             id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
-            approximate_term, indexbook, obs, letter, year
+            approximate_term, indexbook, obs, letter, year, yeardoc, month
         };
     });
     const indexImages = listFiles.map((file) => {
@@ -369,7 +369,6 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     });
     bookRecord.sort((a, b) => a.id - b.id);
     indexImages.sort((a, b) => a.id - b.id);
-    console.log("PASSEI UPLOAD...passo 3");
     return { bookRecord, indexImages };
 }
 module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName };

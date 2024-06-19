@@ -34,7 +34,6 @@ runner_1.test.group('Companies', (group) => {
         const body = await (0, supertest_1.default)(BASE_URL).post('/companies')
             .set('Authorization', 'bearer ' + token)
             .send(companyPayload);
-        console.log(">>>CLIENT", body);
     }).tags(['storeCompany']);
     (0, runner_1.test)('update Company', async ({ client }) => {
         const companyPayload = {
@@ -63,7 +62,6 @@ runner_1.test.group('Users', (group) => {
         const body = await (0, supertest_1.default)(BASE_URL).get('/users')
             .set('Authorization', 'bearer ' + token)
             .expect(200);
-        console.log(">>>User", body);
     }).tags(['GetUser']);
     (0, runner_1.test)('Store User', async ({ client }) => {
         const userPayload = {
@@ -88,7 +86,6 @@ runner_1.test.group('Typebook', (group) => {
         const body = await (0, supertest_1.default)(BASE_URL).get('/typebooks')
             .set('Authorization', 'bearer ' + token)
             .expect(200);
-        console.log(">>>typebooks", body);
     }).tags(['GetTypebook']);
 });
 //# sourceMappingURL=test.spec.js.map

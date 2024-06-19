@@ -19,7 +19,6 @@ const CREDENTIALS_PATH = Application_1.default.configPath('/credentials/credenti
 const CREDENTIALS_PATH_FOLDER = Application_1.default.configPath('/credentials/');
 async function getToken(cloud_number) {
     try {
-        console.log("cloud number:", cloud_number);
         const token = await Token_1.default.findOrFail(cloud_number);
         if (!Helpers_1.types.isNull(token?.token)) {
             token.token = JSON.parse(token.token);
@@ -145,7 +144,6 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
     });
     const response = await resumableUpload;
     return response;
-    console.log(`Arquivo carregado com sucesso! ID do arquivo: ${response.data.id}`);
 }
 async function createFolder(authClient, folderName, parentId = undefined) {
     const drive = google.drive({ version: 'v3', auth: authClient });
@@ -305,7 +303,6 @@ async function sendCreateFolder(folderName, cloud_number, parentId = undefined) 
     return id;
 }
 async function sendSearchFile(fileName, cloud_number, parentId = undefined) {
-    console.log("send searc cloud::", cloud_number);
     const auth = await authorize(cloud_number);
     return searchFile(auth, fileName, parentId);
 }
