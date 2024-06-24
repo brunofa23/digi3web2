@@ -1,40 +1,51 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Tokentoimage from 'App/Models/Tokentoimage'
+import User from 'App/Models/User'
+import Hash from '@ioc:Adonis/Core/Hash'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 
 export default class TokenToImagesController {
-  public async index({auth, response}: HttpContextContract) {
+  public async index({ auth, response }: HttpContextContract) {
     const data = await Tokentoimage.all()
     return response.status(200).send(data)
   }
 
-  public async store({auth, response,request}: HttpContextContract) {
+  public async store({ auth, response, request }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    console.log("create tokens....", request.body())
+    const body = request.only(User.fillable)
+    const user = await User.query().where('username', body.username)
+      .andWhere('companies_id', authenticate.companies_id)
+      .first()
 
-    //receber login, senha e hash
-      //validar se login e senha informado possui permissão para liberar
-      //armazenar o hash na tabela de tokentoimages
+      //return
 
+      if (!user) {
+        const errorValidation = await new validations('user_error_205')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
 
+    // Verify password
+    if (!(await Hash.verify(user.password, body.password))) {
+      let errorValidation = await new validations('user_error_206')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
 
-
-
-     const body = await request.only(Tokentoimage.fillable)
-     const data = await Tokentoimage.create(body)
-     return response.status(201).send(data)
-
+    //validar se login e senha informado possui permissão para liberar
+    if (user?.permission_level == 5) {
+      const tokenToImages = await Tokentoimage
+        .create({ companies_id: authenticate.companies_id, users_id: user.id, token: body.token })
+      //console.log("....passei aqui",tokenToImages)
+      return response.status(201).send(tokenToImages)
+    }
   }
 
-
-
-  public async verifyTokenToImages({auth, response, request}: HttpContextContract) {
+  public async verifyTokenToImages({ auth, response, request }: HttpContextContract) {
     const body = await request.only(Tokentoimage.fillable)
     console.log("verifyTokenToImages tokens....", body.token)
     const data = await Tokentoimage.query()
-    .where('companies_id',body.companies_id)
-    .andWhere('token', body.token).first()
+      .where('companies_id', body.companies_id)
+      .andWhere('token', body.token).first()
     return response.status(200).send(data)
   }
 

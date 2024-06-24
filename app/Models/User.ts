@@ -21,6 +21,7 @@ export default class User extends BaseModel {
       'status',
       'work_schedule',
       'access_image',
+      'token',
       'createdAt',
       'updatedAt'
     ]
