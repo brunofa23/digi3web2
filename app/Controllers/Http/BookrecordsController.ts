@@ -607,6 +607,7 @@ export default class BookrecordsController {
 
   //gera ou substitui um livro
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
+   
     const authenticate = await auth.use('api').authenticate()
     let {
       generateBooks_id,
