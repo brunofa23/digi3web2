@@ -84,8 +84,9 @@ Route.group(() => {
   Route.resource("events", "EventsController").apiOnly()
 
   //TOKENTOIMAGES
-  Route.resource("tokentoimages", "TokenToImagesController").apiOnly()
-  Route.post("verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
+  //Route.resource("tokentoimages", "TokenToImagesController").middleware('tokentoimages_permission')
+  Route.post("/tokentoimages", "TokenToImagesController.store").middleware('tokentoimages_permission:post')
+  Route.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
 
 
   //CONFIG

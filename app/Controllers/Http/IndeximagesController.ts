@@ -54,27 +54,36 @@ export default class IndeximagesController {
 
   public async destroy({ auth, params, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
+
     try {
       //excluir imagens do google drive
-      const listOfImagesToDeleteGDrive = await Indeximage.query()
+      const query = Indeximage.query()
         .preload('typebooks', (query) => {
           query.where('id', params.typebooks_id)
             .andWhere('companies_id', companies_id)
         })
+        // .preload('companies', query=>{
+        //   query.where('companies_id', companies_id)
+        // })
+        .preload('company')
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('bookrecords_id', "=", params.bookrecords_id)
         .andWhere('companies_id', "=", companies_id)
-        .andWhere('file_name', "like", params.file_name).first()
-      if (listOfImagesToDeleteGDrive) {
-        var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path }
-        FileRename.deleteFile([file_name])
-      }
+        .andWhere('file_name', "like",decodeURIComponent(params.file_name))
 
+
+        const listOfImagesToDeleteGDrive = await query.first()
+
+        if (listOfImagesToDeleteGDrive) {
+          var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path }
+          FileRename.deleteFile([file_name],listOfImagesToDeleteGDrive.company.cloud)
+        }
+        
       await Indeximage.query()
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('bookrecords_id', "=", params.bookrecords_id)
         .andWhere('companies_id', "=", companies_id)
-        .andWhere('file_name', "like", params.file_name)
+        .andWhere('file_name', "like",decodeURIComponent(params.file_name))
         .delete()
 
       return response.status(201).send({ message: "Excluido com sucesso!!" })

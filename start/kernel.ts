@@ -13,6 +13,7 @@ Server.middleware.registerNamed({
   typebook_permission: () => import('App/Middleware/TypebookPermission'),
   user_permission: () => import('App/Middleware/UserPermission'),
   bookrecord_permission: () => import('App/Middleware/BookRecordPermission'),
-  indeximage_permission: () => import('App/Middleware/IndexImagePermission')
+  indeximage_permission: () => import('App/Middleware/IndexImagePermission'),
+  tokentoimages_permission: () => import('App/Middleware/TokenToImagesPermission')
 })
 

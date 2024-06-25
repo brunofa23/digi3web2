@@ -17,34 +17,26 @@ export default class TokenToImagesController {
     const user = await User.query().where('username', body.username)
       .andWhere('companies_id', authenticate.companies_id)
       .first()
-
-    //return
-
     if (!user) {
       const errorValidation = await new validations('user_error_205')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
-
     // Verify password
     if (!(await Hash.verify(user.password, body.password))) {
       let errorValidation = await new validations('user_error_206')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
-
     //validar se login e senha informado possui permissão para liberar
-    if (user?.permission_level == 5) {
       const verifyTokenExist = await Tokentoimage.query()
       .where('token', body.token)
       .andWhere('companies_id', authenticate.companies_id).first()
-
       if(verifyTokenExist)
         return response.status(200).send(verifyTokenExist)
-
       const tokenToImages = await Tokentoimage
         .create({ companies_id: authenticate.companies_id, users_id: user.id, token: body.token })
-      //console.log("....passei aqui",tokenToImages)
+      console.log("....passei aqui",tokenToImages)
       return response.status(201).send(tokenToImages)
-    }
+
   }
 
   public async verifyTokenToImages({ auth, response, request }: HttpContextContract) {

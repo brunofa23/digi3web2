@@ -4,10 +4,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 
 export default class BookRecordPermission {
   public async handle({ auth, response }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
-
     const authenticate = await auth.use('api').authenticate()
-
-
     for (const guard of customGuards) {
       if (guard === 'get' && authenticate.permission_level >= 0) {
         await next()
