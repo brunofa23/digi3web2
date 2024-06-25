@@ -133,7 +133,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 }
 
 async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: number) {
-  console.log("renameFile>>>", cloud_number)
   try {
     const idFolderPath = await sendSearchFile(folderPath, cloud_number)
     const idFile = await sendSearchFile(filename, cloud_number, idFolderPath[0].id)

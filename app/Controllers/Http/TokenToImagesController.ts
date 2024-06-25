@@ -34,7 +34,6 @@ export default class TokenToImagesController {
         return response.status(200).send(verifyTokenExist)
       const tokenToImages = await Tokentoimage
         .create({ companies_id: authenticate.companies_id, users_id: user.id, token: body.token })
-      console.log("....passei aqui",tokenToImages)
       return response.status(201).send(tokenToImages)
 
   }
@@ -42,7 +41,6 @@ export default class TokenToImagesController {
   public async verifyTokenToImages({ auth, response, request }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.only(Tokentoimage.fillable)
-    console.log("verifyTokenToImages tokens....", body.token)
     const data = await Tokentoimage.query()
       .where('companies_id', authenticate.companies_id)
       .andWhere('token', body.token).first()

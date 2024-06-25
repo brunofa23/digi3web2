@@ -7,8 +7,7 @@ export default class TokenToImagesPermission {
     // code for middleware goes here. ABOVE THE NEXT CALL
     const authenticate = await auth.use('api').authenticate()
 
-    console.log("passei no middleware", customGuards)
-    for (const guard of customGuards) {
+       for (const guard of customGuards) {
 
         if (guard === 'post' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
           await next()

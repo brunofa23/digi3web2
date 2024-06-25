@@ -78,7 +78,7 @@ export default class IndeximagesController {
           var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path }
           FileRename.deleteFile([file_name],listOfImagesToDeleteGDrive.company.cloud)
         }
-        
+
       await Indeximage.query()
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('bookrecords_id', "=", params.bookrecords_id)
@@ -95,8 +95,6 @@ export default class IndeximagesController {
   }
 
   public async update({ request, params, response }: HttpContextContract) {
-    console.log("passei aqui 2322")
-
     const body = request.only(Indeximage.fillable)
     body.bookrecords_id = params.id
     body.typebooks_id = params.id2
@@ -118,7 +116,6 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
-    console.log("passei uploads::::1500")
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
@@ -128,15 +125,12 @@ export default class IndeximagesController {
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
     if (indexImagesInitial == 'true') {
-      console.log("PASSEI UPLOAD...passo 1.1")
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
       })
-      console.log("PASSEI UPLOAD...passo 1.2")
 
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id,company?.cloud, listFilesImages )
-      console.log("PASSEI UPLOAD...passo 1.3")
 
       for (const item of listFiles.bookRecord) {
         try {
@@ -148,9 +142,7 @@ export default class IndeximagesController {
 
     }
 
-    console.log("PASSEI UPLOAD...passo 1.4")
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id,company?.cloud, false, dataImages)
-    console.log("PASSEI UPLOAD...passo 1.5")
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
@@ -180,7 +172,6 @@ export default class IndeximagesController {
   }
 
   public async download({ auth, params, request }: HttpContextContract) {
-    console.log('PASSEI NO DOWNLOAD>>>')
     const authenticate = await auth.use('api').authenticate()
     const { typebook_id } = request.only(['typebook_id'])
     const body = request.only(Indeximage.fillable)

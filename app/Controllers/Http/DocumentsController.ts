@@ -91,7 +91,6 @@ export default class DocumentsController {
 
     //EXCLUSÃO EM LOTES
     public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
-        console.log("destroy many documents>>>")
         const { companies_id } = await auth.use('api').authenticate()
         const { typebooks_id, Box, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Box', 'startCod', 'endCod', 'deleteImages'])
 
@@ -168,19 +167,16 @@ export default class DocumentsController {
             try {
                 //se 1  = exclui somente o livro
                 if (deleteImages == 1) {
-                    console.log("EXCLUI SOMENTE LIVRO")
                     await deleteIndexImages()
                     await deleteBookrecord()
                 }
                 //se 2 = exclui somente as imagens
                 else if (deleteImages == 2) {
-                    console.log("EXCLUI SOMENTE IMAGENS")
                     await deleteImagesGoogle()
                     await deleteIndexImages()
                 }
                 //se 3 = exclui imagens e livro
                 else if (deleteImages == 3) {
-                    console.log("EXCLUI TUDO")
                     await deleteImagesGoogle()
                     await deleteIndexImages()
                     await deleteBookrecord()

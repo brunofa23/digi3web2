@@ -13,7 +13,6 @@ test.group('Companies', (group) => {
     const body = await supertest(BASE_URL).get('/companies')
       .set('Authorization', 'bearer ' + token)
       .expect(201)
-    console.log(">>>CLIENT", body)
 
   }).tags(['GetCompany'])
 

@@ -24,9 +24,6 @@ export default class BookrecordsController {
       letter,
       sheetstart, sheetend,
       side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData
-
-    console.log(request.requestData)
-
     let query = " 1=1 "
 
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
@@ -354,13 +351,11 @@ export default class BookrecordsController {
     const { document } = request.only(['document'])//await request.validate(DocumentValidator)
     body.companies_id = companies_id
     const bodyDocument = document
-    console.log("BODY::", bodyDocument)
     try {
       const data = await Bookrecord.create(body)
       if (body.books_id == 13 && data.id) {
         bodyDocument.bookrecords_id = data.id
         await Document.create(bodyDocument)
-        console.log(bodyDocument)
       }
       return response.status(201).send(data)
 
@@ -607,7 +602,7 @@ export default class BookrecordsController {
 
   //gera ou substitui um livro
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
-   
+
     const authenticate = await auth.use('api').authenticate()
     let {
       generateBooks_id,
@@ -995,8 +990,6 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
 
     let { startCod, endCod, year, month, box } = request.requestData
-
-    console.log("GERANDO DOCUMENTS", year, month)
     // console.log("valores",startCod,endCod,year,month,box )
     // console.log("request data:",request.requestData)
 
