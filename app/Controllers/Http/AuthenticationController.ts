@@ -66,7 +66,7 @@ export default class AuthenticationController {
       .first()
 
     if (userAuthorization) {
-      if ((userAuthorization.permission_level < 5) && (!userAuthorization.superuser)) {
+      if ((userAuthorization.permission_level < 3) && (!userAuthorization.superuser)) {
         const errorValidation = await new validations('user_error_201')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
       }
