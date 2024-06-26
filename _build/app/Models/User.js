@@ -33,6 +33,7 @@ class User extends Orm_1.BaseModel {
             'status',
             'work_schedule',
             'access_image',
+            'token',
             'createdAt',
             'updatedAt'
         ];

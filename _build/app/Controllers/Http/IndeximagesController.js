@@ -45,24 +45,26 @@ class IndeximagesController {
     async destroy({ auth, params, response }) {
         const { companies_id } = await auth.use('api').authenticate();
         try {
-            const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()
+            const query = Indeximage_1.default.query()
                 .preload('typebooks', (query) => {
                 query.where('id', params.typebooks_id)
                     .andWhere('companies_id', companies_id);
             })
+                .preload('company')
                 .where('typebooks_id', '=', params.typebooks_id)
                 .andWhere('bookrecords_id', "=", params.bookrecords_id)
                 .andWhere('companies_id', "=", companies_id)
-                .andWhere('file_name', "like", params.file_name).first();
+                .andWhere('file_name', "like", decodeURIComponent(params.file_name));
+            const listOfImagesToDeleteGDrive = await query.first();
             if (listOfImagesToDeleteGDrive) {
                 var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path };
-                FileRename.deleteFile([file_name]);
+                FileRename.deleteFile([file_name], listOfImagesToDeleteGDrive.company.cloud);
             }
             await Indeximage_1.default.query()
                 .where('typebooks_id', '=', params.typebooks_id)
                 .andWhere('bookrecords_id', "=", params.bookrecords_id)
                 .andWhere('companies_id', "=", companies_id)
-                .andWhere('file_name', "like", params.file_name)
+                .andWhere('file_name', "like", decodeURIComponent(params.file_name))
                 .delete();
             return response.status(201).send({ message: "Excluido com sucesso!!" });
         }
@@ -71,7 +73,6 @@ class IndeximagesController {
         }
     }
     async update({ request, params, response }) {
-        console.log("passei aqui 2322");
         const body = request.only(Indeximage_1.default.fillable);
         body.bookrecords_id = params.id;
         body.typebooks_id = params.id2;
@@ -90,7 +91,6 @@ class IndeximagesController {
         }
     }
     async uploads({ auth, request, params, response }) {
-        console.log("passei uploads::::1500");
         const authenticate = await auth.use('api').authenticate();
         const company = await Company_1.default.find(authenticate.companies_id);
         const images = request.files('images', {
@@ -100,14 +100,11 @@ class IndeximagesController {
         const { dataImages } = request['requestBody'];
         const { indexImagesInitial } = request['requestData'];
         if (indexImagesInitial == 'true') {
-            console.log("PASSEI UPLOAD...passo 1.1");
             const listFilesImages = images.map((image) => {
                 const imageName = image.clientName;
                 return imageName;
             });
-            console.log("PASSEI UPLOAD...passo 1.2");
             const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages);
-            console.log("PASSEI UPLOAD...passo 1.3");
             for (const item of listFiles.bookRecord) {
                 try {
                     await Bookrecord_1.default.create(item);
@@ -117,9 +114,7 @@ class IndeximagesController {
                 }
             }
         }
-        console.log("PASSEI UPLOAD...passo 1.4");
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
-        console.log("PASSEI UPLOAD...passo 1.5");
         return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" });
     }
     async uploadCapture({ auth, request, params }) {
@@ -144,7 +139,6 @@ class IndeximagesController {
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }
     async download({ auth, params, request }) {
-        console.log('PASSEI NO DOWNLOAD>>>');
         const authenticate = await auth.use('api').authenticate();
         const { typebook_id } = request.only(['typebook_id']);
         const body = request.only(Indeximage_1.default.fillable);

@@ -18,7 +18,6 @@ class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData;
-        console.log(request.requestData);
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -117,13 +116,11 @@ class BookrecordsController {
         const { document } = request.only(['document']);
         body.companies_id = companies_id;
         const bodyDocument = document;
-        console.log("BODY::", bodyDocument);
         try {
             const data = await Bookrecord_1.default.create(body);
             if (body.books_id == 13 && data.id) {
                 bodyDocument.bookrecords_id = data.id;
                 await Document_1.default.create(bodyDocument);
-                console.log(bodyDocument);
             }
             return response.status(201).send(data);
         }
@@ -626,7 +623,6 @@ class BookrecordsController {
     async generateOrUpdateBookrecordsDocument({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         let { startCod, endCod, year, month, box } = request.requestData;
-        console.log("GERANDO DOCUMENTS", year, month);
         let bookRecord = {};
         let document = {};
         let cod = startCod;

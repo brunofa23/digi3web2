@@ -16,6 +16,7 @@ const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Bookrecord_1 = __importDefault(require("./Bookrecord"));
 const Typebook_1 = __importDefault(require("./Typebook"));
+const Company_1 = __importDefault(require("./Company"));
 class Indeximage extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -53,6 +54,13 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], Indeximage.prototype, "typebooks", void 0);
+__decorate([
+    (0, Orm_1.hasOne)(() => Company_1.default, {
+        foreignKey: 'id',
+        localKey: 'companies_id'
+    }),
+    __metadata("design:type", Object)
+], Indeximage.prototype, "company", void 0);
 __decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)

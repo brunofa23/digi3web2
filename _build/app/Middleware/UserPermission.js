@@ -6,16 +6,16 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 class UserPermission {
-    async handle({ auth, request, response }, next, customGuards) {
+    async handle({ auth }, next, customGuards) {
         const authenticate = await auth.use('api').authenticate();
         for (const guard of customGuards) {
             if (guard === 'get' && authenticate.permission_level >= 0) {
                 await next();
             }
-            else if (guard === 'post' && (authenticate.permission_level >= 6 || authenticate.superuser)) {
+            else if (guard === 'post' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
                 await next();
             }
-            else if (guard === 'patch' && (authenticate.permission_level >= 6 || authenticate.superuser)) {
+            else if (guard === 'patch' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
                 await next();
             }
             else if (guard === 'authorizeAccessImages' && (authenticate.permission_level >= 5 || authenticate.superuser)) {

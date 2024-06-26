@@ -12,7 +12,6 @@ runner_1.test.group('Companies', (group) => {
         const body = await (0, supertest_1.default)(BASE_URL).get('/companies')
             .set('Authorization', 'bearer ' + token)
             .expect(201);
-        console.log(">>>CLIENT", body);
     }).tags(['GetCompany']);
     (0, runner_1.test)('store Company', async ({ client }) => {
         const companyPayload = {

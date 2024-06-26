@@ -75,7 +75,6 @@ class DocumentsController {
         }
     }
     async destroyManyBookRecords({ auth, request, response }) {
-        console.log("destroy many documents>>>");
         const { companies_id } = await auth.use('api').authenticate();
         const { typebooks_id, Box, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Box', 'startCod', 'endCod', 'deleteImages']);
         async function deleteIndexImages() {
@@ -140,17 +139,14 @@ class DocumentsController {
                 query += ` and cod>=${startCod} and cod <=${endCod} `;
             try {
                 if (deleteImages == 1) {
-                    console.log("EXCLUI SOMENTE LIVRO");
                     await deleteIndexImages();
                     await deleteBookrecord();
                 }
                 else if (deleteImages == 2) {
-                    console.log("EXCLUI SOMENTE IMAGENS");
                     await deleteImagesGoogle();
                     await deleteIndexImages();
                 }
                 else if (deleteImages == 3) {
-                    console.log("EXCLUI TUDO");
                     await deleteImagesGoogle();
                     await deleteIndexImages();
                     await deleteBookrecord();

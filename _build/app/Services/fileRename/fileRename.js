@@ -106,7 +106,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     return result;
 }
 async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
-    console.log("renameFile>>>", cloud_number);
     try {
         const idFolderPath = await (0, googledrive_1.sendSearchFile)(folderPath, cloud_number);
         const idFile = await (0, googledrive_1.sendSearchFile)(filename, cloud_number, idFolderPath[0].id);
