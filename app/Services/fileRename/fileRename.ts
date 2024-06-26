@@ -133,7 +133,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 }
 
 async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: number) {
-  console.log("renameFile>>>", cloud_number)
   try {
     const idFolderPath = await sendSearchFile(folderPath, cloud_number)
     const idFile = await sendSearchFile(filename, cloud_number, idFolderPath[0].id)
@@ -329,9 +328,10 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
 async function deleteFile(listFiles: [{}], cloud_number: number) {
 
   try {
+
     const idFolder = await sendSearchFile(listFiles[0]['path'], cloud_number)
     let idFile
-    for (const file of listFiles) {
+     for (const file of listFiles) {
       idFile = await sendSearchFile(file['file_name'], cloud_number, idFolder[0].id)
       await sendDeleteFile(idFile[0].id, cloud_number)
     }

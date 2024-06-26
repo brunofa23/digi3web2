@@ -48,10 +48,6 @@ Route.group(() => {
   Route.get('/updatedfiles', 'BookrecordsController.updatedFiles')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument')//.middleware('bookrecord_permission:generateOrUpdateBookrecords')
 
-
-
-
-
   //DOCUMENTS
   Route.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index')
   Route.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store')
@@ -59,7 +55,6 @@ Route.group(() => {
 
   //DOCUMENT_CONFIG
   Route.resource("documentconfig", "DocumentconfigsController")
-
 
   //INDEXIMAGES
   //Route.resource("/indeximages", "IndeximagesController").apiOnly()
@@ -87,6 +82,11 @@ Route.group(() => {
 
   //EVENTS
   Route.resource("events", "EventsController").apiOnly()
+
+  //TOKENTOIMAGES
+  //Route.resource("tokentoimages", "TokenToImagesController").middleware('tokentoimages_permission')
+  Route.post("/tokentoimages", "TokenToImagesController.store").middleware('tokentoimages_permission:post')
+  Route.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
 
 
   //CONFIG

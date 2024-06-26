@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import Bookrecord from './Bookrecord'
 import Typebook from './Typebook'
+import Company from './Company'
 
 export default class Indeximage extends BaseModel {
 
@@ -26,31 +27,23 @@ export default class Indeximage extends BaseModel {
   })
   public bookrecord: HasOne<typeof Bookrecord>
 
-  // @hasOne(() => Bookrecord, {
-  //   foreignKey: 'typebooks_id',
-  //   localKey: 'typebooks_id'
-  // })
-  // public typebooks: HasOne<typeof Bookrecord>
-
   @hasOne(() => Bookrecord, {
     foreignKey: 'companies_id',
     localKey: 'companies_id'
   })
   public companies: HasOne<typeof Bookrecord>
 
-
-  // @hasOne(() => Bookrecord, {
-  //   foreignKey: 'id',
-  //   localKey: 'bookrecords_id'
-  // })
-  // public bookrecord: HasOne<typeof Bookrecord>
-
-
   @hasOne(() => Typebook, {
     foreignKey: 'id',
     localKey: 'typebooks_id'
   })
   public typebooks: HasOne<typeof Typebook>
+
+  @hasOne(() => Company, {
+    foreignKey: 'id',
+    localKey: 'companies_id'
+  })
+  public company: HasOne<typeof Company>
 
 
   @column({ isPrimary: true })
