@@ -9,6 +9,10 @@ export default class extends BaseSchema {
       table.increments('id').notNullable().unsigned()
       table.integer('bookrecords_id').notNullable().unsigned().references('bookrecords.id').onDelete('CASCADE')
 
+      table.integer('typebooks_id').notNullable().unsigned().references('typebooks.id').onDelete('CASCADE')
+      table.integer('books_id').notNullable().unsigned().references('typebooks.books_id').onDelete('CASCADE')
+      table.integer('companies_id').notNullable().unsigned().references('companies.id').onDelete('CASCADE')
+
       table.integer('box2')
       table.integer('prot')
       table.integer('month')

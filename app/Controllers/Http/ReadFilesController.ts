@@ -1,6 +1,8 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Application from '@ioc:Adonis/Core/Application'
 import {readFile}from "App/Services/readFile/readFile"
+import Bookrecord from 'App/Models/Bookrecord'
+import Document from 'App/Models/Document'
 
 
 export default class ReadFilesController {
@@ -19,10 +21,27 @@ export default class ReadFilesController {
 
     await file?.move(Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`))
     const filePath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}/${file.clientName}`)
-    const data = await readFile(filePath)
+    const bookrecords = await readFile(filePath)
 
-    console.log('FILE>>', data)
-    //const readfile = await readFile()
+    //console.log('FILE>>', bookrecords)
+
+    for (const bookrecord of bookrecords) {
+      const searchPayload = { id: bookrecord.id, typebooks_id:53, books_id:13, companies_id:10 }
+      const persistanceBookrecord = { id: bookrecord.id, typebooks_id:53, books_id:13, companies_id:10 }
+      const retorno =  await Bookrecord.updateOrCreate(searchPayload, persistanceBookrecord)
+      console.log("retorno", retorno.id)
+      
+
+    }
+
+
+
+    //INSERIR ID, COD, BOOK(BOX) DENTRO DE BOOKRECORDS
+    //APOS INSERIR PEGAR O ID DE RETORNO E INSERIR O RESTANTE DE CAMPOS
+
+
+
+
 
 
   }
