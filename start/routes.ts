@@ -89,6 +89,9 @@ Route.group(() => {
   Route.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
 
 
+  //READFILES
+  Route.post("/readfile","ReadFilesController.readFile")
+
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
 

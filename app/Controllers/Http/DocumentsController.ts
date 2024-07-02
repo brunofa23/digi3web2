@@ -17,8 +17,6 @@ export default class DocumentsController {
         } catch (error) {
             return error
         }
-
-
     }
 
     public async store({ auth, request, params, response }: HttpContextContract) {

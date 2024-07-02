@@ -1,14 +1,12 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Book from 'App/Models/Book'
 import BadRequest from 'App/Exceptions/BadRequestException'
-
+import {readFile}from "App/Services/readFile/readFile"
 
 export default class BooksController {
 
   public async index({ auth, response, request }) {
-
-    const authenticate = await auth.use('api').authenticate()
-
+ await auth.use('api').authenticate()
     try {
       const books = await Book
         .query()
