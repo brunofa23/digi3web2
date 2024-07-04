@@ -113,5 +113,10 @@
         "code": "bookrecord_error_102",
         "messages": "Invalid or missing end code",
         "status": 409
-    }
+    },
+    {
+      "code": "bookrecord_error_103",
+      "messages": "Missing id, code, book or box column",
+      "status": 409
+  }
 ]

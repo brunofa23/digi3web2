@@ -5,15 +5,19 @@ import Bookrecord from 'App/Models/Bookrecord'
 import Document from 'App/Models/Document'
 import Database from '@ioc:Adonis/Lucid/Database'
 import { DeleteFiles } from 'App/Services/util'
+import BadRequest from 'App/Exceptions/BadRequestException'
+import validations from 'App/Services/Validations/validations'
 
+function hasRequiredProperties(obj, properties) {
+  return properties.every(property => obj.hasOwnProperty(property));
+}
+const requiredProperties = ['id', 'cod', 'book'];
 
 export default class ReadFilesController {
 
-  public async readFile({ auth, request }: HttpContextContract) {
+  public async readFile({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const { typebooks_id, books_id, companies_id } = request.only(['typebooks_id', 'books_id', 'companies_id'])
-
-    //console.log("readfile....", typebooks_id, books_id, companies_id)
     const file = request.file('file', {
       size: '100mb',
       extnames: ['xls', 'xlsx', 'csv']
@@ -26,6 +30,9 @@ export default class ReadFilesController {
     const bookrecords = await readFile(filePath)
     const trx = await Database.beginGlobalTransaction()
     for (const bookrecord of bookrecords) {
+      const hasProperties = hasRequiredProperties(bookrecord, requiredProperties);
+      if (!hasProperties)
+        continue
       try {
         const searchPayload = { id: bookrecord.id, typebooks_id: typebooks_id, books_id: books_id, companies_id: companies_id }
         const persistanceBookrecord = { id: bookrecord.id, typebooks_id: typebooks_id, books_id: books_id, companies_id: companies_id }
@@ -82,7 +89,6 @@ export default class ReadFilesController {
         }
         await Document.updateOrCreate(searchPayloadDocument, persistanceDocument, trx)
         await trx.commit()
-
       } catch (error) {
         await trx.rollback()
         throw error
@@ -91,8 +97,6 @@ export default class ReadFilesController {
     }
     //EXCLUIR O ARQUIVO *****************************************
     await DeleteFiles(filePath)
+    return response.status(201).send("Import Success!")
   }
-
-
-
 }
