@@ -141,5 +141,20 @@ function dateFormat(format, date = DateTime.local()) {
   return date.toFormat(format);
 }
 
+## CÓDIGO DE TRANSAÇÃO COMMIT ROLLBACK
+const trx = await Database.beginTransaction()
+try {
+  // Atualiza o registro
+  await Event.query(trx).where('id', id).update(body)
 
-teste
+  // Busca o registro atualizado
+  const updatedEvent = await Event.find(id, trx)
+
+  await trx.commit()
+
+  return updatedEvent
+} catch (error) {
+  await trx.rollback()
+  throw error
+}
+
