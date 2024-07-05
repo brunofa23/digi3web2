@@ -17,14 +17,16 @@ export default class ReadFilesController {
 
   public async readFile({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const { typebooks_id, books_id, companies_id } = request.only(['typebooks_id', 'books_id', 'companies_id'])
+    const { typebooks_id, books_id } = request.only(['typebooks_id', 'books_id'])
     const file = request.file('file', {
       size: '100mb',
       extnames: ['xls', 'xlsx', 'csv']
     })
+
     if (!file?.isValid || file === undefined) {
       return file?.errors
     }
+
     await file?.move(Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`))
     const filePath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}/${file.clientName}`)
     const bookrecords = await readFile(filePath)
@@ -34,16 +36,16 @@ export default class ReadFilesController {
       if (!hasProperties)
         continue
       try {
-        const searchPayload = { id: bookrecord.id, typebooks_id: typebooks_id, books_id: books_id, companies_id: companies_id }
-        const persistanceBookrecord = { id: bookrecord.id, typebooks_id: typebooks_id, books_id: books_id, companies_id: companies_id }
+        const searchPayload = { id: bookrecord.id, typebooks_id: typebooks_id, books_id: books_id, companies_id: authenticate.companies_id }
+        const persistanceBookrecord = { id: bookrecord.id, typebooks_id: typebooks_id, books_id: books_id, companies_id: authenticate.companies_id }
         await Bookrecord.updateOrCreate(searchPayload, persistanceBookrecord, trx)
 
-        const searchPayloadDocument = { bookrecords_id: bookrecord.id, typebooks_id: typebooks_id, books_id: books_id, companies_id: companies_id }
+        const searchPayloadDocument = { bookrecords_id: bookrecord.id, typebooks_id: typebooks_id, books_id: books_id, companies_id: authenticate.companies_id }
         const persistanceDocument = {
           bookrecords_id: bookrecord.id,
           typebooks_id: typebooks_id,
           books_id: books_id,
-          companies_id: companies_id,
+          companies_id: authenticate.companies_id,
           box2: bookrecord.box2,
           month: bookrecord.month,
           yeardoc: bookrecord.yeardoc,
