@@ -58,6 +58,7 @@ Route_1.default.group(() => {
     Route_1.default.resource("events", "EventsController").apiOnly();
     Route_1.default.post("/tokentoimages", "TokenToImagesController.store").middleware('tokentoimages_permission:post');
     Route_1.default.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages");
+    Route_1.default.post("/readfile", "ReadFilesController.readFile");
     Route_1.default.get('dashboard', async ({ auth }) => {
         await auth.use('api').authenticate();
         return auth.use('api').user;

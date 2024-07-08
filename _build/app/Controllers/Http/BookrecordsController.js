@@ -16,6 +16,7 @@ const BookrecordValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
+        console.log("passei aqui....");
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData;
         let query = " 1=1 ";
@@ -89,13 +90,16 @@ class BookrecordsController {
         }
         else {
             data = await Bookrecord_1.default.query()
-                .where("companies_id", '=', authenticate.companies_id)
-                .andWhere("typebooks_id", '=', params.typebooks_id)
+                .where("companies_id", authenticate.companies_id)
+                .andWhere("typebooks_id", params.typebooks_id)
                 .preload('indeximage', (queryIndex) => {
                 queryIndex.where("typebooks_id", '=', params.typebooks_id)
                     .andWhere("companies_id", '=', authenticate.companies_id);
             })
-                .preload('document')
+                .preload('document', query => {
+                query.where('typebooks_id', params.typebooks_id)
+                    .andWhere("companies_id", authenticate.companies_id);
+            })
                 .whereRaw(query)
                 .orderBy("book", "asc")
                 .orderBy("cod", "asc")
@@ -137,13 +141,16 @@ class BookrecordsController {
         body.userid = authenticate.id;
         try {
             await Bookrecord_1.default.query()
-                .where('id', '=', body.id)
-                .andWhere('typebooks_id', '=', body.typebooks_id)
-                .andWhere('companies_id', '=', authenticate.companies_id)
+                .where('id', body.id)
+                .andWhere('typebooks_id', body.typebooks_id)
+                .andWhere('companies_id', authenticate.companies_id)
                 .update(body);
             if (body.books_id == 13 && body.id) {
                 await Document_1.default.query()
-                    .where('id', document.id).update(document);
+                    .where('id', document.id)
+                    .andWhere('typebooks_id', body.typebooks_id)
+                    .andWhere('companies_id', authenticate.companies_id)
+                    .update(document);
             }
             fileRename.updateFileName(body);
             return response.status(201).send({ body, params: params.id });
@@ -160,9 +167,9 @@ class BookrecordsController {
                 query.where('id', params.typebooks_id)
                     .andWhere('companies_id', companies_id);
             })
-                .where('typebooks_id', '=', params.typebooks_id)
-                .andWhere('bookrecords_id', "=", params.id)
-                .andWhere('companies_id', "=", companies_id);
+                .where('typebooks_id', params.typebooks_id)
+                .andWhere('bookrecords_id', params.id)
+                .andWhere('companies_id', companies_id);
             if (listOfImagesToDeleteGDrive.length > 0) {
                 var file_name = listOfImagesToDeleteGDrive.map(function (item) {
                     return { file_name: item.file_name, path: item.typebooks.path };
@@ -661,6 +668,9 @@ class BookrecordsController {
                     document.bookrecords_id = verifyBookRecord.id;
                     const documentUpdate = await Document_1.default.query()
                         .where('bookrecords_id', verifyBookRecord.id)
+                        .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
+                        .andWhere('companies_id', verifyBookRecord.companies_id)
+                        .andWhere('books_id', 13)
                         .update(document);
                 }
                 else {

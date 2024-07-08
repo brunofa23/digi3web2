@@ -20,6 +20,9 @@ class Document extends Orm_1.BaseModel {
         return [
             'id',
             'bookrecords_id',
+            'typebooks_id',
+            'books_id',
+            'companies_id',
             'box2',
             'prot',
             'month',
@@ -81,6 +84,18 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], Document.prototype, "bookrecords_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Document.prototype, "typebooks_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Document.prototype, "books_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Document.prototype, "companies_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)

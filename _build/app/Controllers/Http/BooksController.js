@@ -6,8 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Book_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Book"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 class BooksController {
-    async index({ auth, response, request }) {
-        const authenticate = await auth.use('api').authenticate();
+    async index({ auth, response }) {
+        await auth.use('api').authenticate();
         try {
             const books = await Book_1.default
                 .query()

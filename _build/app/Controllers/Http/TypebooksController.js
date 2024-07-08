@@ -49,6 +49,7 @@ class TypebooksController {
         }
     }
     async index({ auth, response, request }) {
+        console.log("Passei na pesquisa... 12121");
         const { companies_id } = await auth.use('api').authenticate();
         const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles']);
         let data;
@@ -95,7 +96,6 @@ class TypebooksController {
             .preload('documentconfig')
             .where("companies_id", "=", authenticate.companies_id)
             .andWhere('id', "=", params.id).firstOrFail();
-        console.log("passei no show");
         return response.status(200).send(data);
     }
     async update({ auth, request, params, response }) {
