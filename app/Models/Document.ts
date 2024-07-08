@@ -8,6 +8,9 @@ export default class Document extends BaseModel {
     return [
       'id',
       'bookrecords_id',
+      'typebooks_id',
+      'books_id',
+      'companies_id',
       'box2',
       'prot',
       'month',
@@ -65,6 +68,12 @@ export default class Document extends BaseModel {
   public id: number
   @column()
   public bookrecords_id: number
+  @column()
+  public typebooks_id: number
+  @column()
+  public books_id: number
+  @column()
+  public companies_id: number
   @column()
   public box2: number
   @column()

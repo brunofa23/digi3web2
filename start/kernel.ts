@@ -1,7 +1,5 @@
 import Server from '@ioc:Adonis/Core/Server'
-
 console.log("Inicializando - Digi3web - V63")
-
 Server.middleware.register([
   () => import('@ioc:Adonis/Core/BodyParser'),
 ])
