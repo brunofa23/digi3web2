@@ -30,9 +30,37 @@ export default class ReadFilesController {
     await file?.move(Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`))
     const filePath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}/${file.clientName}`)
     const bookrecords = await readFile(filePath)
+    console.log(bookrecords.header)
+
+    //validando se a planilha possui as colunas ['id', 'cod', 'book']
+    const containsAll = requiredProperties.every(element => bookrecords.header.includes(element));
+    if(!containsAll)
+    {
+      response.status(400).send('typebook_error_103')
+    }
+
+
+
+    console.log("verificando>>", containsAll)
+    return
+
+
+    for (const cell of bookrecords.header) {
+      if(cell==='' || cell===undefined || cell===null)
+      {
+        console.log("alguma coluna infálidacell:",cell)
+        return
+      }
+
+
+    }
+    return
+
+    let totUpdate=0
+    let totCreate=0
 
     const trx = await Database.beginGlobalTransaction()
-    for (const bookrecord of bookrecords) {
+    for (const bookrecord of bookrecords.data) {
       const hasProperties = hasRequiredProperties(bookrecord, requiredProperties);
       if (!hasProperties)
         continue
@@ -52,7 +80,7 @@ export default class ReadFilesController {
             .andWhere('companies_id', authenticate.companies_id)
             .update({ cod: bookrecord.cod, book: bookrecord.book })
 
-          await Document.query(trx)
+          const update = await Document.query(trx)
             .where('bookrecords_id', bookrecord.id)
             .andWhere('typebooks_id', typebooks_id)
             .andWhere('books_id', books_id)
@@ -105,6 +133,8 @@ export default class ReadFilesController {
               stringfield13: bookrecord.stringfield13,
               datefield13: bookrecord.datefield13
             })
+            if(update)
+              totUpdate++
 
         }
         else {//CREATE
@@ -117,7 +147,7 @@ export default class ReadFilesController {
             book: bookrecord.book
           }, trx)
 
-          await Document.create({
+          const create = await Document.create({
             bookrecords_id: bookrecord.id,
             typebooks_id: typebooks_id,
             books_id: books_id,
@@ -165,6 +195,9 @@ export default class ReadFilesController {
             stringfield13: bookrecord.stringfield13,
             datefield13: bookrecord.datefield13
           })
+          if(create.id)
+            totCreate++
+
         }
         await trx.commit()
       } catch (error) {
@@ -175,6 +208,7 @@ export default class ReadFilesController {
     }
     //EXCLUIR O ARQUIVO *****************************************
     await DeleteFiles(filePath)
+    console.log("importado com sucesso", totCreate, totUpdate)
     return response.status(201).send("Import Success!")
   }
 }
