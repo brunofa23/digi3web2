@@ -16,7 +16,6 @@ const BookrecordValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
-        console.log("passei aqui....");
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData;
         let query = " 1=1 ";

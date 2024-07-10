@@ -7,7 +7,6 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const DocumentConfig_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DocumentConfig"));
 class DocumentconfigsController {
     async index({ auth, request, response }) {
-        console.log("passei aqui...");
         const authenticate = await auth.use('api').authenticate();
         const { typebooks_id } = request.only(['typebooks_id']);
         let query = "1=1";
@@ -17,7 +16,6 @@ class DocumentconfigsController {
             const docConfig = await DocumentConfig_1.default.query()
                 .where('companies_id', authenticate.companies_id)
                 .whereRaw(query);
-            console.log("DOC 4444");
             return response.status(200).send(docConfig);
         }
         catch (error) {
@@ -25,7 +23,7 @@ class DocumentconfigsController {
         }
     }
     async show({ auth, params, request, response }) {
-        const authenticate = await auth.use('api').authenticate();
+        await auth.use('api').authenticate();
         try {
             const docConfig = await DocumentConfig_1.default.find(params.id);
             return response.status(200).send(docConfig);
@@ -35,8 +33,7 @@ class DocumentconfigsController {
         }
     }
     async update({ auth, request, params, response }) {
-        console.log("passei aqui no update documento");
-        const authenticate = await auth.use('api').authenticate();
+        await auth.use('api').authenticate();
         const payLoad = request.only(DocumentConfig_1.default.fillable);
         try {
             const documentconfig = await DocumentConfig_1.default.query().where('id', params.id).update(payLoad);

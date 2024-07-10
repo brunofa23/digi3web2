@@ -27,8 +27,20 @@ class ReadFilesController {
         await file?.move(Application_1.default.tmpPath(`/uploads/Client_${authenticate.companies_id}`));
         const filePath = Application_1.default.tmpPath(`/uploads/Client_${authenticate.companies_id}/${file.clientName}`);
         const bookrecords = await (0, readFile_1.readFile)(filePath);
+        const containsAll = requiredProperties.every(element => bookrecords.header.includes(element));
+        if (!containsAll) {
+            response.status(400).send('typebook_error_103');
+        }
+        for (const cell of bookrecords.header) {
+            if (cell === '' || cell === undefined || cell === null) {
+                console.log("Alguma coluna inválida:", cell);
+                return;
+            }
+        }
+        let totUpdate = 0;
+        let totCreate = 0;
         const trx = await Database_1.default.beginGlobalTransaction();
-        for (const bookrecord of bookrecords) {
+        for (const bookrecord of bookrecords.data) {
             const hasProperties = hasRequiredProperties(bookrecord, requiredProperties);
             if (!hasProperties)
                 continue;
@@ -45,7 +57,7 @@ class ReadFilesController {
                         .andWhere('books_id', books_id)
                         .andWhere('companies_id', authenticate.companies_id)
                         .update({ cod: bookrecord.cod, book: bookrecord.book });
-                    await Document_1.default.query(trx)
+                    const update = await Document_1.default.query(trx)
                         .where('bookrecords_id', bookrecord.id)
                         .andWhere('typebooks_id', typebooks_id)
                         .andWhere('books_id', books_id)
@@ -98,6 +110,8 @@ class ReadFilesController {
                         stringfield13: bookrecord.stringfield13,
                         datefield13: bookrecord.datefield13
                     });
+                    if (update)
+                        totUpdate++;
                 }
                 else {
                     await Bookrecord_1.default.create({
@@ -108,7 +122,7 @@ class ReadFilesController {
                         cod: bookrecord.cod,
                         book: bookrecord.book
                     }, trx);
-                    await Document_1.default.create({
+                    const create = await Document_1.default.create({
                         bookrecords_id: bookrecord.id,
                         typebooks_id: typebooks_id,
                         books_id: books_id,
@@ -156,6 +170,8 @@ class ReadFilesController {
                         stringfield13: bookrecord.stringfield13,
                         datefield13: bookrecord.datefield13
                     });
+                    if (create.id)
+                        totCreate++;
                 }
                 await trx.commit();
             }
@@ -165,7 +181,7 @@ class ReadFilesController {
             }
         }
         await (0, util_1.DeleteFiles)(filePath);
-        return response.status(201).send("Import Success!");
+        return response.status(201).send({ resp: "Import Success!", totCreate, totUpdate });
     }
 }
 exports.default = ReadFilesController;

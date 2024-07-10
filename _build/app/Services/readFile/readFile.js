@@ -12,7 +12,8 @@ async function readFile(filePath = "") {
         const sheetName = workbook.SheetNames[0];
         const sheet = workbook.Sheets[sheetName];
         const data = xlsx_1.default.utils.sheet_to_json(sheet);
-        return data;
+        const columns = xlsx_1.default.utils.sheet_to_json(sheet, { header: 1 });
+        return { data, header: columns[0] };
     }
     else {
         console.error('Unsupported file format.');
