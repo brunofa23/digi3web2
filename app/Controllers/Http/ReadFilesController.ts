@@ -30,20 +30,18 @@ export default class ReadFilesController {
     await file?.move(Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`))
     const filePath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}/${file.clientName}`)
     const bookrecords = await readFile(filePath)
-    console.log(bookrecords.header)
-
     //validando se a planilha possui as colunas ['id', 'cod', 'book']
     const containsAll = requiredProperties.every(element => bookrecords.header.includes(element));
     if(!containsAll)
     {
       response.status(400).send('typebook_error_103')
     }
-    console.log("verificando>>", containsAll)
+    //console.log("verificando>>", containsAll)
     //return
     for (const cell of bookrecords.header) {
       if(cell==='' || cell===undefined || cell===null)
       {
-        console.log("alguma coluna infálidacell:",cell)
+        console.log("Alguma coluna inválida:",cell)
         return
       }
     }
@@ -201,7 +199,6 @@ export default class ReadFilesController {
     }
     //EXCLUIR O ARQUIVO *****************************************
     await DeleteFiles(filePath)
-    console.log("importado com sucesso", totCreate, totUpdate)
-    return response.status(201).send("Import Success!")
+    return response.status(201).send({resp:"Import Success!", totCreate, totUpdate})
   }
 }

@@ -116,7 +116,6 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
-    
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
@@ -125,14 +124,13 @@ export default class IndeximagesController {
     })
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
+
     if (indexImagesInitial == 'true') {
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
       })
-
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id,company?.cloud, listFilesImages )
-
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
@@ -140,8 +138,8 @@ export default class IndeximagesController {
           console.log("ERRO BOOKRECORD::", error)
         }
       }
-
     }
+
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id,company?.cloud, false, dataImages)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })

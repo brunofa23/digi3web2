@@ -14,8 +14,6 @@ const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
   //Listar Bookrecords
   public async index({ auth, request, params, response }: HttpContextContract) {
-    console.log("passei aqui....")
-
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -90,7 +88,6 @@ export default class BookrecordsController {
     //pagination paginação
     const page = request.input('page', 1)
     const limit = Env.get('PAGINATION')
-
     let data
     if (noAttachment) {
       data = await Bookrecord.query()
@@ -116,9 +113,7 @@ export default class BookrecordsController {
         .where('typebooks_id', params.typebooks_id)
         .max('cod as codMax');
     }
-
     else {
-
       data = await Bookrecord.query()
         .where("companies_id", authenticate.companies_id)
         .andWhere("typebooks_id", params.typebooks_id)
@@ -135,7 +130,6 @@ export default class BookrecordsController {
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
         .paginate(page, limit)
-      //console.log("PASSEI AQUI 5555", data)
     }
     return response.status(200).send(data)
   }
