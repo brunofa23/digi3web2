@@ -38,23 +38,16 @@ export default class ReadFilesController {
     {
       response.status(400).send('typebook_error_103')
     }
-
-
-
     console.log("verificando>>", containsAll)
-    return
-
-
+    //return
     for (const cell of bookrecords.header) {
       if(cell==='' || cell===undefined || cell===null)
       {
         console.log("alguma coluna infálidacell:",cell)
         return
       }
-
-
     }
-    return
+    //return
 
     let totUpdate=0
     let totCreate=0
