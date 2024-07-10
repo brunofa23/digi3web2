@@ -95,6 +95,11 @@
         "status": 500
     },
     {
+      "code": "typebook_error_103",
+      "messages": "missing id, cod or book columns in the spreadsheet for data import.",
+      "status": 400
+  },
+    {
         "code": "bookrecord_success_100",
         "messages": "successful creation or alteration of books",
         "status": 201

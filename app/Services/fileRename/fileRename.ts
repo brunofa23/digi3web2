@@ -16,7 +16,7 @@ import {
   sendDeleteFile,
   sendListAllFiles,
   sendRenameFile
-}  from "App/Services/googleDrive/googledrive"
+} from "App/Services/googleDrive/googledrive"
 
 //const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -118,12 +118,11 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     if (!image.isValid) {
       console.log("Error", image.errors);
     }
-
     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
-
     try {
       if (image && image.isValid) {
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
+
       }
     } catch (error) {
       await new BadRequestException(error + 'pushImageToGoogle', 409)
@@ -256,8 +255,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
 
       }
-
       else {
+
         if (dataImages.book)
           query = ` book = ${dataImages.book} `
         if (dataImages.sheet)
@@ -268,26 +267,21 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           query += ` and cod = '${dataImages.cod}' `
         if (dataImages.approximateTerm)
           query += ` and approximate_term = '${dataImages.approximateTerm}' `
-
         objFileName = {
           ext: path.extname(originalFileName).toLowerCase()
         }
       }
 
-
   try {
-
     const bookRecord = await Bookrecord.query()
       .preload('indeximage')
       .where('typebooks_id', '=', typebooks_id)
       .andWhere('companies_id', '=', companies_id)
       .whereRaw(query).first()
 
-
-
     if (bookRecord === null)
       return
-    const seq = bookRecord?.indeximage.length
+    const seq = bookRecord?.indeximage.length + 1
 
     let fileRename
     try {
@@ -300,7 +294,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         ext: objFileName.ext,
         //previous_file_name: originalFileName
       }
-
     } catch (error) {
       return error
     }
@@ -331,7 +324,7 @@ async function deleteFile(listFiles: [{}], cloud_number: number) {
 
     const idFolder = await sendSearchFile(listFiles[0]['path'], cloud_number)
     let idFile
-     for (const file of listFiles) {
+    for (const file of listFiles) {
       idFile = await sendSearchFile(file['file_name'], cloud_number, idFolder[0].id)
       await sendDeleteFile(idFile[0].id, cloud_number)
     }
@@ -413,7 +406,7 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     const year = fileSplit[11]
     //para documentos
     const yeardoc = fileSplit[4] == '' ? null : fileSplit[4] //documentos
-    const month =fileSplit[6] //documentos
+    const month = fileSplit[6] //documentos
 
     return {
       id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
@@ -448,9 +441,6 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
 
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
-
- //console.log("tupla", bookRecord)
-// console.log("tupla2", indexImages)
 
   return { bookRecord, indexImages }
 
