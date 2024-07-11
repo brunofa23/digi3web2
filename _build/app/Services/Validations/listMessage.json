@@ -96,7 +96,7 @@
     },
     {
       "code": "typebook_error_103",
-      "messages": "missing id, cod or book columns in the spreadsheet for data import.",
+      "messages": "Missing id, cod, book columns or any unnamed column in the spreadsheet for data import.",
       "status": 400
   },
     {

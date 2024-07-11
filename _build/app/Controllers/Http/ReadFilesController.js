@@ -29,12 +29,14 @@ class ReadFilesController {
         const bookrecords = await (0, readFile_1.readFile)(filePath);
         const containsAll = requiredProperties.every(element => bookrecords.header.includes(element));
         if (!containsAll) {
-            response.status(400).send('typebook_error_103');
+            await (0, util_1.DeleteFiles)(filePath);
+            return response.status(400).send('typebook_error_103');
         }
         for (const cell of bookrecords.header) {
             if (cell === '' || cell === undefined || cell === null) {
                 console.log("Alguma coluna inválida:", cell);
-                return;
+                await (0, util_1.DeleteFiles)(filePath);
+                return response.status(400).send('typebook_error_103');
             }
         }
         let totUpdate = 0;
