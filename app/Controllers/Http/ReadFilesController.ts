@@ -34,22 +34,20 @@ export default class ReadFilesController {
     const containsAll = requiredProperties.every(element => bookrecords.header.includes(element));
     if(!containsAll)
     {
-      response.status(400).send('typebook_error_103')
+      await DeleteFiles(filePath)
+      return response.status(400).send('typebook_error_103')
     }
     //console.log("verificando>>", containsAll)
-    //return
     for (const cell of bookrecords.header) {
       if(cell==='' || cell===undefined || cell===null)
       {
         console.log("Alguma coluna inválida:",cell)
-        return
+        await DeleteFiles(filePath)
+        return response.status(400).send('typebook_error_103')
       }
     }
-    //return
-
     let totUpdate=0
     let totCreate=0
-
     const trx = await Database.beginGlobalTransaction()
     for (const bookrecord of bookrecords.data) {
       const hasProperties = hasRequiredProperties(bookrecord, requiredProperties);
