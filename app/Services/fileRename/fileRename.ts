@@ -56,7 +56,7 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
 
-  //console.log("images 789>", images[0].extname)
+  //console.log("images 789>", images)
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []

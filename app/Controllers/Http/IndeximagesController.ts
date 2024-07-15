@@ -126,11 +126,6 @@ export default class IndeximagesController {
 
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
-
-    //console.log("image 555>>", request.files('images'))
-    //console.log("image 666>>", dataImages)
-    console.log("image 777>>", request.files('images'))
-
     if (indexImagesInitial == 'true') {
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
