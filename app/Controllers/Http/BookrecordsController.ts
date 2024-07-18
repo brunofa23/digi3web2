@@ -630,7 +630,6 @@ export default class BookrecordsController {
           .andWhere("typebooks_id", "=", params.typebooks_id)
           .whereNotNull('previous_file_name')
 
-
       if (listFilesToModify) {
         for (const iterator of listFilesToModify) {
           //1 - modificar o aquivo no gdrive
