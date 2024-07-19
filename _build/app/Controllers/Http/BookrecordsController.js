@@ -556,7 +556,7 @@ class BookrecordsController {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
         try {
-            const bookSummaryPayload = await Database_1.default
+            const query = Database_1.default
                 .from('bookrecords')
                 .select('book', 'indexbook')
                 .min('cod as initialCod')
@@ -573,6 +573,8 @@ class BookrecordsController {
        AND bkr.typebooks_id = bookrecords.typebooks_id
        AND bkr.book = bookrecords.book
        AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
+       AND indeximages.companies_id = ${authenticate.companies_id}
+       AND indeximages.typebooks_id = ${typebooks_id}
        GROUP BY bkr.book, bkr.indexbook
          ) as totalFiles
   `))
@@ -580,6 +582,7 @@ class BookrecordsController {
                 .where('typebooks_id', typebooks_id)
                 .groupBy('book', 'indexbook')
                 .orderBy('bookrecords.book');
+            const bookSummaryPayload = await query;
             return response.status(200).send(bookSummaryPayload);
         }
         catch (error) {
