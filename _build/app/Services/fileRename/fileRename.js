@@ -235,7 +235,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             .whereRaw(query).first();
         if (bookRecord === null)
             return;
-        const seq = bookRecord?.indeximage.length + 1;
+        const seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1;
         let fileRename;
         try {
             fileRename = {
