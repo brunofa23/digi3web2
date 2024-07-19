@@ -55,7 +55,6 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 }
 
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
-
   //console.log("images 789>", images)
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
@@ -129,6 +128,8 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
       await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
+  //console.log("RESULT:", result, "filerename", _fileRename)
+
   return result
 }
 
@@ -281,8 +282,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
     if (bookRecord === null)
       return
-    const seq = bookRecord?.indeximage.length + 1
-
+    const seq =bookRecord.indeximage[bookRecord.indeximage.length-1].seq+1//bookRecord?.indeximage.length + 1
     let fileRename
     try {
       fileRename = {
@@ -297,7 +297,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     } catch (error) {
       return error
     }
-
     return fileRename
 
   } catch (error) {
@@ -437,6 +436,7 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     }
     return false;
   });
+
 
 
   bookRecord.sort((a, b) => a.id - b.id);

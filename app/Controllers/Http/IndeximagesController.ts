@@ -54,7 +54,6 @@ export default class IndeximagesController {
 
   public async destroy({ auth, params, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
-
     try {
       //excluir imagens do google drive
       const query = Indeximage.query()
@@ -71,9 +70,7 @@ export default class IndeximagesController {
         .andWhere('companies_id', "=", companies_id)
         .andWhere('file_name', "like",decodeURIComponent(params.file_name))
 
-
         const listOfImagesToDeleteGDrive = await query.first()
-
         if (listOfImagesToDeleteGDrive) {
           var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path }
           FileRename.deleteFile([file_name],listOfImagesToDeleteGDrive.company.cloud)
@@ -131,7 +128,6 @@ export default class IndeximagesController {
         const imageName = image.clientName
         return imageName
       })
-
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id,company?.cloud, listFilesImages )
       for (const item of listFiles.bookRecord) {
         try {
@@ -141,8 +137,6 @@ export default class IndeximagesController {
         }
       }
     }
-
-
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id,company?.cloud, false, dataImages)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
