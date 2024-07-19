@@ -103,6 +103,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
             await new BadRequestException_1.default(error + 'pushImageToGoogle', 409);
         }
     }
+    console.log("RESULT:", result, "filerename", _fileRename);
     return result;
 }
 async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
@@ -235,7 +236,11 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             .whereRaw(query).first();
         if (bookRecord === null)
             return;
-        const seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1;
+        let seq = 0;
+        if (bookRecord.indeximage.length == 0)
+            seq = 1;
+        else
+            seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1;
         let fileRename;
         try {
             fileRename = {
