@@ -55,7 +55,6 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 }
 
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
-  //console.log("images 789>", images)
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
@@ -128,8 +127,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
       await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
-  //console.log("RESULT:", result, "filerename", _fileRename)
-
+  console.log("RESULT:", result, "filerename", _fileRename)
   return result
 }
 
@@ -282,7 +280,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
     if (bookRecord === null)
       return
-    const seq =bookRecord.indeximage[bookRecord.indeximage.length-1].seq+1//bookRecord?.indeximage.length + 1
+
+    let seq=0
+    if(bookRecord.indeximage.length==0)
+      seq=1
+    else
+      seq =bookRecord.indeximage[bookRecord.indeximage.length-1].seq+1
+
     let fileRename
     try {
       fileRename = {
