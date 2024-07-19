@@ -630,7 +630,6 @@ export default class BookrecordsController {
           .andWhere("typebooks_id", "=", params.typebooks_id)
           .whereNotNull('previous_file_name')
 
-
       if (listFilesToModify) {
         for (const iterator of listFilesToModify) {
           //1 - modificar o aquivo no gdrive
@@ -686,12 +685,11 @@ export default class BookrecordsController {
     }
   }
 
-
   public async bookSummary({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
     try {
-      const bookSummaryPayload = await Database
+      const query = Database
         .from('bookrecords')
         .select('book', 'indexbook')
         .min('cod as initialCod')
@@ -708,6 +706,8 @@ export default class BookrecordsController {
        AND bkr.typebooks_id = bookrecords.typebooks_id
        AND bkr.book = bookrecords.book
        AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
+       AND indeximages.companies_id = ${authenticate.companies_id}
+       AND indeximages.typebooks_id = ${typebooks_id}
        GROUP BY bkr.book, bkr.indexbook
          ) as totalFiles
   `))
@@ -716,6 +716,7 @@ export default class BookrecordsController {
         .groupBy('book', 'indexbook')
         .orderBy('bookrecords.book')
 
+      const bookSummaryPayload = await query
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {

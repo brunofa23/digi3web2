@@ -56,6 +56,7 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
 
+  //console.log("images 789>", images)
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
@@ -175,7 +176,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 }
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
-
   let query
   let objFileName
   let separators

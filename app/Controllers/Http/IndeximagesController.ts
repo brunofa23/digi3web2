@@ -116,20 +116,22 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
     })
+
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
-
     if (indexImagesInitial == 'true') {
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
       })
+
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id,company?.cloud, listFilesImages )
       for (const item of listFiles.bookRecord) {
         try {
