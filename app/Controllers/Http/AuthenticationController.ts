@@ -103,16 +103,5 @@ export default class AuthenticationController {
 
   }
 
-
-
-  public async verifyAccess({ params }: HttpContextContract) {
-    console.log("passei aqui...", params)
-
-    return true
-  }
-
-
-
-
 }
 

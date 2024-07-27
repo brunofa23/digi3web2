@@ -4,6 +4,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import UserValidator from 'App/Validators/UserValidator'
 import { DateTime } from 'luxon'
+import { accesscontextmanager } from 'googleapis/build/src/apis/accesscontextmanager'
 
 
 export default class UsersController {
@@ -112,11 +113,15 @@ export default class UsersController {
     }
   }
 
+  public async closeAccesImage({ auth, params, response }: HttpContextContract) {
+    console.log("passei aqui...")
+    const authenticate = await auth.use('api').authenticate()
 
-  public async verifyAccess({ params }) {
-    console.log("passei aqui...", params)
-    return true
+    FAZER UPDATE DIMINUINDO A DATA DE ACESSO PARA BLOQUEAR O ACESSO
+
+
   }
+
 
 
 }
