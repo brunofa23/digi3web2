@@ -30,8 +30,12 @@ Route.group(() => {
   //USERS
   Route.get("/users", "UsersController.index")
   Route.get("/users/:id", "UsersController.show")
+  //Route.get("/accessimage/:id", "UsersController.accessImage")
+  Route.get("/verifyAccess", "UsersController.verifyAccess")
+
   Route.post("/users", "UsersController.store").middleware('user_permission:post')
   Route.patch("/users/:id", "UsersController.update").middleware('user_permission:patch')
+
 
   //BOOKRECORDS
   //Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()

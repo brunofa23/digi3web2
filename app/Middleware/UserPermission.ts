@@ -4,7 +4,6 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 
 export default class UserPermission {
   public async handle({ auth }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
-
     const authenticate = await auth.use('api').authenticate()
     for (const guard of customGuards) {
 

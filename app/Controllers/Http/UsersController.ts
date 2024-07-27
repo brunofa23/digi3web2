@@ -3,6 +3,7 @@ import User from 'App/Models/User'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import UserValidator from 'App/Validators/UserValidator'
+import { DateTime } from 'luxon'
 
 
 export default class UsersController {
@@ -25,16 +26,13 @@ export default class UsersController {
 
   //retorna um registro
   public async show({ auth, params, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
     let query = ""
     if (!authenticate.superuser)
       query = ` companies_id=${authenticate.companies_id} `
-
     const data = await User.query()
       .whereRaw(query)
       .andWhere('id', "=", params.id).first()
-
     return response.status(200).send(data)
 
   }
@@ -90,6 +88,35 @@ export default class UsersController {
 
   }
 
+
+  public async accessImage({ auth, params, response }: HttpContextContract) {
+    console.log("passei aqui...")
+    const authenticate = await auth.use('api').authenticate()
+    const data = await User.query()
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('id', params.id).first()
+
+    if (data?.access_image == undefined || data?.access_image == null) {
+      console.log("a data não é valida")
+      return response.status(200).send(false)
+    }
+    const dataaccess = DateTime.fromJSDate(data?.access_image)
+    const dateNow = DateTime.now()
+    // Comparação
+    if (dataaccess >= dateNow) {
+      //console.log('A data de entrada é maior que a data atual', dataaccess.toFormat("yyyy-MM-dd"), dateNow.toFormat("yyyy-MM-dd"))
+      return response.status(200).send(true)
+    } else {
+      //console.log('A data de entrada não menor')
+      return response.status(200).send(false)
+    }
+  }
+
+
+  public async verifyAccess({ params }) {
+    console.log("passei aqui...", params)
+    return true
+  }
 
 
 }
