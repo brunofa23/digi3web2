@@ -7,6 +7,7 @@ const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"))
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const UserValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/UserValidator"));
+const luxon_1 = require("luxon");
 class UsersController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -66,6 +67,31 @@ class UsersController {
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 401, error);
         }
+    }
+    async accessImage({ auth, params, response }) {
+        console.log("passei aqui...");
+        const authenticate = await auth.use('api').authenticate();
+        const data = await User_1.default.query()
+            .where('companies_id', authenticate.companies_id)
+            .andWhere('id', params.id).first();
+        if (data?.access_image == undefined || data?.access_image == null) {
+            console.log("a data não é valida");
+            return response.status(200).send(false);
+        }
+        const dataaccess = luxon_1.DateTime.fromJSDate(data?.access_image);
+        const dateNow = luxon_1.DateTime.now();
+        if (dataaccess >= dateNow) {
+            return response.status(200).send(true);
+        }
+        else {
+            return response.status(200).send(false);
+        }
+    }
+    async closeAccesImage({ auth, params, response }) {
+        const data = await User_1.default.query()
+            .where('id', params.id)
+            .update({ 'access_image': '2000-01-01' });
+        return response.status(201).send(data);
     }
 }
 exports.default = UsersController;
