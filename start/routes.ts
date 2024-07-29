@@ -33,7 +33,7 @@ Route.group(() => {
   Route.get("/accessimage/:id", "UsersController.accessImage")
   Route.post("/users", "UsersController.store").middleware('user_permission:post')
   Route.patch("/users/:id", "UsersController.update").middleware('user_permission:patch')
-  Route.post("/closeaccesimage/:id", "UsersController.closeAccesImage")
+  Route.post("/closeaccesimage/:id", "UsersController.closeAccesImage")//.middleware('user_permission:patch')
 
 
   //BOOKRECORDS

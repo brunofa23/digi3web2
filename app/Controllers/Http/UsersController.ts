@@ -114,10 +114,15 @@ export default class UsersController {
   }
 
   public async closeAccesImage({ auth, params, response }: HttpContextContract) {
-    console.log("passei aqui...")
-    const authenticate = await auth.use('api').authenticate()
+    // console.log("passei aqui...", auth)
+    // const authenticate = await auth.use('api').authenticate()
+    // console.log("teste...", authenticate.id)
+    const data = await User.query()
+    .where('id', params.id)
+    .update({'access_image':'2000-01-01'})
 
-    FAZER UPDATE DIMINUINDO A DATA DE ACESSO PARA BLOQUEAR O ACESSO
+    return response.status(201).send(data)
+
 
 
   }
