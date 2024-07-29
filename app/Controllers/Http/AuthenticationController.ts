@@ -103,7 +103,5 @@ export default class AuthenticationController {
 
   }
 
-
-
 }
 
