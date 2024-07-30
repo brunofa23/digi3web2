@@ -127,7 +127,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
       await new BadRequestException(error + 'pushImageToGoogle', 409)
     }
   }
-  console.log("RESULT:", result, "filerename", _fileRename)
+
   return result
 }
 
