@@ -103,7 +103,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
             await new BadRequestException_1.default(error + 'pushImageToGoogle', 409);
         }
     }
-    console.log("RESULT:", result, "filerename", _fileRename);
     return result;
 }
 async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
@@ -230,9 +229,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
     try {
         const bookRecord = await Bookrecord_1.default.query()
-            .preload('indeximage')
-            .where('typebooks_id', '=', typebooks_id)
-            .andWhere('companies_id', '=', companies_id)
+            .preload('indeximage', query => {
+            query.where('indeximages.typebooks_id', typebooks_id);
+            query.andWhere('indeximages.companies_id', '=', companies_id);
+        })
+            .innerJoin('indeximages', 'bookrecords.id', 'indeximages.bookrecords_id')
+            .where('bookrecords.typebooks_id', '=', typebooks_id)
+            .andWhere('bookrecords.companies_id', '=', companies_id)
             .whereRaw(query).first();
         if (bookRecord === null)
             return;
