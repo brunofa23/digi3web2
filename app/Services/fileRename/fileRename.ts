@@ -175,7 +175,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
 
-  console.log(originalFileName)
   let query
   let objFileName
   let separators
@@ -270,7 +269,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         objFileName = {
           ext: path.extname(originalFileName).toLowerCase()
         }
-        console.log("ops...", objFileName)
+        
       }
 
   try {
