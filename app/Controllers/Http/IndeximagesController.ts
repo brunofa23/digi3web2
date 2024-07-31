@@ -53,6 +53,7 @@ export default class IndeximagesController {
   }
 
   public async destroy({ auth, params, response }: HttpContextContract) {
+    console.log("destroy images...")
     const { companies_id } = await auth.use('api').authenticate()
     try {
       //excluir imagens do google drive
@@ -113,14 +114,14 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
+    //console.log(request.files('images'))
     const images = request.files('images', {
       size: '100mb',
-      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
+      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF'],
     })
-
+    //console.log(images[0].extname)
     const { dataImages } = request['requestBody']
     const { indexImagesInitial } = request['requestData']
     if (indexImagesInitial == 'true') {
@@ -174,6 +175,8 @@ export default class IndeximagesController {
     const fileName = params.id
     const company = await Company.find(authenticate.companies_id)
     const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
+
+    //console.log("file::::::::", fileDownload)
 
     return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }
 
