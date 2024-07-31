@@ -233,13 +233,12 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             query.where('indeximages.typebooks_id', typebooks_id);
             query.andWhere('indeximages.companies_id', '=', companies_id);
         })
-            .innerJoin('indeximages', 'bookrecords.id', 'indeximages.bookrecords_id')
             .where('bookrecords.typebooks_id', '=', typebooks_id)
             .andWhere('bookrecords.companies_id', '=', companies_id)
             .whereRaw(query).first();
+        let seq = 0;
         if (bookRecord === null)
             return;
-        let seq = 0;
         if (bookRecord.indeximage.length == 0)
             seq = 1;
         else
