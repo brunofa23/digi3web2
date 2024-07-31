@@ -267,7 +267,9 @@ async function downloadFile(authClient, fileId, extension) {
             encoding: null
         });
         var imageType;
-        if (extension == ".jpeg" || extension == ".jpg" || extension == ".gif" || extension == ".bmp")
+        if (extension.toLowerCase() == ".jpeg" || extension.toLowerCase() == ".jpg"
+            || extension.toLowerCase() == ".gif" || extension.toLowerCase() == ".bmp"
+            || extension.toLowerCase() == ".png")
             imageType = file.headers['content-type'];
         else if (extension == ".pdf")
             imageType = "application/pdf";

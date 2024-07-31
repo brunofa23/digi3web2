@@ -43,6 +43,7 @@ class IndeximagesController {
         };
     }
     async destroy({ auth, params, response }) {
+        console.log("destroy images...");
         const { companies_id } = await auth.use('api').authenticate();
         try {
             const query = Indeximage_1.default.query()
@@ -95,7 +96,7 @@ class IndeximagesController {
         const company = await Company_1.default.find(authenticate.companies_id);
         const images = request.files('images', {
             size: '100mb',
-            extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF']
+            extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF'],
         });
         const { dataImages } = request['requestBody'];
         const { indexImagesInitial } = request['requestData'];
