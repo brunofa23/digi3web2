@@ -37,10 +37,5 @@ export default class Config extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
 
-  // @afterFetch()
-  // public static afterFetchHook(config: Config[]) {
-  //   console.log("afterFetch...")
-  // }
-
 
 }

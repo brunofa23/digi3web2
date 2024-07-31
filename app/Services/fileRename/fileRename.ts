@@ -50,7 +50,6 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
   const extension = path.extname(fileName);
   const fileId = await sendSearchFile(fileName, cloud_number, parent[0].id)
   const download = await sendDownloadFile(fileId[0].id, extension, cloud_number)
-
   return download
 }
 
@@ -270,6 +269,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         objFileName = {
           ext: path.extname(originalFileName).toLowerCase()
         }
+        
       }
 
   try {

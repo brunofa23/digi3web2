@@ -17,7 +17,7 @@ const TOKEN_PATH = Application.configPath('tokens/')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 const CREDENTIALS_PATH_FOLDER = Application.configPath('/credentials/')
 
-async function getToken(cloud_number:number) {
+async function getToken(cloud_number: number) {
   try {
     //const token = await Token.findBy("name", 'tokenGoogle')
     const token = await Token.findOrFail(cloud_number)
@@ -31,7 +31,7 @@ async function getToken(cloud_number:number) {
   }
 }
 
-async function getCredentials(cloud_number:number) {
+async function getCredentials(cloud_number: number) {
   try {
     //const credentials = await Token.findBy("name", 'tokenGoogle')
     const credentials = await Token.findOrFail(cloud_number)
@@ -43,7 +43,7 @@ async function getCredentials(cloud_number:number) {
   }
 }
 
-async function generateCredentialsToJson(cloud_number:number) {
+async function generateCredentialsToJson(cloud_number: number) {
   const credentialsDB = await getCredentials(cloud_number)
   const fileNameCredentials = CREDENTIALS_PATH
   const content = JSON.stringify(credentialsDB?.credentials, null, 2);
@@ -58,7 +58,7 @@ async function generateCredentialsToJson(cloud_number:number) {
 
 }
 
-async function loadSavedCredentialsIfExist(cloud_number:number) {
+async function loadSavedCredentialsIfExist(cloud_number: number) {
   const tokenNumber = await getToken(cloud_number)
   if (tokenNumber) {
     try {
@@ -69,7 +69,7 @@ async function loadSavedCredentialsIfExist(cloud_number:number) {
   }
 }
 
-async function saveCredentials(client, cloud_number:number) {
+async function saveCredentials(client, cloud_number: number) {
   const content = await fsPromises.readFile(CREDENTIALS_PATH);
   const keys = JSON.parse(content);
   const key = keys.installed || keys.web;
@@ -94,7 +94,7 @@ async function saveCredentials(client, cloud_number:number) {
 
 }
 
-async function authorize(cloud_number:number) {
+async function authorize(cloud_number: number) {
   let client = await loadSavedCredentialsIfExist(cloud_number);
   if (client) {
     return client;
@@ -112,7 +112,7 @@ async function authorize(cloud_number:number) {
       setTimeout: 6000000
     });
     if (client.credentials) {
-      await saveCredentials(client,cloud_number);
+      await saveCredentials(client, cloud_number);
     }
 
     return client;
@@ -311,9 +311,7 @@ async function listAllFiles(authClient, folderId = "") {
 
 
 async function downloadFile(authClient, fileId, extension) {
-
   const drive = google.drive({ version: 'v3', auth: authClient });
-
   try {
     const file = await drive.files.get({
       fileId: fileId,
@@ -328,7 +326,10 @@ async function downloadFile(authClient, fileId, extension) {
     );
 
     var imageType
-    if (extension == ".jpeg" || extension == ".jpg" || extension == ".gif" || extension == ".bmp")
+    if (extension.toLowerCase() == ".jpeg" || extension.toLowerCase() == ".jpg"
+      || extension.toLowerCase() == ".gif" || extension.toLowerCase() == ".bmp"
+      || extension.toLowerCase() == ".png"
+    )
       imageType = file.headers['content-type'];
     else if (extension == ".pdf")
       imageType = "application/pdf"
@@ -345,50 +346,50 @@ async function downloadFile(authClient, fileId, extension) {
 
 //****************************************************************** */
 //****************************************************************** */
-async function sendAuthorize(cloud_number:number) {
+async function sendAuthorize(cloud_number: number) {
   await authorize(cloud_number)
   return true
 }
 
-async function sendListFiles(cloud_number:number,folderId = "") {
+async function sendListFiles(cloud_number: number, folderId = "") {
   //authorize().then(listFiles(folderId)).catch(console.error);
   const auth = await authorize(cloud_number)
   return listFiles(auth, folderId)
 
 }
 
-async function sendListAllFiles(cloud_number:number,folderId = "") {
+async function sendListAllFiles(cloud_number: number, folderId = "") {
   //authorize().then(listFiles(folderId)).catch(console.error);
   const auth = await authorize(cloud_number)
   return listAllFiles(auth, folderId)
 
 }
 
-async function sendUploadFiles(parent, folderPath, fileName,cloud_number:number) {
+async function sendUploadFiles(parent, folderPath, fileName, cloud_number: number) {
   const auth = await authorize(cloud_number)
   const response = uploadFiles(auth, parent, folderPath, fileName)
   return response
 }
 
-async function sendCreateFolder(folderName,cloud_number:number, parentId = undefined,) {
+async function sendCreateFolder(folderName, cloud_number: number, parentId = undefined,) {
   const auth = await authorize(cloud_number)
   const id = createFolder(auth, folderName.trim(), parentId)
   return id
 }
 
-async function sendSearchFile(fileName,cloud_number:number, parentId = undefined) {
-  
-  
+async function sendSearchFile(fileName, cloud_number: number, parentId = undefined) {
+
+
   const auth = await authorize(cloud_number)
   return searchFile(auth, fileName, parentId)
 }
 
-async function sendDeleteFile(fileId,cloud_number:number) {
+async function sendDeleteFile(fileId, cloud_number: number) {
   const auth = await authorize(cloud_number)
   return deleteFile(auth, fileId)
 }
 
-async function sendSearchOrCreateFolder(folderName,cloud_number:number, parent = undefined ) {
+async function sendSearchOrCreateFolder(folderName, cloud_number: number, parent = undefined) {
   const auth = await authorize(cloud_number)
   let findFolder = await searchFile(auth, folderName)
   if (findFolder.length > 0)
@@ -400,12 +401,12 @@ async function sendSearchOrCreateFolder(folderName,cloud_number:number, parent =
   }
 }
 
-async function sendDownloadFile(fileId, extension, cloud_number:number) {
+async function sendDownloadFile(fileId, extension, cloud_number: number) {
   const auth = await authorize(cloud_number)
   return downloadFile(auth, fileId, extension)
 }
 
-async function sendRenameFile(fileId, newTitle, cloud_number:number) {
+async function sendRenameFile(fileId, newTitle, cloud_number: number) {
   const auth = await authorize(cloud_number)
   return renameFile(auth, fileId, newTitle)
 
