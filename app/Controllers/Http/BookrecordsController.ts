@@ -140,7 +140,7 @@ export default class BookrecordsController {
     console.log(book, sheet)
 
     const query = Bookrecord.query()
-        .where("companies_id", authenticate.companies_id)
+        .where("bookrecords.companies_id", authenticate.companies_id)
         if(book)
           query.where('book',book)
         if(sheet)
@@ -151,11 +151,16 @@ export default class BookrecordsController {
         .preload('indeximage', query=>{
           query.where('companies_id', authenticate.companies_id)
         })
+        query.innerJoin('typebooks', (join) => {
+          join.on('typebooks.id', '=', 'bookrecords.typebooks_id')
+              .andOn('typebooks.companies_id', '=', 'bookrecords.companies_id');
+        })
+        .preload('typebooks')
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
 
-        console.log(query.toQuery())
+        console.log("passei fastfind:", query.toQuery())
         const data = await query
 
     return response.status(200).send(data)
