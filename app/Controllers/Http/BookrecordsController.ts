@@ -134,6 +134,33 @@ export default class BookrecordsController {
     return response.status(200).send(data)
   }
 
+  public async fastFind({ auth, request, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const {book, sheet, typebook} = request.only(['book','sheet','typebook'])
+    console.log(book, sheet)
+
+    const query = Bookrecord.query()
+        .where("companies_id", authenticate.companies_id)
+        if(book)
+          query.where('book',book)
+        if(sheet)
+          query.where('sheet',sheet)
+        if(typebook)
+          query.where('typebooks_id', typebook)
+        .preload('indeximage', query=>{
+          query.where('companies_id', authenticate.companies_id)
+        })
+        .orderBy("book", "asc")
+        .orderBy("cod", "asc")
+        .orderBy("sheet", "asc")
+
+        const data = await query
+
+    return response.status(200).send(data)
+  }
+
+
+
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
     return {
