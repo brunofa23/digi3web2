@@ -134,7 +134,7 @@ export default class BookrecordsController {
     return response.status(200).send(data)
   }
 
-  public async fastFind({ auth, request, params, response }: HttpContextContract) {
+  public async fastFind({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const {book, sheet, typebook} = request.only(['book','sheet','typebook'])
     console.log(book, sheet)
@@ -147,6 +147,7 @@ export default class BookrecordsController {
           query.where('sheet',sheet)
         if(typebook)
           query.where('typebooks_id', typebook)
+
         .preload('indeximage', query=>{
           query.where('companies_id', authenticate.companies_id)
         })
@@ -154,6 +155,7 @@ export default class BookrecordsController {
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
 
+        console.log(query.toQuery())
         const data = await query
 
     return response.status(200).send(data)
