@@ -69,7 +69,6 @@ class UsersController {
         }
     }
     async accessImage({ auth, params, response }) {
-        console.log("passei aqui...");
         const authenticate = await auth.use('api').authenticate();
         const data = await User_1.default.query()
             .where('companies_id', authenticate.companies_id)

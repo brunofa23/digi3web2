@@ -40,6 +40,7 @@ Route_1.default.group(() => {
     Route_1.default.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial');
     Route_1.default.get('/updatedfiles', 'BookrecordsController.updatedFiles');
     Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument');
+    Route_1.default.get("/fastfind", 'BookrecordsController.fastFind');
     Route_1.default.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index');
     Route_1.default.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store');
     Route_1.default.patch("/typebooks/:typebooks_id/documents/:id", 'DocumentsController.update');

@@ -107,6 +107,31 @@ class BookrecordsController {
         }
         return response.status(200).send(data);
     }
+    async fastFind({ auth, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const { book, sheet, typebook } = request.only(['book', 'sheet', 'typebook']);
+        const query = Bookrecord_1.default.query()
+            .where("bookrecords.companies_id", authenticate.companies_id)
+            .preload('indeximage', (subQuery) => {
+            subQuery.select('indeximages.*');
+            subQuery.where('companies_id', authenticate.companies_id);
+        })
+            .preload('typebooks', (subQuery) => {
+            subQuery.select('typebooks.*');
+            subQuery.where('companies_id', authenticate.companies_id);
+        });
+        if (book)
+            query.where('bookrecords.book', book);
+        if (sheet)
+            query.where('bookrecords.sheet', sheet);
+        if (typebook)
+            query.where('bookrecords.typebooks_id', typebook);
+        query.orderBy('bookrecords.book', 'asc')
+            .orderBy('bookrecords.cod', 'asc')
+            .orderBy('bookrecords.sheet', 'asc');
+        const data = await query;
+        return response.status(200).send(data);
+    }
     async show({ params }) {
         const data = await Bookrecord_1.default.findOrFail(params.id);
         return {

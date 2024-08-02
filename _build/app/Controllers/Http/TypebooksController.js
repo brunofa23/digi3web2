@@ -58,6 +58,7 @@ class TypebooksController {
         if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
             data = await Typebook_1.default.query()
                 .preload('documentconfig')
+                .preload('book')
                 .where("companies_id", '=', companies_id);
         }
         else {
@@ -75,8 +76,10 @@ class TypebooksController {
                 query += ` and books_id = ${typebookPayload.books_id} `;
             }
             data = await Typebook_1.default.query()
+                .preload('book')
                 .where("companies_id", '=', companies_id)
-                .whereRaw(query);
+                .whereRaw(query)
+                .orderBy('name');
         }
         if (typebookPayload.totalfiles) {
             data = await Typebook_1.default.query()
@@ -128,14 +131,14 @@ class TypebooksController {
         }
     }
     async allTypebook({ auth, response, request }) {
-        await auth.use('api').authenticate();
+        const authenticate = await auth.use('api').authenticate();
         const typebookPayload = request.only(['companies_id']);
-        let data;
-        let query = " 1=1 ";
-        if (typebookPayload.companies_id)
-            query += ` and companies_id=${typebookPayload.companies_id}`;
-        data = await Typebook_1.default.query()
-            .whereRaw(query);
+        const query = Typebook_1.default.query();
+        if (!authenticate.superuser)
+            query.where('companies_id', authenticate.companies_id);
+        else if (typebookPayload.companies_id)
+            query.where('companies_id', typebookPayload.companies_id);
+        const data = await query;
         return response.status(200).send(data);
     }
 }
