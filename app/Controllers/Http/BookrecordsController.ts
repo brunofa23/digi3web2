@@ -142,9 +142,11 @@ export default class BookrecordsController {
       .where("bookrecords.companies_id", authenticate.companies_id)
       .preload('indeximage', (subQuery) => {
         subQuery.select('indeximages.*'); // Se necessário, ajuste os campos a serem carregados
+        subQuery.where('companies_id',authenticate.companies_id)
       })
       .preload('typebooks', (subQuery) => {
         subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
+        subQuery.where('companies_id', authenticate.companies_id)
       });
 
     if (book)
