@@ -91,7 +91,6 @@ export default class UsersController {
 
 
   public async accessImage({ auth, params, response }: HttpContextContract) {
-    console.log("passei aqui...")
     const authenticate = await auth.use('api').authenticate()
     const data = await User.query()
       .where('companies_id', authenticate.companies_id)
@@ -114,9 +113,9 @@ export default class UsersController {
   }
 
   public async closeAccesImage({ auth, params, response }: HttpContextContract) {
-    // console.log("passei aqui...", auth)
+
     // const authenticate = await auth.use('api').authenticate()
-    // console.log("teste...", authenticate.id)
+
     const data = await User.query()
     .where('id', params.id)
     .update({'access_image':'2000-01-01'})

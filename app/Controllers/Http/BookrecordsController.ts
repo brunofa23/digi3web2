@@ -134,6 +134,38 @@ export default class BookrecordsController {
     return response.status(200).send(data)
   }
 
+  public async fastFind({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const { book, sheet, typebook } = request.only(['book', 'sheet', 'typebook'])
+
+    const query = Bookrecord.query()
+      .where("bookrecords.companies_id", authenticate.companies_id)
+      .preload('indeximage', (subQuery) => {
+        subQuery.select('indeximages.*'); // Se necessário, ajuste os campos a serem carregados
+        subQuery.where('companies_id',authenticate.companies_id)
+      })
+      .preload('typebooks', (subQuery) => {
+        subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
+        subQuery.where('companies_id', authenticate.companies_id)
+      });
+
+    if (book)
+      query.where('bookrecords.book', book);
+    if (sheet)
+      query.where('bookrecords.sheet', sheet);
+    if (typebook)
+      query.where('bookrecords.typebooks_id', typebook);
+
+    query.orderBy('bookrecords.book', 'asc')
+      .orderBy('bookrecords.cod', 'asc')
+      .orderBy('bookrecords.sheet', 'asc');
+    const data = await query
+
+    return response.status(200).send(data)
+  }
+
+
+
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
     return {
@@ -198,8 +230,8 @@ export default class BookrecordsController {
           query.where('id', params.typebooks_id)
             .andWhere('companies_id', companies_id)
         })
-        .where('typebooks_id',  params.typebooks_id)
-        .andWhere('bookrecords_id',  params.id)
+        .where('typebooks_id', params.typebooks_id)
+        .andWhere('bookrecords_id', params.id)
         .andWhere('companies_id', companies_id)
       if (listOfImagesToDeleteGDrive.length > 0) {
         var file_name = listOfImagesToDeleteGDrive.map(function (item) {
@@ -790,7 +822,7 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
 
     let { startCod, endCod, year, month, box } = request.requestData
-       let bookRecord = {}
+    let bookRecord = {}
     let document = {}
     let cod = startCod
 
