@@ -9,6 +9,7 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const format_1 = __importDefault(require("../../Services/Dates/format"));
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
+const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
@@ -99,7 +100,7 @@ class IndeximagesController {
             extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF'],
         });
         const { dataImages } = request['requestBody'];
-        const { indexImagesInitial } = request['requestData'];
+        const { indexImagesInitial, updateImage } = request['requestData'];
         if (indexImagesInitial == 'true') {
             const listFilesImages = images.map((image) => {
                 const imageName = image.clientName;
@@ -113,6 +114,35 @@ class IndeximagesController {
                 catch (error) {
                     console.log("ERRO BOOKRECORD::", error);
                 }
+            }
+        }
+        if (updateImage) {
+            const bookRecord = await Bookrecord_1.default.query()
+                .where('typebooks_id', params.typebooks_id)
+                .andWhere('companies_id', authenticate.companies_id)
+                .andWhere('book', dataImages.book)
+                .andWhere('sheet', dataImages.sheet)
+                .andWhere('side', dataImages.side)
+                .andWhere('indexbook', dataImages.indexBook)
+                .first();
+            if (!bookRecord) {
+                const books_id = await Typebook_1.default.query().where('id', params.typebooks_id)
+                    .andWhere('companies_id', authenticate.companies_id).first();
+                const codBookrecord = await Bookrecord_1.default.query()
+                    .where('typebooks_id', params.typebooks_id)
+                    .andWhere('companies_id', authenticate.companies_id)
+                    .max('cod as max_cod').firstOrFail();
+                if (books_id)
+                    await Bookrecord_1.default.create({
+                        typebooks_id: params.typebooks_id,
+                        companies_id: authenticate.companies_id,
+                        cod: (codBookrecord?.$extras.max_cod + 1),
+                        books_id: books_id.books_id,
+                        book: dataImages.book,
+                        sheet: dataImages.sheet,
+                        side: dataImages.side,
+                        indexbook: dataImages.indexBook
+                    });
             }
         }
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
