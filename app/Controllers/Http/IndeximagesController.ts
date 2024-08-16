@@ -5,6 +5,7 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import Format from '../../Services/Dates/format'
 import Bookrecord from 'App/Models/Bookrecord'
 import Company from 'App/Models/Company'
+import Typebook from 'App/Models/Typebook'
 // import { logInJson } from "App/Services/util"
 // import { base64 } from '@ioc:Adonis/Core/Helpers'
 // import ConfigsController from './ConfigsController'
@@ -18,7 +19,7 @@ const path = require('path')
 export default class IndeximagesController {
 
   public async store({ request, response }: HttpContextContract) {
-        const body = request.only(Indeximage.fillable)
+    const body = request.only(Indeximage.fillable)
     try {
       const data = await Indeximage.create(body)
       return response.status(201).send(data)
@@ -69,19 +70,19 @@ export default class IndeximagesController {
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('bookrecords_id', "=", params.bookrecords_id)
         .andWhere('companies_id', "=", companies_id)
-        .andWhere('file_name', "like",decodeURIComponent(params.file_name))
+        .andWhere('file_name', "like", decodeURIComponent(params.file_name))
 
-        const listOfImagesToDeleteGDrive = await query.first()
-        if (listOfImagesToDeleteGDrive) {
-          var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path }
-          FileRename.deleteFile([file_name],listOfImagesToDeleteGDrive.company.cloud)
-        }
+      const listOfImagesToDeleteGDrive = await query.first()
+      if (listOfImagesToDeleteGDrive) {
+        var file_name = { file_name: listOfImagesToDeleteGDrive.file_name, path: listOfImagesToDeleteGDrive.typebooks.path }
+        FileRename.deleteFile([file_name], listOfImagesToDeleteGDrive.company.cloud)
+      }
 
       await Indeximage.query()
         .where('typebooks_id', '=', params.typebooks_id)
         .andWhere('bookrecords_id', "=", params.bookrecords_id)
         .andWhere('companies_id', "=", companies_id)
-        .andWhere('file_name', "like",decodeURIComponent(params.file_name))
+        .andWhere('file_name', "like", decodeURIComponent(params.file_name))
         .delete()
 
       return response.status(201).send({ message: "Excluido com sucesso!!" })
@@ -116,20 +117,20 @@ export default class IndeximagesController {
   public async uploads({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
-    //console.log(request.files('images'))
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF'],
     })
-    //console.log(images[0].extname)
+
     const { dataImages } = request['requestBody']
-    const { indexImagesInitial } = request['requestData']
-    if (indexImagesInitial == 'true') {
+    const { indexImagesInitial, updateImage } = request['requestData']
+
+    if (indexImagesInitial == 'true') {//Através do nome da imagem é recriado o registro no bookrecord
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
       })
-      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id,company?.cloud, listFilesImages )
+      const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages)
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
@@ -138,8 +139,41 @@ export default class IndeximagesController {
         }
       }
     }
+    if (updateImage) {
+      const bookRecord = await Bookrecord.query()
+        .where('typebooks_id', params.typebooks_id)
+        .andWhere('companies_id', authenticate.companies_id)
+        .andWhere('book', dataImages.book)
+        .andWhere('sheet', dataImages.sheet)
+        .andWhere('side', dataImages.side)
+        .andWhere('indexbook',dataImages.indexBook)
+        .first()
 
-    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id,company?.cloud, false, dataImages)
+      if (!bookRecord) {
+        const books_id = await Typebook.query().where('id', params.typebooks_id)
+          .andWhere('companies_id', authenticate.companies_id).first()
+
+        const codBookrecord = await Bookrecord.query()
+        .where('typebooks_id', params.typebooks_id)
+        .andWhere('companies_id', authenticate.companies_id)
+        .max('cod as max_cod').firstOrFail()
+
+        if (books_id)
+          await Bookrecord.create({
+            typebooks_id: params.typebooks_id,
+            companies_id: authenticate.companies_id,
+            cod:(codBookrecord?.$extras.max_cod+1),
+            books_id: books_id.books_id,
+            book: dataImages.book,
+            sheet: dataImages.sheet,
+            side: dataImages.side,
+            indexbook:dataImages.indexBook
+          })
+      }
+
+    }
+
+    const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
