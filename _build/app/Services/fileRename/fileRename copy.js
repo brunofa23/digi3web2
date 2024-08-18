@@ -97,6 +97,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
         try {
             if (image && image.isValid) {
                 result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number));
+                console.log("FILE RENAME:::", _fileRename, "IDPARENT:", idParent[0].id);
             }
         }
         catch (error) {
@@ -143,19 +144,13 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     return objfileRename.file_name;
 }
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
+    let query;
     let objFileName;
     let separators;
     let arrayFileName;
     const regexBookAndCod = /^L\d+\(\d+\).*$/;
     const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
     const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
-    const query = Bookrecord_1.default.query()
-        .preload('indeximage', query => {
-        query.where('indeximages.typebooks_id', typebooks_id);
-        query.andWhere('indeximages.companies_id', '=', companies_id);
-    })
-        .where('bookrecords.typebooks_id', '=', typebooks_id)
-        .andWhere('bookrecords.companies_id', '=', companies_id);
     if (dataImages.typeBookFile) {
         let fileName;
         if (dataImages.book && dataImages.sheet && dataImages.side) {
@@ -185,8 +180,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             cod: arrayFileName[4],
             ext: arrayFileName[6]
         };
-        query.andWhere('cod', objFileName.cod);
-        query.andWhere('book', objFileName.book);
+        query = ` cod =${objFileName.cod} and book = ${objFileName.book} `;
     }
     else if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
         separators = ["L", '_', '|', '-'];
@@ -198,9 +192,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             side: arrayFileName[6][0],
             ext: path.extname(originalFileName).toLowerCase()
         };
-        query.andWhere('book', objFileName.book);
-        query.andWhere('sheet', objFileName.sheet);
-        query.andWhere('side', objFileName.side);
+        query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`;
     }
     else if (path.basename(originalFileName).startsWith('Id')) {
         const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/);
@@ -210,8 +202,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             ext: `.${arrayFileName[arrayFileName.length - 1]}`
         };
         originalFileName = path.basename(originalFileName);
-        query.andWhere('id', objFileName.id);
-        query.andWhere('cod', objFileName.cod);
+        query = ` id=${objFileName.id} and cod=${objFileName.cod} `;
     }
     else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
         const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
@@ -220,28 +211,32 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             approximate_term: arrayFileName[1],
             ext: `.${arrayFileName[3]}`
         };
-        query.andWhere('approximate_term', objFileName.approximate_term);
-        query.andWhere('book', objFileName.book);
+        query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `;
     }
     else {
         if (dataImages.book)
-            query.andWhere('book', dataImages.book);
+            query = ` book = ${dataImages.book} `;
         if (dataImages.sheet)
-            query.andWhere('sheet', dataImages.sheet);
+            query += ` and sheet = ${dataImages.sheet} `;
         if (dataImages.side)
-            query.andWhere('side', dataImages.side);
+            query += ` and side = '${dataImages.side}' `;
         if (dataImages.cod)
-            query.andWhere('cod', dataImages.cod);
+            query += ` and cod = '${dataImages.cod}' `;
         if (dataImages.approximateTerm)
-            query.andWhere('approximate_term', dataImages.approximateTerm);
-        if (dataImages.indexBook)
-            query.andWhere('indexbook', dataImages.indexBook);
+            query += ` and approximate_term = '${dataImages.approximateTerm}' `;
         objFileName = {
             ext: path.extname(originalFileName).toLowerCase()
         };
     }
     try {
-        const bookRecord = await query.first();
+        const bookRecord = await Bookrecord_1.default.query()
+            .preload('indeximage', query => {
+            query.where('indeximages.typebooks_id', typebooks_id);
+            query.andWhere('indeximages.companies_id', '=', companies_id);
+        })
+            .where('bookrecords.typebooks_id', '=', typebooks_id)
+            .andWhere('bookrecords.companies_id', '=', companies_id)
+            .whereRaw(query).first();
         let seq = 0;
         if (bookRecord === null)
             return;
@@ -384,4 +379,4 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     return { bookRecord, indexImages };
 }
 module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName };
-//# sourceMappingURL=fileRename.js.map
+//# sourceMappingURL=fileRename%20copy.js.map

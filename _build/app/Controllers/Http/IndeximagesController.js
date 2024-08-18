@@ -44,7 +44,6 @@ class IndeximagesController {
         };
     }
     async destroy({ auth, params, response }) {
-        console.log("destroy images...");
         const { companies_id } = await auth.use('api').authenticate();
         try {
             const query = Indeximage_1.default.query()
@@ -117,14 +116,15 @@ class IndeximagesController {
             }
         }
         if (updateImage) {
-            const bookRecord = await Bookrecord_1.default.query()
+            const query = Bookrecord_1.default.query()
                 .where('typebooks_id', params.typebooks_id)
                 .andWhere('companies_id', authenticate.companies_id)
                 .andWhere('book', dataImages.book)
                 .andWhere('sheet', dataImages.sheet)
-                .andWhere('side', dataImages.side)
-                .andWhere('indexbook', dataImages.indexBook)
-                .first();
+                .andWhere('side', dataImages.side);
+            if (dataImages.indexBook)
+                query.andWhere('indexbook', dataImages.indexBook);
+            const bookRecord = await query.first();
             if (!bookRecord) {
                 const books_id = await Typebook_1.default.query().where('id', params.typebooks_id)
                     .andWhere('companies_id', authenticate.companies_id).first();
