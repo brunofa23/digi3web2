@@ -54,7 +54,6 @@ export default class IndeximagesController {
   }
 
   public async destroy({ auth, params, response }: HttpContextContract) {
-    console.log("destroy images...")
     const { companies_id } = await auth.use('api').authenticate()
     try {
       //excluir imagens do google drive
@@ -148,7 +147,6 @@ export default class IndeximagesController {
         .andWhere('side', dataImages.side)
       if (dataImages.indexBook)
         query.andWhere('indexbook', dataImages.indexBook)
-      console.log(query.toQuery())
       const bookRecord = await query.first()
 
       if (!bookRecord) {
