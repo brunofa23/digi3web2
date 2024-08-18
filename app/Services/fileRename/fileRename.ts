@@ -54,6 +54,7 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 }
 
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
+
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
@@ -120,6 +121,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     try {
       if (image && image.isValid) {
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
+        console.log("FILE RENAME:::", _fileRename, "IDPARENT:",idParent[0].id)
 
       }
     } catch (error) {
@@ -141,6 +143,7 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
 }
 
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
+
   try {
     //copia o arquivo para servidor
     if (capture) {
@@ -269,7 +272,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         objFileName = {
           ext: path.extname(originalFileName).toLowerCase()
         }
-        
+
       }
 
   try {
@@ -282,6 +285,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       .where('bookrecords.typebooks_id', '=', typebooks_id)
       .andWhere('bookrecords.companies_id', '=', companies_id)
       .whereRaw(query).first()
+
+
 
     let seq = 0
     if (bookRecord === null) return

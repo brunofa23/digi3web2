@@ -140,34 +140,36 @@ export default class IndeximagesController {
       }
     }
     if (updateImage) {
-      const bookRecord = await Bookrecord.query()
+      const query = Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
         .andWhere('book', dataImages.book)
         .andWhere('sheet', dataImages.sheet)
         .andWhere('side', dataImages.side)
-        .andWhere('indexbook',dataImages.indexBook)
-        .first()
+      if (dataImages.indexBook)
+        query.andWhere('indexbook', dataImages.indexBook)
+      console.log(query.toQuery())
+      const bookRecord = await query.first()
 
       if (!bookRecord) {
         const books_id = await Typebook.query().where('id', params.typebooks_id)
           .andWhere('companies_id', authenticate.companies_id).first()
 
         const codBookrecord = await Bookrecord.query()
-        .where('typebooks_id', params.typebooks_id)
-        .andWhere('companies_id', authenticate.companies_id)
-        .max('cod as max_cod').firstOrFail()
+          .where('typebooks_id', params.typebooks_id)
+          .andWhere('companies_id', authenticate.companies_id)
+          .max('cod as max_cod').firstOrFail()
 
         if (books_id)
           await Bookrecord.create({
             typebooks_id: params.typebooks_id,
             companies_id: authenticate.companies_id,
-            cod:(codBookrecord?.$extras.max_cod+1),
+            cod: (codBookrecord?.$extras.max_cod + 1),
             books_id: books_id.books_id,
             book: dataImages.book,
             sheet: dataImages.sheet,
             side: dataImages.side,
-            indexbook:dataImages.indexBook
+            indexbook: dataImages.indexBook
           })
       }
 
