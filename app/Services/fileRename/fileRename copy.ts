@@ -121,7 +121,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     try {
       if (image && image.isValid) {
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
-        console.log("FILE RENAME:::", _fileRename, "IDPARENT:", idParent[0].id)
+        console.log("FILE RENAME:::", _fileRename, "IDPARENT:",idParent[0].id)
 
       }
     } catch (error) {
@@ -178,6 +178,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
 
+  let query
   let objFileName
   let separators
   let arrayFileName
@@ -187,16 +188,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
   //Format T123(123)livro.jpg
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
-
-  const query = Bookrecord.query()
-    .preload('indeximage', query => {
-      query.where('indeximages.typebooks_id', typebooks_id)
-      query.andWhere('indeximages.companies_id', '=', companies_id)
-    })
-    .where('bookrecords.typebooks_id', '=', typebooks_id)
-    .andWhere('bookrecords.companies_id', '=', companies_id)
-  //.whereRaw(query).first()
-
 
   if (dataImages.typeBookFile) {
     let fileName
@@ -227,9 +218,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         cod: arrayFileName[4],
         ext: arrayFileName[6]
       }
-      //query = ` cod =${objFileName.cod} and book = ${objFileName.book} `
-      query.andWhere('cod', objFileName.cod)
-      query.andWhere('book', objFileName.book)
+      query = ` cod =${objFileName.cod} and book = ${objFileName.book} `
     }
     else
       if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
@@ -242,10 +231,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           side: arrayFileName[6][0],
           ext: path.extname(originalFileName).toLowerCase()
         }
-        //query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`
-        query.andWhere('book', objFileName.book)
-        query.andWhere('sheet', objFileName.sheet)
-        query.andWhere('side', objFileName.side)
+        query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`
       }
       //ARQUIVOS QUE INICIAM COM ID
       else if (path.basename(originalFileName).startsWith('Id')) {
@@ -257,9 +243,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           ext: `.${arrayFileName[arrayFileName.length - 1]}`
         }
         originalFileName = path.basename(originalFileName)
-        //query = ` id=${objFileName.id} and cod=${objFileName.cod} `
-        query.andWhere('id', objFileName.id)
-        query.andWhere('cod', objFileName.cod)
+        query = ` id=${objFileName.id} and cod=${objFileName.cod} `
 
       }
       //ARQUIVOS COM A MÁSCARA T1(121)
@@ -270,30 +254,21 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           approximate_term: arrayFileName[1],
           ext: `.${arrayFileName[3]}`
         }
-        //query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
-        query.andWhere('approximate_term', objFileName.approximate_term)
-        query.andWhere('book', objFileName.book)
+        query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
 
       }
       else {
 
         if (dataImages.book)
-          //query = ` book = ${dataImages.book} `
-          query.andWhere('book', dataImages.book)
+          query = ` book = ${dataImages.book} `
         if (dataImages.sheet)
-          //query += ` and sheet = ${dataImages.sheet} `
-          query.andWhere('sheet', dataImages.sheet)
+          query += ` and sheet = ${dataImages.sheet} `
         if (dataImages.side)
-          //query += ` and side = '${dataImages.side}' `
-          query.andWhere('side', dataImages.side)
+          query += ` and side = '${dataImages.side}' `
         if (dataImages.cod)
-          //query += ` and cod = '${dataImages.cod}' `
-          query.andWhere('cod', dataImages.cod)
+          query += ` and cod = '${dataImages.cod}' `
         if (dataImages.approximateTerm)
-          //query += ` and approximate_term = '${dataImages.approximateTerm}' `
-          query.andWhere('approximate_term', dataImages.approximateTerm)
-        if(dataImages.indexBook)
-          query.andWhere('indexbook',dataImages.indexBook)
+          query += ` and approximate_term = '${dataImages.approximateTerm}' `
         objFileName = {
           ext: path.extname(originalFileName).toLowerCase()
         }
@@ -301,17 +276,17 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
 
   try {
-    console.log(query.toQuery())
-    const bookRecord = await query.first()
-    // const bookRecord = await Bookrecord.query()
-    //   .preload('indeximage', query => {
-    //     query.where('indeximages.typebooks_id', typebooks_id)
-    //     query.andWhere('indeximages.companies_id', '=', companies_id)
-    //   })
-    //   //.innerJoin('indeximages','bookrecords.id','indeximages.bookrecords_id')
-    //   .where('bookrecords.typebooks_id', '=', typebooks_id)
-    //   .andWhere('bookrecords.companies_id', '=', companies_id)
-    //   .whereRaw(query).first()
+    const bookRecord = await Bookrecord.query()
+      .preload('indeximage', query => {
+        query.where('indeximages.typebooks_id', typebooks_id)
+        query.andWhere('indeximages.companies_id', '=', companies_id)
+      })
+      //.innerJoin('indeximages','bookrecords.id','indeximages.bookrecords_id')
+      .where('bookrecords.typebooks_id', '=', typebooks_id)
+      .andWhere('bookrecords.companies_id', '=', companies_id)
+      .whereRaw(query).first()
+
+
 
     let seq = 0
     if (bookRecord === null) return
