@@ -714,6 +714,24 @@ class BookrecordsController {
         let successValidation = await new validations_1.default('bookrecord_success_100');
         return response.status(201).send(successValidation.code);
     }
+    async maxBookRecord({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const maxBook = await Bookrecord_1.default.query()
+            .where('typebooks_id', params.typebooks_id)
+            .andWhere('companies_id', authenticate.companies_id)
+            .max('book as max_book')
+            .first();
+        let maxSheet;
+        if (maxBook) {
+            maxSheet = await Bookrecord_1.default.query()
+                .where('typebooks_id', params.typebooks_id)
+                .andWhere('companies_id', authenticate.companies_id)
+                .andWhere('book', maxBook?.$extras.max_book)
+                .max('sheet as max_sheet')
+                .first();
+        }
+        return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet });
+    }
 }
 exports.default = BookrecordsController;
 //# sourceMappingURL=BookrecordsController.js.map
