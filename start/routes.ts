@@ -51,6 +51,7 @@ Route.group(() => {
   Route.get('/updatedfiles', 'BookrecordsController.updatedFiles')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument')//.middleware('bookrecord_permission:generateOrUpdateBookrecords')
   Route.get("/fastfind",'BookrecordsController.fastFind')
+  Route.get("/maxbookrecord/:typebooks_id", 'BookrecordsController.maxBookRecord')
 
   //DOCUMENTS
   Route.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index')

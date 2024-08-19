@@ -142,7 +142,7 @@ export default class BookrecordsController {
       .where("bookrecords.companies_id", authenticate.companies_id)
       .preload('indeximage', (subQuery) => {
         subQuery.select('indeximages.*'); // Se necessário, ajuste os campos a serem carregados
-        subQuery.where('companies_id',authenticate.companies_id)
+        subQuery.where('companies_id', authenticate.companies_id)
       })
       .preload('typebooks', (subQuery) => {
         subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
@@ -899,6 +899,25 @@ export default class BookrecordsController {
     //SUBSTITUI O NUMERO DO LIVRO
   }
 
+  public async maxBookRecord({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const maxBook = await Bookrecord.query()
+      .where('typebooks_id', params.typebooks_id)
+      .andWhere('companies_id', authenticate.companies_id)
+      .max('book as max_book')
+      .first();
+
+    let maxSheet
+    if (maxBook){
+      maxSheet = await Bookrecord.query()
+        .where('typebooks_id', params.typebooks_id)
+        .andWhere('companies_id', authenticate.companies_id)
+        .andWhere('book', maxBook?.$extras.max_book)
+        .max('sheet as max_sheet')
+        .first();
+    }
+    return response.status(200).send({max_book:maxBook?.$extras.max_book, max_sheet:maxSheet.$extras.max_sheet})
+  }
 
   //********************************************************* */
 }
