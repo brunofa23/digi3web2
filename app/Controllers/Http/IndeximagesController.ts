@@ -143,37 +143,55 @@ export default class IndeximagesController {
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
         .andWhere('book', dataImages.book)
-        .andWhere('sheet', dataImages.sheet)
         .andWhere('side', dataImages.side)
+        .andWhere('sheet', dataImages.sheet)
       if (dataImages.indexBook)
         query.andWhere('indexbook', dataImages.indexBook)
       const bookRecord = await query.first()
 
-      if (!bookRecord) {
+      if (!bookRecord || dataImages.sheet == 0) {
         const books_id = await Typebook.query().where('id', params.typebooks_id)
           .andWhere('companies_id', authenticate.companies_id).first()
-
         const codBookrecord = await Bookrecord.query()
           .where('typebooks_id', params.typebooks_id)
           .andWhere('companies_id', authenticate.companies_id)
           .max('cod as max_cod').firstOrFail()
 
-        if (books_id)
-          await Bookrecord.create({
+        if (dataImages.sheet == 0 && books_id) {
+          const book = await Bookrecord.create({
             typebooks_id: params.typebooks_id,
             companies_id: authenticate.companies_id,
             cod: (codBookrecord?.$extras.max_cod + 1),
             books_id: books_id.books_id,
             book: dataImages.book,
             sheet: dataImages.sheet,
-            side: dataImages.side,
-            indexbook: dataImages.indexBook
+            indexbook: dataImages.indexBook,
+
           })
+
+          dataImages.id = book.id
+        } else
+          if (books_id) {
+            const book = await Bookrecord.create({
+              typebooks_id: params.typebooks_id,
+              companies_id: authenticate.companies_id,
+              cod: (codBookrecord?.$extras.max_cod + 1),
+              books_id: books_id.books_id,
+              book: dataImages.book,
+              sheet: dataImages.sheet,
+              side: dataImages.side,
+              indexbook: dataImages.indexBook
+            })
+            dataImages.id = book.id
+          }
+
+
       }
 
     }
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
+    
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }

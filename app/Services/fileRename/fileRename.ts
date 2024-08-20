@@ -176,7 +176,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
 
-  let objFileName
+    let objFileName
   let separators
   let arrayFileName
   //Format L1(1).jpg
@@ -197,6 +197,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 
   if (dataImages.typeBookFile) {
+
     let fileName
     if (dataImages.book && dataImages.sheet && dataImages.side) {
       fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
@@ -274,21 +275,17 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
       }
       else {
-
+        if(dataImages.id)
+          query.andWhere('id',dataImages.id)
         if (dataImages.book)
-          //query = ` book = ${dataImages.book} `
           query.andWhere('book', dataImages.book)
         if (dataImages.sheet)
-          //query += ` and sheet = ${dataImages.sheet} `
           query.andWhere('sheet', dataImages.sheet)
         if (dataImages.side)
-          //query += ` and side = '${dataImages.side}' `
           query.andWhere('side', dataImages.side)
         if (dataImages.cod)
-          //query += ` and cod = '${dataImages.cod}' `
           query.andWhere('cod', dataImages.cod)
         if (dataImages.approximateTerm)
-          //query += ` and approximate_term = '${dataImages.approximateTerm}' `
           query.andWhere('approximate_term', dataImages.approximateTerm)
         if(dataImages.indexBook)
           query.andWhere('indexbook',dataImages.indexBook)
