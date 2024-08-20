@@ -224,6 +224,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query.andWhere('book', objFileName.book);
     }
     else {
+        if (dataImages.id)
+            query.andWhere('id', dataImages.id);
         if (dataImages.book)
             query.andWhere('book', dataImages.book);
         if (dataImages.sheet)

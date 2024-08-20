@@ -120,20 +120,32 @@ class IndeximagesController {
                 .where('typebooks_id', params.typebooks_id)
                 .andWhere('companies_id', authenticate.companies_id)
                 .andWhere('book', dataImages.book)
-                .andWhere('sheet', dataImages.sheet)
-                .andWhere('side', dataImages.side);
+                .andWhere('side', dataImages.side)
+                .andWhere('sheet', dataImages.sheet);
             if (dataImages.indexBook)
                 query.andWhere('indexbook', dataImages.indexBook);
             const bookRecord = await query.first();
-            if (!bookRecord) {
+            if (!bookRecord || dataImages.sheet == 0) {
                 const books_id = await Typebook_1.default.query().where('id', params.typebooks_id)
                     .andWhere('companies_id', authenticate.companies_id).first();
                 const codBookrecord = await Bookrecord_1.default.query()
                     .where('typebooks_id', params.typebooks_id)
                     .andWhere('companies_id', authenticate.companies_id)
                     .max('cod as max_cod').firstOrFail();
-                if (books_id)
-                    await Bookrecord_1.default.create({
+                if (dataImages.sheet == 0 && books_id) {
+                    const book = await Bookrecord_1.default.create({
+                        typebooks_id: params.typebooks_id,
+                        companies_id: authenticate.companies_id,
+                        cod: (codBookrecord?.$extras.max_cod + 1),
+                        books_id: books_id.books_id,
+                        book: dataImages.book,
+                        sheet: dataImages.sheet,
+                        indexbook: dataImages.indexBook,
+                    });
+                    dataImages.id = book.id;
+                }
+                else if (books_id) {
+                    const book = await Bookrecord_1.default.create({
                         typebooks_id: params.typebooks_id,
                         companies_id: authenticate.companies_id,
                         cod: (codBookrecord?.$extras.max_cod + 1),
@@ -143,6 +155,8 @@ class IndeximagesController {
                         side: dataImages.side,
                         indexbook: dataImages.indexBook
                     });
+                    dataImages.id = book.id;
+                }
             }
         }
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
