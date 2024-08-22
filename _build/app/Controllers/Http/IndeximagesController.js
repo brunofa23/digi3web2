@@ -119,9 +119,11 @@ class IndeximagesController {
             const query = Bookrecord_1.default.query()
                 .where('typebooks_id', params.typebooks_id)
                 .andWhere('companies_id', authenticate.companies_id)
-                .andWhere('book', dataImages.book)
-                .andWhere('side', dataImages.side)
-                .andWhere('sheet', dataImages.sheet);
+                .andWhere('book', dataImages.book);
+            if (dataImages.side)
+                query.andWhere('side', dataImages.side);
+            if (dataImages.sheet)
+                query.andWhere('sheet', dataImages.sheet);
             if (dataImages.indexBook)
                 query.andWhere('indexbook', dataImages.indexBook);
             const bookRecord = await query.first();
