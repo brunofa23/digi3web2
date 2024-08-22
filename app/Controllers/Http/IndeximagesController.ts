@@ -114,6 +114,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
@@ -143,8 +144,10 @@ export default class IndeximagesController {
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
         .andWhere('book', dataImages.book)
-        .andWhere('side', dataImages.side)
-        .andWhere('sheet', dataImages.sheet)
+      if (dataImages.side)
+        query.andWhere('side', dataImages.side)
+      if (dataImages.sheet)
+        query.andWhere('sheet', dataImages.sheet)
       if (dataImages.indexBook)
         query.andWhere('indexbook', dataImages.indexBook)
       const bookRecord = await query.first()
@@ -191,7 +194,7 @@ export default class IndeximagesController {
     }
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
-    
+
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
