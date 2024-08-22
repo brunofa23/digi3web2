@@ -140,7 +140,6 @@ export default class IndeximagesController {
       }
     }
     if (updateImage) {
-      console.log("uploads>>>>>>passo 1", params.typebooks_id, "-", dataImages)
       const query = Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
@@ -151,10 +150,7 @@ export default class IndeximagesController {
         query.andWhere('sheet', dataImages.sheet)
       if (dataImages.indexBook)
         query.andWhere('indexbook', dataImages.indexBook)
-
-      console.log("uploads>>>>>>passo 2", query.toQuery())
       const bookRecord = await query.first()
-      console.log("uploads>>>>>>passo 3")
 
       if (!bookRecord || dataImages.sheet == 0) {
         const books_id = await Typebook.query().where('id', params.typebooks_id)
