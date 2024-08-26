@@ -752,6 +752,40 @@ export default class BookrecordsController {
         .orderBy('bookrecords.book')
 
       const bookSummaryPayload = await query
+      //**************************************** */
+      //FUNÇÃO PARA CONTAR FOLHAS NÃO EXISTENTES
+      async function countSheet(book) {
+        const query = `WITH RECURSIVE NumberList AS (
+                                SELECT 1 AS sheet
+                                UNION ALL
+                                SELECT sheet + 1
+                                FROM NumberList
+                                WHERE sheet < (select max(sheet)from bookrecords where companies_id=${authenticate.companies_id} and typebooks_id=${typebooks_id} and book=${book})
+                                )
+                              SELECT nl.sheet
+                              FROM NumberList nl
+                              LEFT JOIN bookrecords br ON nl.sheet = br.sheet
+                                AND br.companies_id = ${authenticate.companies_id}
+                                AND br.typebooks_id =  ${typebooks_id}
+                                and br.book = ${book}
+                                WHERE br.sheet IS NULL`
+        const result = await Database.rawQuery(query);
+        const data = result[0] || []
+        const values = data.map(row => row.sheet);
+        const valuesString = values.join(',')
+        return valuesString
+      }
+      //await countSheet(1)
+      //******************************************* */
+      const bookSumaryList = []
+      for (const item of bookSummaryPayload) {
+        //const noSheet = await countSheet(item.book)
+        item.noSheet = await countSheet(item.book)
+        bookSumaryList.push(item)
+      }
+      console.log(bookSumaryList)
+
+
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
@@ -911,7 +945,7 @@ export default class BookrecordsController {
       .first();
 
     let maxSheet
-    if (maxBook){
+    if (maxBook) {
       maxSheet = await Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
@@ -919,7 +953,7 @@ export default class BookrecordsController {
         .max('sheet as max_sheet')
         .first();
     }
-    return response.status(200).send({max_book:maxBook?.$extras.max_book, max_sheet:maxSheet.$extras.max_sheet})
+    return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet })
   }
 
   //********************************************************* */
