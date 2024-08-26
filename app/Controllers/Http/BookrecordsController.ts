@@ -764,11 +764,16 @@ export default class BookrecordsController {
                                 )
                               SELECT nl.sheet
                               FROM NumberList nl
-                              LEFT JOIN bookrecords br ON nl.sheet = br.sheet
-                                AND br.companies_id = ${authenticate.companies_id}
+                              WHERE NOT EXISTS (
+                              SELECT 1
+                              FROM bookrecords br
+                              WHERE br.sheet = nl.sheet
+                               AND br.companies_id = ${authenticate.companies_id}
                                 AND br.typebooks_id =  ${typebooks_id}
                                 and br.book = ${book}
-                                WHERE br.sheet IS NULL`
+                          );`
+
+        console.log(query)
         const result = await Database.rawQuery(query);
         const data = result[0] || []
         const values = data.map(row => row.sheet);
@@ -784,8 +789,6 @@ export default class BookrecordsController {
         bookSumaryList.push(item)
       }
       console.log(bookSumaryList)
-
-
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
