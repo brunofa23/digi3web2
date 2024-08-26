@@ -718,6 +718,7 @@ export default class BookrecordsController {
   }
 
   public async bookSummary({ auth, params, response }: HttpContextContract) {
+
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
     try {
@@ -726,6 +727,8 @@ export default class BookrecordsController {
         .select('book', 'indexbook')
         .min('cod as initialCod')
         .max('cod as finalCod')
+        .min('sheet as initialSheet')
+        .max('sheet as finalSheet')
         .count('* as totalRows')
         .select(Database.raw(`
     (SELECT COUNT(*)
