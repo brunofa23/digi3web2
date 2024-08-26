@@ -773,7 +773,7 @@ export default class BookrecordsController {
                                 and br.book = ${book}
                           );`
 
-        console.log(query)
+        
         const result = await Database.rawQuery(query);
         const data = result[0] || []
         const values = data.map(row => row.sheet);
@@ -788,7 +788,7 @@ export default class BookrecordsController {
         item.noSheet = await countSheet(item.book)
         bookSumaryList.push(item)
       }
-      console.log(bookSumaryList)
+      //console.log(bookSumaryList)
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
