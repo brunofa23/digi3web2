@@ -645,6 +645,43 @@ class BookrecordsController {
             return error;
         }
     }
+    async sheetWithSide({ auth, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const { typebooks_id, book } = params;
+        const query = `WITH RECURSIVE NumberList AS (
+        SELECT 1 AS sheet
+        UNION ALL
+        SELECT sheet + 1
+        FROM NumberList
+        WHERE sheet < (select max(sheet)from bookrecords where companies_id=${authenticate.companies_id} and typebooks_id=${typebooks_id} and book=${book})
+      ),
+      Sides AS (
+        SELECT 'V' AS side
+        UNION ALL
+        SELECT 'F' AS side
+      ),
+      PossibleCombinations AS (
+        SELECT nl.sheet, s.side
+        FROM NumberList nl
+        CROSS JOIN Sides s
+      )
+      SELECT pc.sheet, pc.side
+      FROM PossibleCombinations pc
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM bookrecords br
+        WHERE br.sheet = pc.sheet
+          AND br.side = pc.side
+          AND br.companies_id = ${authenticate.companies_id}
+        AND br.typebooks_id =  ${typebooks_id}
+        and br.book = ${book}
+      );`;
+        const result = await Database_1.default.rawQuery(query);
+        const data = result[0] || [];
+        const values = data.map(row => `${row.sheet}${row.side}`);
+        const valuesString = values.join(', ');
+        return response.status(200).send(valuesString);
+    }
     async updatedFiles({ auth, request, response }) {
         const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side, typebooks_id } = request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side']);
         let query = '1=1';
