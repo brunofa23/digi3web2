@@ -729,6 +729,7 @@ export default class BookrecordsController {
         .min('sheet as initialSheet')
         .max('sheet as finalSheet')
         .count('* as totalRows')
+        .select(Database.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = bookrecords.companies_id and bkr.typebooks_id = bookrecords.typebooks_id and bkr.book=bookrecords.book and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
         .select(Database.raw(`
     (SELECT COUNT(*)
      FROM indeximages
@@ -750,6 +751,7 @@ export default class BookrecordsController {
         .groupBy('book', 'indexbook')
         .orderBy('bookrecords.book')
 
+        //console.log(query.toQuery())
       const bookSummaryPayload = await query
       //**************************************** */
       //FUNÇÃO PARA CONTAR FOLHAS NÃO EXISTENTES
