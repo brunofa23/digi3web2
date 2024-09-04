@@ -720,6 +720,7 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
+
     try {
       const query = Database
         .from('bookrecords')
@@ -750,6 +751,7 @@ export default class BookrecordsController {
         .where('typebooks_id', typebooks_id)
         .groupBy('book', 'indexbook')
         .orderBy('bookrecords.book')
+
 
         //console.log(query.toQuery())
       const bookSummaryPayload = await query
