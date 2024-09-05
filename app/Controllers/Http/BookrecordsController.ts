@@ -748,12 +748,9 @@ export default class BookrecordsController {
          ) as totalFiles
   `))
         .where('companies_id', authenticate.companies_id)
-        .where('typebooks_id', typebooks_id)
+        .andWhere('typebooks_id', typebooks_id)
         .groupBy('book', 'indexbook')
         .orderBy('bookrecords.book')
-
-
-        //console.log(query.toQuery())
       const bookSummaryPayload = await query
       //**************************************** */
       //FUNÇÃO PARA CONTAR FOLHAS NÃO EXISTENTES
@@ -789,6 +786,7 @@ export default class BookrecordsController {
         item.noSheet = await countSheet(item.book)
         bookSumaryList.push(item)
       }
+
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
@@ -797,11 +795,110 @@ export default class BookrecordsController {
 
   }
 
+
+  // public async bookSummary({ auth, params, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate()
+  //   const typebooks_id = params.typebooks_id
+
+  //   try {
+
+  //     async function bookUnit(book:number) {
+  //       const query = Database
+  //       .from('bookrecords')
+  //       .select('book', 'indexbook')
+  //       .min('cod as initialCod')
+  //       .max('cod as finalCod')
+  //       .min('sheet as initialSheet')
+  //       .max('sheet as finalSheet')
+  //       .count('* as totalRows')
+  //       //.select(Database.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = bookrecords.companies_id and bkr.typebooks_id = bookrecords.typebooks_id and bkr.book=bookrecords.book and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
+  //       .select(Database.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = ${authenticate.companies_id} and bkr.typebooks_id = ${typebooks_id} and bkr.book=${book} and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
+  //       .select(Database.raw(`
+  //   (SELECT COUNT(*)
+  //    FROM indeximages
+  //    INNER JOIN bookrecords bkr ON
+  //      (indeximages.bookrecords_id = bkr.id AND
+  //      indeximages.companies_id = ${authenticate.companies_id} AND
+  //      indeximages.typebooks_id = ${typebooks_id})
+  //    WHERE bkr.companies_id = bookrecords.companies_id
+  //      AND bkr.typebooks_id = bookrecords.typebooks_id
+  //      AND bkr.book = bookrecords.book
+  //      AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
+  //      AND indeximages.companies_id = ${authenticate.companies_id}
+  //      AND indeximages.typebooks_id = ${typebooks_id}
+  //      GROUP BY bkr.book, bkr.indexbook
+  //        ) as totalFiles
+  // `))
+  //       .where('companies_id', authenticate.companies_id)
+  //       .andWhere('typebooks_id', typebooks_id)
+  //       .andWhere('book', book)
+
+  //       .groupBy('book', 'indexbook')
+  //       .orderBy('bookrecords.book')
+
+  //     console.log(query.toQuery())
+  //     const payLoad = await query.first()
+  //     return payLoad
+  //     }
+  //     let bookSummaryPayload = []
+  //     for (let index = 0; index < 5; index++) {
+  //       const query = await bookUnit(index+1)
+  //       //console.log(query)
+  //       bookSummaryPayload.push(query)
+  //     }
+
+  //     console.log(bookSummaryPayload)
+
+
+  //     //**************************************** */
+  //     //FUNÇÃO PARA CONTAR FOLHAS NÃO EXISTENTES
+  //     async function countSheet(book) {
+  //       const query = `WITH RECURSIVE NumberList AS (
+  //                               SELECT 1 AS sheet
+  //                               UNION ALL
+  //                               SELECT sheet + 1
+  //                               FROM NumberList
+  //                               WHERE sheet < (select max(sheet)from bookrecords where companies_id=${authenticate.companies_id} and typebooks_id=${typebooks_id} and book=${book})
+  //                               )
+  //                             SELECT nl.sheet
+  //                             FROM NumberList nl
+  //                             WHERE NOT EXISTS (
+  //                             SELECT 1
+  //                             FROM bookrecords br
+  //                             WHERE br.sheet = nl.sheet
+  //                              AND br.companies_id = ${authenticate.companies_id}
+  //                               AND br.typebooks_id =  ${typebooks_id}
+  //                               and br.book = ${book}
+  //                         );`
+
+  //       const result = await Database.rawQuery(query);
+  //       const data = result[0] || []
+  //       const values = data.map(row => row.sheet);
+  //       //const values = data.map(row => `${row.sheet}${row.side}`);
+  //       const valuesString = values.join(',')
+  //       return valuesString
+  //     }
+
+  //     const bookSumaryList = []
+  //     for (const item of bookSummaryPayload) {
+  //       item.noSheet = await countSheet(item.book)
+  //       bookSumaryList.push(item)
+  //     }
+
+  //     return response.status(200).send(bookSummaryPayload)
+
+  //   } catch (error) {
+  //     return error
+  //   }
+
+  // }
+  //************************************************** */
+
   public async sheetWithSide({ auth, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    const {typebooks_id, book} = params
-      const query = `WITH RECURSIVE NumberList AS (
+    const { typebooks_id, book } = params
+    const query = `WITH RECURSIVE NumberList AS (
         SELECT 1 AS sheet
         UNION ALL
         SELECT sheet + 1
@@ -830,11 +927,11 @@ export default class BookrecordsController {
         and br.book = ${book}
       );`
 
-      const result = await Database.rawQuery(query);
-      const data = result[0] || []
-      const values = data.map(row => `${row.sheet}${row.side}`);
-      const valuesString = values.join(', ')
-      return response.status(200).send(valuesString)
+    const result = await Database.rawQuery(query);
+    const data = result[0] || []
+    const values = data.map(row => `${row.sheet}${row.side}`);
+    const valuesString = values.join(', ')
+    return response.status(200).send(valuesString)
 
 
   }
