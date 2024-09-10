@@ -15,6 +15,11 @@ export default class Document extends BaseModel {
       'prot',
       'month',
       'yeardoc',
+      'documenttype_id',
+      'free',
+      'book_name',
+      'book_number',
+      'sheet_number',
       'intfield1',
       'stringfield1',
       'datefield1',
@@ -80,6 +85,16 @@ export default class Document extends BaseModel {
   public month: number
   @column()
   public yeardoc: number
+  @column()
+  public documenttype_id: number
+  @column()
+  public free: boolean
+  @column()
+  public book_name: string
+  @column()
+  public book_number: number
+  @column()
+  public sheet_number: number
   @column()
   public prot: number
   @column()
