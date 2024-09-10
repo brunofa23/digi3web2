@@ -23,6 +23,7 @@ export default class TypebooksController {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
       const data = await Typebook.create(typebookPayload)
 
+
       if (data.$attributes.books_id == 13) {
         await DocumentConfig
           .create({
