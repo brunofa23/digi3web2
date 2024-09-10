@@ -30,7 +30,12 @@ export default class TypebooksController {
             companies_id: authenticate.companies_id,
             prot: "Protocolo",
             month: "Mês",
-            yeardoc: "Ano"
+            yeardoc: "Ano",
+            documenttype_id: "Tipo Documento",
+            free: "Gratuito",
+            book_name: "Nome do Livro",
+            book_number: "Num. Livro",
+            sheet_number: "Folha"
           })
       }
 
