@@ -179,7 +179,7 @@ export default class BookrecordsController {
     const { document } = request.only(['document'])//await request.validate(DocumentValidator)
     body.companies_id = companies_id
     const bodyDocument = document
-    console.log("código 556",bodyDocument)
+
 
     try {
       const data = await Bookrecord.create(body)
@@ -905,9 +905,6 @@ export default class BookrecordsController {
 
   public async generateOrUpdateBookrecordsDocument({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
-    console.log("Passo 1...")
-
     let { startCod, endCod, year, month, box } = request.requestData
     let bookRecord = {}
     let document = {}
@@ -930,7 +927,7 @@ export default class BookrecordsController {
       throw new BadRequestException("erro: codigo inicial maior que o final")
     while (startCod <= endCod) {
       try {
-        console.log('Passo 2....')
+
         bookRecord = {
           cod: startCod,
           typebooks_id: params.typebooks_id,
@@ -938,15 +935,13 @@ export default class BookrecordsController {
           book: box,
           companies_id: authenticate.companies_id
         }
-        console.log('Passo 3....', bookRecord)
+
         const verifyBookRecord = await Bookrecord.query()
           .where('cod', bookRecord.cod)
           .andWhere('companies_id', authenticate.companies_id)
           .andWhere('typebooks_id', bookRecord.typebooks_id)
           .andWhere('books_id', 13)
           .andWhere('book', bookRecord.book).first()
-
-          console.log('Passo 4....')
 
         if (verifyBookRecord) {
           //update

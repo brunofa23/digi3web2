@@ -6,8 +6,6 @@ export default class DocumentTypesController {
   public async index({ auth, response, request }: HttpContextContract) {
     //const authenticate = await auth.use('api').authenticate()
 
-    console.log("código 566")
-
     try {
         const documentType = await Documenttype.query()
         return response.status(200).send(documentType)
