@@ -13,6 +13,11 @@ export default class DocumentConfig extends BaseModel {
       'prot',
       'month',
       'yeardoc',
+      'documenttype_id',
+      'free',
+      'book_name',
+      'book_number',
+      'sheet_number',
       'intfield1',
       'stringfield1',
       'datefield1',
@@ -53,6 +58,7 @@ export default class DocumentConfig extends BaseModel {
       'stringfield13',
       'datefield13'
 
+
     ]
   }
 
@@ -78,26 +84,33 @@ export default class DocumentConfig extends BaseModel {
   public yeardoc: string
 
   @column()
+  public documenttype_id: string
+  @column()
+  public free: string
+  @column()
+  public book_name: string
+  @column()
+  public book_number: string
+  @column()
+  public sheet_number: string
+  @column()
   public intfield1: string
   @column()
   public stringfield1: string
   @column()
   public datefield1: string
-
   @column()
   public intfield2: string
   @column()
   public stringfield2: string
   @column()
   public datefield2: string
-
   @column()
   public intfield3: string
   @column()
   public stringfield3: string
   @column()
   public datefield3: string
-
   @column()
   public intfield4: string
   @column()

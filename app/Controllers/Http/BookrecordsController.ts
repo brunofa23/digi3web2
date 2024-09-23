@@ -179,10 +179,15 @@ export default class BookrecordsController {
     const { document } = request.only(['document'])//await request.validate(DocumentValidator)
     body.companies_id = companies_id
     const bodyDocument = document
+
+
     try {
       const data = await Bookrecord.create(body)
       if (body.books_id == 13 && data.id) {
         bodyDocument.bookrecords_id = data.id
+        bodyDocument.typebooks_id = body.typebooks_id
+        bodyDocument.books_id = body.books_id
+        bodyDocument.companies_id = body.companies_id
         await Document.create(bodyDocument)
       }
       return response.status(201).send(data)
@@ -720,6 +725,7 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
+
     try {
       const query = Database
         .from('bookrecords')
@@ -747,11 +753,9 @@ export default class BookrecordsController {
          ) as totalFiles
   `))
         .where('companies_id', authenticate.companies_id)
-        .where('typebooks_id', typebooks_id)
+        .andWhere('typebooks_id', typebooks_id)
         .groupBy('book', 'indexbook')
         .orderBy('bookrecords.book')
-
-        //console.log(query.toQuery())
       const bookSummaryPayload = await query
       //**************************************** */
       //FUNÇÃO PARA CONTAR FOLHAS NÃO EXISTENTES
@@ -787,6 +791,7 @@ export default class BookrecordsController {
         item.noSheet = await countSheet(item.book)
         bookSumaryList.push(item)
       }
+
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
@@ -798,8 +803,8 @@ export default class BookrecordsController {
   public async sheetWithSide({ auth, params, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    const {typebooks_id, book} = params
-      const query = `WITH RECURSIVE NumberList AS (
+    const { typebooks_id, book } = params
+    const query = `WITH RECURSIVE NumberList AS (
         SELECT 1 AS sheet
         UNION ALL
         SELECT sheet + 1
@@ -828,11 +833,11 @@ export default class BookrecordsController {
         and br.book = ${book}
       );`
 
-      const result = await Database.rawQuery(query);
-      const data = result[0] || []
-      const values = data.map(row => `${row.sheet}${row.side}`);
-      const valuesString = values.join(', ')
-      return response.status(200).send(valuesString)
+    const result = await Database.rawQuery(query);
+    const data = result[0] || []
+    const values = data.map(row => `${row.sheet}${row.side}`);
+    const valuesString = values.join(', ')
+    return response.status(200).send(valuesString)
 
 
   }
@@ -900,7 +905,6 @@ export default class BookrecordsController {
 
   public async generateOrUpdateBookrecordsDocument({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
     let { startCod, endCod, year, month, box } = request.requestData
     let bookRecord = {}
     let document = {}
@@ -923,6 +927,7 @@ export default class BookrecordsController {
       throw new BadRequestException("erro: codigo inicial maior que o final")
     while (startCod <= endCod) {
       try {
+
         bookRecord = {
           cod: startCod,
           typebooks_id: params.typebooks_id,
@@ -930,6 +935,7 @@ export default class BookrecordsController {
           book: box,
           companies_id: authenticate.companies_id
         }
+
         const verifyBookRecord = await Bookrecord.query()
           .where('cod', bookRecord.cod)
           .andWhere('companies_id', authenticate.companies_id)

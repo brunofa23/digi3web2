@@ -20,7 +20,8 @@ export default class DocumentsController {
     }
 
     public async store({ auth, request, params, response }: HttpContextContract) {
-        const authenticate = await auth.use('api').authenticate()
+
+      const authenticate = await auth.use('api').authenticate()
         const documentPayload = request.only(Document.fillable)
         documentPayload.companies_id = authenticate.companies_id
         try {
