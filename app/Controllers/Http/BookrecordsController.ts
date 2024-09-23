@@ -179,10 +179,17 @@ export default class BookrecordsController {
     const { document } = request.only(['document'])//await request.validate(DocumentValidator)
     body.companies_id = companies_id
     const bodyDocument = document
+    //console.log("código 556",bodyDocument)
+
     try {
       const data = await Bookrecord.create(body)
       if (body.books_id == 13 && data.id) {
         bodyDocument.bookrecords_id = data.id
+        bodyDocument.typebooks_id = body.typebooks_id
+        bodyDocument.books_id = body.books_id
+        bodyDocument.companies_id = body.companies_id
+
+        console.log("código 556",bodyDocument)
         await Document.create(bodyDocument)
       }
       return response.status(201).send(data)
