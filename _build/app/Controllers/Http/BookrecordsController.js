@@ -148,6 +148,9 @@ class BookrecordsController {
             const data = await Bookrecord_1.default.create(body);
             if (body.books_id == 13 && data.id) {
                 bodyDocument.bookrecords_id = data.id;
+                bodyDocument.typebooks_id = body.typebooks_id;
+                bodyDocument.books_id = body.books_id;
+                bodyDocument.companies_id = body.companies_id;
                 await Document_1.default.create(bodyDocument);
             }
             return response.status(201).send(data);
@@ -607,7 +610,7 @@ class BookrecordsController {
          ) as totalFiles
   `))
                 .where('companies_id', authenticate.companies_id)
-                .where('typebooks_id', typebooks_id)
+                .andWhere('typebooks_id', typebooks_id)
                 .groupBy('book', 'indexbook')
                 .orderBy('bookrecords.book');
             const bookSummaryPayload = await query;

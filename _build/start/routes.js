@@ -47,6 +47,7 @@ Route_1.default.group(() => {
     Route_1.default.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store');
     Route_1.default.patch("/typebooks/:typebooks_id/documents/:id", 'DocumentsController.update');
     Route_1.default.resource("documentconfig", "DocumentconfigsController");
+    Route_1.default.resource("documenttypes", "DocumentTypesController");
     Route_1.default.get("/indeximages", "IndeximagesController.index");
     Route_1.default.get("/indeximages/:id", "IndeximagesController.show");
     Route_1.default.delete("/indeximages/:typebooks_id/:bookrecords_id/:file_name", "IndeximagesController.destroy");

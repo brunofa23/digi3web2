@@ -25,6 +25,11 @@ class DocumentConfig extends Orm_1.BaseModel {
             'prot',
             'month',
             'yeardoc',
+            'documenttype_id',
+            'free',
+            'book_name',
+            'book_number',
+            'sheet_number',
             'intfield1',
             'stringfield1',
             'datefield1',
@@ -95,6 +100,26 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], DocumentConfig.prototype, "yeardoc", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], DocumentConfig.prototype, "documenttype_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], DocumentConfig.prototype, "free", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], DocumentConfig.prototype, "book_name", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], DocumentConfig.prototype, "book_number", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], DocumentConfig.prototype, "sheet_number", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
