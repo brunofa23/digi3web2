@@ -139,6 +139,8 @@ export default class IndeximagesController {
         }
       }
     }
+
+    //ATUALIZAÇÃO DE LIVROS
     if (updateImage) {
       const query = Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
@@ -192,6 +194,8 @@ export default class IndeximagesController {
       }
 
     }
+
+
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
 
