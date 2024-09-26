@@ -10,6 +10,8 @@ const format_1 = __importDefault(require("../../Services/Dates/format"));
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
+const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
+const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
@@ -99,7 +101,7 @@ class IndeximagesController {
             extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF'],
         });
         const { dataImages } = request['requestBody'];
-        const { indexImagesInitial, updateImage } = request['requestData'];
+        const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData'];
         if (indexImagesInitial == 'true') {
             const listFilesImages = images.map((image) => {
                 const imageName = image.clientName;
@@ -159,6 +161,37 @@ class IndeximagesController {
                     });
                     dataImages.id = book.id;
                 }
+            }
+        }
+        else if (updateImageDocument) {
+            const trx = await Database_1.default.beginGlobalTransaction();
+            try {
+                const bookRecord = await Bookrecord_1.default.create({
+                    typebooks_id: params.typebooks_id,
+                    companies_id: authenticate.companies_id,
+                    cod: dataImages.cod,
+                    book: dataImages.book,
+                    side: dataImages.side,
+                    books_id: 13
+                }, trx);
+                const document = await Document_1.default.create({
+                    bookrecords_id: bookRecord.id,
+                    books_id: 13,
+                    typebooks_id: params.typebooks_id,
+                    companies_id: authenticate.companies_id,
+                    prot: dataImages.prot,
+                    documenttype_id: dataImages.documenttype_id,
+                    book_name: dataImages.book_name,
+                    book_number: dataImages.book_number,
+                    sheet_number: dataImages.sheet_number,
+                    free: dataImages.free ? 1 : 0
+                }, trx);
+                dataImages.id = bookRecord.id;
+                await trx.commit();
+            }
+            catch (error) {
+                await trx.rollback();
+                throw error;
             }
         }
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
