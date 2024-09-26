@@ -6,6 +6,7 @@ import Format from '../../Services/Dates/format'
 import Bookrecord from 'App/Models/Bookrecord'
 import Company from 'App/Models/Company'
 import Typebook from 'App/Models/Typebook'
+import Document from 'App/Models/Document'
 // import { logInJson } from "App/Services/util"
 // import { base64 } from '@ioc:Adonis/Core/Helpers'
 // import ConfigsController from './ConfigsController'
@@ -190,8 +191,32 @@ export default class IndeximagesController {
             dataImages.id = book.id
           }
       }
-    }else if(updateImageDocument){
-      console.log("upload de Documentos...")
+    } else if (updateImageDocument)//ATUALIZAÇÃO DE DOCUMENTOS
+    {
+      //console.log("upload de Documentos...", dataImages)
+      //SEMPRE CRIAR UM NOVO REGISTRO
+      const bookRecord = await Bookrecord.create({
+        typebooks_id: params.typebooks_id,
+        companies_id: authenticate.companies_id,
+        cod: dataImages.cod,
+        book:dataImages.book,
+        side:dataImages.side,
+        books_id:13
+      })
+      console.log("##upload de bookrecord...", bookRecord.id)
+      const document = await Document.create({
+        bookrecords_id: bookRecord.id,
+        books_id:13,
+        typebooks_id: params.typebooks_id,
+        companies_id: authenticate.companies_id,
+        prot: dataImages.prot,
+        documenttype_id: dataImages.documenttype_id,
+        book_name:dataImages.book_name,
+        book_number:dataImages.book_number,
+        sheet_number:dataImages.sheet_number,
+        //free:dataImages.free
+     })
+
     }
 
 

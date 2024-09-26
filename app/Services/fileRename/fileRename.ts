@@ -55,11 +55,13 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
 
+  console.log("código 698 - passo 1")
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
+  console.log("código 698 - passo 2")
   try {
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath)
@@ -67,12 +69,14 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
   } catch (error) {
     throw new BadRequestException('could not create client directory', 409, error)
   }
+  console.log("código 698 - passo 3")
   const directoryParent = await Typebook.query()
     .where('id', '=', params.typebooks_id)
     .andWhere('companies_id', '=', companies_id).first()
 
   if (!directoryParent || directoryParent == undefined)
     throw new BadRequestException('undefined book', 409)
+
 
   //verifica se existe essa pasta no Google e retorna o id do google
   let parent = await sendSearchFile(directoryParent?.path, cloud_number)
@@ -117,9 +121,18 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     if (!image.isValid) {
       console.log("Error", image.errors);
     }
+
+
     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
+    console.log("código 698 - passo 4.1", params.typebook_id)
+
     try {
       if (image && image.isValid) {
+        //console.log("código 698 - passo 5", image)
+        //console.log("código 698 - passo 6", folderPath)
+        console.log("código 698 - passo 7", _fileRename)
+        //console.log("código 698 - passo 8", idParent[0].id)
+        //console.log("código 698 - passo 9", cloud_number)
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
       }
     } catch (error) {
@@ -176,7 +189,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
 
-    let objFileName
+  let objFileName
   let separators
   let arrayFileName
   //Format L1(1).jpg
@@ -193,11 +206,11 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     })
     .where('bookrecords.typebooks_id', '=', typebooks_id)
     .andWhere('bookrecords.companies_id', '=', companies_id)
-  //.whereRaw(query).first()
 
+    console.log("passo 1-filerename:", query.toQuery())
 
   if (dataImages.typeBookFile) {
-
+    console.log("passo 2 filerename")
     let fileName
     if (dataImages.book && dataImages.sheet && dataImages.side) {
       fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
@@ -218,6 +231,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     return fileRename
   } else
     if (regexBookAndCod.test(originalFileName.toUpperCase())) {
+      console.log("passo 3 filerename")
       separators = ["L", '\'', '(', ')', '|', '-'];
       arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
       objFileName = {
@@ -232,6 +246,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
     else
       if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
+        console.log("passo 4 filerename")
         separators = ["L", '_', '|', '-'];
         arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
         objFileName = {
@@ -248,6 +263,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
       //ARQUIVOS QUE INICIAM COM ID
       else if (path.basename(originalFileName).startsWith('Id')) {
+        console.log("passo 5 filerename")
         const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
 
         objFileName = {
@@ -263,6 +279,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
       //ARQUIVOS COM A MÁSCARA T1(121)
       else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
+        console.log("passo 6 filerename")
         const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
         objFileName = {
           book: arrayFileName[0],
@@ -275,8 +292,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
       }
       else {
-        if(dataImages.id)
-          query.andWhere('id',dataImages.id)
+        console.log("passo 7 filerename")
+        if (dataImages.id)
+          query.andWhere('id', dataImages.id)
         if (dataImages.book)
           query.andWhere('book', dataImages.book)
         if (dataImages.sheet)
@@ -287,14 +305,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           query.andWhere('cod', dataImages.cod)
         if (dataImages.approximateTerm)
           query.andWhere('approximate_term', dataImages.approximateTerm)
-        if(dataImages.indexBook)
-          query.andWhere('indexbook',dataImages.indexBook)
+        if (dataImages.indexBook)
+          query.andWhere('indexbook', dataImages.indexBook)
         objFileName = {
           ext: path.extname(originalFileName).toLowerCase()
         }
 
       }
 
+      console.log("passo 8 filerename", objFileName)
   try {
     const bookRecord = await query.first()
     let seq = 0
