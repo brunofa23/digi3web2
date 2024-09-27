@@ -272,8 +272,6 @@ export default class BookrecordsController {
     //se 2 = exclui somente as imagens
     //se 3 = exclui imagens e livro
 
-    //    console.log("deleção>>", typebooks_id, Book, Bookend, startCod, endCod, deleteImages)
-
     async function deleteIndexImages(query) {
       try {
         const deleteData = await Database
@@ -904,8 +902,9 @@ export default class BookrecordsController {
 
 
   public async generateOrUpdateBookrecordsDocument({ auth, request, params, response }: HttpContextContract) {
+
     const authenticate = await auth.use('api').authenticate()
-    let { startCod, endCod, year, month, box } = request.requestData
+    let { startCod, endCod, year, month, box, prot } = request.requestData
     let bookRecord = {}
     let document = {}
     let cod = startCod
@@ -922,10 +921,12 @@ export default class BookrecordsController {
       if (month)
         document.month = month
 
+
     if (startCod > endCod)
       //   let errorValidation = await new validations('bookrecord_error_102')
       throw new BadRequestException("erro: codigo inicial maior que o final")
-    while (startCod <= endCod) {
+
+      while (startCod <= endCod) {
       try {
 
         bookRecord = {
@@ -958,10 +959,17 @@ export default class BookrecordsController {
             .andWhere('companies_id', verifyBookRecord.companies_id)
             .andWhere('books_id', 13)
             .update(document)
+
         } else {
           //create
           const bookRecordId = await Bookrecord.create(bookRecord)
           document.bookrecords_id = bookRecordId.id
+          document.typebooks_id = bookRecord.typebooks_id
+          document.books_id = 13
+          document.companies_id = bookRecord.companies_id
+
+          if(prot)
+          document.prot = prot++
           await Document.create(document)
         }
 
