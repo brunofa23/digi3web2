@@ -728,7 +728,7 @@ class BookrecordsController {
     }
     async generateOrUpdateBookrecordsDocument({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        let { startCod, endCod, year, month, box } = request.requestData;
+        let { startCod, endCod, year, month, box, prot } = request.requestData;
         let bookRecord = {};
         let document = {};
         let cod = startCod;
@@ -775,6 +775,11 @@ class BookrecordsController {
                 else {
                     const bookRecordId = await Bookrecord_1.default.create(bookRecord);
                     document.bookrecords_id = bookRecordId.id;
+                    document.typebooks_id = bookRecord.typebooks_id;
+                    document.books_id = 13;
+                    document.companies_id = bookRecord.companies_id;
+                    if (prot)
+                        document.prot = prot++;
                     await Document_1.default.create(document);
                 }
                 startCod++;
