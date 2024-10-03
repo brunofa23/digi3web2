@@ -13,7 +13,132 @@ import BookrecordValidator from 'App/Validators/BookrecordValidator'
 const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
   //Listar Bookrecords
+  // public async index({ auth, request, params, response }: HttpContextContract) {
+
+  //   console.log('pesquisando 456')
+  //   const authenticate = await auth.use('api').authenticate()
+  //   const { codstart, codend,
+  //     bookstart, bookend,
+  //     approximateterm,
+  //     indexbook,
+  //     year,
+  //     letter,
+  //     sheetstart, sheetend,
+  //     side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData
+  //   let query = " 1=1 "
+
+  //   if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
+  //     (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
+  //     return null
+  //   else {
+  //     //cod**************************************************
+  //     if (codstart != undefined && codend == undefined)
+  //       query += ` and cod =${codstart} `
+  //     else
+  //       if (codstart != undefined && codend != undefined)
+  //         query += ` and cod >=${codstart} `
+
+  //     if (codend != undefined)
+  //       query += ` and cod <= ${codend}`
+  //     //book ************************************************
+  //     if (bookstart != undefined && bookend == undefined)
+  //       query += ` and book =${bookstart} `
+  //     else
+  //       if (bookstart != undefined && bookend != undefined)
+  //         query += ` and book >=${bookstart} `
+
+  //     if (bookend != undefined)
+  //       query += ` and book <= ${bookend}`
+
+  //     //sheet **********************************************
+  //     if (sheetstart != undefined && sheetend == undefined)
+  //       query += ` and sheet =${sheetstart} `
+  //     else
+  //       if (sheetstart != undefined && sheetend != undefined)
+  //         query += ` and sheet >=${sheetstart} `
+
+  //     if (sheetend != undefined)
+  //       query += ` and sheet <= ${sheetend}`
+  //     //side *************************************************
+  //     if (side != undefined)
+  //       query += ` and side = '${side}' `
+  //     //aproximate_term **************************************
+  //     if (approximateterm != undefined)
+  //       query += ` and approximate_term=${approximateterm}`
+  //     //obs **************************************
+  //     if (obs != undefined)
+  //       query += ` and obs like '${obs}%'`
+  //     //Index **************************************
+  //     if (indexbook != undefined)
+  //       query += ` and indexbook=${indexbook} `
+  //     //year ***********************************************
+  //     if (year != undefined)
+  //       query += ` and year like '${year}%' `
+  //     //letter ***********************************************
+  //     if (letter != undefined)
+  //       query += ` and letter like '${letter}' `
+  //     //sheetzero*****************************************
+  //     if (document != 'true')
+  //       if (!sheetzero || (sheetzero == 'false'))
+  //         query += ` and sheet>0`
+  //   }
+  //   //last pages of each book****************************
+  //   if (lastPagesOfEachBook) {
+  //     query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
+  //   }
+
+  //   //pagination paginação
+  //   const page = request.input('page', 1)
+  //   const limit = Env.get('PAGINATION')
+  //   let data
+  //   if (noAttachment) {
+  //     data = await Bookrecord.query()
+  //       .where('companies_id', '=', authenticate.companies_id)
+  //       .andWhere('typebooks_id', '=', params.typebooks_id)
+  //       .whereNotExists((subquery) => {
+  //         subquery
+  //           .select('id')
+  //           .from('indeximages')
+  //           .whereColumn('indeximages.bookrecords_id', '=', 'bookrecords.id')
+  //           .andWhere('indeximages.typebooks_id', '=', params.typebooks_id)
+  //           .andWhere("companies_id", '=', authenticate.companies_id)
+  //       })
+  //       .whereRaw(query)
+  //       .orderBy("book", "asc")
+  //       .orderBy("cod", "asc")
+  //       .orderBy("sheet", "asc")
+  //       .paginate(page, limit)
+  //   }
+  //   else if (codMax) {
+  //     data = await Database.from('bookrecords')
+  //       .where('companies_id', authenticate.companies_id)
+  //       .where('typebooks_id', params.typebooks_id)
+  //       .max('cod as codMax');
+  //   }
+  //   else {
+  //     data = await Bookrecord.query()
+  //       .where("companies_id", authenticate.companies_id)
+  //       .andWhere("typebooks_id", params.typebooks_id)
+  //       .preload('indeximage', (queryIndex) => {
+  //         queryIndex.where("typebooks_id", '=', params.typebooks_id)
+  //           .andWhere("companies_id", '=', authenticate.companies_id)
+  //       })
+  //       .preload('document', query => {
+  //         query.where('typebooks_id', params.typebooks_id)
+  //           .andWhere("companies_id", authenticate.companies_id)
+  //       })
+  //       .whereRaw(query)
+  //       .orderBy("book", "asc")
+  //       .orderBy("cod", "asc")
+  //       .orderBy("sheet", "asc")
+  //       .paginate(page, limit)
+  //   }
+  //   return response.status(200).send(data)
+  // }
+
   public async index({ auth, request, params, response }: HttpContextContract) {
+
+    console.log('pesquisando 456')
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -22,64 +147,22 @@ export default class BookrecordsController {
       year,
       letter,
       sheetstart, sheetend,
-      side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData
+      side, obs, sheetzero, noAttachment,
+      lastPagesOfEachBook, codMax,
+      document,
+      prot,
+      month,
+      yeardoc,
+      documenttype_id,
+      free,
+      book_name,
+      book_number,
+      sheet_number } = request.requestData
     let query = " 1=1 "
 
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
       (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
       return null
-    else {
-      //cod**************************************************
-      if (codstart != undefined && codend == undefined)
-        query += ` and cod =${codstart} `
-      else
-        if (codstart != undefined && codend != undefined)
-          query += ` and cod >=${codstart} `
-
-      if (codend != undefined)
-        query += ` and cod <= ${codend}`
-      //book ************************************************
-      if (bookstart != undefined && bookend == undefined)
-        query += ` and book =${bookstart} `
-      else
-        if (bookstart != undefined && bookend != undefined)
-          query += ` and book >=${bookstart} `
-
-      if (bookend != undefined)
-        query += ` and book <= ${bookend}`
-
-      //sheet **********************************************
-      if (sheetstart != undefined && sheetend == undefined)
-        query += ` and sheet =${sheetstart} `
-      else
-        if (sheetstart != undefined && sheetend != undefined)
-          query += ` and sheet >=${sheetstart} `
-
-      if (sheetend != undefined)
-        query += ` and sheet <= ${sheetend}`
-      //side *************************************************
-      if (side != undefined)
-        query += ` and side = '${side}' `
-      //aproximate_term **************************************
-      if (approximateterm != undefined)
-        query += ` and approximate_term=${approximateterm}`
-      //obs **************************************
-      if (obs != undefined)
-        query += ` and obs like '${obs}%'`
-      //Index **************************************
-      if (indexbook != undefined)
-        query += ` and indexbook=${indexbook} `
-      //year ***********************************************
-      if (year != undefined)
-        query += ` and year like '${year}%' `
-      //letter ***********************************************
-      if (letter != undefined)
-        query += ` and letter like '${letter}' `
-      //sheetzero*****************************************
-      if (document != 'true')
-        if (!sheetzero || (sheetzero == 'false'))
-          query += ` and sheet>0`
-    }
     //last pages of each book****************************
     if (lastPagesOfEachBook) {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
@@ -89,8 +172,9 @@ export default class BookrecordsController {
     const page = request.input('page', 1)
     const limit = Env.get('PAGINATION')
     let data
+    let queryExecute
     if (noAttachment) {
-      data = await Bookrecord.query()
+      queryExecute = Bookrecord.query()
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('typebooks_id', '=', params.typebooks_id)
         .whereNotExists((subquery) => {
@@ -105,7 +189,8 @@ export default class BookrecordsController {
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
-        .paginate(page, limit)
+
+      //data = await queryExecute.paginate(page, limit)
     }
     else if (codMax) {
       data = await Database.from('bookrecords')
@@ -114,7 +199,7 @@ export default class BookrecordsController {
         .max('cod as codMax');
     }
     else {
-      data = await Bookrecord.query()
+      queryExecute = Bookrecord.query()
         .where("companies_id", authenticate.companies_id)
         .andWhere("typebooks_id", params.typebooks_id)
         .preload('indeximage', (queryIndex) => {
@@ -129,8 +214,60 @@ export default class BookrecordsController {
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
-        .paginate(page, limit)
+
+      //data = await queryExecute.paginate(page, limit)
     }
+
+    //CODIGO*****************************************************
+    if (codstart != undefined && codend == undefined)
+      queryExecute.where('cod', codstart)
+    else
+      if (codstart != undefined && codend != undefined)
+        queryExecute.where('cod', '>=', codstart)
+    if (codend != undefined)
+      queryExecute.where('cod', '<=', codend)
+    //BOOK ************************************************
+    if (bookstart != undefined && bookend == undefined)
+      queryExecute.where('book', bookstart)
+    else
+      if (bookstart != undefined && bookend != undefined)
+        queryExecute.where('book', '>=', bookstart)
+    if (bookend != undefined)
+      queryExecute.where('book', '<=', bookend)
+    //SHEET **********************************************
+    if (sheetstart != undefined && sheetend == undefined)
+      queryExecute.where('sheet', sheetstart)
+    else
+      if (sheetstart != undefined && sheetend != undefined)
+        queryExecute.where('sheet', '>=', sheetstart)
+    if (sheetend != undefined)
+      queryExecute.where('sheet', '<=', sheetend)
+
+    //side *************************************************
+    if (side != undefined)
+      queryExecute.where('side', side)
+    //aproximate_term **************************************
+    if (approximateterm != undefined)
+      queryExecute.where('approximate_term', approximateterm)
+    //obs **************************************
+    if (obs != undefined)
+      queryExecute.where('obs', obs)
+    //Index **************************************
+    if (indexbook != undefined)
+      queryExecute.where('indexbook', indexbook)
+    //year ***********************************************
+    if (year != undefined)
+      queryExecute.where('year', year)
+    //letter ***********************************************
+    if (letter != undefined)
+      queryExecute.where('letter', letter)
+    //sheetzero*****************************************
+    if (document != 'true')
+      if (!sheetzero || (sheetzero == 'false'))
+        queryExecute.where('sheet', '>', 0)
+
+
+    data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
   }
 
@@ -926,7 +1063,7 @@ export default class BookrecordsController {
       //   let errorValidation = await new validations('bookrecord_error_102')
       throw new BadRequestException("erro: codigo inicial maior que o final")
 
-      while (startCod <= endCod) {
+    while (startCod <= endCod) {
       try {
 
         bookRecord = {
@@ -968,8 +1105,8 @@ export default class BookrecordsController {
           document.books_id = 13
           document.companies_id = bookRecord.companies_id
 
-          if(prot)
-          document.prot = prot++
+          if (prot)
+            document.prot = prot++
           await Document.create(document)
         }
 
