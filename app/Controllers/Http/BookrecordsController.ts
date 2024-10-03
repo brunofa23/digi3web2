@@ -150,9 +150,9 @@ export default class BookrecordsController {
       side, obs, sheetzero, noAttachment,
       lastPagesOfEachBook, codMax,
       document,
-      prot,
       month,
       yeardoc,
+      prot,
       documenttype_id,
       free,
       book_name,
@@ -265,6 +265,21 @@ export default class BookrecordsController {
     if (document != 'true')
       if (!sheetzero || (sheetzero == 'false'))
         queryExecute.where('sheet', '>', 0)
+
+    //DOCUMENTOS***************************************************
+    //Protocolo
+    if (letter != undefined)
+      queryExecute.where('letter', letter)
+    prot,
+
+    //Documenttype - tipo de livro
+      documenttype_id,
+
+     //Free - se é gratuito
+      free,
+
+      //Nome do livro
+      book_name,
 
 
     data = await queryExecute.paginate(page, limit)
