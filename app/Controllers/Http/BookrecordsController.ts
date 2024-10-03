@@ -174,6 +174,7 @@ export default class BookrecordsController {
     let data
     let queryExecute
     if (noAttachment) {
+      console.log('query 1')
       queryExecute = Bookrecord.query()
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('typebooks_id', '=', params.typebooks_id)
@@ -193,15 +194,19 @@ export default class BookrecordsController {
       //data = await queryExecute.paginate(page, limit)
     }
     else if (codMax) {
+      console.log('query 2')
       data = await Database.from('bookrecords')
         .where('companies_id', authenticate.companies_id)
         .where('typebooks_id', params.typebooks_id)
         .max('cod as codMax');
+        return response.status(200).send(data)
+
     }
     else {
+      console.log('query 3')
       queryExecute = Bookrecord.query()
-        .where("companies_id", authenticate.companies_id)
-        .andWhere("typebooks_id", params.typebooks_id)
+        .where("bookrecords.companies_id", authenticate.companies_id)
+        .andWhere("bookrecords.typebooks_id", params.typebooks_id)
         .preload('indeximage', (queryIndex) => {
           queryIndex.where("typebooks_id", '=', params.typebooks_id)
             .andWhere("companies_id", '=', authenticate.companies_id)
@@ -214,8 +219,6 @@ export default class BookrecordsController {
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
         .orderBy("sheet", "asc")
-
-      //data = await queryExecute.paginate(page, limit)
     }
 
     //CODIGO*****************************************************
@@ -267,21 +270,41 @@ export default class BookrecordsController {
         queryExecute.where('sheet', '>', 0)
 
     //DOCUMENTOS***************************************************
-    //Protocolo
-    if (letter != undefined)
-      queryExecute.where('letter', letter)
-    prot,
+    if (document == 'true') {
+      queryExecute.whereHas('document', query => {
+        //Protocolo
+        if (prot != undefined)
+          query.where('documents.prot', prot)
+        //Documenttype - tipo de livro
+        if (documenttype_id != undefined)
+          query.where('documenttype_id', documenttype_id)
+        //Free - se é gratuito
+        if (free == 'true') {
+          console.log("freee:",free)
+          query.where('free', 1)
+        }
+        //Nome do livro
+        if (book_name != undefined)
+          query.where('book_name', book_name)
+        //Numero do livro
+        if (book_number != undefined)
+          query.where('book_number', book_number)
+        //Numero do livro
+        if (sheet_number != undefined)
+          query.where('sheet_number', sheet_number)
+        //Mes
+        if (month != undefined)
+          query.where('month', month)
+        //Ano
+        if (yeardoc != undefined)
+          query.where('yeardoc', yeardoc)
 
-    //Documenttype - tipo de livro
-      documenttype_id,
+      })
+    }
 
-     //Free - se é gratuito
-      free,
+    //*******************************************************************/
 
-      //Nome do livro
-      book_name,
-
-
+    //console.log(queryExecute.toQuery())
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
   }
