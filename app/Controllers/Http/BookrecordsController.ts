@@ -14,8 +14,6 @@ const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
   //Listar Bookrecords
   // public async index({ auth, request, params, response }: HttpContextContract) {
-
-  //   console.log('pesquisando 456')
   //   const authenticate = await auth.use('api').authenticate()
   //   const { codstart, codend,
   //     bookstart, bookend,
@@ -138,7 +136,7 @@ export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
 
-    console.log('pesquisando 456')
+
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -174,7 +172,7 @@ export default class BookrecordsController {
     let data
     let queryExecute
     if (noAttachment) {
-      console.log('query 1')
+
       queryExecute = Bookrecord.query()
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('typebooks_id', '=', params.typebooks_id)
@@ -194,16 +192,16 @@ export default class BookrecordsController {
       //data = await queryExecute.paginate(page, limit)
     }
     else if (codMax) {
-      console.log('query 2')
+      console.log("passei no codmax")
       data = await Database.from('bookrecords')
         .where('companies_id', authenticate.companies_id)
         .where('typebooks_id', params.typebooks_id)
         .max('cod as codMax');
-        return response.status(200).send(data)
+      return response.status(200).send(data)
 
     }
     else {
-      console.log('query 3')
+
       queryExecute = Bookrecord.query()
         .where("bookrecords.companies_id", authenticate.companies_id)
         .andWhere("bookrecords.typebooks_id", params.typebooks_id)
@@ -280,7 +278,6 @@ export default class BookrecordsController {
           query.where('documenttype_id', documenttype_id)
         //Free - se é gratuito
         if (free == 'true') {
-          console.log("freee:",free)
           query.where('free', 1)
         }
         //Nome do livro
@@ -298,12 +295,9 @@ export default class BookrecordsController {
         //Ano
         if (yeardoc != undefined)
           query.where('yeardoc', yeardoc)
-
       })
     }
-
     //*******************************************************************/
-
     //console.log(queryExecute.toQuery())
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
@@ -1077,7 +1071,7 @@ export default class BookrecordsController {
 
 
   public async generateOrUpdateBookrecordsDocument({ auth, request, params, response }: HttpContextContract) {
-
+    console.log("passei código 99999")
     const authenticate = await auth.use('api').authenticate()
     let { startCod, endCod, year, month, box, prot } = request.requestData
     let bookRecord = {}
@@ -1128,13 +1122,14 @@ export default class BookrecordsController {
             .andWhere('books_id', 13)
             .update(bookRecord)
           document.bookrecords_id = verifyBookRecord.id
+          if (prot)
+            document.prot = prot++
           const documentUpdate = await Document.query()
             .where('bookrecords_id', verifyBookRecord.id)
             .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
             .andWhere('companies_id', verifyBookRecord.companies_id)
             .andWhere('books_id', 13)
             .update(document)
-
         } else {
           //create
           const bookRecordId = await Bookrecord.create(bookRecord)
@@ -1157,15 +1152,6 @@ export default class BookrecordsController {
 
     let successValidation = await new validations('bookrecord_success_100')
     return response.status(201).send(successValidation.code)
-
-    //   let successValidation = await new validations('bookrecord_success_100')
-    //   return response.status(201).send(successValidation.code)
-
-    // } catch (error) {
-    //   throw new BadRequestException("Bad Request", 402, error)
-    // }
-
-    //SUBSTITUI O NUMERO DO LIVRO
   }
 
   public async maxBookRecord({ auth, params, request, response }: HttpContextContract) {
@@ -1177,6 +1163,7 @@ export default class BookrecordsController {
       .first();
 
     let maxSheet
+
     if (maxBook) {
       maxSheet = await Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
@@ -1185,7 +1172,16 @@ export default class BookrecordsController {
         .max('sheet as max_sheet')
         .first();
     }
-    return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet })
+
+
+    const maxCodDocument = await Bookrecord.query()
+      .where('typebooks_id', params.typebooks_id)
+      .andWhere('companies_id', authenticate.companies_id)
+      .max('cod as max_cod')
+      .first();
+
+
+    return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.$extras.max_cod })
   }
 
   //********************************************************* */
