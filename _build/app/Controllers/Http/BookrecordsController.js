@@ -17,54 +17,20 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, book_name, book_number, sheet_number } = request.requestData;
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
             return null;
-        else {
-            if (codstart != undefined && codend == undefined)
-                query += ` and cod =${codstart} `;
-            else if (codstart != undefined && codend != undefined)
-                query += ` and cod >=${codstart} `;
-            if (codend != undefined)
-                query += ` and cod <= ${codend}`;
-            if (bookstart != undefined && bookend == undefined)
-                query += ` and book =${bookstart} `;
-            else if (bookstart != undefined && bookend != undefined)
-                query += ` and book >=${bookstart} `;
-            if (bookend != undefined)
-                query += ` and book <= ${bookend}`;
-            if (sheetstart != undefined && sheetend == undefined)
-                query += ` and sheet =${sheetstart} `;
-            else if (sheetstart != undefined && sheetend != undefined)
-                query += ` and sheet >=${sheetstart} `;
-            if (sheetend != undefined)
-                query += ` and sheet <= ${sheetend}`;
-            if (side != undefined)
-                query += ` and side = '${side}' `;
-            if (approximateterm != undefined)
-                query += ` and approximate_term=${approximateterm}`;
-            if (obs != undefined)
-                query += ` and obs like '${obs}%'`;
-            if (indexbook != undefined)
-                query += ` and indexbook=${indexbook} `;
-            if (year != undefined)
-                query += ` and year like '${year}%' `;
-            if (letter != undefined)
-                query += ` and letter like '${letter}' `;
-            if (document != 'true')
-                if (!sheetzero || (sheetzero == 'false'))
-                    query += ` and sheet>0`;
-        }
         if (lastPagesOfEachBook) {
             query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
         }
         const page = request.input('page', 1);
         const limit = Env_1.default.get('PAGINATION');
         let data;
+        let queryExecute;
         if (noAttachment) {
-            data = await Bookrecord_1.default.query()
+            queryExecute = Bookrecord_1.default.query()
                 .where('companies_id', '=', authenticate.companies_id)
                 .andWhere('typebooks_id', '=', params.typebooks_id)
                 .whereNotExists((subquery) => {
@@ -78,19 +44,20 @@ class BookrecordsController {
                 .whereRaw(query)
                 .orderBy("book", "asc")
                 .orderBy("cod", "asc")
-                .orderBy("sheet", "asc")
-                .paginate(page, limit);
+                .orderBy("sheet", "asc");
         }
         else if (codMax) {
+            console.log("passei no codmax");
             data = await Database_1.default.from('bookrecords')
                 .where('companies_id', authenticate.companies_id)
                 .where('typebooks_id', params.typebooks_id)
                 .max('cod as codMax');
+            return response.status(200).send(data);
         }
         else {
-            data = await Bookrecord_1.default.query()
-                .where("companies_id", authenticate.companies_id)
-                .andWhere("typebooks_id", params.typebooks_id)
+            queryExecute = Bookrecord_1.default.query()
+                .where("bookrecords.companies_id", authenticate.companies_id)
+                .andWhere("bookrecords.typebooks_id", params.typebooks_id)
                 .preload('indeximage', (queryIndex) => {
                 queryIndex.where("typebooks_id", '=', params.typebooks_id)
                     .andWhere("companies_id", '=', authenticate.companies_id);
@@ -102,9 +69,63 @@ class BookrecordsController {
                 .whereRaw(query)
                 .orderBy("book", "asc")
                 .orderBy("cod", "asc")
-                .orderBy("sheet", "asc")
-                .paginate(page, limit);
+                .orderBy("sheet", "asc");
         }
+        if (codstart != undefined && codend == undefined)
+            queryExecute.where('cod', codstart);
+        else if (codstart != undefined && codend != undefined)
+            queryExecute.where('cod', '>=', codstart);
+        if (codend != undefined)
+            queryExecute.where('cod', '<=', codend);
+        if (bookstart != undefined && bookend == undefined)
+            queryExecute.where('book', bookstart);
+        else if (bookstart != undefined && bookend != undefined)
+            queryExecute.where('book', '>=', bookstart);
+        if (bookend != undefined)
+            queryExecute.where('book', '<=', bookend);
+        if (sheetstart != undefined && sheetend == undefined)
+            queryExecute.where('sheet', sheetstart);
+        else if (sheetstart != undefined && sheetend != undefined)
+            queryExecute.where('sheet', '>=', sheetstart);
+        if (sheetend != undefined)
+            queryExecute.where('sheet', '<=', sheetend);
+        if (side != undefined)
+            queryExecute.where('side', side);
+        if (approximateterm != undefined)
+            queryExecute.where('approximate_term', approximateterm);
+        if (obs != undefined)
+            queryExecute.where('obs', obs);
+        if (indexbook != undefined)
+            queryExecute.where('indexbook', indexbook);
+        if (year != undefined)
+            queryExecute.where('year', year);
+        if (letter != undefined)
+            queryExecute.where('letter', letter);
+        if (document != 'true')
+            if (!sheetzero || (sheetzero == 'false'))
+                queryExecute.where('sheet', '>', 0);
+        if (document == 'true') {
+            queryExecute.whereHas('document', query => {
+                if (prot != undefined)
+                    query.where('documents.prot', prot);
+                if (documenttype_id != undefined)
+                    query.where('documenttype_id', documenttype_id);
+                if (free == 'true') {
+                    query.where('free', 1);
+                }
+                if (book_name != undefined)
+                    query.where('book_name', book_name);
+                if (book_number != undefined)
+                    query.where('book_number', book_number);
+                if (sheet_number != undefined)
+                    query.where('sheet_number', sheet_number);
+                if (month != undefined)
+                    query.where('month', month);
+                if (yeardoc != undefined)
+                    query.where('yeardoc', yeardoc);
+            });
+        }
+        data = await queryExecute.paginate(page, limit);
         return response.status(200).send(data);
     }
     async fastFind({ auth, request, response }) {
@@ -727,6 +748,7 @@ class BookrecordsController {
         }
     }
     async generateOrUpdateBookrecordsDocument({ auth, request, params, response }) {
+        console.log("passei código 99999");
         const authenticate = await auth.use('api').authenticate();
         let { startCod, endCod, year, month, box, prot } = request.requestData;
         let bookRecord = {};
@@ -765,6 +787,8 @@ class BookrecordsController {
                         .andWhere('books_id', 13)
                         .update(bookRecord);
                     document.bookrecords_id = verifyBookRecord.id;
+                    if (prot)
+                        document.prot = prot++;
                     const documentUpdate = await Document_1.default.query()
                         .where('bookrecords_id', verifyBookRecord.id)
                         .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
@@ -807,7 +831,12 @@ class BookrecordsController {
                 .max('sheet as max_sheet')
                 .first();
         }
-        return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet });
+        const maxCodDocument = await Bookrecord_1.default.query()
+            .where('typebooks_id', params.typebooks_id)
+            .andWhere('companies_id', authenticate.companies_id)
+            .max('cod as max_cod')
+            .first();
+        return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.$extras.max_cod });
     }
 }
 exports.default = BookrecordsController;
