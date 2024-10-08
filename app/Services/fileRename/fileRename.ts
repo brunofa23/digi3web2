@@ -54,8 +54,6 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 }
 
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
-
-  //console.log("código 698 - passo 1")
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
@@ -76,7 +74,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 
   if (!directoryParent || directoryParent == undefined)
     throw new BadRequestException('undefined book', 409)
-
 
   //verifica se existe essa pasta no Google e retorna o id do google
   let parent = await sendSearchFile(directoryParent?.path, cloud_number)
@@ -191,6 +188,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
   //Format T123(123)livro.jpg
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
+  //Format P1(123).jpg para prot do Documents
+  const regexDocumentAndProt = /^P\d+\(\d+\).*$/;
 
   const query = Bookrecord.query()
     .preload('indeximage', query => {
@@ -199,8 +198,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     })
     .where('bookrecords.typebooks_id', '=', typebooks_id)
     .andWhere('bookrecords.companies_id', '=', companies_id)
-
-
   if (dataImages.typeBookFile) {
 
     let fileName
@@ -220,10 +217,10 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       previous_file_name: originalFileName,
       typeBookFile: true
     }
+
     return fileRename
   } else
     if (regexBookAndCod.test(originalFileName.toUpperCase())) {
-
       separators = ["L", '\'', '(', ')', '|', '-'];
       arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
       objFileName = {
@@ -283,6 +280,22 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query.andWhere('book', objFileName.book)
 
       }
+      //ANEXAR DOCUMENTOS POR NUMERO DE PROTOCOLO E CAIXA
+      else if (regexDocumentAndProt.test(originalFileName.toUpperCase())) {
+
+        const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
+        objFileName = {
+          book: arrayFileName[0],
+          prot: arrayFileName[1],
+          ext: `.${arrayFileName[3]}`
+        }
+        query.andWhere('book', objFileName.book)
+        query.whereHas('document',query=>{
+          query.where('documents.prot',objFileName.prot)
+        })
+
+      }
+
       else {
 
         if (dataImages.id)
