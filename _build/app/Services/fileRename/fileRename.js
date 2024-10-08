@@ -149,6 +149,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     const regexBookAndCod = /^L\d+\(\d+\).*$/;
     const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
     const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
+    const regexDocumentAndProt = /^P\d+\(\d+\).*$/;
     const query = Bookrecord_1.default.query()
         .preload('indeximage', query => {
         query.where('indeximages.typebooks_id', typebooks_id);
@@ -222,6 +223,18 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         };
         query.andWhere('approximate_term', objFileName.approximate_term);
         query.andWhere('book', objFileName.book);
+    }
+    else if (regexDocumentAndProt.test(originalFileName.toUpperCase())) {
+        const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
+        objFileName = {
+            book: arrayFileName[0],
+            prot: arrayFileName[1],
+            ext: `.${arrayFileName[3]}`
+        };
+        query.andWhere('book', objFileName.book);
+        query.whereHas('document', query => {
+            query.where('documents.prot', objFileName.prot);
+        });
     }
     else {
         if (dataImages.id)
