@@ -27,6 +27,7 @@ class DocumentConfig extends Orm_1.BaseModel {
             'yeardoc',
             'documenttype_id',
             'free',
+            'averb_anot',
             'book_name',
             'book_number',
             'sheet_number',
@@ -108,6 +109,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], DocumentConfig.prototype, "free", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], DocumentConfig.prototype, "averb_anot", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

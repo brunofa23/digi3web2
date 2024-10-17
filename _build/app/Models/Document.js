@@ -29,6 +29,7 @@ class Document extends Orm_1.BaseModel {
             'yeardoc',
             'documenttype_id',
             'free',
+            'averb_anot',
             'book_name',
             'book_number',
             'sheet_number',
@@ -70,7 +71,7 @@ class Document extends Orm_1.BaseModel {
             'datefield12',
             'intfield13',
             'stringfield13',
-            'datefield13'
+            'datefield13',
         ];
     }
 }
@@ -121,6 +122,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
 ], Document.prototype, "free", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], Document.prototype, "averb_anot", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

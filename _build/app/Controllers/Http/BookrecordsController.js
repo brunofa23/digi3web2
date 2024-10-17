@@ -17,7 +17,7 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, book_name, book_number, sheet_number } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number } = request.requestData;
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -112,6 +112,9 @@ class BookrecordsController {
                     query.where('documenttype_id', documenttype_id);
                 if (free == 'true') {
                     query.where('free', 1);
+                }
+                if (averb_anot == 'true') {
+                    query.where('averb_anot', 1);
                 }
                 if (book_name != undefined)
                     query.where('book_name', book_name);
@@ -748,9 +751,8 @@ class BookrecordsController {
         }
     }
     async generateOrUpdateBookrecordsDocument({ auth, request, params, response }) {
-        console.log("passei código 99999");
         const authenticate = await auth.use('api').authenticate();
-        let { startCod, endCod, year, month, box, prot } = request.requestData;
+        let { startCod, endCod, year, month, box, prot, box_replace } = request.requestData;
         let bookRecord = {};
         let document = {};
         let cod = startCod;
@@ -771,7 +773,7 @@ class BookrecordsController {
                     typebooks_id: params.typebooks_id,
                     books_id: 13,
                     book: box,
-                    companies_id: authenticate.companies_id
+                    companies_id: authenticate.companies_id,
                 };
                 const verifyBookRecord = await Bookrecord_1.default.query()
                     .where('cod', bookRecord.cod)
@@ -780,6 +782,8 @@ class BookrecordsController {
                     .andWhere('books_id', 13)
                     .andWhere('book', bookRecord.book).first();
                 if (verifyBookRecord) {
+                    if (box_replace)
+                        bookRecord.book = box_replace;
                     const bookRecordId = await Bookrecord_1.default.query()
                         .where('id', verifyBookRecord.id)
                         .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
