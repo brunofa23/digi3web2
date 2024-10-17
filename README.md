@@ -158,3 +158,10 @@ try {
   throw error
 }
 
+## RENOMEAR ARQUIVOS PELO WINDOS
+Get-ChildItem -File | Rename-Item -NewName { $_.Name -replace '_1_', '_7_' }
+
+
+"engines": {
+    "node": "20.x"
+  }

@@ -17,6 +17,7 @@ export default class Document extends BaseModel {
       'yeardoc',
       'documenttype_id',
       'free',
+      'averb_anot',
       'book_name',
       'book_number',
       'sheet_number',
@@ -58,7 +59,8 @@ export default class Document extends BaseModel {
       'datefield12',
       'intfield13',
       'stringfield13',
-      'datefield13'
+      'datefield13',
+
 
     ]
   }
@@ -89,6 +91,8 @@ export default class Document extends BaseModel {
   public documenttype_id: number
   @column()
   public free: boolean
+  @column()
+  public averb_anot: boolean
   @column()
   public book_name: string
   @column()
