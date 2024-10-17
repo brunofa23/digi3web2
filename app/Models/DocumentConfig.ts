@@ -15,6 +15,7 @@ export default class DocumentConfig extends BaseModel {
       'yeardoc',
       'documenttype_id',
       'free',
+      'averb_anot',
       'book_name',
       'book_number',
       'sheet_number',
@@ -87,6 +88,8 @@ export default class DocumentConfig extends BaseModel {
   public documenttype_id: string
   @column()
   public free: string
+  @column()
+  public averb_anot: string
   @column()
   public book_name: string
   @column()
