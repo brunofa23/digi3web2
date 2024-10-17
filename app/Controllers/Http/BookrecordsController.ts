@@ -12,130 +12,10 @@ import BookrecordValidator from 'App/Validators/BookrecordValidator'
 
 const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
-  //Listar Bookrecords
-  // public async index({ auth, request, params, response }: HttpContextContract) {
-  //   const authenticate = await auth.use('api').authenticate()
-  //   const { codstart, codend,
-  //     bookstart, bookend,
-  //     approximateterm,
-  //     indexbook,
-  //     year,
-  //     letter,
-  //     sheetstart, sheetend,
-  //     side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document } = request.requestData
-  //   let query = " 1=1 "
-
-  //   if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-  //     (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
-  //     return null
-  //   else {
-  //     //cod**************************************************
-  //     if (codstart != undefined && codend == undefined)
-  //       query += ` and cod =${codstart} `
-  //     else
-  //       if (codstart != undefined && codend != undefined)
-  //         query += ` and cod >=${codstart} `
-
-  //     if (codend != undefined)
-  //       query += ` and cod <= ${codend}`
-  //     //book ************************************************
-  //     if (bookstart != undefined && bookend == undefined)
-  //       query += ` and book =${bookstart} `
-  //     else
-  //       if (bookstart != undefined && bookend != undefined)
-  //         query += ` and book >=${bookstart} `
-
-  //     if (bookend != undefined)
-  //       query += ` and book <= ${bookend}`
-
-  //     //sheet **********************************************
-  //     if (sheetstart != undefined && sheetend == undefined)
-  //       query += ` and sheet =${sheetstart} `
-  //     else
-  //       if (sheetstart != undefined && sheetend != undefined)
-  //         query += ` and sheet >=${sheetstart} `
-
-  //     if (sheetend != undefined)
-  //       query += ` and sheet <= ${sheetend}`
-  //     //side *************************************************
-  //     if (side != undefined)
-  //       query += ` and side = '${side}' `
-  //     //aproximate_term **************************************
-  //     if (approximateterm != undefined)
-  //       query += ` and approximate_term=${approximateterm}`
-  //     //obs **************************************
-  //     if (obs != undefined)
-  //       query += ` and obs like '${obs}%'`
-  //     //Index **************************************
-  //     if (indexbook != undefined)
-  //       query += ` and indexbook=${indexbook} `
-  //     //year ***********************************************
-  //     if (year != undefined)
-  //       query += ` and year like '${year}%' `
-  //     //letter ***********************************************
-  //     if (letter != undefined)
-  //       query += ` and letter like '${letter}' `
-  //     //sheetzero*****************************************
-  //     if (document != 'true')
-  //       if (!sheetzero || (sheetzero == 'false'))
-  //         query += ` and sheet>0`
-  //   }
-  //   //last pages of each book****************************
-  //   if (lastPagesOfEachBook) {
-  //     query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
-  //   }
-
-  //   //pagination paginação
-  //   const page = request.input('page', 1)
-  //   const limit = Env.get('PAGINATION')
-  //   let data
-  //   if (noAttachment) {
-  //     data = await Bookrecord.query()
-  //       .where('companies_id', '=', authenticate.companies_id)
-  //       .andWhere('typebooks_id', '=', params.typebooks_id)
-  //       .whereNotExists((subquery) => {
-  //         subquery
-  //           .select('id')
-  //           .from('indeximages')
-  //           .whereColumn('indeximages.bookrecords_id', '=', 'bookrecords.id')
-  //           .andWhere('indeximages.typebooks_id', '=', params.typebooks_id)
-  //           .andWhere("companies_id", '=', authenticate.companies_id)
-  //       })
-  //       .whereRaw(query)
-  //       .orderBy("book", "asc")
-  //       .orderBy("cod", "asc")
-  //       .orderBy("sheet", "asc")
-  //       .paginate(page, limit)
-  //   }
-  //   else if (codMax) {
-  //     data = await Database.from('bookrecords')
-  //       .where('companies_id', authenticate.companies_id)
-  //       .where('typebooks_id', params.typebooks_id)
-  //       .max('cod as codMax');
-  //   }
-  //   else {
-  //     data = await Bookrecord.query()
-  //       .where("companies_id", authenticate.companies_id)
-  //       .andWhere("typebooks_id", params.typebooks_id)
-  //       .preload('indeximage', (queryIndex) => {
-  //         queryIndex.where("typebooks_id", '=', params.typebooks_id)
-  //           .andWhere("companies_id", '=', authenticate.companies_id)
-  //       })
-  //       .preload('document', query => {
-  //         query.where('typebooks_id', params.typebooks_id)
-  //           .andWhere("companies_id", authenticate.companies_id)
-  //       })
-  //       .whereRaw(query)
-  //       .orderBy("book", "asc")
-  //       .orderBy("cod", "asc")
-  //       .orderBy("sheet", "asc")
-  //       .paginate(page, limit)
-  //   }
-  //   return response.status(200).send(data)
-  // }
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -151,6 +31,7 @@ export default class BookrecordsController {
       prot,
       documenttype_id,
       free,
+      averb_anot,
       book_name,
       book_number,
       sheet_number } = request.requestData
@@ -278,6 +159,10 @@ export default class BookrecordsController {
         if (free == 'true') {
           query.where('free', 1)
         }
+        //Averb_anot - se é gratuito
+        if (averb_anot == 'true') {
+          query.where('averb_anot', 1)
+        }
         //Nome do livro
         if (book_name != undefined)
           query.where('book_name', book_name)
@@ -331,8 +216,6 @@ export default class BookrecordsController {
     return response.status(200).send(data)
   }
 
-
-
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
     return {
@@ -346,7 +229,6 @@ export default class BookrecordsController {
     const { document } = request.only(['document'])//await request.validate(DocumentValidator)
     body.companies_id = companies_id
     const bodyDocument = document
-
 
     try {
       const data = await Bookrecord.create(body)
@@ -370,6 +252,7 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
     const { document } = request.only(['document'])
+
     body.id = params.id
     body.companies_id = authenticate.companies_id
     body.userid = authenticate.id
@@ -1071,7 +954,7 @@ export default class BookrecordsController {
   public async generateOrUpdateBookrecordsDocument({ auth, request, params, response }: HttpContextContract) {
     console.log("passei código 99999")
     const authenticate = await auth.use('api').authenticate()
-    let { startCod, endCod, year, month, box, prot } = request.requestData
+    let { startCod, endCod, year, month, box, prot, box_replace } = request.requestData
     let bookRecord = {}
     let document = {}
     let cod = startCod
@@ -1101,7 +984,7 @@ export default class BookrecordsController {
           typebooks_id: params.typebooks_id,
           books_id: 13,
           book: box,
-          companies_id: authenticate.companies_id
+          companies_id: authenticate.companies_id,
         }
 
         const verifyBookRecord = await Bookrecord.query()
@@ -1113,6 +996,13 @@ export default class BookrecordsController {
 
         if (verifyBookRecord) {
           //update
+         console.log("passei no update", box_replace)
+
+          if(box_replace)
+            bookRecord.book = box_replace
+
+          console.log(">>>>",bookRecord)
+
           const bookRecordId = await Bookrecord.query()
             .where('id', verifyBookRecord.id)
             .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
@@ -1130,6 +1020,7 @@ export default class BookrecordsController {
             .update(document)
         } else {
           //create
+          console.log("passei no create")
           const bookRecordId = await Bookrecord.create(bookRecord)
           document.bookrecords_id = bookRecordId.id
           document.typebooks_id = bookRecord.typebooks_id

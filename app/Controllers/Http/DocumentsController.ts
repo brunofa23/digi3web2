@@ -34,7 +34,7 @@ export default class DocumentsController {
     }
 
     public async update({ auth, request, params, response }: HttpContextContract) {
-
+      
         const { companies_id } = await auth.use('api').authenticate()
         const body = request.only(Document.fillable)
         body.id = params.id
