@@ -952,7 +952,7 @@ export default class BookrecordsController {
 
 
   public async generateOrUpdateBookrecordsDocument({ auth, request, params, response }: HttpContextContract) {
-    console.log("passei código 99999")
+
     const authenticate = await auth.use('api').authenticate()
     let { startCod, endCod, year, month, box, prot, box_replace } = request.requestData
     let bookRecord = {}
@@ -976,6 +976,7 @@ export default class BookrecordsController {
       //   let errorValidation = await new validations('bookrecord_error_102')
       throw new BadRequestException("erro: codigo inicial maior que o final")
 
+
     while (startCod <= endCod) {
       try {
 
@@ -994,14 +995,12 @@ export default class BookrecordsController {
           .andWhere('books_id', 13)
           .andWhere('book', bookRecord.book).first()
 
+
+
         if (verifyBookRecord) {
           //update
-         console.log("passei no update", box_replace)
-
-          if(box_replace)
+          if (box_replace)
             bookRecord.book = box_replace
-
-          console.log(">>>>",bookRecord)
 
           const bookRecordId = await Bookrecord.query()
             .where('id', verifyBookRecord.id)
@@ -1020,7 +1019,7 @@ export default class BookrecordsController {
             .update(document)
         } else {
           //create
-          console.log("passei no create")
+
           const bookRecordId = await Bookrecord.create(bookRecord)
           document.bookrecords_id = bookRecordId.id
           document.typebooks_id = bookRecord.typebooks_id
