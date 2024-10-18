@@ -9,6 +9,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import Typebook from 'App/Models/Typebook'
 import Document from 'App/Models/Document'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
+import { DateTime } from 'luxon'
 
 const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
@@ -34,7 +35,10 @@ export default class BookrecordsController {
       averb_anot,
       book_name,
       book_number,
-      sheet_number } = request.requestData
+      sheet_number,
+      created_atStart,
+      created_atEnd
+    } = request.requestData
     let query = " 1=1 "
 
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
@@ -149,6 +153,14 @@ export default class BookrecordsController {
     //DOCUMENTOS***************************************************
     if (document == 'true') {
       queryExecute.whereHas('document', query => {
+        //Data inicial
+        if (created_atStart != undefined)
+          query.where('created_at', '>=', created_atStart)
+
+        //Data Final
+        if (created_atEnd != undefined)
+          query.where('created_at', '<=', DateTime.fromISO(created_atEnd).plus({ days: 1 }).toFormat("yyyy-MM-dd"))
+
         //Protocolo
         if (prot != undefined)
           query.where('documents.prot', prot)
@@ -1042,32 +1054,35 @@ export default class BookrecordsController {
     return response.status(201).send(successValidation.code)
   }
 
-  public async maxBookRecord({ auth, params, request, response }: HttpContextContract) {
+  public async maxBookRecord({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    const {box, typebooks_id} = request.only(['box', 'typebooks_id'])
+
+    if(typebooks_id==undefined)
+      return
+
     const maxBook = await Bookrecord.query()
-      .where('typebooks_id', params.typebooks_id)
+      .where('typebooks_id', typebooks_id)
       .andWhere('companies_id', authenticate.companies_id)
       .max('book as max_book')
       .first();
-
     let maxSheet
-
     if (maxBook) {
       maxSheet = await Bookrecord.query()
-        .where('typebooks_id', params.typebooks_id)
+        .where('typebooks_id', typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
         .andWhere('book', maxBook?.$extras.max_book)
         .max('sheet as max_sheet')
         .first();
     }
-
-
-    const maxCodDocument = await Bookrecord.query()
-      .where('typebooks_id', params.typebooks_id)
+    const query = Bookrecord.query()
+      .where('typebooks_id', typebooks_id)
       .andWhere('companies_id', authenticate.companies_id)
+      if(box)
+        query.andWhere('book', box)
       .max('cod as max_cod')
-      .first();
 
+      const maxCodDocument = await query.first();
 
     return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.$extras.max_cod })
   }
