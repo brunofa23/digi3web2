@@ -13,11 +13,12 @@ const BadRequestException_2 = __importDefault(global[Symbol.for('ioc.use')]("App
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const BookrecordValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/BookrecordValidator"));
+const luxon_1 = require("luxon");
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atStart, created_atEnd } = request.requestData;
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -106,6 +107,10 @@ class BookrecordsController {
                 queryExecute.where('sheet', '>', 0);
         if (document == 'true') {
             queryExecute.whereHas('document', query => {
+                if (created_atStart != undefined)
+                    query.where('created_at', '>=', created_atStart);
+                if (created_atEnd != undefined)
+                    query.where('created_at', '<=', luxon_1.DateTime.fromISO(created_atEnd).plus({ days: 1 }).toFormat("yyyy-MM-dd"));
                 if (prot != undefined)
                     query.where('documents.prot', prot);
                 if (documenttype_id != undefined)
@@ -819,27 +824,32 @@ class BookrecordsController {
         let successValidation = await new validations_1.default('bookrecord_success_100');
         return response.status(201).send(successValidation.code);
     }
-    async maxBookRecord({ auth, params, request, response }) {
+    async maxBookRecord({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        const { box, typebooks_id } = request.only(['box', 'typebooks_id']);
+        if (typebooks_id == undefined)
+            return;
         const maxBook = await Bookrecord_1.default.query()
-            .where('typebooks_id', params.typebooks_id)
+            .where('typebooks_id', typebooks_id)
             .andWhere('companies_id', authenticate.companies_id)
             .max('book as max_book')
             .first();
         let maxSheet;
         if (maxBook) {
             maxSheet = await Bookrecord_1.default.query()
-                .where('typebooks_id', params.typebooks_id)
+                .where('typebooks_id', typebooks_id)
                 .andWhere('companies_id', authenticate.companies_id)
                 .andWhere('book', maxBook?.$extras.max_book)
                 .max('sheet as max_sheet')
                 .first();
         }
-        const maxCodDocument = await Bookrecord_1.default.query()
-            .where('typebooks_id', params.typebooks_id)
-            .andWhere('companies_id', authenticate.companies_id)
-            .max('cod as max_cod')
-            .first();
+        const query = Bookrecord_1.default.query()
+            .where('typebooks_id', typebooks_id)
+            .andWhere('companies_id', authenticate.companies_id);
+        if (box)
+            query.andWhere('book', box)
+                .max('cod as max_cod');
+        const maxCodDocument = await query.first();
         return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.$extras.max_cod });
     }
 }

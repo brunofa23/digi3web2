@@ -41,7 +41,7 @@ Route_1.default.group(() => {
     Route_1.default.get('/updatedfiles', 'BookrecordsController.updatedFiles');
     Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument');
     Route_1.default.get("/fastfind", 'BookrecordsController.fastFind');
-    Route_1.default.get("/maxbookrecord/:typebooks_id", 'BookrecordsController.maxBookRecord');
+    Route_1.default.get("/maxbookrecord", 'BookrecordsController.maxBookRecord');
     Route_1.default.get("/sheetwithside/:typebooks_id/:book", 'BookrecordsController.sheetWithSide');
     Route_1.default.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index');
     Route_1.default.post("/typebooks/:typebooks_id/documents", 'DocumentsController.store');
