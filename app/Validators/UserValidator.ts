@@ -15,7 +15,8 @@ export default class UserValidator {
     remember_me_token: schema.string.optional(),
     permission_level: schema.number(),
     superuser: schema.boolean(),
-    status: schema.boolean()
+    status: schema.boolean(),
+    access_images_permanent:schema.boolean.nullableAndOptional()
   })
 
   // public messages: CustomMessages = {
