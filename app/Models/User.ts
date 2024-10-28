@@ -21,6 +21,7 @@ export default class User extends BaseModel {
       'status',
       'work_schedule',
       'access_image',
+      'access_images_permanent',
       'token',
       'createdAt',
       'updatedAt'
@@ -75,6 +76,9 @@ export default class User extends BaseModel {
 
   @column()
   public access_image: DateTime
+
+  @column()
+  public access_images_permanent:boolean
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

@@ -4,7 +4,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import UserValidator from 'App/Validators/UserValidator'
 import { DateTime } from 'luxon'
-import { accesscontextmanager } from 'googleapis/build/src/apis/accesscontextmanager'
+//import { accesscontextmanager } from 'googleapis/build/src/apis/accesscontextmanager'
 
 
 export default class UsersController {
@@ -67,7 +67,7 @@ export default class UsersController {
     }
   }
 
-  public async update({ auth, request, params, response }: HttpContextContract) {
+  public async update({ auth, request, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(UserValidator)
@@ -112,13 +112,19 @@ export default class UsersController {
     }
   }
 
-  public async closeAccesImage({ auth, params, response }: HttpContextContract) {
+  public async closeAccesImage({ auth, params, request, response }: HttpContextContract) {
 
     // const authenticate = await auth.use('api').authenticate()
+    const body = await User.find(params.id)
+    if (body && body?.access_images_permanent == 1) {
+      console.log("é permanente")
+      return //response.status(201).send(body)
+    }
+
 
     const data = await User.query()
-    .where('id', params.id)
-    .update({'access_image':'2000-01-01'})
+      .where('id', params.id)
+      .update({ 'access_image': '2000-01-01' })
 
     return response.status(201).send(data)
 

@@ -1083,8 +1083,9 @@ export default class BookrecordsController {
       .max('cod as max_cod')
 
       const maxCodDocument = await query.first();
+      console.log("maxCodDocument",maxCodDocument?.cod)
 
-    return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.$extras.max_cod })
+    return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.cod })
   }
 
   //********************************************************* */
