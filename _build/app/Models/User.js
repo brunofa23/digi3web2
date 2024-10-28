@@ -33,6 +33,7 @@ class User extends Orm_1.BaseModel {
             'status',
             'work_schedule',
             'access_image',
+            'access_images_permanent',
             'token',
             'createdAt',
             'updatedAt'
@@ -104,6 +105,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", luxon_1.DateTime)
 ], User.prototype, "access_image", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], User.prototype, "access_images_permanent", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

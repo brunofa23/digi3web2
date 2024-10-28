@@ -51,7 +51,7 @@ class UsersController {
             throw new BadRequestException_1.default('Bad Request', 401, error);
         }
     }
-    async update({ auth, request, params, response }) {
+    async update({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(UserValidator_1.default);
         body.id = request.param('id');
@@ -86,7 +86,12 @@ class UsersController {
             return response.status(200).send(false);
         }
     }
-    async closeAccesImage({ auth, params, response }) {
+    async closeAccesImage({ auth, params, request, response }) {
+        const body = await User_1.default.find(params.id);
+        if (body && body?.access_images_permanent == 1) {
+            console.log("é permanente");
+            return;
+        }
         const data = await User_1.default.query()
             .where('id', params.id)
             .update({ 'access_image': '2000-01-01' });

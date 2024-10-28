@@ -14,7 +14,8 @@ class UserValidator {
             remember_me_token: Validator_1.schema.string.optional(),
             permission_level: Validator_1.schema.number(),
             superuser: Validator_1.schema.boolean(),
-            status: Validator_1.schema.boolean()
+            status: Validator_1.schema.boolean(),
+            access_images_permanent: Validator_1.schema.boolean.nullableAndOptional()
         });
     }
 }
