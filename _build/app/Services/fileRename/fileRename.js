@@ -8,6 +8,7 @@ const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typ
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
+const ErrorlogImage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/ErrorlogImage"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const pino_std_serializers_1 = require("pino-std-serializers");
 const luxon_1 = require("luxon");
@@ -129,13 +130,19 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         else {
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
         }
-        await (0, googledrive_1.sendUploadFiles)(idParent, folderPath, `${objfileRename.file_name}`, cloud_number);
-        if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
-            const date_atualization = luxon_1.DateTime.now();
-            objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm');
-            await Indeximage_1.default.create(objfileRename);
+        const sendUpload = await (0, googledrive_1.sendUploadFiles)(idParent, folderPath, `${objfileRename.file_name}`, cloud_number);
+        if (sendUpload.status === 200) {
+            if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+                const date_atualization = luxon_1.DateTime.now();
+                objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm');
+                await Indeximage_1.default.create(objfileRename);
+            }
+            else if (sendUpload.status !== 200) {
+                delete objfileRename.date_atualization;
+                await ErrorlogImage_1.default.create(objfileRename);
+            }
+            await deleteImage(`${folderPath}/${objfileRename.file_name}`);
         }
-        await deleteImage(`${folderPath}/${objfileRename.file_name}`);
     }
     catch (error) {
         throw new BadRequestException_1.default(error + ' sendUploadFiles', 409);

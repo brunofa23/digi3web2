@@ -94,6 +94,7 @@ class IndeximagesController {
         }
     }
     async uploads({ auth, request, params, response }) {
+        console.log("passando no uploads 5455");
         const authenticate = await auth.use('api').authenticate();
         const company = await Company_1.default.find(authenticate.companies_id);
         const images = request.files('images', {
@@ -200,6 +201,7 @@ class IndeximagesController {
     }
     async uploadCapture({ auth, request, params }) {
         const authenticate = await auth.use('api').authenticate();
+        const company = await Company_1.default.find(authenticate.companies_id);
         const { imageCaptureBase64, cod, id } = request.requestData;
         let base64Image = imageCaptureBase64.split(';base64,').pop();
         const folderPath = Application_1.default.tmpPath(`/uploads/Client_${authenticate.companies_id}`);
@@ -216,7 +218,7 @@ class IndeximagesController {
         fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
             console.log('File created', { folderPath });
         });
-        const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, true);
+        const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, company?.cloud, true);
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }
     async download({ auth, params, request }) {
