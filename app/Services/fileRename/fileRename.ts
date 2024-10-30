@@ -137,7 +137,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
       if (image && image.isValid) {
         //console.log("código 5666 - PARTE 9")
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
-        console.log("RESULT TUDO OK:", result)
+        //console.log("RESULT TUDO OK:", result)
       }
     } catch (error) {
       await new BadRequestException(error + 'pushImageToGoogle', 409)
@@ -177,7 +177,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     const sendUpload = await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
 
     if (sendUpload.status === 200) {
-      console.log("IMAGEM INSERIDA COM SUCESSO!!!!!!!!!!!", objfileRename)
+      //console.log("IMAGEM INSERIDA COM SUCESSO!!!!!!!!!!!", objfileRename)
       //chamar função para inserir na tabela indeximages
       if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
         const date_atualization = DateTime.now()
@@ -202,7 +202,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
 
-  console.log("cheguei aqui filerename", originalFileName, "-", typebooks_id, "--", companies_id, "---", dataImages)
+  //console.log("cheguei aqui filerename", originalFileName, "-", typebooks_id, "--", companies_id, "---", dataImages)
 
 
   let objFileName
