@@ -4,6 +4,7 @@ import Typebook from "App/Models/Typebook";
 import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
+import ErrorlogImage from "App/Models/ErrorlogImage";
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
 import { DateTime } from "luxon";
@@ -184,7 +185,8 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         await Indeximage.create(objfileRename)
       }
       else if (sendUpload.status !== 200) {
-        console.log("ERRRRRORRRRRR ERRRRRORRRRRRR", objfileRename.file_name)
+        delete objfileRename.date_atualization
+        await ErrorlogImage.create(objfileRename)
       }
       //chamar função de exclusão da imagem
       await deleteImage(`${folderPath}/${objfileRename.file_name}`)
