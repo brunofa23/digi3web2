@@ -60,7 +60,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
   let result: Object[] = []
   //Verificar se existe o caminho da pasta com as imagens
   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
-  console.log("código 698 - passo 2")
+  //console.log("código 698 - passo 2")
   try {
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath)
@@ -68,7 +68,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
   } catch (error) {
     throw new BadRequestException('could not create client directory', 409, error)
   }
-  console.log("código 698 - passo 3")
+  //console.log("código 698 - passo 3")
   const directoryParent = await Typebook.query()
     .where('id', '=', params.typebooks_id)
     .andWhere('companies_id', '=', companies_id).first()
@@ -92,16 +92,16 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
   await sleep(1000);
   const idParent = await sendSearchFile(directoryParent?.path, cloud_number)
 
-  console.log("código 5666 - PARTE 4")
+  //console.log("código 5666 - PARTE 4")
   //******************************************************************************** */
   //imagem única para upload
   if (capture) {
-    console.log("passei no CAPTURE.....777")
+
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
-    console.log("CAPTURE PARTE 4,5>>", _fileRename)
+    //console.log("CAPTURE PARTE 4,5>>", _fileRename)
 
     try {
-      console.log("código 5666 - PARTE 5")
+    //  console.log("código 5666 - PARTE 5")
       await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, cloud_number, true)
       return images
     } catch (error) {
@@ -110,7 +110,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     }
   }
 
-  console.log("código 5666 - PARTE 6")
+  //console.log("código 5666 - PARTE 6")
   let cont = 0
   let _fileRename
   for (let image of images) {
@@ -126,16 +126,17 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
       console.log("Error", image.errors);
     }
 
-    console.log("código 5666 - PARTE 7",image.clientName,"-", params.typebooks_id,"--", companies_id,"---", dataImages)
+    //console.log("código 5666 - PARTE 7",image.clientName,"-", params.typebooks_id,"--", companies_id,"---", dataImages)
      //************************************************************************************************************* */
 
     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
 
-    console.log("código 5666 - PARTE 8")
+    //console.log("código 5666 - PARTE 8")
     try {
       if (image && image.isValid) {
-        console.log("código 5666 - PARTE 9")
+        //console.log("código 5666 - PARTE 9")
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
+        console.log("RESULT TUDO OK:", result)
       }
     } catch (error) {
       await new BadRequestException(error + 'pushImageToGoogle', 409)
@@ -172,7 +173,14 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
     }
     //copia o arquivo para o googledrive
-    await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
+    const sendUpload = await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
+
+    if(sendUpload.status!==200){
+      console.log("ERRRRRORRRRRR ERRRRRORRRRRRR")
+    }else if(sendUpload.status===200)
+    {
+      console.log("IMAGEM INSERIDA COM SUCESSO!!!!!!!!!!!")
+    }
     //chamar função para inserir na tabela indeximages
     if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
       const date_atualization = DateTime.now()

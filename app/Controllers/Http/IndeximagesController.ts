@@ -236,8 +236,6 @@ export default class IndeximagesController {
   }
 
   public async uploadCapture({ auth, request, params }) {
-
-    console.log("passei no uploadCapture")
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const { imageCaptureBase64, cod, id } = request.requestData
@@ -255,13 +253,9 @@ export default class IndeximagesController {
     const dateNow = formatDate.formatDate(new Date)
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
 
-    console.log("FILENAME 8888>", file_name)
-
     fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
       console.log('File created', { folderPath })
     });
-
-    console.log("cheguei aqui....upload capture 987777", file_name)
 
     const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, company?.cloud, true)
     return { sucesso: "sucesso", file, typebook: params.typebooks_id }
