@@ -4,6 +4,7 @@ import Typebook from "App/Models/Typebook";
 import Indeximage from "App/Models/Indeximage";
 import Application from '@ioc:Adonis/Core/Application'
 import Company from 'App/Models/Company'
+import ErrorlogImage from "App/Models/ErrorlogImage";
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
 import { DateTime } from "luxon";
@@ -54,6 +55,7 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 }
 
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
+
   //**PARTE ONDE CRIA AS PASTAS */
   const _companies_id = companies_id
   let result: Object[] = []
@@ -91,11 +93,16 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
   await sleep(1000);
   const idParent = await sendSearchFile(directoryParent?.path, cloud_number)
 
+  //console.log("código 5666 - PARTE 4")
   //******************************************************************************** */
   //imagem única para upload
   if (capture) {
+
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
+    //console.log("CAPTURE PARTE 4,5>>", _fileRename)
+
     try {
+      //  console.log("código 5666 - PARTE 5")
       await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, cloud_number, true)
       return images
     } catch (error) {
@@ -104,6 +111,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     }
   }
 
+  //console.log("código 5666 - PARTE 6")
   let cont = 0
   let _fileRename
   for (let image of images) {
@@ -119,11 +127,17 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
       console.log("Error", image.errors);
     }
 
+    //console.log("código 5666 - PARTE 7",image.clientName,"-", params.typebooks_id,"--", companies_id,"---", dataImages)
+    //************************************************************************************************************* */
+
     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
 
+    //console.log("código 5666 - PARTE 8")
     try {
       if (image && image.isValid) {
+        //console.log("código 5666 - PARTE 9")
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
+        //console.log("RESULT TUDO OK:", result)
       }
     } catch (error) {
       await new BadRequestException(error + 'pushImageToGoogle', 409)
@@ -160,15 +174,24 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
     }
     //copia o arquivo para o googledrive
-    await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
-    //chamar função para inserir na tabela indeximages
-    if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
-      const date_atualization = DateTime.now()
-      objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm')
-      await Indeximage.create(objfileRename)
+    const sendUpload = await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
+
+    if (sendUpload.status === 200) {
+      //console.log("IMAGEM INSERIDA COM SUCESSO!!!!!!!!!!!", objfileRename)
+      //chamar função para inserir na tabela indeximages
+      if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+        const date_atualization = DateTime.now()
+        objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm')
+        await Indeximage.create(objfileRename)
+      }
+      else if (sendUpload.status !== 200) {
+        delete objfileRename.date_atualization
+        await ErrorlogImage.create(objfileRename)
+      }
+      //chamar função de exclusão da imagem
+      await deleteImage(`${folderPath}/${objfileRename.file_name}`)
     }
-    //chamar função de exclusão da imagem
-    await deleteImage(`${folderPath}/${objfileRename.file_name}`)
+
 
   } catch (error) {
     throw new BadRequestException(error + ' sendUploadFiles', 409)
@@ -178,6 +201,9 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 }
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
+
+  //console.log("cheguei aqui filerename", originalFileName, "-", typebooks_id, "--", companies_id, "---", dataImages)
+
 
   let objFileName
   let separators
@@ -290,8 +316,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           ext: `.${arrayFileName[3]}`
         }
         query.andWhere('book', objFileName.book)
-        query.whereHas('document',query=>{
-          query.where('documents.prot',objFileName.prot)
+        query.whereHas('document', query => {
+          query.where('documents.prot', objFileName.prot)
         })
 
       }
