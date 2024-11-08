@@ -75,7 +75,6 @@ export default class BookrecordsController {
       //data = await queryExecute.paginate(page, limit)
     }
     else if (codMax) {
-      console.log("passei no codmax")
       data = await Database.from('bookrecords')
         .where('companies_id', authenticate.companies_id)
         .where('typebooks_id', params.typebooks_id)
@@ -1081,9 +1080,7 @@ export default class BookrecordsController {
       if(box)
         query.andWhere('book', box)
       .max('cod as max_cod')
-
       const maxCodDocument = await query.first();
-      console.log("maxCodDocument",maxCodDocument?.cod)
 
     return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.cod })
   }

@@ -117,7 +117,6 @@ export default class UsersController {
     // const authenticate = await auth.use('api').authenticate()
     const body = await User.find(params.id)
     if (body && body?.access_images_permanent == 1) {
-      console.log("é permanente")
       return //response.status(201).send(body)
     }
 
