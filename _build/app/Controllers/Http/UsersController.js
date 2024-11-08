@@ -89,7 +89,6 @@ class UsersController {
     async closeAccesImage({ auth, params, request, response }) {
         const body = await User_1.default.find(params.id);
         if (body && body?.access_images_permanent == 1) {
-            console.log("é permanente");
             return;
         }
         const data = await User_1.default.query()
