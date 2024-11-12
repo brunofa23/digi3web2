@@ -55,9 +55,8 @@ class TypebooksController {
     }
     async index({ auth, response, request }) {
         const { companies_id } = await auth.use('api').authenticate();
-        const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles']);
+        const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles', 'isDocument']);
         let data;
-        let query = " 1=1 ";
         if (!companies_id)
             throw new BadRequestException_1.default('company not exists', 401);
         if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
@@ -68,23 +67,29 @@ class TypebooksController {
         }
         else {
             let _status;
+            const queryData = Typebook_1.default.query()
+                .preload('book')
+                .where("companies_id", '=', companies_id);
             if (typebookPayload.status !== undefined) {
                 if (typebookPayload.status === 'TRUE' || typebookPayload.status === '1')
                     _status = 1;
                 else if (typebookPayload.status === 'FALSE' || typebookPayload.status === '0')
                     _status = 0;
-                query += ` and status =${_status} `;
+                queryData.where('status', _status);
             }
             if (typebookPayload.name !== undefined)
-                query += ` and name like '%${typebookPayload.name}%' `;
+                queryData.where('name', 'like', `%${typebookPayload.name}%`);
             if (typebookPayload.books_id !== undefined) {
-                query += ` and books_id = ${typebookPayload.books_id} `;
+                queryData.where('books_id', typebookPayload.books_id);
             }
-            data = await Typebook_1.default.query()
-                .preload('book')
-                .where("companies_id", '=', companies_id)
-                .whereRaw(query)
-                .orderBy('name');
+            if (typebookPayload.isDocument) {
+                if (typebookPayload.isDocument == "true")
+                    queryData.where('books_id', 13);
+                if (typebookPayload.isDocument == "false")
+                    queryData.whereNotIn('books_id', [13]);
+            }
+            queryData.orderBy('name');
+            data = await queryData;
         }
         if (typebookPayload.totalfiles) {
             data = await Typebook_1.default.query()

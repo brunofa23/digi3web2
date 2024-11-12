@@ -64,7 +64,6 @@ class AuthenticationController {
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         try {
-            console.log("passei aqui... access image");
             const limitDataAccess = luxon_1.DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm');
             const user = await User_1.default.query()
                 .where('username', username)
