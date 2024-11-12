@@ -84,7 +84,6 @@ export default class AuthenticationController {
     }
 
     try {
-      console.log("passei aqui... access image")
       const limitDataAccess = DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm')
       const user = await User.query()
         .where('username', username)
