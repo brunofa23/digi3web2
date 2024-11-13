@@ -844,12 +844,10 @@ class BookrecordsController {
         }
         const query = Bookrecord_1.default.query()
             .where('typebooks_id', typebooks_id)
-            .andWhere('companies_id', authenticate.companies_id);
-        if (box)
-            query.andWhere('book', box)
-                .max('cod as max_cod');
-        const maxCodDocument = await query.first();
-        return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.cod });
+            .andWhere('companies_id', authenticate.companies_id)
+            .max('cod as max_cod').first();
+        const maxCodDocument = await query;
+        return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.$extras.max_cod });
     }
 }
 exports.default = BookrecordsController;
