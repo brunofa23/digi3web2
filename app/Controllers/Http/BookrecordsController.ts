@@ -781,9 +781,11 @@ export default class BookrecordsController {
     }
   }
 
-  public async bookSummary({ auth, params, response }: HttpContextContract) {
+  public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
+    const { book } = request.qs()
+    console.log("body:", book, request.qs())
 
     try {
       const query = Database
@@ -813,8 +815,10 @@ export default class BookrecordsController {
   `))
         .where('companies_id', authenticate.companies_id)
         .andWhere('typebooks_id', typebooks_id)
-        .groupBy('book', 'indexbook')
-        .orderBy('bookrecords.book')
+      if (book > 0)
+        query.andWhere('book', book)
+          .groupBy('book', 'indexbook')
+          .orderBy('bookrecords.book')
       const bookSummaryPayload = await query
       //**************************************** */
       //FUNÇÃO PARA CONTAR FOLHAS NÃO EXISTENTES
@@ -1055,9 +1059,9 @@ export default class BookrecordsController {
 
   public async maxBookRecord({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const {box, typebooks_id} = request.only(['box', 'typebooks_id'])
+    const { box, typebooks_id } = request.only(['box', 'typebooks_id'])
 
-    if(typebooks_id==undefined)
+    if (typebooks_id == undefined)
       return
 
     const maxBook = await Bookrecord.query()
@@ -1080,7 +1084,7 @@ export default class BookrecordsController {
       // if(box)
       //   query.andWhere('book', box)
       .max('cod as max_cod').first()
-      const maxCodDocument = await query;
+    const maxCodDocument = await query;
 
     return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.$extras.max_cod })
   }
