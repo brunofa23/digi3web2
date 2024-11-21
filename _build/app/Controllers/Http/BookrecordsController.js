@@ -611,8 +611,8 @@ class BookrecordsController {
     async bookSummary({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
-        const { book } = request.qs();
-        console.log("body:", book, request.qs());
+        const { book, bookStart, bookEnd } = request.qs();
+        console.log("body:", bookStart, bookEnd, request.qs());
         try {
             const query = Database_1.default
                 .from('bookrecords')
@@ -641,10 +641,17 @@ class BookrecordsController {
   `))
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('typebooks_id', typebooks_id);
-            if (book > 0)
-                query.andWhere('book', book)
-                    .groupBy('book', 'indexbook')
-                    .orderBy('bookrecords.book');
+            if (book > 0) {
+                query.andWhere('book', book);
+            }
+            else if (bookStart > 0 || bookEnd > 0) {
+                if (bookStart > 0)
+                    query.andWhere('book', '>=', bookStart);
+                if (bookEnd > 0)
+                    query.andWhere('book', '<=', bookEnd);
+            }
+            query.groupBy('book', 'indexbook');
+            query.orderBy('bookrecords.book');
             const bookSummaryPayload = await query;
             async function countSheet(book) {
                 const query = `WITH RECURSIVE NumberList AS (
