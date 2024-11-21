@@ -784,8 +784,8 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
-    const { book } = request.qs()
-    console.log("body:", book, request.qs())
+    const { book, bookStart, bookEnd } = request.qs()
+    console.log("body:", bookStart, bookEnd, request.qs())
 
     try {
       const query = Database
@@ -815,10 +815,20 @@ export default class BookrecordsController {
   `))
         .where('companies_id', authenticate.companies_id)
         .andWhere('typebooks_id', typebooks_id)
-      if (book > 0)
+      if (book > 0) {
         query.andWhere('book', book)
-          .groupBy('book', 'indexbook')
-          .orderBy('bookrecords.book')
+      } else if (bookStart > 0 || bookEnd > 0) {
+        if(bookStart >0)
+          query.andWhere('book','>=', bookStart)
+        if(bookEnd >0)
+          query.andWhere('book','<=', bookEnd)
+      }
+
+      query.groupBy('book', 'indexbook')
+      query.orderBy('bookrecords.book')
+
+      //console.log(query.toQuery())
+
       const bookSummaryPayload = await query
       //**************************************** */
       //FUNÇÃO PARA CONTAR FOLHAS NÃO EXISTENTES
@@ -844,7 +854,6 @@ export default class BookrecordsController {
         const result = await Database.rawQuery(query);
         const data = result[0] || []
         const values = data.map(row => row.sheet);
-        //const values = data.map(row => `${row.sheet}${row.side}`);
         const valuesString = values.join(',')
         return valuesString
       }
@@ -854,7 +863,6 @@ export default class BookrecordsController {
         item.noSheet = await countSheet(item.book)
         bookSumaryList.push(item)
       }
-
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
@@ -864,7 +872,6 @@ export default class BookrecordsController {
   }
 
   public async sheetWithSide({ auth, params, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
     const { typebooks_id, book } = params
     const query = `WITH RECURSIVE NumberList AS (
@@ -908,12 +915,9 @@ export default class BookrecordsController {
 
   public async updatedFiles({ auth, request, response }: HttpContextContract) {
     //const authenticate = await auth.use('api').authenticate()
-
     const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side, typebooks_id } =
       request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side'])
-
     let query = '1=1'
-
     if (companies_id == undefined || companies_id == null) {
       throw new BadRequestException('Bad Request', 401, "Sem empresa Selecionada")
     }
