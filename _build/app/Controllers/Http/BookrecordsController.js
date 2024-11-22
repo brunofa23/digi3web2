@@ -611,8 +611,7 @@ class BookrecordsController {
     async bookSummary({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
-        const { book, bookStart, bookEnd } = request.qs();
-        console.log("body:", bookStart, bookEnd, request.qs());
+        const { book, bookStart, bookEnd, countSheetNotExists } = request.qs();
         try {
             const query = Database_1.default
                 .from('bookrecords')
@@ -678,9 +677,11 @@ class BookrecordsController {
                 return valuesString;
             }
             const bookSumaryList = [];
-            for (const item of bookSummaryPayload) {
-                item.noSheet = await countSheet(item.book);
-                bookSumaryList.push(item);
+            if (countSheetNotExists) {
+                for (const item of bookSummaryPayload) {
+                    item.noSheet = await countSheet(item.book);
+                    bookSumaryList.push(item);
+                }
             }
             return response.status(200).send(bookSummaryPayload);
         }
