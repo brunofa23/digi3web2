@@ -784,8 +784,8 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
-    const { book, bookStart, bookEnd } = request.qs()
-    console.log("body:", bookStart, bookEnd, request.qs())
+    const { book, bookStart, bookEnd, countSheetNotExists } = request.qs()
+
 
     try {
       const query = Database
@@ -818,16 +818,14 @@ export default class BookrecordsController {
       if (book > 0) {
         query.andWhere('book', book)
       } else if (bookStart > 0 || bookEnd > 0) {
-        if(bookStart >0)
-          query.andWhere('book','>=', bookStart)
-        if(bookEnd >0)
-          query.andWhere('book','<=', bookEnd)
+        if (bookStart > 0)
+          query.andWhere('book', '>=', bookStart)
+        if (bookEnd > 0)
+          query.andWhere('book', '<=', bookEnd)
       }
 
       query.groupBy('book', 'indexbook')
       query.orderBy('bookrecords.book')
-
-      //console.log(query.toQuery())
 
       const bookSummaryPayload = await query
       //**************************************** */
@@ -859,9 +857,11 @@ export default class BookrecordsController {
       }
 
       const bookSumaryList = []
-      for (const item of bookSummaryPayload) {
-        item.noSheet = await countSheet(item.book)
-        bookSumaryList.push(item)
+      if (countSheetNotExists) {
+        for (const item of bookSummaryPayload) {
+          item.noSheet = await countSheet(item.book)
+          bookSumaryList.push(item)
+        }
       }
       return response.status(200).send(bookSummaryPayload)
 
