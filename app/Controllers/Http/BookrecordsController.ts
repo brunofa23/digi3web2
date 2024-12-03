@@ -227,6 +227,48 @@ export default class BookrecordsController {
     return response.status(200).send(data)
   }
 
+  public async fastFindDocuments({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const { prot, dateStart, dateEnd, book_number, book_name, sheet_number, avert_anot, typebook }
+      = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook'])
+
+      const body = request.body()
+      console.log(body)
+
+    const query = Bookrecord.query()
+    .innerJoin('documents','bookrecords.id','bookrecords_id')
+      .where("bookrecords.companies_id", authenticate.companies_id)
+      .preload('indeximage', (subQuery) => {
+        subQuery.select('indeximages.*'); // Se necessário, ajuste os campos a serem carregados
+        subQuery.where('companies_id', authenticate.companies_id)
+      })
+      .preload('typebooks', (subQuery) => {
+        subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
+        subQuery.where('companies_id', authenticate.companies_id)
+      });
+
+      if(prot)
+        query.where('documents.prot', prot);
+     if (book_number)
+        query.where('documents.book_number', book_number);
+    if (sheet_number)
+       query.where('documents.sheet_number', sheet_number);
+    //  if (typebook)
+    //     query.where('bookrecords.typebooks_id', typebook);
+      if(book_name)
+        query.where('documents.book_name', book_name)
+
+    query.orderBy('bookrecords.book', 'asc')
+      .orderBy('bookrecords.cod', 'asc')
+      .orderBy('bookrecords.sheet', 'asc');
+
+      console.log(query.toQuery())
+
+    const data = await query
+
+    return response.status(200).send(data)
+  }
+
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
     return {
