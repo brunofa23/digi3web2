@@ -236,12 +236,18 @@ export default class BookrecordsController {
     //console.log(">>>>", request.requestData)
 
     const query = Bookrecord.query()
-      .innerJoin('documents', 'bookrecords.id', 'bookrecords_id')
+      .innerJoin('documents', 'bookrecords.id', 'documents.bookrecords_id')
       .where("bookrecords.companies_id", authenticate.companies_id)
-      .preload('indeximage', (subQuery) => {
-        subQuery.select('indeximages.*'); // Se necessário, ajuste os campos a serem carregados
-        subQuery.where('companies_id', authenticate.companies_id)
+      // .preload('indeximage', (subQuery) => {
+      //   subQuery.select('indeximages.*'); // Se necessário, ajuste os campos a serem carregados
+      //   subQuery.where('companies_id', authenticate.companies_id)
+      // })
+      .innerJoin('indeximages', (join) => {
+        join.on('bookrecords.id', 'indeximages.bookrecords_id')
+          .andOn('bookrecords.companies_id', 'indeximages.companies_id')
+          .andOn('bookrecords.typebooks_id','indeximages.typebooks_id')
       })
+      .preload('indeximage')
       .preload('typebooks', (subQuery) => {
         subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
         subQuery.where('companies_id', authenticate.companies_id)
