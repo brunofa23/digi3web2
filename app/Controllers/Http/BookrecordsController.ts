@@ -192,7 +192,6 @@ export default class BookrecordsController {
       })
     }
     //*******************************************************************/
-    //console.log(queryExecute.toQuery())
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
   }
@@ -200,7 +199,8 @@ export default class BookrecordsController {
   public async fastFind({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const { book, sheet, typebook } = request.only(['book', 'sheet', 'typebook'])
-
+    if (!book || !sheet)
+      return
     const query = Bookrecord.query()
       .where("bookrecords.companies_id", authenticate.companies_id)
       .preload('indeximage', (subQuery) => {
@@ -211,7 +211,6 @@ export default class BookrecordsController {
         subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
         subQuery.where('companies_id', authenticate.companies_id)
       });
-
     if (book)
       query.where('bookrecords.book', book);
     if (sheet)
@@ -224,6 +223,54 @@ export default class BookrecordsController {
       .orderBy('bookrecords.sheet', 'asc');
     const data = await query
 
+    return response.status(200).send(data)
+  }
+
+  public async fastFindDocuments({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const { prot, dateStart, dateEnd, book_number, book_name, sheet_number }
+      = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook'])
+    const query = Bookrecord.query()
+      .select('bookrecords.*')
+      .innerJoin('documents', (join) => {
+        join.on('bookrecords.id', 'documents.bookrecords_id')
+          .andOn('bookrecords.companies_id', 'documents.companies_id')
+      })
+      .where("bookrecords.companies_id", authenticate.companies_id)
+      .innerJoin('indeximages', (join) => {
+        join.on('bookrecords.id', 'indeximages.bookrecords_id')
+          .andOn('bookrecords.companies_id', 'indeximages.companies_id')
+          .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id')
+      })
+      .preload('document')
+      .preload('indeximage')
+      .preload('typebooks', (subQuery) => {
+        subQuery.select('typebooks.name'); // Se necessário, ajuste os campos a serem carregados
+        subQuery.where('companies_id', authenticate.companies_id)
+      });
+
+    if (prot)
+      query.where('documents.prot', '=', prot)
+    if (dateStart)
+      query.where('documents.created_at', '>=', dateStart)
+    if (dateEnd)
+      query.where('documents.created_at', '<=', dateEnd)
+    if (prot)
+      query.where('documents.prot', prot);
+    if (book_number)
+      query.where('documents.book_number', book_number);
+    if (sheet_number)
+      query.where('documents.sheet_number', sheet_number);
+    //  if (typebook)
+    //     query.where('bookrecords.typebooks_id', typebook);
+    if (book_name)
+      query.where('documents.book_name', book_name)
+
+    query.orderBy('bookrecords.book', 'asc')
+      .orderBy('bookrecords.cod', 'asc')
+      .orderBy('bookrecords.sheet', 'asc');
+
+    const data = await query
     return response.status(200).send(data)
   }
 
