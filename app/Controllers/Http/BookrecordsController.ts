@@ -192,7 +192,6 @@ export default class BookrecordsController {
       })
     }
     //*******************************************************************/
-    //console.log(queryExecute.toQuery())
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
   }
@@ -200,7 +199,8 @@ export default class BookrecordsController {
   public async fastFind({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const { book, sheet, typebook } = request.only(['book', 'sheet', 'typebook'])
-
+    if (!book || !sheet)
+      return
     const query = Bookrecord.query()
       .where("bookrecords.companies_id", authenticate.companies_id)
       .preload('indeximage', (subQuery) => {
@@ -211,7 +211,6 @@ export default class BookrecordsController {
         subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
         subQuery.where('companies_id', authenticate.companies_id)
       });
-
     if (book)
       query.where('bookrecords.book', book);
     if (sheet)
@@ -227,32 +226,31 @@ export default class BookrecordsController {
     return response.status(200).send(data)
   }
 
-  public async fastFindDocuments({ auth, request, params, response }: HttpContextContract) {
+  public async fastFindDocuments({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const { prot, dateStart, dateEnd, book_number, book_name, sheet_number, avert_anot, typebook }
+    const { prot, dateStart, dateEnd, book_number, book_name, sheet_number }
       = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook'])
-
-    //const body = request.body()
-    //console.log(">>>>", request.requestData)
-
     const query = Bookrecord.query()
-      .innerJoin('documents', 'bookrecords.id', 'documents.bookrecords_id')
+      .select('bookrecords.*')
+      .innerJoin('documents', (join) => {
+        join.on('bookrecords.id', 'documents.bookrecords_id')
+          .andOn('bookrecords.companies_id', 'documents.companies_id')
+      })
       .where("bookrecords.companies_id", authenticate.companies_id)
-      // .preload('indeximage', (subQuery) => {
-      //   subQuery.select('indeximages.*'); // Se necessário, ajuste os campos a serem carregados
-      //   subQuery.where('companies_id', authenticate.companies_id)
-      // })
       .innerJoin('indeximages', (join) => {
         join.on('bookrecords.id', 'indeximages.bookrecords_id')
           .andOn('bookrecords.companies_id', 'indeximages.companies_id')
-          .andOn('bookrecords.typebooks_id','indeximages.typebooks_id')
+          .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id')
       })
+      .preload('document')
       .preload('indeximage')
       .preload('typebooks', (subQuery) => {
-        subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
+        subQuery.select('typebooks.name'); // Se necessário, ajuste os campos a serem carregados
         subQuery.where('companies_id', authenticate.companies_id)
       });
 
+    if (prot)
+      query.where('documents.prot', '=', prot)
     if (dateStart)
       query.where('documents.created_at', '>=', dateStart)
     if (dateEnd)
@@ -272,10 +270,7 @@ export default class BookrecordsController {
       .orderBy('bookrecords.cod', 'asc')
       .orderBy('bookrecords.sheet', 'asc');
 
-    console.log(query.toQuery())
-
     const data = await query
-
     return response.status(200).send(data)
   }
 
