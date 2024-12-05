@@ -237,7 +237,7 @@ export default class BookrecordsController {
           .andOn('bookrecords.companies_id', 'documents.companies_id')
       })
       .where("bookrecords.companies_id", authenticate.companies_id)
-      .innerJoin('indeximages', (join) => {
+      .leftOuterJoin('indeximages', (join) => {
         join.on('bookrecords.id', 'indeximages.bookrecords_id')
           .andOn('bookrecords.companies_id', 'indeximages.companies_id')
           .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id')
@@ -269,6 +269,8 @@ export default class BookrecordsController {
     query.orderBy('bookrecords.book', 'asc')
       .orderBy('bookrecords.cod', 'asc')
       .orderBy('bookrecords.sheet', 'asc');
+
+      //console.log(query.toQuery())
 
     const data = await query
     return response.status(200).send(data)
