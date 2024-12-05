@@ -172,7 +172,7 @@ class BookrecordsController {
                 .andOn('bookrecords.companies_id', 'documents.companies_id');
         })
             .where("bookrecords.companies_id", authenticate.companies_id)
-            .innerJoin('indeximages', (join) => {
+            .leftOuterJoin('indeximages', (join) => {
             join.on('bookrecords.id', 'indeximages.bookrecords_id')
                 .andOn('bookrecords.companies_id', 'indeximages.companies_id')
                 .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id');
