@@ -98,9 +98,12 @@ Route.group(() => {
   Route.post("/tokentoimages", "TokenToImagesController.store").middleware('tokentoimages_permission:post')
   Route.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
 
-
   //READFILES
   Route.post("/readfile","ReadFilesController.readFile")
+
+  //MAIL MANANGER
+  Route.post("/sendmailcontactwebsite","MailmanangersController.sendMailContactWebsite")
+
 
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
