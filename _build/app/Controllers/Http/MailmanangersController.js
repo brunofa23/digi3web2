@@ -10,8 +10,8 @@ class MailmanangersController {
         try {
             const sendmail = await Mail_1.default.send((message) => {
                 message.from('no-reply@mgcartorios.com.br')
-                    .to("brunofa23@gmail.com")
-                    .cc("favatoamaral@gmail.com")
+                    .to("cunhavandir@gmail.com")
+                    .cc("comercialdigi3@gmail.com")
                     .cc("sistemasdigi3@gmail.com")
                     .priority("high")
                     .subject('Formulário de Contato - Digi3')
