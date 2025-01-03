@@ -583,6 +583,100 @@ class BookrecordsController {
             throw new BadRequestException_1.default("Bad Request", 402, error);
         }
     }
+    async generateOrUpdateBookrecords2({ auth, request, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term } = request.only(['start_cod', 'end_cod', 'book', 'book_replace', 'sheet', 'side', 'model_book', 'books_id', 'indexbook', 'year', 'approximate_term']);
+        let bookRecord = {};
+        if (start_cod > end_cod)
+            throw new BadRequestException_1.default("erro: codigo inicial maior que o final");
+        async function modelBookNext(side, sheet) {
+            if (!side || !model_book)
+                return { side, sheet };
+            if (model_book === "C") {
+                side = null;
+                sheet = 0;
+            }
+            else if (model_book === "F") {
+                side = "F";
+                sheet = sheet !== null ? sheet + 1 : null;
+            }
+            else if (model_book === "V") {
+                side = "V";
+                sheet = sheet !== null ? sheet + 1 : null;
+            }
+            else if (model_book === "FV") {
+                side = side === "F" ? "V" : "F";
+                sheet = sheet !== null ? sheet + 1 : null;
+            }
+            else if (model_book === "FVFV") {
+                if (side === "V")
+                    sheet = sheet !== null ? sheet + 1 : null;
+                side = side === "F" ? "V" : "F";
+            }
+            else if (model_book === "F-IMPAR") {
+                sheet = sheet !== null ? sheet + 2 : null;
+            }
+            else if (model_book === "V-PAR") {
+                sheet = sheet !== null ? sheet + 2 : null;
+            }
+            return { side, sheet };
+        }
+        try {
+            let model_book_state = { side: side || null, sheet: sheet || null };
+            while (start_cod <= end_cod) {
+                bookRecord = {
+                    cod: start_cod,
+                    typebooks_id: params.typebooks_id,
+                    books_id: books_id,
+                    book: book,
+                    companies_id: authenticate.companies_id,
+                    indexbook: indexbook,
+                    year: year,
+                    approximate_term: approximate_term ? approximate_term++ : undefined
+                };
+                if (side && model_book) {
+                    bookRecord.side = model_book_state.side;
+                    bookRecord.sheet = model_book_state.sheet;
+                    model_book_state = await modelBookNext(bookRecord.side, bookRecord.sheet);
+                }
+                else if (sheet) {
+                    bookRecord.sheet = sheet;
+                    sheet++;
+                }
+                const query = Bookrecord_1.default.query()
+                    .where('cod', bookRecord.cod)
+                    .andWhere('companies_id', authenticate.companies_id)
+                    .andWhere('typebooks_id', bookRecord.typebooks_id)
+                    .andWhere('books_id', books_id)
+                    .andWhere('book', bookRecord.book);
+                const verifyBookRecord = await query.first();
+                if (book_replace) {
+                    bookRecord.book = book_replace;
+                }
+                if (bookRecord.sheet == null) {
+                    bookRecord.sheet = undefined;
+                }
+                if (verifyBookRecord) {
+                    await Bookrecord_1.default.query()
+                        .where('id', verifyBookRecord.id)
+                        .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
+                        .andWhere('companies_id', verifyBookRecord.companies_id)
+                        .andWhere('books_id', verifyBookRecord.books_id)
+                        .andWhere('book', verifyBookRecord.book)
+                        .update(bookRecord);
+                }
+                else {
+                    await Bookrecord_1.default.create(bookRecord);
+                }
+                start_cod++;
+            }
+            const successValidation = await new validations_1.default('bookrecord_success_100');
+            return response.status(201).send(successValidation.code);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default("Bad Request", 402, error);
+        }
+    }
     async indeximagesinitial({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         let listFiles;
