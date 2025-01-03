@@ -1060,6 +1060,7 @@ export default class BookrecordsController {
         if (bookRecord.sheet == null) {
           bookRecord.sheet = undefined
         }
+
         if (verifyBookRecord) {
           // UPDATE
           await Bookrecord.query()
