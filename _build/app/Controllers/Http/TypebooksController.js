@@ -31,7 +31,7 @@ class TypebooksController {
                     yeardoc: "Ano",
                     documenttype_id: "Tipo Documento",
                     free: "Gratuito",
-                    book_name: "Nome do Livro",
+                    book_name: "Livro",
                     book_number: "Num. Livro",
                     sheet_number: "Folha"
                 });
