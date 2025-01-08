@@ -164,35 +164,44 @@ class IndeximagesController {
             }
         }
         else if (updateImageDocument) {
-            const trx = await Database_1.default.beginGlobalTransaction();
-            try {
-                const bookRecord = await Bookrecord_1.default.create({
-                    typebooks_id: params.typebooks_id,
-                    companies_id: authenticate.companies_id,
-                    cod: dataImages.cod,
-                    book: dataImages.book,
-                    side: dataImages.side,
-                    books_id: 13
-                }, trx);
-                const document = await Document_1.default.create({
-                    bookrecords_id: bookRecord.id,
-                    books_id: 13,
-                    typebooks_id: params.typebooks_id,
-                    companies_id: authenticate.companies_id,
-                    prot: dataImages.prot,
-                    documenttype_id: dataImages.documenttype_id,
-                    book_name: dataImages.book_name,
-                    book_number: dataImages.book_number,
-                    sheet_number: dataImages.sheet_number,
-                    free: dataImages.free ? 1 : 0,
-                    averb_anot: dataImages.averb_anot ? 1 : 0
-                }, trx);
-                dataImages.id = bookRecord.id;
-                await trx.commit();
+            const verifyExistBookrecord = await Bookrecord_1.default.query()
+                .where('companies_id', authenticate.companies_id)
+                .andWhere('cod', dataImages.cod)
+                .andWhere('typebooks_id', params.typebooks_id).first();
+            if (verifyExistBookrecord) {
+                dataImages.id = verifyExistBookrecord.id;
             }
-            catch (error) {
-                await trx.rollback();
-                throw error;
+            else {
+                const trx = await Database_1.default.beginGlobalTransaction();
+                try {
+                    const bookRecord = await Bookrecord_1.default.create({
+                        typebooks_id: params.typebooks_id,
+                        companies_id: authenticate.companies_id,
+                        cod: dataImages.cod,
+                        book: dataImages.book,
+                        side: dataImages.side,
+                        books_id: 13
+                    }, trx);
+                    const document = await Document_1.default.create({
+                        bookrecords_id: bookRecord.id,
+                        books_id: 13,
+                        typebooks_id: params.typebooks_id,
+                        companies_id: authenticate.companies_id,
+                        prot: dataImages.prot,
+                        documenttype_id: dataImages.documenttype_id,
+                        book_name: dataImages.book_name,
+                        book_number: dataImages.book_number,
+                        sheet_number: dataImages.sheet_number,
+                        free: dataImages.free ? 1 : 0,
+                        averb_anot: dataImages.averb_anot ? 1 : 0
+                    }, trx);
+                    dataImages.id = bookRecord.id;
+                    await trx.commit();
+                }
+                catch (error) {
+                    await trx.rollback();
+                    throw error;
+                }
             }
         }
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
