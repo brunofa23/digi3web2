@@ -193,39 +193,49 @@ export default class IndeximagesController {
       }
     } else if (updateImageDocument)//ATUALIZAÇÃO DE DOCUMENTOS
     {
-      //console.log("upload de Documentos...", dataImages)
       //SEMPRE CRIAR UM NOVO REGISTRO
-      const trx = await Database.beginGlobalTransaction()
-      try {
-        const bookRecord = await Bookrecord.create({
-          typebooks_id: params.typebooks_id,
-          companies_id: authenticate.companies_id,
-          cod: dataImages.cod,
-          book: dataImages.book,
-          side: dataImages.side,
-          books_id: 13
-        }, trx)
+      const verifyExistBookrecord = await Bookrecord.query()
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('cod', dataImages.cod)
+        .andWhere('typebooks_id', params.typebooks_id).first()
 
-        const document = await Document.create({
-          bookrecords_id: bookRecord.id,
-          books_id: 13,
-          typebooks_id: params.typebooks_id,
-          companies_id: authenticate.companies_id,
-          prot: dataImages.prot,
-          documenttype_id: dataImages.documenttype_id,
-          book_name: dataImages.book_name,
-          book_number: dataImages.book_number,
-          sheet_number: dataImages.sheet_number,
-          free: dataImages.free ? 1 : 0,
-          averb_anot: dataImages.averb_anot ?1:0
-        }, trx)
-        dataImages.id = bookRecord.id
+      //SE EXISTIR CODIGO E LIVRO DE DOCUMENTO INCLUI IMAGEM NO MESMO REGISTRO
+      if (verifyExistBookrecord) {
+        dataImages.id = verifyExistBookrecord.id
+      } else {
+        const trx = await Database.beginGlobalTransaction()
+        try {
+          const bookRecord = await Bookrecord.create({
+            typebooks_id: params.typebooks_id,
+            companies_id: authenticate.companies_id,
+            cod: dataImages.cod,
+            book: dataImages.book,
+            side: dataImages.side,
+            books_id: 13
+          }, trx)
 
-        await trx.commit()
-      } catch (error) {
-        await trx.rollback()
-        throw error
+          const document = await Document.create({
+            bookrecords_id: bookRecord.id,
+            books_id: 13,
+            typebooks_id: params.typebooks_id,
+            companies_id: authenticate.companies_id,
+            prot: dataImages.prot,
+            documenttype_id: dataImages.documenttype_id,
+            book_name: dataImages.book_name,
+            book_number: dataImages.book_number,
+            sheet_number: dataImages.sheet_number,
+            free: dataImages.free ? 1 : 0,
+            averb_anot: dataImages.averb_anot ? 1 : 0
+          }, trx)
+          dataImages.id = bookRecord.id
+
+          await trx.commit()
+        } catch (error) {
+          await trx.rollback()
+          throw error
+        }
       }
+
 
     }
 
@@ -267,9 +277,6 @@ export default class IndeximagesController {
     const fileName = params.id
     const company = await Company.find(authenticate.companies_id)
     const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
-
-    //console.log("file::::::::", fileDownload)
-
     return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }
 
   }
