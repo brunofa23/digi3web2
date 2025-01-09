@@ -328,7 +328,7 @@ async function downloadFile(authClient, fileId, extension) {
     var imageType
     if (extension.toLowerCase() == ".jpeg" || extension.toLowerCase() == ".jpg"
       || extension.toLowerCase() == ".gif" || extension.toLowerCase() == ".bmp"
-      || extension.toLowerCase() == ".png"
+      || extension.toLowerCase() == ".png" || extension.toLowerCase() == ".jfif"
     )
       imageType = file.headers['content-type'];
     else if (extension == ".pdf")
