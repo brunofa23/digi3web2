@@ -197,9 +197,11 @@ class BookrecordsController {
             query.where('documents.sheet_number', sheet_number);
         if (book_name)
             query.where('documents.book_name', book_name);
+        query.groupBy('bookrecords.id', 'bookrecords.typebooks_id', 'bookrecords.books_id', 'bookrecords.companies_id', 'bookrecords.cod', 'bookrecords.book', 'bookrecords.sheet', 'bookrecords.side', 'bookrecords.approximate_term', 'bookrecords.indexbook', 'bookrecords.letter', 'bookrecords.year', 'bookrecords.model');
         query.orderBy('bookrecords.book', 'asc')
             .orderBy('bookrecords.cod', 'asc')
             .orderBy('bookrecords.sheet', 'asc');
+        console.log(query.toQuery());
         const data = await query;
         return response.status(200).send(data);
     }
