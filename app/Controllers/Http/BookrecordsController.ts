@@ -266,9 +266,27 @@ export default class BookrecordsController {
     if (book_name)
       query.where('documents.book_name', book_name)
 
+    query.groupBy(
+      'bookrecords.id',
+      'bookrecords.typebooks_id',
+      'bookrecords.books_id',
+      'bookrecords.companies_id',
+      'bookrecords.cod',
+      'bookrecords.book',
+      'bookrecords.sheet',
+      'bookrecords.side',
+      'bookrecords.approximate_term',
+      'bookrecords.indexbook',
+      'bookrecords.letter',
+      'bookrecords.year',
+      'bookrecords.model',
+    )
+
     query.orderBy('bookrecords.book', 'asc')
       .orderBy('bookrecords.cod', 'asc')
       .orderBy('bookrecords.sheet', 'asc');
+
+    console.log(query.toQuery())
 
     const data = await query
     return response.status(200).send(data)
@@ -746,7 +764,7 @@ export default class BookrecordsController {
     //SUBSTITUI O NUMERO DO LIVRO
   }
 
-  
+
   public async generateOrUpdateBookrecords2({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate();
     let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term } =
@@ -790,8 +808,8 @@ export default class BookrecordsController {
           book: book,
           companies_id: authenticate.companies_id,
           indexbook: indexbook,
-          year:year,
-          approximate_term:approximate_term?approximate_term++:undefined
+          year: year,
+          approximate_term: approximate_term ? approximate_term++ : undefined
         };
 
         if (side && model_book) {
