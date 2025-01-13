@@ -946,8 +946,7 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
-    const { book, bookStart, bookEnd, countSheetNotExists } = request.qs()
-
+    const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs()
 
     try {
       const query = Database
@@ -1018,13 +1017,77 @@ export default class BookrecordsController {
         return valuesString
       }
 
+
+      //************************************************************ */
+      //transformar em função
+      async function verifySide(book:number=0) {
+        console.log("passo 1")
+
+        let sideCondition = ''
+        if (side === 'V') {
+          sideCondition = `SELECT 'V' AS side`;
+        } else if (side === 'F') {
+          sideCondition = `SELECT 'F' AS side`;
+        } else {
+          sideCondition = `
+    SELECT 'V' AS side
+    UNION ALL
+    SELECT 'F' AS side
+  `;
+        }
+
+        const sheetWithSide = `WITH RECURSIVE NumberList AS (
+                      SELECT 1 AS sheet
+                      UNION ALL
+                      SELECT sheet + 1
+                      FROM NumberList
+                      WHERE sheet < (
+                        SELECT MAX(sheet)
+                        FROM bookrecords
+                        WHERE companies_id=${authenticate.companies_id}
+                          AND typebooks_id=${typebooks_id}
+                          ${book ? `AND book=${book}` : ''}
+                      )
+                    ),
+                    Sides AS (
+                      ${sideCondition}
+                    ),
+                    PossibleCombinations AS (
+                      SELECT nl.sheet, s.side
+                      FROM NumberList nl
+                      CROSS JOIN Sides s
+                    )
+                    SELECT pc.sheet, pc.side
+                    FROM PossibleCombinations pc
+                    WHERE NOT EXISTS (
+                      SELECT 1
+                      FROM bookrecords br
+                      WHERE br.sheet = pc.sheet
+                        AND br.side = pc.side
+                        AND br.companies_id = ${authenticate.companies_id}
+                        AND br.typebooks_id = ${typebooks_id}
+                        ${book ? `AND br.book = ${book}` : ''}
+                    );`
+
+        const result = await Database.rawQuery(sheetWithSide);
+        console.log("passo 3")
+        const data = result[0] || []
+        const values = data.map(row => `${row.sheet}${row.side}`);
+        const valuesString = values.join(', ')
+        return valuesString
+      }
+      //************************************************************ */
+
       const bookSumaryList = []
       if (countSheetNotExists) {
         for (const item of bookSummaryPayload) {
+          console.log("passando 156")
           item.noSheet = await countSheet(item.book)
-          bookSumaryList.push(item)
+          item.side = await verifySide(item.book)
+            bookSumaryList.push(item)
         }
       }
+      console.log(bookSummaryPayload)
       return response.status(200).send(bookSummaryPayload)
 
     } catch (error) {
