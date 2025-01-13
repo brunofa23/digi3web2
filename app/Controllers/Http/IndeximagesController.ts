@@ -120,7 +120,7 @@ export default class IndeximagesController {
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
       size: '100mb',
-      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF'],
+      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
     })
 
     const { dataImages } = request['requestBody']
