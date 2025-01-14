@@ -948,6 +948,8 @@ export default class BookrecordsController {
     const typebooks_id = params.typebooks_id
     const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs()
 
+    console.log("side:", countSheetNotExists)
+
     try {
       const query = Database
         .from('bookrecords')
@@ -1020,81 +1022,106 @@ export default class BookrecordsController {
 
       //************************************************************ */
       //transformar em função
-      async function verifySide(book:number=0) {
-        console.log("passo 1")
+      async function verifySide(book: number = 0) {
 
-        let sideCondition = ''
-        if (side === 'V') {
-          sideCondition = `SELECT 'V' AS side`;
-        } else if (side === 'F') {
-          sideCondition = `SELECT 'F' AS side`;
-        } else {
-          sideCondition = `
-    SELECT 'V' AS side
-    UNION ALL
-    SELECT 'F' AS side
-  `;
+        // let sideCondition = ''
+        // if (countSheetNotExists) {
+        //   if (countSheetNotExists === 'V') {
+        //     sideCondition = `SELECT 'V' AS side`;
+        //   } else if (countSheetNotExists === 'F') {
+        //     sideCondition = `SELECT 'F' AS side`;
+        //   } else {
+        //     sideCondition = `SELECT 'V' AS side
+        //     UNION ALL      SELECT 'F' AS side
+        //     `;
+        //   }
+        // }
+
+        // const sheetWithSide = `WITH RECURSIVE NumberList AS (
+        //               SELECT 1 AS sheet
+        //               UNION ALL
+        //               SELECT sheet + 1
+        //               FROM NumberList
+        //               WHERE sheet < (
+        //                 SELECT MAX(sheet)
+        //                 FROM bookrecords
+        //                 WHERE companies_id=${authenticate.companies_id}
+        //                   AND typebooks_id=${typebooks_id}
+        //                   ${book ? `AND book=${book}` : ''}
+        //               )
+        //             ),
+        //             Sides AS (
+        //               ${sideCondition}
+        //             ),
+        //             PossibleCombinations AS (
+        //               SELECT nl.sheet, s.side
+        //               FROM NumberList nl
+        //               CROSS JOIN Sides s
+        //             )
+        //             SELECT pc.sheet, pc.side
+        //             FROM PossibleCombinations pc
+        //             WHERE NOT EXISTS (
+        //               SELECT 1
+        //               FROM bookrecords br
+        //               WHERE br.sheet = pc.sheet
+        //                 AND br.side = pc.side
+        //                 AND br.companies_id = ${authenticate.companies_id}
+        //                 AND br.typebooks_id = ${typebooks_id}
+        //                 ${book ? `AND br.book = ${book}` : ''}
+        //             );`
+
+        const sheetWithSide = await Bookrecord.query()
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('typebooks_id', typebooks_id)
+          .andWhere('book', book)
+        const sheetCount = []
+        for (const item of sheetWithSide) {
+          sheetCount.push({ sheet: item.sheet, side: item.side })
         }
+        const maxSheet = sheetCount.reduce((max, item) => item.sheet > max ? item.sheet : max, 0);
+        // Gerar a lista completa de combinações possíveis
+        const completeList = [];
+        let sides = []; // Sides possíveis
+        if (countSheetNotExists === 'V')
+            sides = ['V']
+          else if (countSheetNotExists === 'F')
+            sides = ['F']
+          else sides = ['F', 'V']
 
-        const sheetWithSide = `WITH RECURSIVE NumberList AS (
-                      SELECT 1 AS sheet
-                      UNION ALL
-                      SELECT sheet + 1
-                      FROM NumberList
-                      WHERE sheet < (
-                        SELECT MAX(sheet)
-                        FROM bookrecords
-                        WHERE companies_id=${authenticate.companies_id}
-                          AND typebooks_id=${typebooks_id}
-                          ${book ? `AND book=${book}` : ''}
-                      )
-                    ),
-                    Sides AS (
-                      ${sideCondition}
-                    ),
-                    PossibleCombinations AS (
-                      SELECT nl.sheet, s.side
-                      FROM NumberList nl
-                      CROSS JOIN Sides s
-                    )
-                    SELECT pc.sheet, pc.side
-                    FROM PossibleCombinations pc
-                    WHERE NOT EXISTS (
-                      SELECT 1
-                      FROM bookrecords br
-                      WHERE br.sheet = pc.sheet
-                        AND br.side = pc.side
-                        AND br.companies_id = ${authenticate.companies_id}
-                        AND br.typebooks_id = ${typebooks_id}
-                        ${book ? `AND br.book = ${book}` : ''}
-                    );`
+          for (let sheet = 1; sheet <= maxSheet; sheet++) {
+            sides.forEach(side => {
+              completeList.push({ sheet, side });
+            });
+          }
+          // Função para identificar elementos ausentes
+          function findMissingItems(completeList, currentList) {
+            // Converter o array atual para um formato Set para rápida pesquisa
+            const currentSet = new Set(currentList.map(item => `${item.sheet}-${item.side}`));
+            // Verificar quais elementos da lista completa não estão no array atual
+            return completeList.filter(item => !currentSet.has(`${item.sheet}-${item.side}`));
+          }
+          const missingItems = findMissingItems(completeList, sheetCount);
+          const valuesString = missingItems.map(item => `${item.sheet}${item.side}`).join(', ');
+          return valuesString
+        }
+        //************************************************************ */
 
-        const result = await Database.rawQuery(sheetWithSide);
-        console.log("passo 3")
-        const data = result[0] || []
-        const values = data.map(row => `${row.sheet}${row.side}`);
-        const valuesString = values.join(', ')
-        return valuesString
-      }
-      //************************************************************ */
-
-      const bookSumaryList = []
-      if (countSheetNotExists) {
-        for (const item of bookSummaryPayload) {
-          console.log("passando 156")
-          item.noSheet = await countSheet(item.book)
-          item.side = await verifySide(item.book)
+        const bookSumaryList = []
+        if (countSheetNotExists) {
+          for (const item of bookSummaryPayload) {
+            item.noSheet = await countSheet(item.book)
+            item.side = await verifySide(item.book)
             bookSumaryList.push(item)
+          }
         }
+
+        return response.status(200).send(bookSummaryPayload)
+
+      } catch (error) {
+        return error
       }
-      console.log(bookSummaryPayload)
-      return response.status(200).send(bookSummaryPayload)
 
-    } catch (error) {
-      return error
     }
-
-  }
 
   public async sheetWithSide({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
