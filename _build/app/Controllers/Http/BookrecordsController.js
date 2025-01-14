@@ -201,7 +201,6 @@ class BookrecordsController {
         query.orderBy('bookrecords.book', 'asc')
             .orderBy('bookrecords.cod', 'asc')
             .orderBy('bookrecords.sheet', 'asc');
-        console.log(query.toQuery());
         const data = await query;
         return response.status(200).send(data);
     }
@@ -751,7 +750,6 @@ class BookrecordsController {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
         const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs();
-        console.log("side:", countSheetNotExists);
         try {
             const query = Database_1.default
                 .from('bookrecords')
@@ -791,7 +789,9 @@ class BookrecordsController {
             }
             query.groupBy('book', 'indexbook');
             query.orderBy('bookrecords.book');
+            console.time("queryPrincipal");
             const bookSummaryPayload = await query;
+            console.timeEnd("queryPrincipal");
             async function countSheet(book) {
                 const query = `WITH RECURSIVE NumberList AS (
                                 SELECT 1 AS sheet
@@ -817,10 +817,11 @@ class BookrecordsController {
                 return valuesString;
             }
             async function verifySide(book = 0) {
-                const sheetWithSide = await Bookrecord_1.default.query()
+                const query = Bookrecord_1.default.query()
                     .where('companies_id', authenticate.companies_id)
                     .andWhere('typebooks_id', typebooks_id)
                     .andWhere('book', book);
+                const sheetWithSide = await query;
                 const sheetCount = [];
                 for (const item of sheetWithSide) {
                     sheetCount.push({ sheet: item.sheet, side: item.side });
@@ -850,7 +851,6 @@ class BookrecordsController {
             const bookSumaryList = [];
             if (countSheetNotExists) {
                 for (const item of bookSummaryPayload) {
-                    item.noSheet = await countSheet(item.book);
                     item.side = await verifySide(item.book);
                     bookSumaryList.push(item);
                 }
