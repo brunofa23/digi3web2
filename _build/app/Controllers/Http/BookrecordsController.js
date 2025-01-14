@@ -751,6 +751,7 @@ class BookrecordsController {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
         const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs();
+        console.log("side:", countSheetNotExists);
         try {
             const query = Database_1.default
                 .from('bookrecords')
@@ -816,70 +817,44 @@ class BookrecordsController {
                 return valuesString;
             }
             async function verifySide(book = 0) {
-                console.log("passo 1");
-                let sideCondition = '';
-                if (side === 'V') {
-                    sideCondition = `SELECT 'V' AS side`;
+                const sheetWithSide = await Bookrecord_1.default.query()
+                    .where('companies_id', authenticate.companies_id)
+                    .andWhere('typebooks_id', typebooks_id)
+                    .andWhere('book', book);
+                const sheetCount = [];
+                for (const item of sheetWithSide) {
+                    sheetCount.push({ sheet: item.sheet, side: item.side });
                 }
-                else if (side === 'F') {
-                    sideCondition = `SELECT 'F' AS side`;
+                const maxSheet = sheetCount.reduce((max, item) => item.sheet > max ? item.sheet : max, 0);
+                const completeList = [];
+                let sides = [];
+                if (countSheetNotExists === 'V')
+                    sides = ['V'];
+                else if (countSheetNotExists === 'F')
+                    sides = ['F'];
+                else
+                    sides = ['F', 'V'];
+                for (let sheet = 1; sheet <= maxSheet; sheet++) {
+                    sides.forEach(side => {
+                        completeList.push({ sheet, side });
+                    });
                 }
-                else {
-                    sideCondition = `
-    SELECT 'V' AS side
-    UNION ALL
-    SELECT 'F' AS side
-  `;
+                function findMissingItems(completeList, currentList) {
+                    const currentSet = new Set(currentList.map(item => `${item.sheet}-${item.side}`));
+                    return completeList.filter(item => !currentSet.has(`${item.sheet}-${item.side}`));
                 }
-                const sheetWithSide = `WITH RECURSIVE NumberList AS (
-                      SELECT 1 AS sheet
-                      UNION ALL
-                      SELECT sheet + 1
-                      FROM NumberList
-                      WHERE sheet < (
-                        SELECT MAX(sheet)
-                        FROM bookrecords
-                        WHERE companies_id=${authenticate.companies_id}
-                          AND typebooks_id=${typebooks_id}
-                          ${book ? `AND book=${book}` : ''}
-                      )
-                    ),
-                    Sides AS (
-                      ${sideCondition}
-                    ),
-                    PossibleCombinations AS (
-                      SELECT nl.sheet, s.side
-                      FROM NumberList nl
-                      CROSS JOIN Sides s
-                    )
-                    SELECT pc.sheet, pc.side
-                    FROM PossibleCombinations pc
-                    WHERE NOT EXISTS (
-                      SELECT 1
-                      FROM bookrecords br
-                      WHERE br.sheet = pc.sheet
-                        AND br.side = pc.side
-                        AND br.companies_id = ${authenticate.companies_id}
-                        AND br.typebooks_id = ${typebooks_id}
-                        ${book ? `AND br.book = ${book}` : ''}
-                    );`;
-                const result = await Database_1.default.rawQuery(sheetWithSide);
-                console.log("passo 3");
-                const data = result[0] || [];
-                const values = data.map(row => `${row.sheet}${row.side}`);
-                const valuesString = values.join(', ');
+                const missingItems = findMissingItems(completeList, sheetCount);
+                const valuesString = missingItems.map(item => `${item.sheet}${item.side}`).join(', ');
                 return valuesString;
             }
             const bookSumaryList = [];
             if (countSheetNotExists) {
                 for (const item of bookSummaryPayload) {
-                    console.log("passando 156");
                     item.noSheet = await countSheet(item.book);
                     item.side = await verifySide(item.book);
                     bookSumaryList.push(item);
                 }
             }
-            console.log(bookSummaryPayload);
             return response.status(200).send(bookSummaryPayload);
         }
         catch (error) {
