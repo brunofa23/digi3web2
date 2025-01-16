@@ -789,64 +789,29 @@ class BookrecordsController {
             }
             query.groupBy('book', 'indexbook');
             query.orderBy('bookrecords.book');
-            console.time("queryPrincipal");
             const bookSummaryPayload = await query;
-            console.timeEnd("queryPrincipal");
-            async function countSheet(book) {
-                const query = `WITH RECURSIVE NumberList AS (
-                                SELECT 1 AS sheet
-                                UNION ALL
-                                SELECT sheet + 1
-                                FROM NumberList
-                                WHERE sheet < (select max(sheet)from bookrecords where companies_id=${authenticate.companies_id} and typebooks_id=${typebooks_id} and book=${book})
-                                )
-                              SELECT nl.sheet
-                              FROM NumberList nl
-                              WHERE NOT EXISTS (
-                              SELECT 1
-                              FROM bookrecords br
-                              WHERE br.sheet = nl.sheet
-                               AND br.companies_id = ${authenticate.companies_id}
-                                AND br.typebooks_id =  ${typebooks_id}
-                                and br.book = ${book}
-                          );`;
-                const result = await Database_1.default.rawQuery(query);
-                const data = result[0] || [];
-                const values = data.map(row => row.sheet);
-                const valuesString = values.join(',');
-                return valuesString;
-            }
             async function verifySide(book = 0) {
-                const query = Bookrecord_1.default.query()
+                const generateSequence = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
+                const findMissingItems = (completeList, currentList, keyFn) => {
+                    const currentSet = new Set(currentList.map(keyFn));
+                    return completeList.filter(item => !currentSet.has(keyFn(item)));
+                };
+                const sheetWithSide = await Bookrecord_1.default.query()
                     .where('companies_id', authenticate.companies_id)
                     .andWhere('typebooks_id', typebooks_id)
                     .andWhere('book', book);
-                const sheetWithSide = await query;
-                const sheetCount = [];
-                for (const item of sheetWithSide) {
-                    sheetCount.push({ sheet: item.sheet, side: item.side });
+                const sheetCount = sheetWithSide.map(item => ({ sheet: item.sheet, side: item.side }));
+                const maxSheet = Math.max(0, ...sheetCount.map(item => item.sheet));
+                if (countSheetNotExists === 'P') {
+                    const completeSheetList = generateSequence(1, maxSheet);
+                    const currentSheetSet = new Set(sheetCount.map(item => item.sheet));
+                    const missingSheets = completeSheetList.filter(sheet => !currentSheetSet.has(sheet));
+                    return missingSheets.join(', ');
                 }
-                const maxSheet = sheetCount.reduce((max, item) => item.sheet > max ? item.sheet : max, 0);
-                const completeList = [];
-                let sides = [];
-                if (countSheetNotExists === 'V')
-                    sides = ['V'];
-                else if (countSheetNotExists === 'F')
-                    sides = ['F'];
-                else
-                    sides = ['F', 'V'];
-                for (let sheet = 1; sheet <= maxSheet; sheet++) {
-                    sides.forEach(side => {
-                        completeList.push({ sheet, side });
-                    });
-                }
-                function findMissingItems(completeList, currentList) {
-                    const currentSet = new Set(currentList.map(item => `${item.sheet}-${item.side}`));
-                    return completeList.filter(item => !currentSet.has(`${item.sheet}-${item.side}`));
-                }
-                const missingItems = findMissingItems(completeList, sheetCount);
-                const valuesString = missingItems.map(item => `${item.sheet}${item.side}`).join(', ');
-                return valuesString;
+                const sides = countSheetNotExists === 'V' ? ['V'] : countSheetNotExists === 'F' ? ['F'] : ['F', 'V'];
+                const completeList = generateSequence(1, maxSheet).flatMap(sheet => sides.map(side => ({ sheet, side })));
+                const missingItems = findMissingItems(completeList, sheetCount, item => `${item.sheet}-${item.side}`);
+                return missingItems.map(item => `${item.sheet}${item.side}`).join(', ');
             }
             const bookSumaryList = [];
             if (countSheetNotExists) {
