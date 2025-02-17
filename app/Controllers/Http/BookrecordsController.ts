@@ -945,6 +945,8 @@ export default class BookrecordsController {
     const typebooks_id = params.typebooks_id
     const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs()
 
+    console.log(">>",countSheetNotExists)
+
     try {
       const query = Database
         .from('bookrecords')
@@ -1028,6 +1030,16 @@ export default class BookrecordsController {
           sheetCount,
           item => `${item.sheet}-${item.side}`
         );
+
+        if(countSheetNotExists==="I"){
+          const oddItens = missingItems.filter(item=>item.sheet%2!==0)
+          return oddItens.map(item => `${item.sheet}${item.side}`).join(', ');
+        }
+
+        if(countSheetNotExists==="PA"){
+          const pairItens = missingItems.filter(item=>item.sheet%2==0)
+          return pairItens.map(item => `${item.sheet}${item.side}`).join(', ');
+        }
 
         return missingItems.map(item => `${item.sheet}${item.side}`).join(', ');
       }
