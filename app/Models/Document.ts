@@ -22,6 +22,7 @@ export default class Document extends BaseModel {
       'book_name',
       'book_number',
       'sheet_number',
+      'obs',
       'intfield1',
       'stringfield1',
       'datefield1',
@@ -110,6 +111,8 @@ export default class Document extends BaseModel {
   public sheet_number: number
   @column()
   public prot: number
+  @column()
+  public obs: string
   @column()
   public intfield1: number
   @column()

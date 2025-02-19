@@ -172,8 +172,7 @@ export default class IndeximagesController {
             book: dataImages.book,
             sheet: dataImages.sheet,
             indexbook: dataImages.indexBook,
-
-          })
+            })
 
           dataImages.id = book.id
         } else
@@ -202,6 +201,7 @@ export default class IndeximagesController {
       //SE EXISTIR CODIGO E LIVRO DE DOCUMENTO INCLUI IMAGEM NO MESMO REGISTRO
       if (verifyExistBookrecord) {
         dataImages.id = verifyExistBookrecord.id
+
       } else {
         const trx = await Database.beginGlobalTransaction()
         try {
@@ -225,7 +225,8 @@ export default class IndeximagesController {
             book_number: dataImages.book_number,
             sheet_number: dataImages.sheet_number,
             free: dataImages.free ? 1 : 0,
-            averb_anot: dataImages.averb_anot ? 1 : 0
+            averb_anot: dataImages.averb_anot ? 1 : 0,
+            obs:"teste direto......."
           }, trx)
           dataImages.id = bookRecord.id
 
