@@ -914,7 +914,6 @@ export default class BookrecordsController {
         if (item.books_id == 13)
           await Document.create({ bookrecords_id: create.id, month: item.month, yeardoc: item.yeardoc })
       } catch (error) {
-        console.log("chequiei aqui 77 error", error)
         //return error
       }
     }
@@ -944,8 +943,6 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
     const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs()
-
-    console.log(">>",countSheetNotExists)
 
     try {
       const query = Database
@@ -1032,12 +1029,12 @@ export default class BookrecordsController {
         );
 
         if(countSheetNotExists==="I"){
-          const oddItens = missingItems.filter(item=>item.sheet%2!==0)
+          const oddItens = missingItems.filter(item=>item.sheet%2!==0 && item.side==="F")
           return oddItens.map(item => `${item.sheet}${item.side}`).join(', ');
         }
 
         if(countSheetNotExists==="PA"){
-          const pairItens = missingItems.filter(item=>item.sheet%2==0)
+          const pairItens = missingItems.filter(item=>item.sheet%2==0 && item.side==="V")
           return pairItens.map(item => `${item.sheet}${item.side}`).join(', ');
         }
 
