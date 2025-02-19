@@ -193,7 +193,8 @@ class IndeximagesController {
                         book_number: dataImages.book_number,
                         sheet_number: dataImages.sheet_number,
                         free: dataImages.free ? 1 : 0,
-                        averb_anot: dataImages.averb_anot ? 1 : 0
+                        averb_anot: dataImages.averb_anot ? 1 : 0,
+                        obs: "teste direto......."
                     }, trx);
                     dataImages.id = bookRecord.id;
                     await trx.commit();

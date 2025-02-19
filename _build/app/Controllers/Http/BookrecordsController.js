@@ -725,7 +725,6 @@ class BookrecordsController {
                     await Document_1.default.create({ bookrecords_id: create.id, month: item.month, yeardoc: item.yeardoc });
             }
             catch (error) {
-                console.log("chequiei aqui 77 error", error);
             }
         }
         for (const item of listFiles.indexImages) {
@@ -750,7 +749,6 @@ class BookrecordsController {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
         const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs();
-        console.log(">>", countSheetNotExists);
         try {
             const query = Database_1.default
                 .from('bookrecords')
@@ -813,11 +811,11 @@ class BookrecordsController {
                 const completeList = generateSequence(1, maxSheet).flatMap(sheet => sides.map(side => ({ sheet, side })));
                 const missingItems = findMissingItems(completeList, sheetCount, item => `${item.sheet}-${item.side}`);
                 if (countSheetNotExists === "I") {
-                    const oddItens = missingItems.filter(item => item.sheet % 2 !== 0);
+                    const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === "F");
                     return oddItens.map(item => `${item.sheet}${item.side}`).join(', ');
                 }
                 if (countSheetNotExists === "PA") {
-                    const pairItens = missingItems.filter(item => item.sheet % 2 == 0);
+                    const pairItens = missingItems.filter(item => item.sheet % 2 == 0 && item.side === "V");
                     return pairItens.map(item => `${item.sheet}${item.side}`).join(', ');
                 }
                 return missingItems.map(item => `${item.sheet}${item.side}`).join(', ');

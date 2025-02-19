@@ -34,6 +34,7 @@ class Document extends Orm_1.BaseModel {
             'book_name',
             'book_number',
             'sheet_number',
+            'obs',
             'intfield1',
             'stringfield1',
             'datefield1',
@@ -150,6 +151,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], Document.prototype, "prot", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], Document.prototype, "obs", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
