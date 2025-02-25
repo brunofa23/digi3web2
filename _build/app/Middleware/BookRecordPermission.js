@@ -21,7 +21,7 @@ class BookRecordPermission {
             else if (guard === 'destroy' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
                 await next();
             }
-            else if (guard === 'generateOrUpdateBookrecords' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
+            else if (guard === 'generateOrUpdateBookrecords' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
                 await next();
             }
             else if (guard === 'createorupdatebookrecords' && (authenticate.permission_level >= 3 || authenticate.superuser)) {

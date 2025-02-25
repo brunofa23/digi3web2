@@ -9,15 +9,24 @@ const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const UserValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/UserValidator"));
 const luxon_1 = require("luxon");
 class UsersController {
-    async index({ auth, response }) {
+    async index({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        let query = ` companies_id=${authenticate.companies_id}`;
-        if (authenticate.superuser)
-            query = "";
-        const data = await User_1.default.query()
-            .preload('company')
-            .whereRaw(query);
-        return response.status(200).send(data);
+        const { companies_id, findCompany, findUser } = request.only(['companies_id', 'findCompany', 'findUser']);
+        try {
+            const query = User_1.default.query()
+                .preload('company');
+            if (authenticate.superuser && companies_id)
+                query.where('companies_id', companies_id);
+            if (findCompany)
+                query.where('companies_id', findCompany);
+            if (findUser)
+                query.where('username', 'like', `%${findUser}%`);
+            const data = await query;
+            return response.status(200).send(data);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Bad Request', 401, error);
+        }
     }
     async show({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -74,7 +83,6 @@ class UsersController {
             .where('companies_id', authenticate.companies_id)
             .andWhere('id', params.id).first();
         if (data?.access_image == undefined || data?.access_image == null) {
-            console.log("a data não é valida");
             return response.status(200).send(false);
         }
         const dataaccess = luxon_1.DateTime.fromJSDate(data?.access_image);
