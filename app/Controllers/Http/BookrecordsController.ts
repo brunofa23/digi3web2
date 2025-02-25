@@ -764,8 +764,8 @@ export default class BookrecordsController {
 
   public async generateOrUpdateBookrecords2({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate();
-    let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term } =
-      request.only(['start_cod', 'end_cod', 'book', 'book_replace', 'sheet', 'side', 'model_book', 'books_id', 'indexbook', 'year', 'approximate_term']);
+    let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term, obs } =
+      request.only(['start_cod', 'end_cod', 'book', 'book_replace', 'sheet', 'side', 'model_book', 'books_id', 'indexbook', 'year', 'approximate_term', 'obs']);
 
     let bookRecord = {};
     if (start_cod > end_cod) throw new BadRequestException("erro: codigo inicial maior que o final");
@@ -806,6 +806,7 @@ export default class BookrecordsController {
           companies_id: authenticate.companies_id,
           indexbook: indexbook,
           year: year,
+          obs:obs,
           approximate_term: approximate_term ? approximate_term++ : undefined
         };
 

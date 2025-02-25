@@ -9,19 +9,24 @@ import { DateTime } from 'luxon'
 
 export default class UsersController {
 
-  public async index({ auth, response }: HttpContextContract) {
-
+  public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    let query = ` companies_id=${authenticate.companies_id}`
+    const { companies_id, findCompany, findUser } = request.only(['companies_id', 'findCompany', 'findUser'])
+    try {
+      const query = User.query()
+        .preload('company')
+      if (authenticate.superuser && companies_id)
+        query.where('companies_id', companies_id)
+      if(findCompany)
+        query.where('companies_id', findCompany)
+      if(findUser)
+        query.where('username','like',`%${findUser}%`)
+      const data = await query
+      return response.status(200).send(data)
+    } catch (error) {
+      throw new BadRequest('Bad Request', 401, error)
+    }
 
-    if (authenticate.superuser)
-      query = ""
-
-    const data = await User.query()
-      .preload('company')
-      .whereRaw(query)
-
-    return response.status(200).send(data)
 
   }
 
@@ -97,7 +102,7 @@ export default class UsersController {
       .andWhere('id', params.id).first()
 
     if (data?.access_image == undefined || data?.access_image == null) {
-      console.log("a data não é valida")
+      
       return response.status(200).send(false)
     }
     const dataaccess = DateTime.fromJSDate(data?.access_image)

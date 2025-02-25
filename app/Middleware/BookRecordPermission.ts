@@ -22,7 +22,7 @@ export default class BookRecordPermission {
               await next()
             }
             else
-              if (guard === 'generateOrUpdateBookrecords' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
+              if (guard === 'generateOrUpdateBookrecords' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
                 await next()
               }
               else
