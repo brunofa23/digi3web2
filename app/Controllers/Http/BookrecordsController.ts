@@ -228,8 +228,8 @@ export default class BookrecordsController {
 
   public async fastFindDocuments({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const { prot, dateStart, dateEnd, book_number, book_name, sheet_number }
-      = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook'])
+    const { prot, dateStart, dateEnd, book_number, book_name, sheet_number, obs }
+      = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook', 'obs'])
     const query = Bookrecord.query()
       .select('bookrecords.*')
       .innerJoin('documents', (join) => {
@@ -265,6 +265,8 @@ export default class BookrecordsController {
     //     query.where('bookrecords.typebooks_id', typebook);
     if (book_name)
       query.where('documents.book_name', book_name)
+    if(obs)
+      query.where('documents.obs', 'like',`%${obs}%`)
 
     query.groupBy(
       'bookrecords.id',
@@ -289,8 +291,6 @@ export default class BookrecordsController {
     return response.status(200).send(data)
   }
 
-
-
   public async show({ params }: HttpContextContract) {
     const data = await Bookrecord.findOrFail(params.id)
     return {
@@ -298,7 +298,7 @@ export default class BookrecordsController {
     }
   }
 
-  public async store({ auth, request, params, response }: HttpContextContract) {
+  public async store({ auth, request, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
     const body = await request.validate(BookrecordValidator)
     const { document } = request.only(['document'])//await request.validate(DocumentValidator)
