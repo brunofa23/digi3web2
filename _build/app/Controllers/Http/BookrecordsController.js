@@ -164,7 +164,7 @@ class BookrecordsController {
     }
     async fastFindDocuments({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { prot, dateStart, dateEnd, book_number, book_name, sheet_number } = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook']);
+        const { prot, dateStart, dateEnd, book_number, book_name, sheet_number, obs } = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook', 'obs']);
         const query = Bookrecord_1.default.query()
             .select('bookrecords.*')
             .innerJoin('documents', (join) => {
@@ -197,6 +197,8 @@ class BookrecordsController {
             query.where('documents.sheet_number', sheet_number);
         if (book_name)
             query.where('documents.book_name', book_name);
+        if (obs)
+            query.where('documents.obs', 'like', `%${obs}%`);
         query.groupBy('bookrecords.id', 'bookrecords.typebooks_id', 'bookrecords.books_id', 'bookrecords.companies_id', 'bookrecords.cod', 'bookrecords.book', 'bookrecords.sheet', 'bookrecords.side', 'bookrecords.approximate_term', 'bookrecords.indexbook', 'bookrecords.letter', 'bookrecords.year', 'bookrecords.model');
         query.orderBy('bookrecords.book', 'asc')
             .orderBy('bookrecords.cod', 'asc')
@@ -210,7 +212,7 @@ class BookrecordsController {
             data: data,
         };
     }
-    async store({ auth, request, params, response }) {
+    async store({ auth, request, response }) {
         const { companies_id } = await auth.use('api').authenticate();
         const body = await request.validate(BookrecordValidator_1.default);
         const { document } = request.only(['document']);
