@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.integer('companies_id').notNullable().unsigned().references('id').inTable('companies').onDelete('CASCADE')
       table.string('description',100).notNullable()
-      table.boolean('status').defaultTo('false')
+      table.boolean('excluded').defaultTo('false')
       table.string('debit_credit',2)
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL

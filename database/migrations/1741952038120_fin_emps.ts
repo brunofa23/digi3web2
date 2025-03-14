@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.integer('companies_id').notNullable().unsigned().references('id').inTable('companies').onDelete('CASCADE').onUpdate('CASCADE')
       table.string('name',80).notNullable()
-      table.boolean('status').defaultTo('false')
+      table.boolean('excluded').defaultTo('false')
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */
