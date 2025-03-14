@@ -105,6 +105,12 @@ Route.group(() => {
   //MAIL MANANGER
   Route.post("/sendmailcontactwebsite","MailmanangersController.sendMailContactWebsite")
 
+  //FIN_EMP
+  Route.resource("/finemp", "FinEmpsController").apiOnly()
+
+  //FIN_CLASSES
+  Route.resource("/finclasses", "FinClassesController").apiOnly()
+
 
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
