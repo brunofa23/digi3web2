@@ -15,8 +15,10 @@ export default class FinClassesController {
   }
 
   public async store({ auth, request, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinClass.fillable)
+    body.companies_id = authenticate.companies_id
+
     try {
       const data = await FinClass.create(body)
       return response.status(201).send(data)

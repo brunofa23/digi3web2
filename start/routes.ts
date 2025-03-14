@@ -106,10 +106,13 @@ Route.group(() => {
   Route.post("/sendmailcontactwebsite","MailmanangersController.sendMailContactWebsite")
 
   //FIN_EMP
-  Route.resource("/finemp", "FinEmpsController").apiOnly()
+  Route.resource("/finemps", "FinEmpsController").apiOnly()
 
   //FIN_CLASSES
   Route.resource("/finclasses", "FinClassesController").apiOnly()
+
+  //FIN_ACCOUNTS
+  Route.resource("/finaccounts", "FinAccountsController").apiOnly()
 
 
   //CONFIG

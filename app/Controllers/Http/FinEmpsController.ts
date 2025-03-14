@@ -6,7 +6,7 @@ export default class FinEmpsController {
   public async index({ auth, response }: HttpContextContract) {
     await auth.use('api').authenticate()
     try {
-      const data = await FinEmp.query()
+      const data = await FinEmp.query()//.where('excluded',false)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -15,8 +15,9 @@ export default class FinEmpsController {
 
 
   public async store({ auth, request, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinEmp.fillable)
+    body.companies_id = authenticate.companies_id
     try {
       const data = await FinEmp.create(body)
       return response.status(201).send(data)
