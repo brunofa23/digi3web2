@@ -114,6 +114,9 @@ Route.group(() => {
   //FIN_ACCOUNTS
   Route.resource("/finaccounts", "FinAccountsController").apiOnly()
 
+  //FIN_IMAGES
+  Route.resource("/finimages", "FinImagesController").apiOnly()
+
 
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
