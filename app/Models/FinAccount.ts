@@ -13,6 +13,7 @@ export default class FinAccount extends BaseModel {
       'amount',
       'data_billing',
       'excluded',
+      'debit_credit'
     ]
   }
 
@@ -39,6 +40,9 @@ export default class FinAccount extends BaseModel {
 
   @column()
   public excluded: boolean
+
+  @column()
+  public debit_credit:string
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
