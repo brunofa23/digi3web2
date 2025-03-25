@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.currencyConverter = exports.logInJson = exports.DeleteFiles = void 0;
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const fs = require('fs');
 async function DeleteFiles(folderPath) {
@@ -13,6 +14,7 @@ async function DeleteFiles(folderPath) {
         return true;
     });
 }
+exports.DeleteFiles = DeleteFiles;
 async function logInJson(value) {
     const pathFile = Application_1.default.tmpPath('log.json');
     try {
@@ -33,5 +35,12 @@ async function logInJson(value) {
         console.error('Erro ao adicionar string ao arquivo JSON:', error);
     }
 }
-module.exports = { DeleteFiles, logInJson };
+exports.logInJson = logInJson;
+const currencyConverter = (numeroBrasileiro) => {
+    const numeroSemMilhar = numeroBrasileiro.replace(/\./g, '');
+    const numeroDecimal = numeroSemMilhar.replace(',', '.');
+    const numeroFormatado = parseFloat(numeroDecimal).toFixed(2);
+    return numeroFormatado;
+};
+exports.currencyConverter = currencyConverter;
 //# sourceMappingURL=util.js.map

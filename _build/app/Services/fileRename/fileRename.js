@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.updateFileName = exports.mountNameFile = exports.renameFileGoogle = exports.totalFilesInFolder = exports.indeximagesinitial = exports.deleteFile = exports.fileRename = exports.downloadImage = exports.transformFilesNameToId = void 0;
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
@@ -43,6 +44,7 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number) {
     const download = await (0, googledrive_1.sendDownloadFile)(fileId[0].id, extension, cloud_number);
     return download;
 }
+exports.downloadImage = downloadImage;
 async function transformFilesNameToId(images, params, companies_id, cloud_number, capture = false, dataImages = {}) {
     const _companies_id = companies_id;
     let result = [];
@@ -106,6 +108,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     }
     return result;
 }
+exports.transformFilesNameToId = transformFilesNameToId;
 async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
     try {
         const idFolderPath = await (0, googledrive_1.sendSearchFile)(folderPath, cloud_number);
@@ -116,6 +119,7 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
         console.log("ERROR 1456", error);
     }
 }
+exports.renameFileGoogle = renameFileGoogle;
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
     try {
         if (capture) {
@@ -291,6 +295,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         return error;
     }
 }
+exports.fileRename = fileRename;
 async function mountNameFile(bookRecord, seq, extFile) {
     if (!extFile.startsWith('.'))
         extFile = path.extname(extFile).toLowerCase();
@@ -298,6 +303,7 @@ async function mountNameFile(bookRecord, seq, extFile) {
     dateNow = dateNow.toFormat('yyyyMMddHHmm');
     return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`;
 }
+exports.mountNameFile = mountNameFile;
 async function deleteFile(listFiles, cloud_number) {
     try {
         const idFolder = await (0, googledrive_1.sendSearchFile)(listFiles[0]['path'], cloud_number);
@@ -312,6 +318,7 @@ async function deleteFile(listFiles, cloud_number) {
         throw error;
     }
 }
+exports.deleteFile = deleteFile;
 async function updateFileName(bookRecord) {
     try {
         const _indexImage = await Indeximage_1.default.query()
@@ -338,6 +345,7 @@ async function updateFileName(bookRecord) {
         throw error;
     }
 }
+exports.updateFileName = updateFileName;
 async function totalFilesInFolder(folderName, cloud_number) {
     try {
         const idFolder = await (0, googledrive_1.sendSearchFile)(folderName, cloud_number);
@@ -352,6 +360,7 @@ async function totalFilesInFolder(folderName, cloud_number) {
         return 0;
     }
 }
+exports.totalFilesInFolder = totalFilesInFolder;
 async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
     let listFiles;
     if (listFilesImages.length > 0) {
@@ -405,5 +414,5 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     indexImages.sort((a, b) => a.id - b.id);
     return { bookRecord, indexImages };
 }
-module.exports = { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName };
+exports.indeximagesinitial = indeximagesinitial;
 //# sourceMappingURL=fileRename.js.map

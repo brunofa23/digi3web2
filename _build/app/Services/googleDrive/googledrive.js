@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.sendRenameFile = exports.sendListAllFiles = exports.sendDeleteFile = exports.sendDownloadFile = exports.sendSearchOrCreateFolder = exports.sendSearchFile = exports.sendCreateFolder = exports.sendAuthorize = exports.sendUploadFiles = exports.sendListFiles = void 0;
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const Token_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Token"));
 const Helpers_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Helpers");
@@ -286,32 +287,39 @@ async function sendAuthorize(cloud_number) {
     await authorize(cloud_number);
     return true;
 }
+exports.sendAuthorize = sendAuthorize;
 async function sendListFiles(cloud_number, folderId = "") {
     const auth = await authorize(cloud_number);
     return listFiles(auth, folderId);
 }
+exports.sendListFiles = sendListFiles;
 async function sendListAllFiles(cloud_number, folderId = "") {
     const auth = await authorize(cloud_number);
     return listAllFiles(auth, folderId);
 }
+exports.sendListAllFiles = sendListAllFiles;
 async function sendUploadFiles(parent, folderPath, fileName, cloud_number) {
     const auth = await authorize(cloud_number);
     const response = uploadFiles(auth, parent, folderPath, fileName);
     return response;
 }
+exports.sendUploadFiles = sendUploadFiles;
 async function sendCreateFolder(folderName, cloud_number, parentId = undefined) {
     const auth = await authorize(cloud_number);
     const id = createFolder(auth, folderName.trim(), parentId);
     return id;
 }
+exports.sendCreateFolder = sendCreateFolder;
 async function sendSearchFile(fileName, cloud_number, parentId = undefined) {
     const auth = await authorize(cloud_number);
     return searchFile(auth, fileName, parentId);
 }
+exports.sendSearchFile = sendSearchFile;
 async function sendDeleteFile(fileId, cloud_number) {
     const auth = await authorize(cloud_number);
     return deleteFile(auth, fileId);
 }
+exports.sendDeleteFile = sendDeleteFile;
 async function sendSearchOrCreateFolder(folderName, cloud_number, parent = undefined) {
     const auth = await authorize(cloud_number);
     let findFolder = await searchFile(auth, folderName);
@@ -323,13 +331,15 @@ async function sendSearchOrCreateFolder(folderName, cloud_number, parent = undef
         return findFolder;
     }
 }
+exports.sendSearchOrCreateFolder = sendSearchOrCreateFolder;
 async function sendDownloadFile(fileId, extension, cloud_number) {
     const auth = await authorize(cloud_number);
     return downloadFile(auth, fileId, extension);
 }
+exports.sendDownloadFile = sendDownloadFile;
 async function sendRenameFile(fileId, newTitle, cloud_number) {
     const auth = await authorize(cloud_number);
     return renameFile(auth, fileId, newTitle);
 }
-module.exports = { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles, sendRenameFile };
+exports.sendRenameFile = sendRenameFile;
 //# sourceMappingURL=googledrive.js.map
