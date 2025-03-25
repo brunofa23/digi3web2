@@ -5,10 +5,29 @@ import { currencyConverter } from "App/Services/util"
 import { uploadFinImage } from 'App/Services/uploadFinImage/finImages'
 export default class FinAccountsController {
 
-  public async index({ auth, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+  public async index({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const body = request.qs()
     try {
-      const data = await FinAccount.query()
+      const query = FinAccount.query()
+        .where('companies_id', authenticate.companies_id)
+        .preload('finclass', query => {
+          query.select('description')
+        })
+
+      if (body.description)
+        query.where('description', 'like', `${body.description}`)
+      if (body.fin_emp_id)
+        query.where('fin_emp_id', body.fin_emp_id)
+      if (body.fin_class_id)
+        query.where('fin_class_id', body.fin_class_id)
+      if (body.date_start)
+        query.where('created_at', '>=', body.date_start)
+      if (body.date_end)
+        query.where('created_at', '<=', body.date_end)
+
+      const data = await query
+
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -17,9 +36,11 @@ export default class FinAccountsController {
 
 
   public async show({ auth, params, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     try {
-      const data = await FinAccount.findOrFail(params.id)
+      const data = await FinAccount.query()
+        .where('id', params.id)
+        .andWhere('companies_id', authenticate.companies_id)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -35,7 +56,6 @@ export default class FinAccountsController {
     }
 
     try {
-      console.log("passei aqui STORE 222@@@@", body2)
       const data = await FinAccount.create(body2)
       await uploadFinImage(authenticate.companies_id, data.id, request)
       return response.status(201).send(data)

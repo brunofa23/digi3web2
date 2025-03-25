@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import FinClass from './FinClass'
 
 export default class FinAccount extends BaseModel {
 
@@ -16,6 +17,12 @@ export default class FinAccount extends BaseModel {
       'debit_credit'
     ]
   }
+
+  @hasOne(() => FinClass, {
+      foreignKey: 'id',
+      localKey: 'fin_class_id'
+    })
+  public finclass: HasOne<typeof FinClass>
 
   @column({ isPrimary: true })
   public id: number
