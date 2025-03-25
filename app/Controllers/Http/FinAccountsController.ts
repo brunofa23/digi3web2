@@ -14,6 +14,7 @@ export default class FinAccountsController {
         .preload('finclass', query => {
           query.select('description')
         })
+        .where('excluded', false)
 
       if (body.description)
         query.where('description', 'like', `${body.description}`)
@@ -70,13 +71,12 @@ export default class FinAccountsController {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinAccount.fillable)
 
-    // const image = request.file('file', {
-    //   size: '8mb',
-    //   extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
-    // });
-    // console.log("passei aqui 444444$$$$$$",request )
+    let amount
+    if (body.amount) {
+      amount = await currencyConverter(body.amount)
+    }
+    const body2 = { ...body, amount, excluded: body.excluded == 'false' ? false : true }
 
-    const body2 = { ...body, amount: await currencyConverter(body.amount) }
     try {
       const data = await FinAccount.query()
         .where('companies_id', authenticate.companies_id)

@@ -28,11 +28,9 @@ async function uploadFinImage(companies_id: number, fin_account_id: number, requ
   });
 
   if (!image || !image.isValid) {
-    throw new BadRequestException('Erro', 401, 'Arquivo inválido ou não enviado.');
+    return
   }
 
-  // Agora, pode salvar ou processar o arquivo
-  console.log("Arquivo validado:", image.extname);
   // Obtém a sequência mais alta para o `fin_account_id`
   const lastImage = await FinImage.query()
     .where('companies_id', companies_id)
@@ -41,7 +39,6 @@ async function uploadFinImage(companies_id: number, fin_account_id: number, requ
     .first();
 
   const newSeq = lastImage?.seq ? lastImage.seq + 1 : 1;
-
   // Gera um nome de arquivo formatado
   const timestamp = DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss');
   const baseName = image.clientName.split('.').slice(0, -1).join('.');
