@@ -14,14 +14,18 @@ export default class FinAccount extends BaseModel {
       'amount',
       'data_billing',
       'excluded',
-      'debit_credit'
+      'debit_credit',
+      'payment_method',
+      'cost',
+      'ir',
+      'obs',
     ]
   }
 
   @hasOne(() => FinClass, {
-      foreignKey: 'id',
-      localKey: 'fin_class_id'
-    })
+    foreignKey: 'id',
+    localKey: 'fin_class_id'
+  })
   public finclass: HasOne<typeof FinClass>
 
   @column({ isPrimary: true })
@@ -49,7 +53,16 @@ export default class FinAccount extends BaseModel {
   public excluded: boolean
 
   @column()
-  public debit_credit:string
+  public debit_credit: string
+
+  @column()
+  public payment_method: string
+  @column()
+  public cost: string
+  @column()
+  public ir: boolean
+  @column()
+  public obs: string
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
