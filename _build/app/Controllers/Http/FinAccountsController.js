@@ -16,7 +16,8 @@ class FinAccountsController {
                 .where('companies_id', authenticate.companies_id)
                 .preload('finclass', query => {
                 query.select('description');
-            });
+            })
+                .where('excluded', false);
             if (body.description)
                 query.where('description', 'like', `${body.description}`);
             if (body.fin_emp_id)
@@ -65,7 +66,11 @@ class FinAccountsController {
     async update({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = request.only(FinAccount_1.default.fillable);
-        const body2 = { ...body, amount: await (0, util_1.currencyConverter)(body.amount) };
+        let amount;
+        if (body.amount) {
+            amount = await (0, util_1.currencyConverter)(body.amount);
+        }
+        const body2 = { ...body, amount, excluded: body.excluded == 'false' ? false : true };
         try {
             const data = await FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)

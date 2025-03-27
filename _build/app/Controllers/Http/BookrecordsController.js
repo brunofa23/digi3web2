@@ -260,7 +260,7 @@ class BookrecordsController {
             throw new BadRequestException_1.default('Bad Request', 401, error);
         }
     }
-    async destroy({ auth, request, params, response }) {
+    async destroy({ auth, params, response }) {
         const { companies_id } = await auth.use('api').authenticate();
         try {
             const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()

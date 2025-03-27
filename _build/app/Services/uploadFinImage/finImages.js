@@ -20,9 +20,8 @@ async function uploadFinImage(companies_id, fin_account_id, request) {
         extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
     });
     if (!image || !image.isValid) {
-        throw new BadRequestException_1.default('Erro', 401, 'Arquivo inválido ou não enviado.');
+        return;
     }
-    console.log("Arquivo validado:", image.extname);
     const lastImage = await FinImage_1.default.query()
         .where('companies_id', companies_id)
         .andWhere('fin_account_id', fin_account_id)
