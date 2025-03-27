@@ -26,7 +26,11 @@ class FinAccount extends Orm_1.BaseModel {
             'amount',
             'data_billing',
             'excluded',
-            'debit_credit'
+            'debit_credit',
+            'payment_method',
+            'cost',
+            'ir',
+            'obs',
         ];
     }
 }
@@ -73,6 +77,22 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], FinAccount.prototype, "debit_credit", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], FinAccount.prototype, "payment_method", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], FinAccount.prototype, "cost", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinAccount.prototype, "ir", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], FinAccount.prototype, "obs", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

@@ -12,9 +12,6 @@ const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/go
 const luxon_1 = require("luxon");
 async function uploadFinImage(companies_id, fin_account_id, request) {
     const fileInput = request;
-    console.log("teste função");
-    console.log("company_id", companies_id);
-    console.log("fin account", fin_account_id);
     const image = fileInput.file('fileInput', {
         size: '8mb',
         extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
