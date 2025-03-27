@@ -18,7 +18,7 @@ export default class BookRecordPermission {
             await next()
           }
           else
-            if (guard === 'destroy' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
+            if (guard === 'destroy' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
               await next()
             }
             else
