@@ -351,7 +351,7 @@ export default class BookrecordsController {
     }
   }
 
-  public async destroy({ auth, request, params, response }: HttpContextContract) {
+  public async destroy({ auth, params, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
     try {
       //excluir imagens do google drive
