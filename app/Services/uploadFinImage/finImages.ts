@@ -17,10 +17,6 @@ import { DateTime } from 'luxon';
 
 async function uploadFinImage(companies_id: number, fin_account_id: number, request) {
   const fileInput = request;
-  console.log("teste função")
-  console.log("company_id", companies_id)
-  console.log("fin account", fin_account_id)
-
   // Pegando o arquivo corretamente
   const image = fileInput.file('fileInput', {
     size: '8mb',
