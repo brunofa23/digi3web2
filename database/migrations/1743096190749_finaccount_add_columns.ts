@@ -6,9 +6,9 @@ export default class extends BaseSchema {
   public async up () {
     this.schema.alterTable(this.tableName, (table) => {
       table.string('payment_method',15).nullable().after('debit_credit')
-      table.string('cost',10).notNullable().after('debit_credit')
+      table.string('cost',10).nullable().after('debit_credit')
       table.boolean('ir').defaultTo(false).after('debit_credit')
-      table.string('obs',255).notNullable().after('debit_credit')
+      table.string('obs',255).nullable().after('debit_credit')
     })
   }
 
