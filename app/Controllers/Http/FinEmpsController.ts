@@ -4,9 +4,11 @@ import FinEmp from 'App/Models/FinEmp'
 
 export default class FinEmpsController {
   public async index({ auth, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     try {
-      const data = await FinEmp.query()//.where('excluded',false)
+      const data = await FinEmp.query()
+        .where('companies_id', authenticate.companies_id)
+        .where('excluded', false)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -38,14 +40,14 @@ export default class FinEmpsController {
 
   }
 
-  public async update({auth,params, request, response }: HttpContextContract) {
-    const authenticate =  await auth.use('api').authenticate()
+  public async update({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinEmp.fillable)
     try {
       const data = await FinEmp.query()
-      .where('companies_id',authenticate.companies_id )
-      .andWhere('id', params.id)
-      .update(body)
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('id', params.id)
+        .update(body)
 
       return response.status(201).send(data)
 
