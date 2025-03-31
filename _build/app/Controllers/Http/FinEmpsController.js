@@ -7,9 +7,11 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const FinEmp_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/FinEmp"));
 class FinEmpsController {
     async index({ auth, response }) {
-        await auth.use('api').authenticate();
+        const authenticate = await auth.use('api').authenticate();
         try {
-            const data = await FinEmp_1.default.query();
+            const data = await FinEmp_1.default.query()
+                .where('companies_id', authenticate.companies_id)
+                .where('excluded', false);
             return response.status(200).send(data);
         }
         catch (error) {
