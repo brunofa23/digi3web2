@@ -5,9 +5,10 @@ import FinClass from 'App/Models/FinClass'
 export default class FinClassesController {
 
   public async index({ auth, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     try {
       const data = await FinClass.query()
+      .where('companies_id', authenticate.companies_id)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
