@@ -14,10 +14,13 @@ class FinAccountsController {
         try {
             const query = FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)
+                .where('excluded', false)
                 .preload('finclass', query => {
                 query.select('description');
             })
-                .where('excluded', false);
+                .preload('finemp', query => {
+                query.select('name');
+            });
             if (body.description)
                 query.where('description', 'like', `${body.description}`);
             if (body.fin_emp_id)
@@ -28,6 +31,14 @@ class FinAccountsController {
                 query.where('created_at', '>=', body.date_start);
             if (body.date_end)
                 query.where('created_at', '<=', body.date_end);
+            if (body.cost)
+                query.where('cost', body.cost);
+            if (body.payment_method)
+                query.where('payment_method', body.payment_method);
+            if (body.ir === 'true')
+                query.where('ir', true);
+            if (body.debit_credit)
+                query.where('debit_credit', body.debit_credit);
             const data = await query;
             return response.status(200).send(data);
         }
@@ -52,8 +63,10 @@ class FinAccountsController {
         const body = request.only(FinAccount_1.default.fillable);
         const body2 = {
             ...body, companies_id: authenticate.companies_id,
-            amount: await (0, util_1.currencyConverter)(body.amount)
+            amount: await (0, util_1.currencyConverter)(body.amount),
+            ir: body.ir === 'false' ? 0 : 1
         };
+        console.log("body:", body2);
         try {
             const data = await FinAccount_1.default.create(body2);
             await (0, finImages_1.uploadFinImage)(authenticate.companies_id, data.id, request);
@@ -70,7 +83,7 @@ class FinAccountsController {
         if (body.amount) {
             amount = await (0, util_1.currencyConverter)(body.amount);
         }
-        const body2 = { ...body, amount, excluded: body.excluded == 'false' ? false : true };
+        const body2 = { ...body, amount, excluded: body.excluded == 'false' ? false : true, ir: body.ir === 'false' ? 0 : 1 };
         try {
             const data = await FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)

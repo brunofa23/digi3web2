@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const FinClass_1 = __importDefault(require("./FinClass"));
+const FinEmp_1 = __importDefault(require("./FinEmp"));
 class FinAccount extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -41,6 +42,13 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], FinAccount.prototype, "finclass", void 0);
+__decorate([
+    (0, Orm_1.hasOne)(() => FinEmp_1.default, {
+        foreignKey: 'id',
+        localKey: 'fin_emp_id'
+    }),
+    __metadata("design:type", Object)
+], FinAccount.prototype, "finemp", void 0);
 __decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
