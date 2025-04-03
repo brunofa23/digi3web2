@@ -72,6 +72,7 @@ Route_1.default.group(() => {
     Route_1.default.resource("/finclasses", "FinClassesController").apiOnly();
     Route_1.default.resource("/finaccounts", "FinAccountsController").apiOnly();
     Route_1.default.resource("/finimages", "FinImagesController").apiOnly();
+    Route_1.default.resource("/finpaymentmethods", 'FinPaymentMethodsController').apiOnly();
     Route_1.default.get('dashboard', async ({ auth }) => {
         await auth.use('api').authenticate();
         return auth.use('api').user;

@@ -20,6 +20,9 @@ class FinAccountsController {
             })
                 .preload('finemp', query => {
                 query.select('name');
+            })
+                .preload('finPaymentMethod', query => {
+                query.select('description');
             });
             if (body.description)
                 query.where('description', 'like', `${body.description}`);
@@ -39,6 +42,8 @@ class FinAccountsController {
                 query.where('ir', true);
             if (body.debit_credit)
                 query.where('debit_credit', body.debit_credit);
+            if (body.fin_paymentmethod_id)
+                query.where('fin_paymentmethod_id', body.fin_paymentmethod_id);
             const data = await query;
             return response.status(200).send(data);
         }
@@ -66,7 +71,6 @@ class FinAccountsController {
             amount: await (0, util_1.currencyConverter)(body.amount),
             ir: body.ir === 'false' ? 0 : 1
         };
-        console.log("body:", body2);
         try {
             const data = await FinAccount_1.default.create(body2);
             await (0, finImages_1.uploadFinImage)(authenticate.companies_id, data.id, request);

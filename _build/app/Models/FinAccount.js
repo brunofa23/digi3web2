@@ -16,6 +16,7 @@ const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const FinClass_1 = __importDefault(require("./FinClass"));
 const FinEmp_1 = __importDefault(require("./FinEmp"));
+const FinPaymentMethod_1 = __importDefault(require("./FinPaymentMethod"));
 class FinAccount extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -23,12 +24,12 @@ class FinAccount extends Orm_1.BaseModel {
             'companies_id',
             'fin_emp_id',
             'fin_class_id',
+            'fin_paymentmethod_id',
             'description',
             'amount',
             'data_billing',
             'excluded',
             'debit_credit',
-            'payment_method',
             'cost',
             'ir',
             'obs',
@@ -50,6 +51,13 @@ __decorate([
     __metadata("design:type", Object)
 ], FinAccount.prototype, "finemp", void 0);
 __decorate([
+    (0, Orm_1.hasOne)(() => FinPaymentMethod_1.default, {
+        foreignKey: 'id',
+        localKey: 'fin_paymentmethod_id'
+    }),
+    __metadata("design:type", Object)
+], FinAccount.prototype, "finPaymentMethod", void 0);
+__decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
 ], FinAccount.prototype, "id", void 0);
@@ -65,6 +73,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], FinAccount.prototype, "fin_class_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], FinAccount.prototype, "fin_paymentmethod_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
@@ -85,10 +97,6 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], FinAccount.prototype, "debit_credit", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", String)
-], FinAccount.prototype, "payment_method", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
