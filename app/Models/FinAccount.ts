@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import FinClass from './FinClass'
 import FinEmp from './FinEmp'
+import FinPaymentMethod from './FinPaymentMethod'
 export default class FinAccount extends BaseModel {
 
   public static get fillable() {
@@ -10,12 +11,12 @@ export default class FinAccount extends BaseModel {
       'companies_id',
       'fin_emp_id',
       'fin_class_id',
+      'fin_paymentmethod_id',
       'description',
       'amount',
       'data_billing',
       'excluded',
       'debit_credit',
-      'payment_method',
       'cost',
       'ir',
       'obs',
@@ -34,6 +35,12 @@ export default class FinAccount extends BaseModel {
   })
   public finemp: HasOne<typeof FinEmp>
 
+  @hasOne(() => FinPaymentMethod, {
+    foreignKey: 'id',
+    localKey: 'fin_paymentmethod_id'
+  })
+  public finPaymentMethod: HasOne<typeof FinPaymentMethod>
+
   @column({ isPrimary: true })
   public id: number
 
@@ -45,6 +52,9 @@ export default class FinAccount extends BaseModel {
 
   @column()
   public fin_class_id: number
+
+  @column()
+  public fin_paymentmethod_id:number
 
   @column()
   public description: string
@@ -61,8 +71,6 @@ export default class FinAccount extends BaseModel {
   @column()
   public debit_credit: string
 
-  @column()
-  public payment_method: string
   @column()
   public cost: string
   @column()

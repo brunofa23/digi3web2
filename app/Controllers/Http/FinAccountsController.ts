@@ -12,12 +12,14 @@ export default class FinAccountsController {
       const query = FinAccount.query()
         .where('companies_id', authenticate.companies_id)
         .where('excluded', false)
-
         .preload('finclass', query => {
           query.select('description')
         })
         .preload('finemp', query => {
           query.select('name')
+        })
+        .preload('finPaymentMethod', query => {
+          query.select('description')
         })
 
       if (body.description)
@@ -36,9 +38,10 @@ export default class FinAccountsController {
         query.where('payment_method', body.payment_method)
       if (body.ir === 'true')
         query.where('ir', true)
-      if(body.debit_credit)
-        query.where('debit_credit',body.debit_credit)
-
+      if (body.debit_credit)
+        query.where('debit_credit', body.debit_credit)
+      if (body.fin_paymentmethod_id)
+        query.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
       const data = await query
 
       return response.status(200).send(data)
@@ -68,8 +71,6 @@ export default class FinAccountsController {
       amount: await currencyConverter(body.amount),
       ir: body.ir === 'false' ? 0 : 1
     }
-
-    console.log("body:", body2)
 
     try {
       const data = await FinAccount.create(body2)
