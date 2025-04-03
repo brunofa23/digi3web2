@@ -10,12 +10,12 @@ export default class FinAccount extends BaseModel {
       'companies_id',
       'fin_emp_id',
       'fin_class_id',
+      'fin_paymentmethod_id',
       'description',
       'amount',
       'data_billing',
       'excluded',
       'debit_credit',
-      'payment_method',
       'cost',
       'ir',
       'obs',
@@ -47,6 +47,9 @@ export default class FinAccount extends BaseModel {
   public fin_class_id: number
 
   @column()
+  public fin_paymentmethod_id:number
+
+  @column()
   public description: string
 
   @column()
@@ -61,8 +64,6 @@ export default class FinAccount extends BaseModel {
   @column()
   public debit_credit: string
 
-  @column()
-  public payment_method: string
   @column()
   public cost: string
   @column()

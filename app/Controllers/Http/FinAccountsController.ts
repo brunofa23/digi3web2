@@ -8,6 +8,8 @@ export default class FinAccountsController {
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.qs()
+
+    console.log(body)
     try {
       const query = FinAccount.query()
         .where('companies_id', authenticate.companies_id)
@@ -38,7 +40,8 @@ export default class FinAccountsController {
         query.where('ir', true)
       if(body.debit_credit)
         query.where('debit_credit',body.debit_credit)
-
+      if(body.fin_paymentmethod_id)
+        query.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
       const data = await query
 
       return response.status(200).send(data)
