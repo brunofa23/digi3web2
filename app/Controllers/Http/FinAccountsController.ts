@@ -12,7 +12,6 @@ export default class FinAccountsController {
       const query = FinAccount.query()
         .where('companies_id', authenticate.companies_id)
         .where('excluded', false)
-
         .preload('finclass', query => {
           query.select('description')
         })
