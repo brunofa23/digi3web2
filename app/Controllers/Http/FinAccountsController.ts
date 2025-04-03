@@ -8,8 +8,6 @@ export default class FinAccountsController {
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.qs()
-
-    console.log(body)
     try {
       const query = FinAccount.query()
         .where('companies_id', authenticate.companies_id)
@@ -74,8 +72,6 @@ export default class FinAccountsController {
       amount: await currencyConverter(body.amount),
       ir: body.ir === 'false' ? 0 : 1
     }
-
-    console.log("body:", body2)
 
     try {
       const data = await FinAccount.create(body2)
