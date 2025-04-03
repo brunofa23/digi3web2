@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import FinClass from './FinClass'
 import FinEmp from './FinEmp'
+import FinPaymentMethod from './FinPaymentMethod'
 export default class FinAccount extends BaseModel {
 
   public static get fillable() {
@@ -33,6 +34,12 @@ export default class FinAccount extends BaseModel {
     localKey: 'fin_emp_id'
   })
   public finemp: HasOne<typeof FinEmp>
+
+  @hasOne(() => FinPaymentMethod, {
+    foreignKey: 'id',
+    localKey: 'fin_paymentmethod_id'
+  })
+  public finPaymentMethod: HasOne<typeof FinPaymentMethod>
 
   @column({ isPrimary: true })
   public id: number

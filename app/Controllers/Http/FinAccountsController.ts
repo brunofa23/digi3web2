@@ -21,6 +21,9 @@ export default class FinAccountsController {
         .preload('finemp', query => {
           query.select('name')
         })
+        .preload('finPaymentMethod', query => {
+          query.select('description')
+        })
 
       if (body.description)
         query.where('description', 'like', `${body.description}`)
@@ -38,9 +41,9 @@ export default class FinAccountsController {
         query.where('payment_method', body.payment_method)
       if (body.ir === 'true')
         query.where('ir', true)
-      if(body.debit_credit)
-        query.where('debit_credit',body.debit_credit)
-      if(body.fin_paymentmethod_id)
+      if (body.debit_credit)
+        query.where('debit_credit', body.debit_credit)
+      if (body.fin_paymentmethod_id)
         query.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
       const data = await query
 
