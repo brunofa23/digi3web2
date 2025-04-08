@@ -66,10 +66,11 @@ export default class FinAccountsController {
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinAccount.fillable)
-    const body2 = {
-      ...body, companies_id: authenticate.companies_id,
+    const body2 = {...body,
+      companies_id: authenticate.companies_id,
       amount: await currencyConverter(body.amount),
-      ir: body.ir === 'false' ? 0 : 1
+      ir: body.ir === 'false' ? 0 : 1,
+      replicate: body.replicate === 'false' ? 0 : 1
     }
 
     try {
@@ -91,7 +92,11 @@ export default class FinAccountsController {
     if (body.amount) {
       amount = await currencyConverter(body.amount)
     }
-    const body2 = { ...body, amount, excluded: body.excluded == 'false' ? false : true, ir: body.ir === 'false' ? 0 : 1 }
+    const body2 = { ...body,
+      amount,
+      excluded: body.excluded == 'false' ? false : true,
+      ir: body.ir === 'false' ? 0 : 1,
+      replicate: body.replicate === 'false' ? 0 : 1 }
 
     try {
       const data = await FinAccount.query()
