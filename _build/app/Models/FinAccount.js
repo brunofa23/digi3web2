@@ -27,6 +27,9 @@ class FinAccount extends Orm_1.BaseModel {
             'fin_paymentmethod_id',
             'description',
             'amount',
+            'date',
+            'date_due',
+            'replicate',
             'data_billing',
             'excluded',
             'debit_credit',
@@ -85,6 +88,18 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], FinAccount.prototype, "amount", void 0);
+__decorate([
+    Orm_1.column.dateTime(),
+    __metadata("design:type", luxon_1.DateTime)
+], FinAccount.prototype, "date", void 0);
+__decorate([
+    Orm_1.column.dateTime(),
+    __metadata("design:type", luxon_1.DateTime)
+], FinAccount.prototype, "date_due", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinAccount.prototype, "replicate", void 0);
 __decorate([
     Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)

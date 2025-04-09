@@ -66,14 +66,18 @@ class FinAccountsController {
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = request.only(FinAccount_1.default.fillable);
-        const body2 = {
-            ...body, companies_id: authenticate.companies_id,
+        const body2 = { ...body,
+            companies_id: authenticate.companies_id,
             amount: await (0, util_1.currencyConverter)(body.amount),
-            ir: body.ir === 'false' ? 0 : 1
+            ir: body.ir === 'false' ? 0 : 1,
+            replicate: body.replicate === 'false' ? 0 : 1
         };
         try {
             const data = await FinAccount_1.default.create(body2);
             await (0, finImages_1.uploadFinImage)(authenticate.companies_id, data.id, request);
+            await data.load('finPaymentMethod');
+            await data.load('finclass');
+            await data.load('finemp');
             return response.status(201).send(data);
         }
         catch (error) {
@@ -87,7 +91,11 @@ class FinAccountsController {
         if (body.amount) {
             amount = await (0, util_1.currencyConverter)(body.amount);
         }
-        const body2 = { ...body, amount, excluded: body.excluded == 'false' ? false : true, ir: body.ir === 'false' ? 0 : 1 };
+        const body2 = { ...body,
+            amount,
+            excluded: body.excluded == 'false' ? false : true,
+            ir: body.ir === 'false' ? 0 : 1,
+            replicate: body.replicate === 'false' ? 0 : 1 };
         try {
             const data = await FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)
