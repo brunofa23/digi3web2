@@ -76,6 +76,10 @@ export default class FinAccountsController {
     try {
       const data = await FinAccount.create(body2)
       await uploadFinImage(authenticate.companies_id, data.id, request)
+      await data.load('finPaymentMethod')
+      await data.load('finclass')
+      await data.load('finemp')
+
       return response.status(201).send(data)
 
     } catch (error) {
