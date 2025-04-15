@@ -116,6 +116,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+    console.log("passei aquio.... 15444")
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
@@ -172,7 +173,7 @@ export default class IndeximagesController {
             book: dataImages.book,
             sheet: dataImages.sheet,
             indexbook: dataImages.indexBook,
-            })
+          })
 
           dataImages.id = book.id
         } else

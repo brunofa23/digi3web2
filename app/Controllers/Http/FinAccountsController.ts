@@ -86,8 +86,6 @@ export default class FinAccountsController {
       throw new BadRequestException('Bad Request', 401, error)
     }
   }
-
-
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinAccount.fillable)
@@ -113,6 +111,32 @@ export default class FinAccountsController {
     }
 
   }
+
+
+  public async createMany({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const body = request.only(FinAccount.fillable)
+    const body2 = {...body,
+      companies_id: authenticate.companies_id,
+      amount: await currencyConverter(body.amount),
+      ir: body.ir === 'false' ? 0 : 1,
+      replicate: body.replicate === 'false' ? 0 : 1
+    }
+
+    try {
+      const data = await FinAccount.create(body2)
+      await uploadFinImage(authenticate.companies_id, data.id, request)
+      await data.load('finPaymentMethod')
+      await data.load('finclass')
+      await data.load('finemp')
+
+      return response.status(201).send(data)
+
+    } catch (error) {
+      throw new BadRequestException('Bad Request', 401, error)
+    }
+  }
+
 
   public async destroy({ }: HttpContextContract) { }
 
