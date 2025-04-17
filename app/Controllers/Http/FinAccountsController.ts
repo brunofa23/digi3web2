@@ -9,6 +9,7 @@ export default class FinAccountsController {
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.qs()
+
     try {
       const query = FinAccount.query()
         .where('companies_id', authenticate.companies_id)
@@ -29,10 +30,23 @@ export default class FinAccountsController {
         query.where('fin_emp_id', body.fin_emp_id)
       if (body.fin_class_id)
         query.where('fin_class_id', body.fin_class_id)
-      if (body.date_start)
-        query.where('created_at', '>=', body.date_start)
-      if (body.date_end)
-        query.where('created_at', '<=', body.date_end)
+
+      //PESQUISA POR TIPO DE DATA
+      // DATE
+      // DATE_DUE
+      // DATE_CONCILIATION
+      if (body.typeDate == 'DATE') {
+        query.where('date', '>=', body.date_start)
+        query.where('date', '<=', body.date_end)
+
+      } else if (body.typeDate == 'DATE_DUE') {
+        query.where('date_due', '>=', body.date_start)
+        query.where('date_due', '<=', body.date_end)
+      }
+      else if (body.typeDate == 'DATE_CONCILIATION') {
+        query.where('date_conciliation', '>=', body.date_start)
+        query.where('date_conciliation', '<=', body.date_end)
+      }
       if (body.cost)
         query.where('cost', body.cost)
       if (body.payment_method)
@@ -43,6 +57,15 @@ export default class FinAccountsController {
         query.where('debit_credit', body.debit_credit)
       if (body.fin_paymentmethod_id)
         query.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
+
+      //RECONCILIADO OU NÃO OU TODOS
+      if (body.isReconciled == 'C')
+        //console.log("lançamentos conciliados")
+        query.where('amount_paid', '>', 0)
+      if (body.isReconciled == 'N')
+        //console.log("NÃO conciliados")
+        query.whereNull('amount_paid')
+
       const data = await query
 
       return response.status(200).send(data)
