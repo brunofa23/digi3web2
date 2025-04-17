@@ -36,21 +36,17 @@ export default class FinAccountsController {
       // DATE_DUE
       // DATE_CONCILIATION
       if (body.typeDate == 'DATE') {
-        console.log("data")
         query.where('date', '>=', body.date_start)
         query.where('date', '<=', body.date_end)
 
       } else if (body.typeDate == 'DATE_DUE') {
-        console.log("data vencimento")
         query.where('date_due', '>=', body.date_start)
         query.where('date_due', '<=', body.date_end)
       }
       else if (body.typeDate == 'DATE_CONCILIATION') {
-        console.log("data conciliacao")
         query.where('date_conciliation', '>=', body.date_start)
         query.where('date_conciliation', '<=', body.date_end)
       }
-
       if (body.cost)
         query.where('cost', body.cost)
       if (body.payment_method)
