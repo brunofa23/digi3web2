@@ -25,12 +25,15 @@ class FinAccount extends Orm_1.BaseModel {
             'fin_emp_id',
             'fin_class_id',
             'fin_paymentmethod_id',
+            'id_replication',
             'description',
             'amount',
+            'amount_paid',
             'date',
             'date_due',
             'replicate',
             'data_billing',
+            'date_conciliation',
             'excluded',
             'debit_credit',
             'cost',
@@ -82,12 +85,20 @@ __decorate([
 ], FinAccount.prototype, "fin_paymentmethod_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], FinAccount.prototype, "id_replication", void 0);
+__decorate([
+    (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], FinAccount.prototype, "description", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], FinAccount.prototype, "amount", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], FinAccount.prototype, "amount_paid", void 0);
 __decorate([
     Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
@@ -104,6 +115,10 @@ __decorate([
     Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], FinAccount.prototype, "data_billing", void 0);
+__decorate([
+    Orm_1.column.dateTime(),
+    __metadata("design:type", luxon_1.DateTime)
+], FinAccount.prototype, "date_conciliation", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)

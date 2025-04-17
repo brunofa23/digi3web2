@@ -7,6 +7,7 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const FinAccount_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/FinAccount"));
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const finImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploadFinImage/finImages");
+const luxon_1 = require("luxon");
 class FinAccountsController {
     async index({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -66,9 +67,9 @@ class FinAccountsController {
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = request.only(FinAccount_1.default.fillable);
-        const body2 = { ...body,
+        const body2 = {
+            ...body,
             companies_id: authenticate.companies_id,
-            amount: await (0, util_1.currencyConverter)(body.amount),
             ir: body.ir === 'false' ? 0 : 1,
             replicate: body.replicate === 'false' ? 0 : 1
         };
@@ -87,15 +88,14 @@ class FinAccountsController {
     async update({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = request.only(FinAccount_1.default.fillable);
-        let amount;
-        if (body.amount) {
-            amount = await (0, util_1.currencyConverter)(body.amount);
-        }
-        const body2 = { ...body,
-            amount,
+        const body2 = {
+            ...body,
+            amount: body.amount ? await (0, util_1.currencyConverter)(body.amount) : null,
+            amount_paid: body.amount_paid ? await (0, util_1.currencyConverter)(body.amount_paid) : null,
             excluded: body.excluded == 'false' ? false : true,
             ir: body.ir === 'false' ? 0 : 1,
-            replicate: body.replicate === 'false' ? 0 : 1 };
+            replicate: body.replicate === 'false' ? 0 : 1
+        };
         try {
             const data = await FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)
@@ -105,6 +105,36 @@ class FinAccountsController {
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 401, error);
+        }
+    }
+    async createMany({ auth, request, response }) {
+        console.log("CREATE MANY ....");
+        const authenticate = await auth.use('api').authenticate();
+        const { id, installment, date_due_installment } = request.only([
+            'id',
+            'installment',
+            'date_due_installment'
+        ]);
+        try {
+            const data = await FinAccount_1.default.query().where('id', id).firstOrFail();
+            const { id: _id, ...basePayload } = data.$original;
+            const parcelas = [];
+            for (let i = 1; i <= installment; i++) {
+                const dueDate = luxon_1.DateTime.fromISO(data.date_due)
+                    .plus({ months: i })
+                    .set({ day: date_due_installment });
+                parcelas.push({
+                    ...basePayload,
+                    date_due: dueDate.toISODate(),
+                    id_replication: _id,
+                    replicate: true
+                });
+            }
+            await FinAccount_1.default.createMany(parcelas);
+            return response.status(201).send({ message: 'Parcelas criadas com sucesso' });
+        }
+        catch (error) {
+            throw new BadRequestException_1.default('Erro ao criar parcelas', 400, error);
         }
     }
     async destroy({}) { }

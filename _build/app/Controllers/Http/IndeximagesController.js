@@ -94,6 +94,7 @@ class IndeximagesController {
         }
     }
     async uploads({ auth, request, params, response }) {
+        console.log("passei aquio.... 15444");
         const authenticate = await auth.use('api').authenticate();
         const company = await Company_1.default.find(authenticate.companies_id);
         const images = request.files('images', {

@@ -71,6 +71,7 @@ Route_1.default.group(() => {
     Route_1.default.resource("/finemps", "FinEmpsController").apiOnly();
     Route_1.default.resource("/finclasses", "FinClassesController").apiOnly();
     Route_1.default.resource("/finaccounts", "FinAccountsController").apiOnly();
+    Route_1.default.post("/finaccounts/createmany", "FinAccountsController.createMany");
     Route_1.default.resource("/finimages", "FinImagesController").apiOnly();
     Route_1.default.resource("/finpaymentmethods", 'FinPaymentMethodsController').apiOnly();
     Route_1.default.get('dashboard', async ({ auth }) => {
