@@ -75,10 +75,6 @@ export default class FinAccountsController {
       ir: body.ir === 'false' ? 0 : 1,
       replicate: body.replicate === 'false' ? 0 : 1
     }
-
-    console.log("body2>>>", body2)
-
-
     try {
       const data = await FinAccount.create(body2)
       await uploadFinImage(authenticate.companies_id, data.id, request)
@@ -97,7 +93,7 @@ export default class FinAccountsController {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinAccount.fillable)
 
-    console.log(body)
+    //console.log(body)
     // let amount
     // let amount_paid
     // if (body.amount) {
