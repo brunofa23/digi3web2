@@ -113,6 +113,7 @@ Route.group(() => {
 
   //FIN_ACCOUNTS
   Route.resource("/finaccounts", "FinAccountsController").apiOnly()
+  Route.post("/finaccounts/createmany", "FinAccountsController.createMany")
 
   //FIN_IMAGES
   Route.resource("/finimages", "FinImagesController").apiOnly()

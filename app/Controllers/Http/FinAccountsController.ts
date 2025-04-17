@@ -3,6 +3,7 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import FinAccount from 'App/Models/FinAccount'
 import { currencyConverter } from "App/Services/util"
 import { uploadFinImage } from 'App/Services/uploadFinImage/finImages'
+import { DateTime } from 'luxon'
 export default class FinAccountsController {
 
   public async index({ auth, request, response }: HttpContextContract) {
@@ -66,13 +67,14 @@ export default class FinAccountsController {
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinAccount.fillable)
-    const body2 = {...body,
+    const body2 = {
+      ...body,
       companies_id: authenticate.companies_id,
-      amount: await currencyConverter(body.amount),
+      // amount: await currencyConverter(body.amount),
+      // amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
       ir: body.ir === 'false' ? 0 : 1,
       replicate: body.replicate === 'false' ? 0 : 1
     }
-
     try {
       const data = await FinAccount.create(body2)
       await uploadFinImage(authenticate.companies_id, data.id, request)
@@ -87,20 +89,27 @@ export default class FinAccountsController {
     }
   }
 
-
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinAccount.fillable)
 
-    let amount
-    if (body.amount) {
-      amount = await currencyConverter(body.amount)
-    }
-    const body2 = { ...body,
-      amount,
+    //console.log(body)
+    // let amount
+    // let amount_paid
+    // if (body.amount) {
+    //   amount = await currencyConverter(body.amount)
+    // }
+    // if(body.amount_paid){
+    //   amount_paid = await currencyConverter(body.amount_paid)
+    // }
+    const body2 = {
+      ...body,
+      amount: body.amount ? await currencyConverter(body.amount) : null,
+      amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
       excluded: body.excluded == 'false' ? false : true,
       ir: body.ir === 'false' ? 0 : 1,
-      replicate: body.replicate === 'false' ? 0 : 1 }
+      replicate: body.replicate === 'false' ? 0 : 1
+    }
 
     try {
       const data = await FinAccount.query()
@@ -113,6 +122,75 @@ export default class FinAccountsController {
     }
 
   }
+
+
+  // public async createMany({ auth, request, response }: HttpContextContract) {
+  //   console.log("create many")
+  //   const authenticate = await auth.use('api').authenticate()
+  //   const { id, installment, date_due_installment } = request.only(['id', 'installment', 'date_due_installment'])
+  //   console.log(id, installment, date_due_installment)
+
+  //   try {
+  //     const data = await FinAccount.query().where('id', id).first()
+  //     const { id: _id, ...createPayload } = data?.$original
+
+  //     const day = DateTime.fromISO(data?.$original.date_due).day
+  //     const month = DateTime.fromISO(data?.$original.date_due).month
+  //     const dateTeste = DateTime.fromISO(data?.$original.date_due).plus({ month: 1 }).set({day:18})
+  //     console.log("dia:", day, "mes:", month, "DATA:", dateTeste.toFormat("yyyy-MM-dd"))
+
+  //     await FinAccount.create({...createPayload,id_replication:_id})
+
+
+  //     //return response.status(201).send(teste)
+
+  //   } catch (error) {
+  //     throw new BadRequestException('Bad Request', 401, error)
+  //   }
+  // }
+
+  public async createMany({ auth, request, response }: HttpContextContract) {
+
+    console.log("CREATE MANY ....")
+    const authenticate = await auth.use('api').authenticate()
+
+    const { id, installment, date_due_installment } = request.only([
+      'id',
+      'installment',
+      'date_due_installment'
+    ])
+
+    try {
+      const data = await FinAccount.query().where('id', id).firstOrFail()
+      const { id: _id, ...basePayload } = data.$original
+
+      const parcelas = []
+
+      for (let i = 1; i <= installment; i++) {
+        const dueDate = DateTime.fromISO(data.date_due)
+          .plus({ months: i }) // soma os meses
+          .set({ day: date_due_installment }) // fixa o dia
+
+        parcelas.push({
+          ...basePayload,
+          date_due: dueDate.toISODate(), // ou toISO() se quiser hora
+          id_replication: _id,
+          replicate: true
+          //installment_number: i + 1, // opcional: adicionar numeração da parcela
+          //created_by: user.id // se tiver controle de usuário
+        })
+      }
+
+      //console.log(parcelas)
+      //return parcelas
+      await FinAccount.createMany(parcelas)
+      return response.status(201).send({ message: 'Parcelas criadas com sucesso' })
+    } catch (error) {
+      throw new BadRequestException('Erro ao criar parcelas', 400, error)
+    }
+  }
+
+
 
   public async destroy({ }: HttpContextContract) { }
 

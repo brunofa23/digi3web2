@@ -12,12 +12,15 @@ export default class FinAccount extends BaseModel {
       'fin_emp_id',
       'fin_class_id',
       'fin_paymentmethod_id',
+      'id_replication',
       'description',
       'amount',
+      'amount_paid',
       'date',
       'date_due',
       'replicate',
       'data_billing',
+      'date_conciliation',
       'excluded',
       'debit_credit',
       'cost',
@@ -60,10 +63,17 @@ export default class FinAccount extends BaseModel {
   public fin_paymentmethod_id: number
 
   @column()
+  public id_replication: number
+
+  @column()
   public description: string
 
   @column()
   public amount: number
+
+
+  @column()
+  public amount_paid: number
 
   @column.dateTime()
   public date: DateTime
@@ -74,6 +84,9 @@ export default class FinAccount extends BaseModel {
 
   @column.dateTime()
   public data_billing: DateTime
+
+  @column.dateTime()
+  public date_conciliation: DateTime
 
   @column()
   public excluded: boolean
