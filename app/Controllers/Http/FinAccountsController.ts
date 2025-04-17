@@ -70,11 +70,15 @@ export default class FinAccountsController {
     const body2 = {
       ...body,
       companies_id: authenticate.companies_id,
-      amount: await currencyConverter(body.amount),
-      amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
+      // amount: await currencyConverter(body.amount),
+      // amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
       ir: body.ir === 'false' ? 0 : 1,
       replicate: body.replicate === 'false' ? 0 : 1
     }
+
+    console.log("body2>>>", body2)
+
+
     try {
       const data = await FinAccount.create(body2)
       await uploadFinImage(authenticate.companies_id, data.id, request)
@@ -93,6 +97,7 @@ export default class FinAccountsController {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinAccount.fillable)
 
+    console.log(body)
     // let amount
     // let amount_paid
     // if (body.amount) {
