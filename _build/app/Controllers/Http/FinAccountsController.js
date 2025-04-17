@@ -26,7 +26,7 @@ class FinAccountsController {
                 query.select('description');
             });
             if (body.description)
-                query.where('description', 'like', `${body.description}`);
+                query.where('description', 'like', `%${body.description}%`);
             if (body.fin_emp_id)
                 query.where('fin_emp_id', body.fin_emp_id);
             if (body.fin_class_id)
