@@ -98,6 +98,7 @@ export default class FinAccountsController {
       ir: body.ir === 'false' ? 0 : 1,
       replicate: body.replicate === 'false' ? 0 : 1
     }
+
     try {
       const data = await FinAccount.create(body2)
       await uploadFinImage(authenticate.companies_id, data.id, request)
@@ -116,23 +117,53 @@ export default class FinAccountsController {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinAccount.fillable)
 
-    //console.log(body)
-    // let amount
-    // let amount_paid
-    // if (body.amount) {
-    //   amount = await currencyConverter(body.amount)
+    // const nowLimit = DateTime.now().set({ hour: 23, minute: 59 });
+    // const dueDate = DateTime.fromISO(body.date_due);
+    // const amountPaid = parseFloat(body.amount_paid);
+    // const shouldConciliate =
+    //   (dueDate <= nowLimit && amountPaid > 0) ||
+    //   (body.date_conciliation && amountPaid > 0);
+
+    // let date_conciliation: string | null = null;
+    // let amount_paid_converted: number | null = null;
+
+    // if (shouldConciliate) {
+    //   console.log("passei aqui");
+    //   date_conciliation = dueDate.toFormat("yyyy-MM-dd");
+    //   amount_paid_converted = await currencyConverter(body.amount);
     // }
-    // if(body.amount_paid){
-    //   amount_paid = await currencyConverter(body.amount_paid)
-    // }
+
+    // const body2 = {
+    //   ...body,
+    //   amount: body.amount ? await currencyConverter(body.amount) : null,
+    //   amount_paid: amount_paid_converted,
+    //   excluded: body.excluded === 'false' ? false : true,
+    //   ir: body.ir === 'false' ? 0 : 1,
+    //   replicate: body.replicate === 'false' ? 0 : 1,
+    //   date_conciliation
+    // };
+
+    let date_conciliation: any = null
+    let amount_pain: any = null
+    //if ((DateTime.fromISO(body.date_due) <= DateTime.now().set({ hour: 23, minute: 59 }) && parseFloat(body.amount_paid) > 0) || (body.date_conciliation && parseFloat(body.amount_paid) > 0)) {
+    if (DateTime.fromISO(body.date_due) <= DateTime.now().set({ hour: 23, minute: 59 })) {
+      console.log("passei aqui")
+      date_conciliation = DateTime.fromISO(body.date_due).toFormat("yyyy-MM-dd")
+      amount_pain = await currencyConverter(body.amount)
+    }
+
     const body2 = {
       ...body,
       amount: body.amount ? await currencyConverter(body.amount) : null,
-      amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
+      amount_paid: amount_pain,//body.amount_paid ? await currencyConverter(body.amount_paid) : null,
       excluded: body.excluded == 'false' ? false : true,
       ir: body.ir === 'false' ? 0 : 1,
-      replicate: body.replicate === 'false' ? 0 : 1
+      replicate: body.replicate === 'false' ? 0 : 1,
+      date_conciliation: date_conciliation//DateTime.fromISO(body.date_due) <= DateTime.now().set({ hour: 23, minute: 59 }) ? DateTime.fromISO(body.date_due).toFormat("yyyy-MM-dd") : null,
+
     }
+
+    console.log('body2#', body2.date_conciliation)
 
     try {
       const data = await FinAccount.query()
