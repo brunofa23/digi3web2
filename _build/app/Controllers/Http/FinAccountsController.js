@@ -100,14 +100,23 @@ class FinAccountsController {
     async update({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = request.only(FinAccount_1.default.fillable);
+        let date_conciliation = null;
+        let amount_pain = null;
+        if (luxon_1.DateTime.fromISO(body.date_due) <= luxon_1.DateTime.now().set({ hour: 23, minute: 59 })) {
+            console.log("passei aqui");
+            date_conciliation = luxon_1.DateTime.fromISO(body.date_due).toFormat("yyyy-MM-dd");
+            amount_pain = await (0, util_1.currencyConverter)(body.amount);
+        }
         const body2 = {
             ...body,
             amount: body.amount ? await (0, util_1.currencyConverter)(body.amount) : null,
-            amount_paid: body.amount_paid ? await (0, util_1.currencyConverter)(body.amount_paid) : null,
+            amount_paid: amount_pain,
             excluded: body.excluded == 'false' ? false : true,
             ir: body.ir === 'false' ? 0 : 1,
-            replicate: body.replicate === 'false' ? 0 : 1
+            replicate: body.replicate === 'false' ? 0 : 1,
+            date_conciliation: date_conciliation
         };
+        console.log('body2#', body2.date_conciliation);
         try {
             const data = await FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)
