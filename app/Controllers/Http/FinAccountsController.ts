@@ -1,9 +1,12 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import FinAccount from 'App/Models/FinAccount'
+import FinAccountStoreValidator from 'App/Validators/FinAccountStoreValidator'
+import FinAccountUpdateValidator from 'App/Validators/FinAccountUpdateValidator'
 import { currencyConverter } from "App/Services/util"
 import { uploadFinImage } from 'App/Services/uploadFinImage/finImages'
 import { DateTime } from 'luxon'
+
 export default class FinAccountsController {
 
   public async index({ auth, request, response }: HttpContextContract) {
@@ -87,19 +90,20 @@ export default class FinAccountsController {
     }
   }
 
+
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const body = request.only(FinAccount.fillable)
-    const body2 = {
-      ...body,
-      companies_id: authenticate.companies_id,
-      // amount: await currencyConverter(body.amount),
-      // amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
-      ir: body.ir === 'false' ? 0 : 1,
-      replicate: body.replicate === 'false' ? 0 : 1
+    const body = await request.validate(FinAccountStoreValidator)
+    body.companies_id = authenticate.companies_id
+    const { conciliation, ...body1 } = body
+
+    if (conciliation == true) {
+      body1.amount_paid = body.amount
+      body1.date_conciliation = body.date_due
     }
+
     try {
-      const data = await FinAccount.create(body2)
+      const data = await FinAccount.create(body1)
       await uploadFinImage(authenticate.companies_id, data.id, request)
       await data.load('finPaymentMethod')
       await data.load('finclass')
@@ -112,39 +116,84 @@ export default class FinAccountsController {
     }
   }
 
+
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const body = request.only(FinAccount.fillable)
+    const body = await request.validate(FinAccountUpdateValidator)
 
-    //console.log(body)
-    // let amount
-    // let amount_paid
-    // if (body.amount) {
-    //   amount = await currencyConverter(body.amount)
+    body.date = body.date?.toJSDate()
+    body.date_due = body.date_due?.toJSDate()
+    body.data_billing = body.data_billing?.toJSDate()
+    body.date_conciliation = body.date_conciliation?.toJSDate()
+    body.amount = body.amount ? await currencyConverter(body.amount) : null
+    body.amount_paid = !isNaN(body.amount_paid) || body.amount_paid ? await currencyConverter(body.amount_paid) : null
+
+    // if (body.conciliation == false) {
+    //   console.log("desconciliar")
+    //   body.date_conciliation = null
+    //   body.amount_paid = null
     // }
-    // if(body.amount_paid){
-    //   amount_paid = await currencyConverter(body.amount_paid)
-    // }
-    const body2 = {
-      ...body,
-      amount: body.amount ? await currencyConverter(body.amount) : null,
-      amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
-      excluded: body.excluded == 'false' ? false : true,
-      ir: body.ir === 'false' ? 0 : 1,
-      replicate: body.replicate === 'false' ? 0 : 1
-    }
+
+    const { conciliation, ...body1 } = body
 
     try {
-      const data = await FinAccount.query()
+      await FinAccount.query()
         .where('companies_id', authenticate.companies_id)
         .andWhere('id', params.id)
-        .update(body2)
+        .update(body1)
+
+      const data = await FinAccount.findOrFail(params.id)
+      await data.load('finPaymentMethod')
+      await data.load('finclass')
+      await data.load('finemp')
+
       return response.status(201).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
     }
 
   }
+
+
+
+  // public async update({ auth, params, request, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate()
+  //   const body = request.only(FinAccount.fillable)
+  //   const { conciliation } = request.only(['conciliation'])
+
+  //   console.log(typeof conciliation)
+  //   let amount
+  //   let amount_paid
+  //   if (conciliation == true) {
+  //     console.log("CONCILIADO")
+  //     //amount = await currencyConverter(body.amount)
+  //   }
+  //   else {
+  //     console.log("NÃO CONCILIADO")
+  //     //amount_paid = await currencyConverter(body.amount_paid)
+  //   }
+  //   const body2 = {
+  //     ...body,
+  //     amount: body.amount ? await currencyConverter(body.amount) : null,
+  //     amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
+  //     excluded: body.excluded == 'false' ? false : true,
+  //     ir: body.ir === 'false' ? 0 : 1,
+  //     replicate: body.replicate === 'false' ? 0 : 1
+  //   }
+
+  //   // console.log(body2)
+
+  //   try {
+  //     const data = await FinAccount.query()
+  //       .where('companies_id', authenticate.companies_id)
+  //       .andWhere('id', params.id)
+  //       .update(body2)
+  //     return response.status(201).send(data)
+  //   } catch (error) {
+  //     throw new BadRequestException('Bad Request', 401, error)
+  //   }
+
+  // }
 
 
   // public async createMany({ auth, request, response }: HttpContextContract) {
@@ -185,7 +234,7 @@ export default class FinAccountsController {
 
     try {
       const data = await FinAccount.query().where('id', id).firstOrFail()
-      const { id: _id, ...basePayload } = data.$original
+      const { id: _id,date_conciliation:_date_conciliation,amount_paid:_amount_paid, ...basePayload } = data.$original
 
       const parcelas = []
 
@@ -199,6 +248,7 @@ export default class FinAccountsController {
           date_due: dueDate.toISODate(), // ou toISO() se quiser hora
           id_replication: _id,
           replicate: true
+
           //installment_number: i + 1, // opcional: adicionar numeração da parcela
           //created_by: user.id // se tiver controle de usuário
         })

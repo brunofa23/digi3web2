@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "npm run docker:dev && node ace serve --watch",
     "build": "node ace build --production && mkdir -p _build/tmp/uploads",
-    "start": "node server.js",
+    "start": "./start.sh",
+    "ini": "node ace serve --watch",
+    "start2": "node server.js",
     "docker:dev": "./scripts/docker-dev-start.sh",
     "docker:restore": "./scripts/import-dump.sh",
     "release": "standard-version -a"
