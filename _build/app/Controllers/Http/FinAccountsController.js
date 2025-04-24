@@ -102,14 +102,13 @@ class FinAccountsController {
     async update({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(FinAccountUpdateValidator_1.default);
-        const body2 = {
-            ...body,
-            amount: body.amount ? await (0, util_1.currencyConverter)(body.amount) : null,
-            amount_paid: body.amount_paid ? await (0, util_1.currencyConverter)(body.amount_paid) : null,
-            excluded: body.excluded == 'false' ? false : true,
-            ir: body.ir === 'false' ? 0 : 1,
-            replicate: body.replicate === 'false' ? 0 : 1
-        };
+        body.date = body.date?.toJSDate();
+        body.date_due = body.date_due?.toJSDate();
+        body.data_billing = body.data_billing?.toJSDate();
+        body.date_conciliation = body.date_conciliation?.toJSDate();
+        body.amount = body.amount ? await (0, util_1.currencyConverter)(body.amount) : null;
+        body.amount_paid = !isNaN(body.amount_paid) || body.amount_paid ? await (0, util_1.currencyConverter)(body.amount_paid) : null;
+        const { conciliation, ...body1 } = body;
         try {
             await FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)
