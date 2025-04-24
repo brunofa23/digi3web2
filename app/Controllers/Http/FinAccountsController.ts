@@ -152,7 +152,7 @@ export default class FinAccountsController {
   }
 
 
-
+//*********
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountUpdateValidator)
