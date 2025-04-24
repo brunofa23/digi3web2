@@ -121,23 +121,13 @@ export default class FinAccountsController {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountUpdateValidator)
 
-    //console.log(body)
-    // let amount
-    // let amount_paid
-    // if (body.amount) {
-    //   amount = await currencyConverter(body.amount)
-    // }
-    // if(body.amount_paid){
-    //   amount_paid = await currencyConverter(body.amount_paid)
-    // }
-    const body2 = {
-      ...body,
-      amount: body.amount ? await currencyConverter(body.amount) : null,
-      amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
-      excluded: body.excluded == 'false' ? false : true,
-      ir: body.ir === 'false' ? 0 : 1,
-      replicate: body.replicate === 'false' ? 0 : 1
-    }
+    body.date = body.date?.toJSDate()
+    body.date_due = body.date_due?.toJSDate()
+    body.data_billing = body.data_billing?.toJSDate()
+    body.date_conciliation = body.date_conciliation?.toJSDate()
+    body.amount = body.amount ? await currencyConverter(body.amount) : null
+    body.amount_paid = !isNaN(body.amount_paid) || body.amount_paid ? await currencyConverter(body.amount_paid) : null
+    const { conciliation, ...body1 } = body
 
     try {
       await FinAccount.query()
@@ -157,72 +147,6 @@ export default class FinAccountsController {
 
   }
 
-
-
-  // public async update({ auth, params, request, response }: HttpContextContract) {
-  //   const authenticate = await auth.use('api').authenticate()
-  //   const body = request.only(FinAccount.fillable)
-  //   const { conciliation } = request.only(['conciliation'])
-
-  //   console.log(typeof conciliation)
-  //   let amount
-  //   let amount_paid
-  //   if (conciliation == true) {
-  //     console.log("CONCILIADO")
-  //     //amount = await currencyConverter(body.amount)
-  //   }
-  //   else {
-  //     console.log("NÃO CONCILIADO")
-  //     //amount_paid = await currencyConverter(body.amount_paid)
-  //   }
-  //   const body2 = {
-  //     ...body,
-  //     amount: body.amount ? await currencyConverter(body.amount) : null,
-  //     amount_paid: body.amount_paid ? await currencyConverter(body.amount_paid) : null,
-  //     excluded: body.excluded == 'false' ? false : true,
-  //     ir: body.ir === 'false' ? 0 : 1,
-  //     replicate: body.replicate === 'false' ? 0 : 1
-  //   }
-
-  //   // console.log(body2)
-
-  //   try {
-  //     const data = await FinAccount.query()
-  //       .where('companies_id', authenticate.companies_id)
-  //       .andWhere('id', params.id)
-  //       .update(body2)
-  //     return response.status(201).send(data)
-  //   } catch (error) {
-  //     throw new BadRequestException('Bad Request', 401, error)
-  //   }
-
-  // }
-
-
-  // public async createMany({ auth, request, response }: HttpContextContract) {
-  //   console.log("create many")
-  //   const authenticate = await auth.use('api').authenticate()
-  //   const { id, installment, date_due_installment } = request.only(['id', 'installment', 'date_due_installment'])
-  //   console.log(id, installment, date_due_installment)
-
-  //   try {
-  //     const data = await FinAccount.query().where('id', id).first()
-  //     const { id: _id, ...createPayload } = data?.$original
-
-  //     const day = DateTime.fromISO(data?.$original.date_due).day
-  //     const month = DateTime.fromISO(data?.$original.date_due).month
-  //     const dateTeste = DateTime.fromISO(data?.$original.date_due).plus({ month: 1 }).set({day:18})
-  //     console.log("dia:", day, "mes:", month, "DATA:", dateTeste.toFormat("yyyy-MM-dd"))
-
-  //     await FinAccount.create({...createPayload,id_replication:_id})
-
-
-  //     //return response.status(201).send(teste)
-
-  //   } catch (error) {
-  //     throw new BadRequestException('Bad Request', 401, error)
-  //   }
-  // }
 
   public async createMany({ auth, request, response }: HttpContextContract) {
 
