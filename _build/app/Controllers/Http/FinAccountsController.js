@@ -82,11 +82,30 @@ class FinAccountsController {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(FinAccountStoreValidator_1.default);
         body.companies_id = authenticate.companies_id;
+        if (body.date) {
+            body.date = luxon_1.DateTime.fromJSDate(body.date.toJSDate(), { zone: 'America/Sao_Paulo' });
+        }
+        if (body.date_due) {
+            body.date_due = luxon_1.DateTime.fromJSDate(body.date_due.toJSDate(), {
+                zone: 'America/Sao_Paulo',
+            });
+        }
+        if (body.date_conciliation) {
+            body.date_conciliation = luxon_1.DateTime.fromJSDate(body.date_conciliation.toJSDate(), {
+                zone: 'America/Sao_Paulo',
+            });
+        }
+        if (body.data_billing) {
+            body.data_billing = luxon_1.DateTime.fromJSDate(body.data_billing.toJSDate(), {
+                zone: 'America/Sao_Paulo',
+            });
+        }
         const { conciliation, ...body1 } = body;
         if (conciliation == true) {
             body1.amount_paid = body.amount;
             body1.date_conciliation = body.date_due;
         }
+        console.log(body.date);
         try {
             const data = await FinAccount_1.default.create(body1);
             await (0, finImages_1.uploadFinImage)(authenticate.companies_id, data.id, request);
