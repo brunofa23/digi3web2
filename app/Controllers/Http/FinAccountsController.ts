@@ -95,12 +95,34 @@ export default class FinAccountsController {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountStoreValidator)
     body.companies_id = authenticate.companies_id
+
+    if (body.date) {
+      body.date = DateTime.fromJSDate(body.date.toJSDate(), { zone: 'America/Sao_Paulo' })
+    }
+    if (body.date_due) {
+      body.date_due = DateTime.fromJSDate(body.date_due.toJSDate(), {
+        zone: 'America/Sao_Paulo',
+      })
+    }
+    if (body.date_conciliation) {
+      body.date_conciliation = DateTime.fromJSDate(body.date_conciliation.toJSDate(), {
+        zone: 'America/Sao_Paulo',
+      })
+    }
+    if (body.data_billing) {
+      body.data_billing = DateTime.fromJSDate(body.data_billing.toJSDate(), {
+        zone: 'America/Sao_Paulo',
+      })
+    }
+
     const { conciliation, ...body1 } = body
 
     if (conciliation == true) {
       body1.amount_paid = body.amount
       body1.date_conciliation = body.date_due
     }
+
+    console.log(body.date)
 
     try {
       const data = await FinAccount.create(body1)
@@ -161,7 +183,7 @@ export default class FinAccountsController {
 
     try {
       const data = await FinAccount.query().where('id', id).firstOrFail()
-      const { id: _id,date_conciliation:_date_conciliation,amount_paid:_amount_paid, ...basePayload } = data.$original
+      const { id: _id, date_conciliation: _date_conciliation, amount_paid: _amount_paid, ...basePayload } = data.$original
 
       const parcelas = []
 
