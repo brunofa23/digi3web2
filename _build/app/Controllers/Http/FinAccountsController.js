@@ -10,60 +10,52 @@ const FinAccountUpdateValidator_1 = __importDefault(global[Symbol.for('ioc.use')
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const finImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploadFinImage/finImages");
 const luxon_1 = require("luxon");
+function toUTCISO(dateStr) {
+    return dateStr ? luxon_1.DateTime.fromISO(dateStr).toUTC().toISO() : null;
+}
 class FinAccountsController {
     async index({ auth, request, response }) {
-        const authenticate = await auth.use('api').authenticate();
+        const user = await auth.use('api').authenticate();
         const body = request.qs();
         try {
             const query = FinAccount_1.default.query()
-                .where('companies_id', authenticate.companies_id)
+                .where('companies_id', user.companies_id)
                 .where('excluded', false)
-                .preload('finclass', query => {
-                query.select('description');
-            })
-                .preload('finemp', query => {
-                query.select('name');
-            })
-                .preload('finPaymentMethod', query => {
-                query.select('description');
-            });
-            if (body.description)
-                query.where('description', 'like', `%${body.description}%`);
-            if (body.fin_emp_id)
-                query.where('fin_emp_id', body.fin_emp_id);
-            if (body.fin_class_id)
-                query.where('fin_class_id', body.fin_class_id);
-            if (body.typeDate == 'DATE') {
-                query.where('date', '>=', body.date_start);
-                query.where('date', '<=', body.date_end);
+                .preload('finclass', q => q.select('description'))
+                .preload('finemp', q => q.select('name'))
+                .preload('finPaymentMethod', q => q.select('description'));
+            query.if(body.description, q => q.where('description', 'like', `%${body.description}%`));
+            query.if(body.fin_emp_id, q => q.where('fin_emp_id', body.fin_emp_id));
+            query.if(body.fin_class_id, q => q.where('fin_class_id', body.fin_class_id));
+            query.if(body.cost, q => q.where('cost', body.cost));
+            query.if(body.payment_method, q => q.where('payment_method', body.payment_method));
+            query.if(body.ir === 'true', q => q.where('ir', true));
+            query.if(body.debit_credit, q => q.where('debit_credit', body.debit_credit));
+            query.if(body.fin_paymentmethod_id, q => q.where('fin_paymentmethod_id', body.fin_paymentmethod_id));
+            if (body.date_start && body.date_end && body.typeDate) {
+                const start = luxon_1.DateTime.fromISO(body.date_start).toUTC().toISO();
+                const end = luxon_1.DateTime.fromISO(body.date_end).toUTC().endOf('day').toISO();
+                const dateColumnMap = {
+                    DATE: 'date',
+                    DATE_DUE: 'date_due',
+                    DATE_CONCILIATION: 'date_conciliation',
+                };
+                const dateColumn = dateColumnMap[body.typeDate];
+                if (dateColumn) {
+                    query.where(dateColumn, '>=', start).where(dateColumn, '<=', end);
+                }
             }
-            else if (body.typeDate == 'DATE_DUE') {
-                query.where('date_due', '>=', body.date_start);
-                query.where('date_due', '<=', body.date_end);
-            }
-            else if (body.typeDate == 'DATE_CONCILIATION') {
-                query.where('date_conciliation', '>=', body.date_start);
-                query.where('date_conciliation', '<=', body.date_end);
-            }
-            if (body.cost)
-                query.where('cost', body.cost);
-            if (body.payment_method)
-                query.where('payment_method', body.payment_method);
-            if (body.ir === 'true')
-                query.where('ir', true);
-            if (body.debit_credit)
-                query.where('debit_credit', body.debit_credit);
-            if (body.fin_paymentmethod_id)
-                query.where('fin_paymentmethod_id', body.fin_paymentmethod_id);
-            if (body.isReconciled == 'C')
+            if (body.isReconciled === 'C') {
                 query.where('amount_paid', '>', 0);
-            if (body.isReconciled == 'N')
+            }
+            else if (body.isReconciled === 'N') {
                 query.whereNull('amount_paid');
+            }
             const data = await query;
-            return response.status(200).send(data);
+            return response.ok(data);
         }
         catch (error) {
-            throw new BadRequestException_1.default('Bad Request', 401, error);
+            throw new BadRequestException_1.default('Erro ao buscar lançamentos', 401, error);
         }
     }
     async show({ auth, params, response }) {
@@ -82,17 +74,20 @@ class FinAccountsController {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(FinAccountStoreValidator_1.default);
         body.companies_id = authenticate.companies_id;
+        function toUTCForMySQL(dateStr) {
+            return dateStr ? luxon_1.DateTime.fromISO(dateStr).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') : null;
+        }
         if (body.date) {
-            body.date = body.date.toUTC();
+            body.date = toUTCForMySQL(body.date);
         }
         if (body.date_due) {
-            body.date_due = body.date_due.toUTC();
+            body.date_due = toUTCForMySQL(body.date_due);
         }
         if (body.date_conciliation) {
-            body.date_conciliation = body.date_conciliation.toUTC();
+            body.date_conciliation = toUTCForMySQL(body.date_conciliation);
         }
         if (body.data_billing) {
-            body.data_billing = body.data_billing.toUTC();
+            body.data_billing = toUTCForMySQL(body.data_billing);
         }
         const { conciliation, ...body1 } = body;
         if (conciliation == true) {
@@ -121,6 +116,10 @@ class FinAccountsController {
         body.amount = body.amount ? await (0, util_1.currencyConverter)(body.amount) : null;
         body.amount_paid = !isNaN(body.amount_paid) || body.amount_paid ? await (0, util_1.currencyConverter)(body.amount_paid) : null;
         const { conciliation, ...body1 } = body;
+        if (conciliation === true) {
+            body1.amount_paid = body.amount;
+            body1.date_conciliation = body.date_due;
+        }
         try {
             await FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)
