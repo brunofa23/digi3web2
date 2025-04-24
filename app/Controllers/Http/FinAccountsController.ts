@@ -97,22 +97,16 @@ export default class FinAccountsController {
     body.companies_id = authenticate.companies_id
 
     if (body.date) {
-      body.date = DateTime.fromJSDate(body.date.toJSDate(), { zone: 'America/Sao_Paulo' })
+      body.date = body.date.toUTC()
     }
     if (body.date_due) {
-      body.date_due = DateTime.fromJSDate(body.date_due.toJSDate(), {
-        zone: 'America/Sao_Paulo',
-      })
+      body.date_due = body.date_due.toUTC()
     }
     if (body.date_conciliation) {
-      body.date_conciliation = DateTime.fromJSDate(body.date_conciliation.toJSDate(), {
-        zone: 'America/Sao_Paulo',
-      })
+      body.date_conciliation = body.date_conciliation.toUTC()
     }
     if (body.data_billing) {
-      body.data_billing = DateTime.fromJSDate(body.data_billing.toJSDate(), {
-        zone: 'America/Sao_Paulo',
-      })
+      body.data_billing = body.data_billing.toUTC()
     }
 
     const { conciliation, ...body1 } = body
@@ -122,7 +116,7 @@ export default class FinAccountsController {
       body1.date_conciliation = body.date_due
     }
 
-    console.log(body.date)
+    //console.log(body.date)
 
     try {
       const data = await FinAccount.create(body1)
