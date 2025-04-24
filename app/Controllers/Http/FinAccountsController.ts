@@ -7,75 +7,91 @@ import { currencyConverter } from "App/Services/util"
 import { uploadFinImage } from 'App/Services/uploadFinImage/finImages'
 import { DateTime } from 'luxon'
 
+
+function toUTCISO(dateStr: string | null | undefined) {
+  return dateStr ? DateTime.fromISO(dateStr).toUTC().toISO() : null
+}
+
 export default class FinAccountsController {
 
   public async index({ auth, request, response }: HttpContextContract) {
-    const authenticate = await auth.use('api').authenticate()
+    const user = await auth.use('api').authenticate()
     const body = request.qs()
 
     try {
       const query = FinAccount.query()
-        .where('companies_id', authenticate.companies_id)
+        .where('companies_id', user.companies_id)
         .where('excluded', false)
-        .preload('finclass', query => {
-          query.select('description')
-        })
-        .preload('finemp', query => {
-          query.select('name')
-        })
-        .preload('finPaymentMethod', query => {
-          query.select('description')
-        })
+        .preload('finclass', q => q.select('description'))
+        .preload('finemp', q => q.select('name'))
+        .preload('finPaymentMethod', q => q.select('description'))
 
-      if (body.description)
-        query.where('description', 'like', `%${body.description}%`)
-      if (body.fin_emp_id)
-        query.where('fin_emp_id', body.fin_emp_id)
-      if (body.fin_class_id)
-        query.where('fin_class_id', body.fin_class_id)
+      // Filtros dinâmicos
+      query.if(body.description, q =>
+        q.where('description', 'like', `%${body.description}%`)
+      )
 
-      //PESQUISA POR TIPO DE DATA
-      // DATE
-      // DATE_DUE
-      // DATE_CONCILIATION
-      if (body.typeDate == 'DATE') {
-        query.where('date', '>=', body.date_start)
-        query.where('date', '<=', body.date_end)
+      query.if(body.fin_emp_id, q =>
+        q.where('fin_emp_id', body.fin_emp_id)
+      )
 
-      } else if (body.typeDate == 'DATE_DUE') {
-        query.where('date_due', '>=', body.date_start)
-        query.where('date_due', '<=', body.date_end)
+      query.if(body.fin_class_id, q =>
+        q.where('fin_class_id', body.fin_class_id)
+      )
+
+      query.if(body.cost, q =>
+        q.where('cost', body.cost)
+      )
+
+      query.if(body.payment_method, q =>
+        q.where('payment_method', body.payment_method)
+      )
+
+      query.if(body.ir === 'true', q =>
+        q.where('ir', true)
+      )
+
+      query.if(body.debit_credit, q =>
+        q.where('debit_credit', body.debit_credit)
+      )
+
+      query.if(body.fin_paymentmethod_id, q =>
+        q.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
+      )
+
+      // Data inicial e final em UTC
+      if (body.date_start && body.date_end && body.typeDate) {
+        const start = DateTime.fromISO(body.date_start).toUTC().toISO()
+        const end = DateTime.fromISO(body.date_end).toUTC().endOf('day').toISO()
+
+        const dateColumnMap = {
+          DATE: 'date',
+          DATE_DUE: 'date_due',
+          DATE_CONCILIATION: 'date_conciliation',
+        }
+
+        const dateColumn = dateColumnMap[body.typeDate]
+        if (dateColumn) {
+          query.where(dateColumn, '>=', start).where(dateColumn, '<=', end)
+        }
       }
-      else if (body.typeDate == 'DATE_CONCILIATION') {
-        query.where('date_conciliation', '>=', body.date_start)
-        query.where('date_conciliation', '<=', body.date_end)
-      }
-      if (body.cost)
-        query.where('cost', body.cost)
-      if (body.payment_method)
-        query.where('payment_method', body.payment_method)
-      if (body.ir === 'true')
-        query.where('ir', true)
-      if (body.debit_credit)
-        query.where('debit_credit', body.debit_credit)
-      if (body.fin_paymentmethod_id)
-        query.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
 
-      //RECONCILIADO OU NÃO OU TODOS
-      if (body.isReconciled == 'C')
-        //console.log("lançamentos conciliados")
+      // Filtro por conciliação
+      if (body.isReconciled === 'C') {
         query.where('amount_paid', '>', 0)
-      if (body.isReconciled == 'N')
-        //console.log("NÃO conciliados")
+      } else if (body.isReconciled === 'N') {
         query.whereNull('amount_paid')
+      }
 
       const data = await query
+      return response.ok(data)
 
-      return response.status(200).send(data)
     } catch (error) {
-      throw new BadRequestException('Bad Request', 401, error)
+      throw new BadRequestException('Erro ao buscar lançamentos', 401, error)
     }
   }
+
+
 
 
   public async show({ auth, params, response }: HttpContextContract) {
@@ -96,27 +112,30 @@ export default class FinAccountsController {
     const body = await request.validate(FinAccountStoreValidator)
     body.companies_id = authenticate.companies_id
 
+    // Função para converter para o formato certo para o banco
+    function toUTCForMySQL(dateStr: string | null | undefined) {
+      return dateStr ? DateTime.fromISO(dateStr).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') : null
+    }
+
+    // Convertendo as datas para o formato adequado
     if (body.date) {
-      body.date = body.date.toUTC()
+      body.date = toUTCForMySQL(body.date)
     }
     if (body.date_due) {
-      body.date_due = body.date_due.toUTC()
+      body.date_due = toUTCForMySQL(body.date_due)
     }
     if (body.date_conciliation) {
-      body.date_conciliation = body.date_conciliation.toUTC()
+      body.date_conciliation = toUTCForMySQL(body.date_conciliation)
     }
     if (body.data_billing) {
-      body.data_billing = body.data_billing.toUTC()
+      body.data_billing = toUTCForMySQL(body.data_billing)
     }
 
     const { conciliation, ...body1 } = body
-
     if (conciliation == true) {
       body1.amount_paid = body.amount
       body1.date_conciliation = body.date_due
     }
-
-    //console.log(body.date)
 
     try {
       const data = await FinAccount.create(body1)
@@ -133,19 +152,42 @@ export default class FinAccountsController {
   }
 
 
+
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountUpdateValidator)
 
+<<<<<<< HEAD
     body.date = body.date?.toJSDate()
     body.date_due = body.date_due?.toJSDate()
     body.data_billing = body.data_billing?.toJSDate()
     body.date_conciliation = body.date_conciliation?.toJSDate()
+=======
+    // Função para converter para o formato certo para o banco
+    function toUTCForMySQL(dateStr: string | null | undefined) {
+      return dateStr ? DateTime.fromISO(dateStr).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') : null
+    }
+
+    // Convertendo as datas para o formato adequado
+    body.date = toUTCForMySQL(body.date)
+    body.date_due = toUTCForMySQL(body.date_due)
+    body.data_billing = toUTCForMySQL(body.data_billing)
+    body.date_conciliation = toUTCForMySQL(body.date_conciliation)
+
+    // Convertendo os valores de amount e amount_paid
+>>>>>>> development
     body.amount = body.amount ? await currencyConverter(body.amount) : null
     body.amount_paid = !isNaN(body.amount_paid) || body.amount_paid ? await currencyConverter(body.amount_paid) : null
+
     const { conciliation, ...body1 } = body
 
+    if (conciliation === true) {
+      body1.amount_paid = body.amount
+      body1.date_conciliation = body.date_due // já está em UTC
+    }
+
     try {
+      // Realizando o update
       await FinAccount.query()
         .where('companies_id', authenticate.companies_id)
         .andWhere('id', params.id)
@@ -160,8 +202,40 @@ export default class FinAccountsController {
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
     }
-
   }
+
+
+
+
+  // public async update({ auth, params, request, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate()
+  //   const body = await request.validate(FinAccountUpdateValidator)
+  //   body.date = body.date?.toJSDate()
+  //   body.date_due = body.date_due?.toJSDate()
+  //   body.data_billing = body.data_billing?.toJSDate()
+  //   body.date_conciliation = body.date_conciliation?.toJSDate()
+  //   body.amount = body.amount ? await currencyConverter(body.amount) : null
+  //   body.amount_paid = !isNaN(body.amount_paid) || body.amount_paid ? await currencyConverter(body.amount_paid) : null
+  //   const { conciliation, ...body1 } = body
+
+  //   try {
+  //     await FinAccount.query()
+  //       .where('companies_id', authenticate.companies_id)
+  //       .andWhere('id', params.id)
+  //       .update(body1)
+
+  //     const data = await FinAccount.findOrFail(params.id)
+  //     await data.load('finPaymentMethod')
+  //     await data.load('finclass')
+  //     await data.load('finemp')
+
+  //     return response.status(201).send(data)
+  //   } catch (error) {
+  //     throw new BadRequestException('Bad Request', 401, error)
+  //   }
+
+  // }
+
 
 
   public async createMany({ auth, request, response }: HttpContextContract) {
