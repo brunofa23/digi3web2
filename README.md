@@ -168,3 +168,22 @@ PS D:\testeRenomearImagens> Get-ChildItem -File | Rename-Item -NewName { $_.Name
 "engines": {
     "node": "20.x"
   }
+
+
+## PADRÃO DE DATAS (HORAS ZERADAS) PARA FRONTEND E BACKEND
+PARA EXIBIR
+DateTime.fromISO(item.date_due, { zone: "utc" }).toFormat("dd/MM/yyyy")
+
+PARA ENVIAR PARA O BACKEND
+DateTime.fromFormat(dateStr, 'yyyy-MM-dd', { zone: 'local' }).toUTC().toISO()
+
+FUNÇÃO DO FRONTEND PARA ENVIAR PARA O BAKCEND
+function formatDate(dateStr) {
+    return dateStr
+        ? DateTime.fromFormat(dateStr, 'yyyy-MM-dd', { zone: 'local' }).toUTC().toISO()
+        : null;
+}
+
+-----------------------------------
+NO BACKEND PARA RECEBER A DATA (SEM HORAS / HORAS ZERADA)
+ body.date = DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day')

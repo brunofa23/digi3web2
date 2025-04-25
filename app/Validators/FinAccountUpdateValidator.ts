@@ -12,7 +12,7 @@ export default class FinAccountUpdateValidator {
     id_replication: schema.number.optional(),
     description: schema.string.optional(),
     amount: schema.string.optional(),
-    amount_paid: schema.string.optional(),
+    //amount_paid: schema.string.optional(),
     date: schema.date.optional(),
     date_due: schema.date.optional(),
     replicate: schema.boolean.optional(),
