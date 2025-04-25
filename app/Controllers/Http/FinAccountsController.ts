@@ -152,28 +152,14 @@ export default class FinAccountsController {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountUpdateValidator)
 
-
-    // Função para converter para o formato certo para o banco
-    function toUTCForMySQL(dateStr: string | null | undefined) {
-      return dateStr ? DateTime.fromISO(dateStr).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') : null
-    }
-
-    // Convertendo as datas para o formato adequado
-    body.date = toUTCForMySQL(body.date)
-    body.date_due = toUTCForMySQL(body.date_due)
-    body.data_billing = toUTCForMySQL(body.data_billing)
-    body.date_conciliation = toUTCForMySQL(body.date_conciliation)
-
-    // Convertendo os valores de amount e amount_paid
     body.date = body.date ? DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
     body.date_due = body.date_due ? DateTime.fromISO(body.date_due).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
     body.data_billing = body.data_billing ? DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
     body.date_conciliation = body.date_conciliation ? DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
-    body.amount = isNaN(body.amount)?0: await currencyConverter(body.amount)
 
+    body.amount = isNaN(body.amount) ? 0 : await currencyConverter(body.amount)
 
     const { conciliation, ...body1 } = body
-
     try {
       // Realizando o update
       await FinAccount.query()
@@ -193,7 +179,7 @@ export default class FinAccountsController {
   }
 
   public async createMany({ auth, request, response }: HttpContextContract) {
-    const authenticate = await auth.use('api').authenticate()
+    await auth.use('api').authenticate()
     const { id, installment, date_due_installment } = request.only([
       'id',
       'installment',
