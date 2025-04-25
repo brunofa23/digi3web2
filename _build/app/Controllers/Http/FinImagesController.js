@@ -24,7 +24,6 @@ class FinImagesController {
         try {
             const user = await auth.use('api').authenticate();
             const body = request.only(FinImage_1.default.fillable);
-            console.log(request);
             const image = request.file('file', {
                 size: '8mb',
                 extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],

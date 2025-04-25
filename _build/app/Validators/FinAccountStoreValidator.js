@@ -12,7 +12,6 @@ class FinAccountStoreValidator {
             id_replication: Validator_1.schema.number.optional(),
             description: Validator_1.schema.string.optional(),
             amount: Validator_1.schema.number.nullableAndOptional(),
-            amount_paid: Validator_1.schema.number.nullableAndOptional(),
             date: Validator_1.schema.date.nullableAndOptional(),
             date_due: Validator_1.schema.date.nullableAndOptional(),
             replicate: Validator_1.schema.boolean.nullableAndOptional(),

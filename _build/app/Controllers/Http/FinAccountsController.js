@@ -45,12 +45,12 @@ class FinAccountsController {
                     query.where(dateColumn, '>=', start).where(dateColumn, '<=', end);
                 }
             }
-            if (body.isReconciled === 'C') {
-                query.where('amount_paid', '>', 0);
-            }
-            else if (body.isReconciled === 'N') {
-                query.whereNull('amount_paid');
-            }
+            query.if(body.isReconciled === 'C', q => {
+                q.whereNotNull('date_conciliation');
+            });
+            query.if(body.isReconciled === 'N', q => {
+                q.whereNull('date_conciliation');
+            });
             const data = await query;
             return response.ok(data);
         }
@@ -75,7 +75,6 @@ class FinAccountsController {
         const body = await request.validate(FinAccountStoreValidator_1.default);
         body.companies_id = authenticate.companies_id;
         if (body.date) {
-            console.log("PPPP", body.date);
             body.date = luxon_1.DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day');
         }
         if (body.date_due) {
@@ -89,7 +88,6 @@ class FinAccountsController {
         }
         const { conciliation, ...body1 } = body;
         if (conciliation == true) {
-            body1.amount_paid = body.amount;
             body1.date_conciliation = body.date_due;
         }
         try {
@@ -107,17 +105,19 @@ class FinAccountsController {
     async update({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(FinAccountUpdateValidator_1.default);
-        body.date = body.date?.toJSDate();
-        body.date_due = body.date_due?.toJSDate();
-        body.data_billing = body.data_billing?.toJSDate();
-        body.date_conciliation = body.date_conciliation?.toJSDate();
-        body.amount = body.amount ? await (0, util_1.currencyConverter)(body.amount) : null;
-        body.amount_paid = !isNaN(body.amount_paid) || body.amount_paid ? await (0, util_1.currencyConverter)(body.amount_paid) : null;
-        const { conciliation, ...body1 } = body;
-        if (conciliation === true) {
-            body1.amount_paid = body.amount;
-            body1.date_conciliation = body.date_due;
+        function toUTCForMySQL(dateStr) {
+            return dateStr ? luxon_1.DateTime.fromISO(dateStr).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') : null;
         }
+        body.date = toUTCForMySQL(body.date);
+        body.date_due = toUTCForMySQL(body.date_due);
+        body.data_billing = toUTCForMySQL(body.data_billing);
+        body.date_conciliation = toUTCForMySQL(body.date_conciliation);
+        body.date = body.date ? luxon_1.DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
+        body.date_due = body.date_due ? luxon_1.DateTime.fromISO(body.date_due).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
+        body.data_billing = body.data_billing ? luxon_1.DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
+        body.date_conciliation = body.date_conciliation ? luxon_1.DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
+        body.amount = isNaN(body.amount) ? 0 : await (0, util_1.currencyConverter)(body.amount);
+        const { conciliation, ...body1 } = body;
         try {
             await FinAccount_1.default.query()
                 .where('companies_id', authenticate.companies_id)
@@ -134,7 +134,6 @@ class FinAccountsController {
         }
     }
     async createMany({ auth, request, response }) {
-        console.log("CREATE MANY ....");
         const authenticate = await auth.use('api').authenticate();
         const { id, installment, date_due_installment } = request.only([
             'id',
