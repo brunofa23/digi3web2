@@ -11,7 +11,7 @@ export default class FinAccountStoreValidator {
     id_replication: schema.number.optional(),
     description: schema.string.optional(),
     amount: schema.number.nullableAndOptional(),
-    amount_paid: schema.number.nullableAndOptional(),
+    //amount_paid: schema.number.nullableAndOptional(),
     date: schema.date.nullableAndOptional(),
     date_due: schema.date.nullableAndOptional(),
     replicate: schema.boolean.nullableAndOptional(),

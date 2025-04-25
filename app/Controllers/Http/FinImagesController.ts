@@ -32,8 +32,6 @@ export default class FinImagesController {
     try {
       const user = await auth.use('api').authenticate();
       const body = request.only(FinImage.fillable);
-
-      console.log(request)
       // Validação do arquivo
       const image = request.file('file', {
         size: '8mb',
