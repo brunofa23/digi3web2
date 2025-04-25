@@ -111,24 +111,19 @@ export default class FinAccountsController {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountStoreValidator)
     body.companies_id = authenticate.companies_id
-
-    // Função para converter para o formato certo para o banco
-    function toUTCForMySQL(dateStr: string | null | undefined) {
-      return dateStr ? DateTime.fromISO(dateStr).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') : null
-    }
-
     // Convertendo as datas para o formato adequado
     if (body.date) {
-      body.date = toUTCForMySQL(body.date)
+      console.log("PPPP", body.date)
+      body.date = DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day')
     }
     if (body.date_due) {
-      body.date_due = toUTCForMySQL(body.date_due)
+      body.date_due = DateTime.fromISO(body.date_due, { zone: 'utc' }).startOf('day')
     }
     if (body.date_conciliation) {
-      body.date_conciliation = toUTCForMySQL(body.date_conciliation)
+      body.date_conciliation = DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day')
     }
     if (body.data_billing) {
-      body.data_billing = toUTCForMySQL(body.data_billing)
+      body.data_billing = DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day')
     }
 
     const { conciliation, ...body1 } = body
@@ -152,7 +147,7 @@ export default class FinAccountsController {
   }
 
 
-//*********
+  //*********
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountUpdateValidator)
