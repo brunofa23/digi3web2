@@ -161,7 +161,7 @@ export default class FinAccountsController {
     body.amount = body.amount ? await currencyConverter(body.amount) : null
 
     console.log("passo 2", body.amount)
-    //const { conciliation, ...body1 } = body
+    const { conciliation, ...body1 } = body
     console.log("passo 3", body.amount)
 
 
@@ -170,7 +170,7 @@ export default class FinAccountsController {
       await FinAccount.query()
         .where('companies_id', authenticate.companies_id)
         .andWhere('id', params.id)
-        .update(body)
+        .update(body1)
 
       const data = await FinAccount.findOrFail(params.id)
       await data.load('finPaymentMethod')
