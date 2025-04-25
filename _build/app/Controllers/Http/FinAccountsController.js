@@ -74,20 +74,18 @@ class FinAccountsController {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(FinAccountStoreValidator_1.default);
         body.companies_id = authenticate.companies_id;
-        function toUTCForMySQL(dateStr) {
-            return dateStr ? luxon_1.DateTime.fromISO(dateStr).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') : null;
-        }
         if (body.date) {
-            body.date = toUTCForMySQL(body.date);
+            console.log("PPPP", body.date);
+            body.date = luxon_1.DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day');
         }
         if (body.date_due) {
-            body.date_due = toUTCForMySQL(body.date_due);
+            body.date_due = luxon_1.DateTime.fromISO(body.date_due, { zone: 'utc' }).startOf('day');
         }
         if (body.date_conciliation) {
-            body.date_conciliation = toUTCForMySQL(body.date_conciliation);
+            body.date_conciliation = luxon_1.DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day');
         }
         if (body.data_billing) {
-            body.data_billing = toUTCForMySQL(body.data_billing);
+            body.data_billing = luxon_1.DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day');
         }
         const { conciliation, ...body1 } = body;
         if (conciliation == true) {
