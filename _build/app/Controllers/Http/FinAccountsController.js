@@ -105,13 +105,6 @@ class FinAccountsController {
     async update({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(FinAccountUpdateValidator_1.default);
-        function toUTCForMySQL(dateStr) {
-            return dateStr ? luxon_1.DateTime.fromISO(dateStr).toUTC().toFormat('yyyy-MM-dd HH:mm:ss') : null;
-        }
-        body.date = toUTCForMySQL(body.date);
-        body.date_due = toUTCForMySQL(body.date_due);
-        body.data_billing = toUTCForMySQL(body.data_billing);
-        body.date_conciliation = toUTCForMySQL(body.date_conciliation);
         body.date = body.date ? luxon_1.DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
         body.date_due = body.date_due ? luxon_1.DateTime.fromISO(body.date_due).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
         body.data_billing = body.data_billing ? luxon_1.DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
@@ -134,7 +127,7 @@ class FinAccountsController {
         }
     }
     async createMany({ auth, request, response }) {
-        const authenticate = await auth.use('api').authenticate();
+        await auth.use('api').authenticate();
         const { id, installment, date_due_installment } = request.only([
             'id',
             'installment',
