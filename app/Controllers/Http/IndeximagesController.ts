@@ -116,6 +116,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+    console.log("UPLOAD 8788")
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
