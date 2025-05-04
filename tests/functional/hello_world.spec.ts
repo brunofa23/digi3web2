@@ -1,46 +1,86 @@
 import { test } from '@japa/runner'
-import { DateTime } from 'luxon'
+
+import Application from '@ioc:Adonis/Core/Application'
+
+const sharp = require('sharp');
+const Tesseract = require('tesseract.js');
+const fs = require('fs');
+
+test('display welcome page', async ({ client }) => {
+  //console.log("PASSO gerando teste", client)
+  // Caminho da imagem original
+  const inputImage = Application.tmpPath(`transferir.jpeg`);//'input.jpg';
+  const outputImage = Application.tmpPath('processed.jpg')//'processed.jpg';
+  const texto_extraido = Application.tmpPath('texto_extraido.txt')//'processed.jpg';
+
+  // Etapa 1: Pré-processar a imagem com sharp
+  async function enhanceAndCropManuscript() {
+    try {
+      console.log("Passo 1: Iniciando o processamento da imagem...");
+
+      // Etapa 1: Melhorar nitidez e contraste da imagem mantendo as cores
+      const buffer = await sharp(inputImage)
+        .resize({ width: 2400, withoutEnlargement: true })
+        .modulate({
+          brightness: 1.1,
+          saturation: 1.1
+        })
+        .linear(1.15, -10)
+        .sharpen(1.2, 0.5, 0.3)
+        .blur(0.3)
+        .normalize()
+        .toBuffer();
+
+      // Etapa 2: Remover bordas pretas automaticamente
+      await sharp(buffer)
+        .trim({ threshold: 10 }) // ✅ Correção aqui
+        .extend({
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+          background: { r: 255, g: 255, b: 255 }
+        })
+        .toFile(outputImage);
+
+      console.log("Passo 2: Imagem recortada e processada com sucesso!");
+    } catch (err) {
+      console.error("Erro ao processar e recortar imagem:", err);
+    }
+  }
 
 
-const BASE_URL = 'http://127.0.0.1:3333'
+  // Etapa 2: Executar OCR com tesseract.js
+  async function extrairTexto() {
+    console.log("Passo 3: Iniciando a extração de texto com OCR...");
+    try {
+      // Realiza o OCR com o Tesseract
+      const { data: { text } } = await Tesseract.recognize(
+        outputImage, // Passando a imagem processada
+        'por', // Idioma: português
+        {
+          logger: m => console.log(m), // Exibe o progresso do OCR
+          config: [
+            'preserve_interword_spaces=1', // Preserva espaços entre palavras
+            'psm=6', // Usando PSM 6 para uma única coluna de texto
+            'oem=1'  // Usando o motor LSTM
+          ],
+        }
+      );
 
-const Date = require('../../app/Services/Dates/format')
-// test.group('Data', (assert) => {
-
-//   test('Testando dates', async () => {
-//     const data = Date.format(DateTime.now())
-//     console.log(data)
-//   })
-// })
-
-// test.group('FileRename', () => {
-
-//   test('Testando dates', async () => {
-//     const data = Date.format(DateTime.now())
-//     console.log(data)
-//   })
-// })
+      // Escreve o texto extraído em um arquivo .txt
+      fs.writeFileSync(texto_extraido, text);
+      console.log(`Passo 4: Texto extraído e salvo em ${texto_extraido}`);
+    } catch (err) {
+      console.error('Erro ao realizar o OCR:', err);
+    }
+  }
 
 
+  // Chama as funções de forma sequencial, com espera para garantir a ordem de execução
+  await enhanceAndCropManuscript();
+  //await extrairTexto();
 
+  console.log("Processamento completo!");
 
-//test.group('User', (assert) => {
-  // test('display welcome page', async ({ client, assert }) => {
-  //   const userPayload = { email: 'teste@teste10', username: 'test10', password: '12345', avatar: '' }
-  //   const response = await client.post('/users').json(userPayload)
-
-  // }).tags(['teste2'])
-
-  // test('it should return 409 when email is already in use', async ({ client }) => {
-  //   const user = await UserFactory.create()
-
-    // const response = await client.post('/users').json({
-    //   email: 'Isabella_Schuliqwst@gmail.com',
-    //   username: 'Michelle Sawqwayn',
-    //   password: user.password,
-    // })
-    // response.assertStatus(201)
-
-  // }).tags(['teste3'])
-
-// })
+})

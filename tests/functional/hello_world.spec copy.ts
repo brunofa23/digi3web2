@@ -88,6 +88,7 @@ test('display welcome page', async ({ client }) => {
   // Etapa 1: Pré-processar a imagem com sharp
   async function enhanceManuscriptHybrid() {
     try {
+      console.log("passo 1")
       await sharp(inputImage)
         .resize({ width: 2400, withoutEnlargement: true })
         .modulate({
@@ -101,8 +102,10 @@ test('display welcome page', async ({ client }) => {
         .normalize()
         .toFile(outputImage);
 
+      console.log("passo 2")
       console.log('Imagem gerada com realce e leve suavização:', outputImage);
     } catch (err) {
+      console.log("passo 3")
       console.error('Erro ao processar imagem:', err);
     }
   }
@@ -111,6 +114,7 @@ test('display welcome page', async ({ client }) => {
 
   // Etapa 2: Executar OCR com tesseract.js
   async function extrairTexto() {
+    console.log("passo 4")
     try {
       // Realiza o OCR com o Tesseract
       const { data: { text } } = await Tesseract.recognize(
@@ -136,6 +140,7 @@ test('display welcome page', async ({ client }) => {
 
   //Pipeline completo
   (async () => {
+    console.log("executando...")
     await enhanceManuscriptHybrid();
     await extrairTexto();
   })();
