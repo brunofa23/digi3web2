@@ -116,7 +116,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
-    console.log("UPLOAD 8788")
+    console.log("UPLOAD 8788------------------------------------")
 
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
@@ -147,7 +147,7 @@ export default class IndeximagesController {
 
     //ATUALIZAÇÃO DE LIVROS
     if (updateImage) {
-      console.log("PASSO 3")
+      console.log("PASSO 3", dataImages, params.typebooks_id)
       const query = Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
