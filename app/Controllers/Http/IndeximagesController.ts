@@ -248,7 +248,7 @@ export default class IndeximagesController {
 
     console.log("PASSO 5")
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
-    console.log("PASSO 6", files)
+    console.log("PASSO 6", files.size)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
