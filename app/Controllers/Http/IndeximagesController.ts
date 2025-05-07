@@ -117,25 +117,26 @@ export default class IndeximagesController {
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
     console.log("UPLOAD 8788")
-
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
     })
-
     console.log("PASSO 1", images)
-    const { dataImages } = request['requestBody']
-    const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData']
 
+    const { dataImages } = request['requestBody']
+    console.log("PASSO 2", dataImages)
+
+    const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData']
     if (indexImagesInitial == 'true') {//Através do nome da imagem é recriado o registro no bookrecord
-      console.log("PASSO 2")
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
       })
+
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages)
+
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
@@ -145,9 +146,13 @@ export default class IndeximagesController {
       }
     }
 
+    console.log("PASSO 3 XXXX", updateImage)
     //ATUALIZAÇÃO DE LIVROS
     if (updateImage) {
-      console.log("PASSO 3")
+      console.log("PASSO 3.1@", params.typebooks_id)
+      console.log("PASSO 3.2@", authenticate.companies_id)
+      console.log("PASSO 3.3@", dataImages.book)
+
       const query = Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
@@ -161,6 +166,7 @@ export default class IndeximagesController {
       const bookRecord = await query.first()
 
       if (!bookRecord || dataImages.sheet == 0) {
+        console.log("PASSO 3.2")
         const books_id = await Typebook.query().where('id', params.typebooks_id)
           .andWhere('companies_id', authenticate.companies_id).first()
         const codBookrecord = await Bookrecord.query()
@@ -182,6 +188,7 @@ export default class IndeximagesController {
           dataImages.id = book.id
         } else
           if (books_id) {
+            console.log("PASSO 3.3")
             const book = await Bookrecord.create({
               typebooks_id: params.typebooks_id,
               companies_id: authenticate.companies_id,
@@ -246,7 +253,7 @@ export default class IndeximagesController {
 
     }
 
-    console.log("PASSO 5")
+    console.log("PASSO 5", dataImages)
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
     console.log("PASSO 6", files)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })

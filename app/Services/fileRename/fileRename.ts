@@ -448,7 +448,6 @@ async function totalFilesInFolder(folderName, cloud_number: number) {
 //**************************************************** */
 
 async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
-
   let listFiles
   if (listFilesImages.length > 0) {
     listFiles = listFilesImages
@@ -482,7 +481,6 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
 
   });
 
-
   const indexImages = listFiles.map((file) => {
     const fileSplit = file.split("_")
     const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
@@ -505,11 +503,8 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     return false;
   });
 
-
-
   bookRecord.sort((a, b) => a.id - b.id);
   indexImages.sort((a, b) => a.id - b.id);
-
   return { bookRecord, indexImages }
 
 
