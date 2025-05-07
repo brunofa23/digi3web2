@@ -94,15 +94,18 @@ class IndeximagesController {
         }
     }
     async uploads({ auth, request, params, response }) {
+        console.log("UPLOAD 8788");
         const authenticate = await auth.use('api').authenticate();
         const company = await Company_1.default.find(authenticate.companies_id);
         const images = request.files('images', {
             size: '100mb',
             extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
         });
+        console.log("PASSO 1", images);
         const { dataImages } = request['requestBody'];
         const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData'];
         if (indexImagesInitial == 'true') {
+            console.log("PASSO 2");
             const listFilesImages = images.map((image) => {
                 const imageName = image.clientName;
                 return imageName;
@@ -118,6 +121,7 @@ class IndeximagesController {
             }
         }
         if (updateImage) {
+            console.log("PASSO 3");
             const query = Bookrecord_1.default.query()
                 .where('typebooks_id', params.typebooks_id)
                 .andWhere('companies_id', authenticate.companies_id)
@@ -164,6 +168,7 @@ class IndeximagesController {
             }
         }
         else if (updateImageDocument) {
+            console.log("PASSO 4");
             const verifyExistBookrecord = await Bookrecord_1.default.query()
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('cod', dataImages.cod)
@@ -205,7 +210,9 @@ class IndeximagesController {
                 }
             }
         }
+        console.log("PASSO 5");
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
+        console.log("PASSO 6", files);
         return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" });
     }
     async uploadCapture({ auth, request, params }) {
