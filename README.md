@@ -187,3 +187,7 @@ function formatDate(dateStr) {
 -----------------------------------
 NO BACKEND PARA RECEBER A DATA (SEM HORAS / HORAS ZERADA)
  body.date = DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day')
+
+
+# PARA MUDAR O CERTIFICADO DE SSL 
+ABRA O ARQUIVO SERVER.TS
