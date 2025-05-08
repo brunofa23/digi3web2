@@ -1,6 +1,6 @@
 {
   "name": "digi3web2",
-  "version": "1.1.269",
+  "version": "1.1.270",
   "private": true,
   "scripts": {
     "dev": "npm run docker:dev && node ace serve --watch",
@@ -19,6 +19,7 @@
     "adonis-preset-ts": "^2.1.0",
     "pino-pretty": "^9.0.1",
     "supertest": "^6.3.3",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "~4.6",
     "youch": "^3.2.0",
     "youch-terminal": "^2.1.4"

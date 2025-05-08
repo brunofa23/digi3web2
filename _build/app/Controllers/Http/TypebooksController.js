@@ -54,6 +54,7 @@ class TypebooksController {
         }
     }
     async index({ auth, response, request }) {
+        console.log("entrei no 15488");
         const { companies_id } = await auth.use('api').authenticate();
         const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles', 'isDocument']);
         let data;

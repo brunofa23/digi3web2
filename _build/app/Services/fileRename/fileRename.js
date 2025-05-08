@@ -48,8 +48,12 @@ exports.downloadImage = downloadImage;
 async function transformFilesNameToId(images, params, companies_id, cloud_number, capture = false, dataImages = {}) {
     const _companies_id = companies_id;
     let result = [];
+    const uploadsBasePath = Application_1.default.tmpPath('uploads');
     const folderPath = Application_1.default.tmpPath(`/uploads/Client_${companies_id}`);
     try {
+        if (!fs.existsSync(uploadsBasePath)) {
+            fs.mkdirSync(uploadsBasePath);
+        }
         if (!fs.existsSync(folderPath)) {
             fs.mkdirSync(folderPath);
         }
@@ -145,6 +149,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
                 delete objfileRename.date_atualization;
                 await ErrorlogImage_1.default.create(objfileRename);
             }
+            console.log("PASSEI 5556 path folder:", folderPath);
             await deleteImage(`${folderPath}/${objfileRename.file_name}`);
         }
     }
