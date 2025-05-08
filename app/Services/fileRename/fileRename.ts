@@ -60,9 +60,13 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
   const _companies_id = companies_id
   let result: Object[] = []
   //Verificar se existe o caminho da pasta com as imagens
+  const uploadsBasePath = Application.tmpPath('uploads')
   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
-  //console.log("código 698 - passo 2")
+  
   try {
+    if(!fs.existsSync(uploadsBasePath)){
+      fs.mkdirSync(uploadsBasePath)
+    }
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath)
     }
@@ -189,6 +193,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         await ErrorlogImage.create(objfileRename)
       }
       //chamar função de exclusão da imagem
+      console.log("PASSEI 5556 path folder:", folderPath)
       await deleteImage(`${folderPath}/${objfileRename.file_name}`)
     }
 
