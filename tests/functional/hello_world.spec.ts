@@ -51,30 +51,30 @@ test('display welcome page', async ({ client }) => {
 
 
   // Etapa 2: Executar OCR com tesseract.js
-  async function extrairTexto() {
-    console.log("Passo 3: Iniciando a extração de texto com OCR...");
-    try {
-      // Realiza o OCR com o Tesseract
-      const { data: { text } } = await Tesseract.recognize(
-        outputImage, // Passando a imagem processada
-        'por', // Idioma: português
-        {
-          logger: m => console.log(m), // Exibe o progresso do OCR
-          config: [
-            'preserve_interword_spaces=1', // Preserva espaços entre palavras
-            'psm=6', // Usando PSM 6 para uma única coluna de texto
-            'oem=1'  // Usando o motor LSTM
-          ],
-        }
-      );
+  // async function extrairTexto() {
+  //   console.log("Passo 3: Iniciando a extração de texto com OCR...");
+  //   try {
+  //     // Realiza o OCR com o Tesseract
+  //     const { data: { text } } = await Tesseract.recognize(
+  //       outputImage, // Passando a imagem processada
+  //       'por', // Idioma: português
+  //       {
+  //         logger: m => console.log(m), // Exibe o progresso do OCR
+  //         config: [
+  //           'preserve_interword_spaces=1', // Preserva espaços entre palavras
+  //           'psm=6', // Usando PSM 6 para uma única coluna de texto
+  //           'oem=1'  // Usando o motor LSTM
+  //         ],
+  //       }
+  //     );
 
-      // Escreve o texto extraído em um arquivo .txt
-      fs.writeFileSync(texto_extraido, text);
-      console.log(`Passo 4: Texto extraído e salvo em ${texto_extraido}`);
-    } catch (err) {
-      console.error('Erro ao realizar o OCR:', err);
-    }
-  }
+  //     // Escreve o texto extraído em um arquivo .txt
+  //     fs.writeFileSync(texto_extraido, text);
+  //     console.log(`Passo 4: Texto extraído e salvo em ${texto_extraido}`);
+  //   } catch (err) {
+  //     console.error('Erro ao realizar o OCR:', err);
+  //   }
+  // }
 
 
   // Chama as funções de forma sequencial, com espera para garantir a ordem de execução
