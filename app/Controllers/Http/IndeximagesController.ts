@@ -116,14 +116,23 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+<<<<<<< HEAD
     console.log("UPLOAD 8788")
+=======
+>>>>>>> development
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
     })
+<<<<<<< HEAD
     console.log("PASSO 1", images)
+=======
+
+    const { dataImages } = request['requestBody']
+    const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData']
+>>>>>>> development
 
     const { dataImages } = request['requestBody']
     console.log("PASSO 2", dataImages)
@@ -136,7 +145,11 @@ export default class IndeximagesController {
       })
 
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages)
+<<<<<<< HEAD
 
+=======
+      console.log("passo 2 upload")
+>>>>>>> development
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
@@ -149,9 +162,12 @@ export default class IndeximagesController {
     console.log("PASSO 3 XXXX", updateImage)
     //ATUALIZAÇÃO DE LIVROS
     if (updateImage) {
+<<<<<<< HEAD
       console.log("PASSO 3.1@", params.typebooks_id)
       console.log("PASSO 3.2@", authenticate.companies_id)
       console.log("PASSO 3.3@", dataImages.book)
+=======
+>>>>>>> development
 
       const query = Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
@@ -204,7 +220,7 @@ export default class IndeximagesController {
       }
     } else if (updateImageDocument)//ATUALIZAÇÃO DE DOCUMENTOS
     {
-      console.log("PASSO 4")
+
       //SEMPRE CRIAR UM NOVO REGISTRO
       const verifyExistBookrecord = await Bookrecord.query()
         .where('companies_id', authenticate.companies_id)
@@ -253,9 +269,12 @@ export default class IndeximagesController {
 
     }
 
+<<<<<<< HEAD
     console.log("PASSO 5", dataImages)
+=======
+
+>>>>>>> development
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
-    console.log("PASSO 6", files)
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
@@ -264,10 +283,14 @@ export default class IndeximagesController {
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const { imageCaptureBase64, cod, id } = request.requestData
-
     let base64Image = imageCaptureBase64.split(';base64,').pop();
+
+    const uploadsBasePath = Application.tmpPath('uploads')
     const folderPath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`)
     try {
+      if(!fs.existsSync(uploadsBasePath)){
+        fs.mkdirSync(uploadsBasePath)
+      }
       if (!fs.existsSync(folderPath)) {
         fs.mkdirSync(folderPath)
       }
