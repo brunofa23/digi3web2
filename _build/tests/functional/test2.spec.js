@@ -8,39 +8,39 @@ const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const sharp_1 = __importDefault(require("sharp"));
-(0, runner_1.test)('test', async ({ client }) => {
+(0, runner_1.test)('test2', async ({ client }) => {
     const inputImage = Application_1.default.tmpPath(`transferir.jpeg`);
-    const outputImage = Application_1.default.tmpPath('/test/processed.jpg');
+    const outputImage = Application_1.default.tmpPath('/test2/processed.jpg');
     const dir = path_1.default.dirname(outputImage);
     if (!fs_1.default.existsSync(dir)) {
         fs_1.default.mkdirSync(dir, { recursive: true });
     }
     async function enhanceAndCropManuscript() {
         try {
-            console.log('primeiro teste');
-            console.log("Passo 1: Iniciando o processamento da imagem..........");
+            console.log("Passo 1: Iniciando o processamento da imagem com melhoria de contraste...");
             const buffer = await (0, sharp_1.default)(inputImage)
                 .resize({ width: 2400, withoutEnlargement: true })
                 .modulate({
-                brightness: 1.1,
-                saturation: 1.1
+                brightness: 1.12,
+                saturation: 1.05
             })
-                .linear(1.15, -10)
-                .sharpen(1.2, 0.5, 0.3)
+                .linear(1.25, -15)
+                .sharpen(1.5, 1.0, 0.4)
                 .blur(0.3)
+                .median(3)
                 .normalize()
                 .toBuffer();
             await (0, sharp_1.default)(buffer)
-                .trim({ threshold: 10 })
+                .trim({ threshold: 12 })
                 .extend({
                 top: 10,
                 bottom: 10,
                 left: 10,
                 right: 10,
-                background: { r: 255, g: 255, b: 255 }
+                background: { r: 0, g: 0, b: 0 }
             })
                 .toFile(outputImage);
-            console.log("Passo 2: Imagem recortada e processada com sucesso!");
+            console.log("Passo 2: Imagem recortada e melhorada com sucesso!");
         }
         catch (err) {
             console.error("Erro ao processar e recortar imagem:", err);
@@ -49,4 +49,4 @@ const sharp_1 = __importDefault(require("sharp"));
     await enhanceAndCropManuscript();
     console.log("Processamento completo!");
 });
-//# sourceMappingURL=test.spec.js.map
+//# sourceMappingURL=test2.spec.js.map

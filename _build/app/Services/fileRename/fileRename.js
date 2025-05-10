@@ -124,6 +124,7 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
     }
 }
 exports.renameFileGoogle = renameFileGoogle;
+const imageProcessing_1 = require("../imageProcessing/imageProcessing");
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
     try {
         if (capture) {
@@ -138,6 +139,8 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         else {
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
         }
+        const fullPathFileInput = path.join(folderPath, objfileRename.file_name);
+        await (0, imageProcessing_1.imageProcessing)(fullPathFileInput);
         const sendUpload = await (0, googledrive_1.sendUploadFiles)(idParent, folderPath, `${objfileRename.file_name}`, cloud_number);
         if (sendUpload.status === 200) {
             if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {

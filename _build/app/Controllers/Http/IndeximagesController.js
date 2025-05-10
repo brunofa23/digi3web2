@@ -108,7 +108,6 @@ class IndeximagesController {
                 return imageName;
             });
             const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages);
-            console.log("passo 2 upload");
             for (const item of listFiles.bookRecord) {
                 try {
                     await Bookrecord_1.default.create(item);

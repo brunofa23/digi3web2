@@ -7,12 +7,6 @@ exports.currencyConverter = exports.logInJson = exports.DeleteFiles = void 0;
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const fs = require('fs');
 async function DeleteFiles(folderPath) {
-    fs.unlink(`${folderPath}`, (err) => {
-        if (err) {
-            throw "ERRO DELETE::" + err;
-        }
-        return true;
-    });
 }
 exports.DeleteFiles = DeleteFiles;
 async function logInJson(value) {
