@@ -1,123 +1,60 @@
 import { test } from '@japa/runner'
-import supertest from 'supertest'
+import Application from '@ioc:Adonis/Core/Application'
+//const sharp = require('sharp');
+import fs from 'fs'
+import path from 'path'
+import sharp from 'sharp'
 
+test('test', async ({ client }) => {
+  // Caminho da imagem original
+  const inputImage = Application.tmpPath(`transferir.jpeg`);//'input.jpg';
+  const outputImage = Application.tmpPath('/test/processed.jpg')//'processed.jpg';
+  const dir = path.dirname(outputImage)
 
-const BASE_URL = 'http://127.0.0.1:3333/api'
+  if(!fs.existsSync(dir)){
+    fs.mkdirSync(dir, {recursive:true})
+  }
 
-//CAREACU
-//const token = 'MTA.EkuHcWEQST7-SO1Dv5_vszK33nCMS2AoHESOEfSrMUlFyul6m3o0QrON6cjK'
-//DIGI3
-const token = 'MTE.bohAV-lIRI496INqPgKLb4mstvJP1oieEN5useiyAqYYq8KIOCwAxXIHDFKP'
-test.group('Companies', (group) => {
-  test('Get Company', async ({ client }) => {
-    const body = await supertest(BASE_URL).get('/companies')
-      .set('Authorization', 'bearer ' + token)
-      .expect(201)
+  // Etapa 1: Pré-processar a imagem com sharp
+  async function enhanceAndCropManuscript() {
+    try {
+      console.log('primeiro teste')
+      console.log("Passo 1: Iniciando o processamento da imagem..........");
+      // Etapa 1: Melhorar nitidez e contraste da imagem mantendo as cores
+      const buffer = await sharp(inputImage)
+        .resize({ width: 2400, withoutEnlargement: true })
+        .modulate({
+          brightness: 1.1,
+          saturation: 1.1
+        })
+        .linear(1.15, -10)
+        .sharpen(1.2, 0.5, 0.3)
+        .blur(0.3)
+        .normalize()
+        .toBuffer();
 
-  }).tags(['GetCompany'])
+      // Etapa 2: Remover bordas pretas automaticamente
+      await sharp(buffer)
+        .trim({ threshold: 10 }) // ✅ Correção aqui
+        .extend({
+          top: 10,
+          bottom: 10,
+          left: 10,
+          right: 10,
+          background: { r: 255, g: 255, b: 255 }
+        })
+        .toFile(outputImage);
 
-
-  test('store Company', async ({ client }) => {
-
-    const companyPayload = {
-      "name": "CARTORIO BELO HORIZONTE15",
-      "shortname": "BELOHORIZONTE15",
-      "address": "Rua Hum",
-      "number": "250",
-      "complement": "A",
-      "postalcode": "1111111",
-      "district": "Centro",
-      "city": "Teste",
-      "state": "MG",
-      "cnpj": "32323232111232",
-      "responsablename": "Maria",
-      "phoneresponsable": "31985228611",
-      "email": "teste@teste.com.br",
-      "status": 1
+      console.log("Passo 2: Imagem recortada e processada com sucesso!");
+    } catch (err) {
+      console.error("Erro ao processar e recortar imagem:", err);
     }
+  }
 
-    const body = await supertest(BASE_URL).post('/companies')
-      .set('Authorization', 'bearer ' + token)
-      .send(companyPayload)
-    //.expect(201)
+  // Chama as funções de forma sequencial, com espera para garantir a ordem de execução
+  await enhanceAndCropManuscript();
+  //await extrairTexto();
 
-  }).tags(['storeCompany'])
-
-  test('update Company', async ({ client }) => {
-
-    const companyPayload = {
-      "name": "teste 777",
-      "shortname": "",
-      "address": "Rua Hum",
-      "number": "250",
-      "complement": "A",
-      "postalcode": "1111111",
-      "district": "Centro",
-      "city": "Teste",
-      "state": "MG",
-      "cnpj": "32323232111232",
-      "responsablename": "Maria adsf",
-      "phoneresponsable": "31985228611",
-      "email": "XXXXXXX@teste.com.br",
-      "status": 1
-    }
-    const id = 14
-
-    const body = await supertest(BASE_URL).put(`/companies/${id}`).set('Authorization', 'bearer ' + token)
-      .send(companyPayload)//.expect(201)
-
-
-  }).tags(['updateCompany'])
-
-
-  //*******final do grupo */
-})
-
-
-test.group('Users', (group) => {
-  test('Get User', async ({ client }) => {
-    const body = await supertest(BASE_URL).get('/users')
-      .set('Authorization', 'bearer ' + token)
-      .expect(200)
-  }).tags(['GetUser'])
-
-  test('Store User', async ({ client }) => {
-
-    const userPayload = {
-      "name": "durval55",
-      "username": "durval5005",
-      "email": "teste@teste.br",
-      "password": "12345",
-      "remember_me_token": "12345",
-      "superuser": 1,
-      "permission_level": 1,
-      "status": 1,
-      "companies_id": 4
-    }
-
-    const body = await supertest(BASE_URL).post('/users')
-      .set('Authorization', 'bearer ' + token)
-      .send(userPayload)
-      .expect(201)
-    //console.log(">>>User", body)
-  }).tags(['StoreUser'])
-
-
-
-
-})
-
-
-test.group('Typebook', (group) => {
-  test('Get Typebook', async ({ client }) => {
-    const body = await supertest(BASE_URL).get('/typebooks')
-      .set('Authorization', 'bearer ' + token)
-      .expect(200)
-    //console.log(">>>typebooks", body)
-  }).tags(['GetTypebook'])
-
-
-
-
+  console.log("Processamento completo!");
 
 })

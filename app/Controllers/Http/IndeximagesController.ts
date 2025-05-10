@@ -131,9 +131,7 @@ export default class IndeximagesController {
         const imageName = image.clientName
         return imageName
       })
-
       const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages)
-      console.log("passo 2 upload")
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
@@ -246,6 +244,7 @@ export default class IndeximagesController {
 
 
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
+
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
@@ -259,7 +258,7 @@ export default class IndeximagesController {
     const uploadsBasePath = Application.tmpPath('uploads')
     const folderPath = Application.tmpPath(`/uploads/Client_${authenticate.companies_id}`)
     try {
-      if(!fs.existsSync(uploadsBasePath)){
+      if (!fs.existsSync(uploadsBasePath)) {
         fs.mkdirSync(uploadsBasePath)
       }
       if (!fs.existsSync(folderPath)) {

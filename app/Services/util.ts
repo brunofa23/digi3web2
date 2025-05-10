@@ -2,12 +2,12 @@ import Application from '@ioc:Adonis/Core/Application'
 
 const fs = require('fs');
 async function DeleteFiles(folderPath) {
-  fs.unlink(`${folderPath}`, (err) => {
-    if (err) {
-      throw "ERRO DELETE::" + err;
-    }
-    return true
-  });
+  // fs.unlink(`${folderPath}`, (err) => {
+  //   if (err) {
+  //     throw "ERRO DELETE::" + err;
+  //   }
+  //   return true
+  // });
 }
 
 

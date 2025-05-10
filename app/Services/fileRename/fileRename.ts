@@ -62,9 +62,9 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
   //Verificar se existe o caminho da pasta com as imagens
   const uploadsBasePath = Application.tmpPath('uploads')
   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
-  
+
   try {
-    if(!fs.existsSync(uploadsBasePath)){
+    if (!fs.existsSync(uploadsBasePath)) {
       fs.mkdirSync(uploadsBasePath)
     }
     if (!fs.existsSync(folderPath)) {
@@ -161,7 +161,13 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
   }
 }
 
+import { imageProcessing } from "../imageProcessing/imageProcessing";
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
+
+
+
+  //await imageProcessing(folderPath,folderPath)
+
 
   try {
     //copia o arquivo para servidor
@@ -177,6 +183,10 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     else {
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
     }
+
+    //FAZ O TRATAMENTO DA IMAGEM ANTES DE ENVIAR PARA O GDRIVE
+    const fullPathFileInput = path.join(folderPath, objfileRename.file_name)
+    await imageProcessing(fullPathFileInput)
     //copia o arquivo para o googledrive
     const sendUpload = await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
 
@@ -196,8 +206,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       console.log("PASSEI 5556 path folder:", folderPath)
       await deleteImage(`${folderPath}/${objfileRename.file_name}`)
     }
-
-
   } catch (error) {
     throw new BadRequestException(error + ' sendUploadFiles', 409)
   }
@@ -206,10 +214,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 }
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
-
   //console.log("cheguei aqui filerename", originalFileName, "-", typebooks_id, "--", companies_id, "---", dataImages)
-
-
   let objFileName
   let separators
   let arrayFileName
@@ -520,4 +525,4 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
 
 }
 
-export  { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }
+export { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }
