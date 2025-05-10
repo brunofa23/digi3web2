@@ -163,12 +163,7 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
 
 import { imageProcessing } from "../imageProcessing/imageProcessing";
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
-
-
-
   //await imageProcessing(folderPath,folderPath)
-
-
   try {
     //copia o arquivo para servidor
     if (capture) {
@@ -185,8 +180,8 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     }
 
     //FAZ O TRATAMENTO DA IMAGEM ANTES DE ENVIAR PARA O GDRIVE
-    const fullPathFileInput = path.join(folderPath, objfileRename.file_name)
-    await imageProcessing(fullPathFileInput)
+    // const fullPathFileInput = path.join(folderPath, objfileRename.file_name)
+    // await imageProcessing(fullPathFileInput)
     //copia o arquivo para o googledrive
     const sendUpload = await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
 
