@@ -1,6 +1,6 @@
 {
   "name": "digi3web2",
-  "version": "1.1.273",
+  "version": "1.1.274",
   "private": true,
   "scripts": {
     "dev": "npm run docker:dev && node ace serve --watch",
@@ -43,5 +43,8 @@
     "source-map-support": "^0.5.21",
     "standard-version": "^9.5.0",
     "xlsx": "^0.18.5"
+  },
+  "engines": {
+    "node": "20.x"
   }
 }
