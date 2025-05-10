@@ -192,3 +192,6 @@ NO BACKEND PARA RECEBER A DATA (SEM HORAS / HORAS ZERADA)
 # TRANSFORMAR PARA HTTPS
 UTILIZAR O NGROK COMO COMANDO: ngrok http http://localhost:3333
 
+# RODAR ARQUIVOS DE TESTES SEPARADOS
+comando: node ace test --files tests/functional/test.spec.ts
+definir o nome do arquivo no inicio do teste
