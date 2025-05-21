@@ -8,6 +8,7 @@ export default class Groupxpermission extends BaseModel {
       'id',
       'usergroup_id',
       'permissiongroup_id',
+      'companies_id'
     ]
   }
 
@@ -20,6 +21,9 @@ export default class Groupxpermission extends BaseModel {
 
   @column()
   public permissiongroup_id: number
+
+  @column()
+public companies_id:number
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

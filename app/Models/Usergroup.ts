@@ -6,6 +6,7 @@ export default class Usergroup extends BaseModel {
   public static get fillable() {
     return [
       'id',
+      'companies_id',
       'name',
       'inactive',
     ]
@@ -13,6 +14,9 @@ export default class Usergroup extends BaseModel {
 
   @column({ isPrimary: true })
   public id: number
+
+@column()
+public companies_id:number
 
   @column()
   public name:string
