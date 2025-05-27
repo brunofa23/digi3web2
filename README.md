@@ -11,8 +11,9 @@ node ace configure @adonisjs/lucid
 -colocar a linha de comando:
 enabled: (request) => request.url().startsWith('/api'),
 
-5 - seed específica
+## 5 - seed específica
 node ace db:seed --files "./database/seeders/1 Company.ts"
+node ace db:seed -i //escolhe qual rodar
 
 6 - Criar uma classe de validação
 node ace make:validator CreateCompany
