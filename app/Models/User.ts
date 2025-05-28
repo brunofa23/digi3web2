@@ -4,6 +4,7 @@ import { column, beforeSave, BaseModel, BelongsTo, belongsTo, hasOne, HasOne, be
 import Company from './Company'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
+import Usergroup from './Usergroup'
 
 export default class User extends BaseModel {
 
@@ -11,6 +12,7 @@ export default class User extends BaseModel {
     return [
       'id',
       'companies_id',
+      'usergroup_id',
       'shortname',
       'name',
       'username',
@@ -40,12 +42,25 @@ export default class User extends BaseModel {
   })
   public company: BelongsTo<typeof Company>
 
+  // @belongsTo(() => Groupxpermission, {
+  //   foreignKey: 'usergroup_id',
+  //   localKey: 'usergroup_id'
+  // })
+  // public groupxpermission: BelongsTo<typeof Groupxpermission>
+    @hasOne(() => Usergroup, {
+      foreignKey: 'id',
+      localKey: 'usergroup_id'
+    })
+    public usergroup: HasOne<typeof Usergroup>
+
   @column({ isPrimary: true })
   public id: number
 
   @column()
   public companies_id: number
 
+  @column()
+  public usergroup_id: number
 
   @column()
   public name: string

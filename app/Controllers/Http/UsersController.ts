@@ -17,10 +17,10 @@ export default class UsersController {
         .preload('company')
       if (authenticate.superuser && companies_id)
         query.where('companies_id', companies_id)
-      if(findCompany)
+      if (findCompany)
         query.where('companies_id', findCompany)
-      if(findUser)
-        query.where('username','like',`%${findUser}%`)
+      if (findUser)
+        query.where('username', 'like', `%${findUser}%`)
       const data = await query
       return response.status(200).send(data)
     } catch (error) {
@@ -33,13 +33,28 @@ export default class UsersController {
   //retorna um registro
   public async show({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    let query = ""
-    if (!authenticate.superuser)
-      query = ` companies_id=${authenticate.companies_id} `
-    const data = await User.query()
-      .whereRaw(query)
-      .andWhere('id', "=", params.id).first()
+
+    const query = User.query().where('id', params.id)
+    .preload('usergroup',query=>{
+      query.preload('groupxpermission', subQuery=>{
+        subQuery.select('permissiongroup_id')
+
+      })
+    })
+    query.if(!authenticate.superuser, query => {
+      query.where('companies_id', authenticate.companies_id)
+    })
+
+    const data = await query.first()
     return response.status(200).send(data)
+
+    // let query = ""
+    // if (!authenticate.superuser)
+    //   query = ` companies_id=${authenticate.companies_id} `
+    // const data = await User.query()
+    //   .whereRaw(query)
+    //   .andWhere('id', "=", params.id).first()
+    // return response.status(200).send(data)
 
   }
 
@@ -102,7 +117,7 @@ export default class UsersController {
       .andWhere('id', params.id).first()
 
     if (data?.access_image == undefined || data?.access_image == null) {
-      
+
       return response.status(200).send(false)
     }
     const dataaccess = DateTime.fromJSDate(data?.access_image)

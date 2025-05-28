@@ -36,20 +36,20 @@ export default class extends BaseSeeder {
           name: "Menu Cadastros - Liberar Acesso de Imagens no Computador",
           desc: "Menu -> Cadastros -> Liberar Acesso de Imagens no Computador"
         },
-               {
+        {
           id: 7,
           name: "Menu Cadastros - Financeiro - Cadastros - Empresas",
           desc: "Menu -> Cadastros -> Financeiro - Cadastros - Empresas"
         },
         {
           id: 8,
-          name: "Menu Cadastros - Liberar Acesso de Imagens no Computador",
-          desc: "Menu -> Cadastros -> Liberar Acesso de Imagens no Computador"
+          name: "Menu Financeiro - Liberar Acesso de Imagens no Computador",
+          desc: "Menu Financeiro"
         },
         {
           id: 9,
-          name: "Menu Financeiro",
-          desc: "Menu Financeiro"
+          name: "Menu Financeiro - Cadastros",
+          desc: "Menu Financeiro - Cadastros"
         },
         {
           id: 10,
@@ -135,12 +135,18 @@ export default class extends BaseSeeder {
           id: 26,
           name: "Tela de Livros - Anexar Arquivos por Item",
           desc: "Tela de Livros -> Coluna Ações do Grid -> Anexar Arquivos por Item"
-        } ,
+        },
         {
           id: 27,
-          name: "Menu Cadastros - Liberar Acesso de Imagens no Computador",
-          desc: "Menu -> Cadastros -> Liberar Acesso de Imagens no Computador"
+          name: "Menu Cadastros ",
+          desc: "Menu Cadastros"
         },
+        {
+          id: 28,
+          name: "Menu Financeiro ",
+          desc: "Menu Financeiro"
+        }
+
       ]
     )
     // Write your database queries inside the run method

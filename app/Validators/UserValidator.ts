@@ -8,6 +8,7 @@ export default class UserValidator {
   public schema = schema.create({
     id: schema.number.optional(),
     companies_id: schema.number(),
+    usergroup_id: schema.number(),
     name: schema.string({}, [rules.maxLength(45)]),
     username: schema.string({}, [rules.maxLength(45)]),
     email: schema.string.optional({}, [rules.email(), rules.maxLength(255)]),

@@ -13,9 +13,17 @@ export default class AuthenticationController {
     const shortname = request.input('shortname')
     const password = request.input('password')
 
+    console.log("passei login 66666")
     const user = await User
       .query()
-      .preload('company')
+      .preload('company', query=>{
+        query.select('id','name','shortname','foldername','cloud')
+      })
+      .preload('usergroup',query=>{
+        query.preload('groupxpermission', query=>{
+          query.select('usergroup_id','permissiongroup_id' )
+        })
+      })
       .where('username', username)
       .whereHas('company', builder => {
         builder.where('shortname', shortname)

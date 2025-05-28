@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
-
+import { BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm'
+import Groupxpermission from './Groupxpermission'
 export default class Usergroup extends BaseModel {
 
   public static get fillable() {
@@ -12,14 +12,20 @@ export default class Usergroup extends BaseModel {
     ]
   }
 
+  @hasMany(()=>Groupxpermission,{
+    foreignKey: 'usergroup_id',
+    localKey:'id'
+  })
+  public groupxpermission: HasMany<typeof Groupxpermission>
+
   @column({ isPrimary: true })
   public id: number
 
-@column()
-public companies_id:number
+  @column()
+  public companies_id: number
 
   @column()
-  public name:string
+  public name: string
 
   @column()
   public inactive: boolean
