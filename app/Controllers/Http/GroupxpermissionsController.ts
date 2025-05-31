@@ -21,18 +21,14 @@ export default class GroupxpermissionsController {
 
   public async update({ auth, params, request, response }: HttpContextContract) {
     await auth.use('api').authenticate()
-    const permissions = request.body()
-    // const updateSchema = schema.create({
-    //   permissions: schema.array().members(
-    //     schema.number([rules.exists({ table: 'permissiongroups', column: 'id' })])
-    //   ),
-    // })
-    // const { permissions } = await request.validate({ schema: updateSchema })
-
-    //console.log("CÓDIGO 77966:", permissions)
-    //return
-
     try {
+
+      const updateSchema = schema.create({
+        permissions: schema.array().members(
+          schema.number([rules.exists({ table: 'permissiongroups', column: 'id' })])
+        ),
+      })
+      const { permissions } = await request.validate({ schema: updateSchema })
       //1 - Deletar toda lista do Grupo
       await Groupxpermission.query()
         .where('usergroup_id', params.id)
@@ -47,6 +43,7 @@ export default class GroupxpermissionsController {
       }
 
       const result = await Groupxpermission.createMany(createManyPermission)
+      console.log("SUCESSO @@@@!!!")
       return response.status(201).send(result)
 
     } catch (error) {
