@@ -88,7 +88,6 @@ export default class UsersController {
   }
 
   public async update({ auth, request, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(UserValidator)
     body.id = request.param('id')

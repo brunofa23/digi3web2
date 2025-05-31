@@ -138,14 +138,19 @@ export default class extends BaseSeeder {
         },
         {
           id: 27,
-          name: "Menu Cadastros ",
+          name: "Menu Cadastros",
           desc: "Menu Cadastros"
         },
         {
           id: 28,
-          name: "Menu Financeiro ",
+          name: "Menu Financeiro",
           desc: "Menu Financeiro"
-        }
+        },
+        {
+          id: 29,
+          name: "Menu Cadastros - Grupos de Usuários",
+          desc: "Menu -> Cadastros -> Grupos de Usuários"
+        },
 
       ]
     )

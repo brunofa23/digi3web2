@@ -31,7 +31,8 @@ export default class extends BaseSeeder {
         { usergroup_id: 1, permissiongroup_id: 25 },
         { usergroup_id: 1, permissiongroup_id: 26 },
         { usergroup_id: 1, permissiongroup_id: 27 },
-        { usergroup_id: 1, permissiongroup_id: 28 }
+        { usergroup_id: 1, permissiongroup_id: 28 },
+        { usergroup_id: 1, permissiongroup_id: 29 },
       ]
     )
     // Write your database queries inside the run method

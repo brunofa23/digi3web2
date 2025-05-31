@@ -35,9 +35,14 @@ Route.group(() => {
   Route.patch("/users/:id", "UsersController.update")//.middleware('user_permission:patch')
   Route.post("/closeaccesimage/:id", "UsersController.closeAccesImage")//.middleware('user_permission:patch')
 
+  //USERGROUPS
+  Route.resource('/usergroups', "UsergroupsController").apiOnly()
+
 
   //GROUPXPERMISSIONS
-  Route.resource("/groupxpermissions", "GroupxpermissionController").apiOnly()
+  Route.resource("/groupxpermissions", "GroupxpermissionsController").apiOnly()
+  Route.get("/permissiongroupxusergroup/:usergroup_id", "GroupxpermissionsController.PermissiongroupXUsergroup")
+
 
 
   //BOOKRECORDS
