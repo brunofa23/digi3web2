@@ -5,17 +5,15 @@
  * file.
  */
 
-import Company from 'App/Models/Company'
 import User from 'App/Models/User'
 
 declare module '@ioc:Adonis/Addons/Auth' {
   interface ProvidersList {
-
     user: {
       implementation: LucidProviderContract<typeof User>
       config: LucidProviderConfig<typeof User>
     }
-    
+
   }
 
 

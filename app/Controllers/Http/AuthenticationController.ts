@@ -16,12 +16,12 @@ export default class AuthenticationController {
     console.log("passei login 66666")
     const user = await User
       .query()
-      .preload('company', query=>{
-        query.select('id','name','shortname','foldername','cloud')
+      .preload('company', query => {
+        query.select('id', 'name', 'shortname', 'foldername', 'cloud')
       })
-      .preload('usergroup',query=>{
-        query.preload('groupxpermission', query=>{
-          query.select('usergroup_id','permissiongroup_id' )
+      .preload('usergroup', query => {
+        query.preload('groupxpermission', query => {
+          query.select('usergroup_id', 'permissiongroup_id')
         })
       })
       .where('username', username)
@@ -43,11 +43,24 @@ export default class AuthenticationController {
 
 
     // Generate token
+    // const token = await auth.use('api').generate(user, {
+    //   expiresIn: '7 days',
+    //   name: username
+    // })
+    const permissions = user.usergroup?.groupxpermission || []
+
     const token = await auth.use('api').generate(user, {
       expiresIn: '7 days',
-      name: username
-
+      name: username,
+      payload: {
+        permissions: permissions.map(p => ({
+          usergroup_id: p.usergroup_id,
+          permissiongroup_id: p.permissiongroup_id,
+        }))
+      }
     })
+
+    console.log(">>>>token:", token)
     return response.status(200).send({ token, user })
 
   }
