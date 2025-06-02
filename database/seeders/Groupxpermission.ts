@@ -74,13 +74,13 @@ export default class extends BaseSeeder {
         { usergroup_id: 4, permissiongroup_id: 24 },
         { usergroup_id: 4, permissiongroup_id: 26 },
         //1 - AUXILIAR
-        { usergroup_id: 4, permissiongroup_id: 1 },
-        { usergroup_id: 4, permissiongroup_id: 15 },
-        { usergroup_id: 4, permissiongroup_id: 16 },
-        { usergroup_id: 4, permissiongroup_id: 17 },
-        { usergroup_id: 4, permissiongroup_id: 18 },
-        { usergroup_id: 4, permissiongroup_id: 23 },
-        { usergroup_id: 4, permissiongroup_id: 26 },
+        { usergroup_id: 5, permissiongroup_id: 1 },
+        { usergroup_id: 5, permissiongroup_id: 15 },
+        { usergroup_id: 5, permissiongroup_id: 16 },
+        { usergroup_id: 5, permissiongroup_id: 17 },
+        { usergroup_id: 5, permissiongroup_id: 18 },
+        { usergroup_id: 5, permissiongroup_id: 23 },
+        { usergroup_id: 5, permissiongroup_id: 26 },
 
       ]
     )
