@@ -12,8 +12,6 @@ export default class AuthenticationController {
     const username = request.input('username')
     const shortname = request.input('shortname')
     const password = request.input('password')
-
-    console.log("passei login 66666")
     const user = await User
       .query()
       .preload('company', query => {
@@ -41,14 +39,7 @@ export default class AuthenticationController {
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
-
-    // Generate token
-    // const token = await auth.use('api').generate(user, {
-    //   expiresIn: '7 days',
-    //   name: username
-    // })
-    const permissions = user.usergroup?.groupxpermission || []
-
+    const permissions = user?.$preloaded.usergroup.$preloaded.groupxpermission || {}
     const token = await auth.use('api').generate(user, {
       expiresIn: '7 days',
       name: username,
@@ -60,7 +51,7 @@ export default class AuthenticationController {
       }
     })
 
-    console.log(">>>>token:", token)
+    //console.log(">>>>token:", token.meta.payload.permissions)
     return response.status(200).send({ token, user })
 
   }

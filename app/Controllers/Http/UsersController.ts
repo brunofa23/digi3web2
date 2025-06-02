@@ -35,12 +35,12 @@ export default class UsersController {
     const authenticate = await auth.use('api').authenticate()
 
     const query = User.query().where('id', params.id)
-    .preload('usergroup',query=>{
-      query.preload('groupxpermission', subQuery=>{
-        subQuery.select('permissiongroup_id')
+      .preload('usergroup', query => {
+        query.preload('groupxpermission', subQuery => {
+          subQuery.select('permissiongroup_id')
 
+        })
       })
-    })
     query.if(!authenticate.superuser, query => {
       query.where('companies_id', authenticate.companies_id)
     })

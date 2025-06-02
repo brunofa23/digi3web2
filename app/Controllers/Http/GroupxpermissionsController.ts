@@ -43,7 +43,6 @@ export default class GroupxpermissionsController {
       }
 
       const result = await Groupxpermission.createMany(createManyPermission)
-      console.log("SUCESSO @@@@!!!")
       return response.status(201).send(result)
 
     } catch (error) {

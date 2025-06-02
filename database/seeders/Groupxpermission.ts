@@ -4,6 +4,7 @@ export default class extends BaseSeeder {
   public async run() {
     await Groupxpermission.createMany(
       [
+        //5 - DIGI3
         { usergroup_id: 1, permissiongroup_id: 1 },
         { usergroup_id: 1, permissiongroup_id: 2 },
         { usergroup_id: 1, permissiongroup_id: 3 },
@@ -33,6 +34,54 @@ export default class extends BaseSeeder {
         { usergroup_id: 1, permissiongroup_id: 27 },
         { usergroup_id: 1, permissiongroup_id: 28 },
         { usergroup_id: 1, permissiongroup_id: 29 },
+        //4 - TITULAR
+        { usergroup_id: 2, permissiongroup_id: 1 },
+        { usergroup_id: 2, permissiongroup_id: 5 },
+        { usergroup_id: 2, permissiongroup_id: 6 },
+        { usergroup_id: 2, permissiongroup_id: 15 },
+        { usergroup_id: 2, permissiongroup_id: 16 },
+        { usergroup_id: 2, permissiongroup_id: 17 },
+        { usergroup_id: 2, permissiongroup_id: 18 },
+        { usergroup_id: 2, permissiongroup_id: 19 },
+        { usergroup_id: 2, permissiongroup_id: 21 },
+        { usergroup_id: 2, permissiongroup_id: 22 },
+        { usergroup_id: 2, permissiongroup_id: 23 },
+        { usergroup_id: 2, permissiongroup_id: 24 },
+        { usergroup_id: 2, permissiongroup_id: 25 },
+        { usergroup_id: 2, permissiongroup_id: 26 },
+        //3 - SUBSTITUTO
+        { usergroup_id: 3, permissiongroup_id: 1 },
+        { usergroup_id: 3, permissiongroup_id: 15 },
+        { usergroup_id: 3, permissiongroup_id: 16 },
+        { usergroup_id: 3, permissiongroup_id: 17 },
+        { usergroup_id: 3, permissiongroup_id: 18 },
+        { usergroup_id: 3, permissiongroup_id: 19 },
+        { usergroup_id: 3, permissiongroup_id: 21 },
+        { usergroup_id: 3, permissiongroup_id: 22 },
+        { usergroup_id: 3, permissiongroup_id: 23 },
+        { usergroup_id: 3, permissiongroup_id: 24 },
+        { usergroup_id: 3, permissiongroup_id: 25 },
+        { usergroup_id: 3, permissiongroup_id: 26 },
+        //2 - ESCREVENTE
+        { usergroup_id: 4, permissiongroup_id: 1 },
+        { usergroup_id: 4, permissiongroup_id: 15 },
+        { usergroup_id: 4, permissiongroup_id: 16 },
+        { usergroup_id: 4, permissiongroup_id: 17 },
+        { usergroup_id: 4, permissiongroup_id: 18 },
+        { usergroup_id: 4, permissiongroup_id: 19 },
+        { usergroup_id: 4, permissiongroup_id: 22 },
+        { usergroup_id: 4, permissiongroup_id: 23 },
+        { usergroup_id: 4, permissiongroup_id: 24 },
+        { usergroup_id: 4, permissiongroup_id: 26 },
+        //1 - AUXILIAR
+        { usergroup_id: 4, permissiongroup_id: 1 },
+        { usergroup_id: 4, permissiongroup_id: 15 },
+        { usergroup_id: 4, permissiongroup_id: 16 },
+        { usergroup_id: 4, permissiongroup_id: 17 },
+        { usergroup_id: 4, permissiongroup_id: 18 },
+        { usergroup_id: 4, permissiongroup_id: 23 },
+        { usergroup_id: 4, permissiongroup_id: 26 },
+
       ]
     )
     // Write your database queries inside the run method

@@ -11,6 +11,15 @@ async function DeleteFiles(folderPath) {
 }
 
 
+//VERIFICA SE POSSUI A PERMISSÃO NO ARRAY GROUPXPERMISSION
+const verifyPermission = (isSuperuser = false, permissions = [], permission_id) => {
+  if (isSuperuser)
+    return true
+  const result = permissions?.some(p => p.permissiongroup_id === permission_id);
+  return result;
+}
+
+
 async function logInJson(value) {
   const pathFile = Application.tmpPath('log.json')
   try {
@@ -47,4 +56,4 @@ const currencyConverter = (numeroBrasileiro: String) => {
 
 
 
-export { DeleteFiles, logInJson, currencyConverter }
+export { DeleteFiles, logInJson, currencyConverter, verifyPermission }
