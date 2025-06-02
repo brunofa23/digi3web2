@@ -16,7 +16,6 @@ async function imageProcessing(inputImage) {
         if (!fs_1.default.existsSync(dir)) {
             fs_1.default.mkdirSync(dir, { recursive: true });
         }
-        console.log("Passo 1: Iniciando o processamento da imagem...");
         const buffer = await (0, sharp_1.default)(inputImage)
             .resize({ width: 2400, withoutEnlargement: true })
             .modulate({ brightness: 1.12, saturation: 1.05 })
@@ -39,7 +38,6 @@ async function imageProcessing(inputImage) {
             .toFile(tempImage);
         fs_1.default.unlinkSync(inputImage);
         fs_1.default.renameSync(tempImage, inputImage);
-        console.log("Passo 2: Imagem recortada e processada com sucesso!");
     }
     catch (err) {
         console.error("Erro ao processar e recortar imagem:", err);

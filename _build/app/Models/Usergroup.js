@@ -13,51 +13,48 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
-const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash"));
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
-class Apitoken extends Orm_1.BaseModel {
-    static async hashPassword(apitoken) {
-        if (apitoken.$dirty.password) {
-            apitoken.password = await Hash_1.default.make(apitoken.password);
-        }
+const Groupxpermission_1 = __importDefault(require("./Groupxpermission"));
+class Usergroup extends Orm_1.BaseModel {
+    static get fillable() {
+        return [
+            'id',
+            'companies_id',
+            'name',
+            'inactive',
+        ];
     }
 }
 __decorate([
+    (0, Orm_1.hasMany)(() => Groupxpermission_1.default, {
+        foreignKey: 'usergroup_id',
+        localKey: 'id'
+    }),
+    __metadata("design:type", Object)
+], Usergroup.prototype, "groupxpermission", void 0);
+__decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
-], Apitoken.prototype, "id", void 0);
+], Usergroup.prototype, "id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Usergroup.prototype, "companies_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
-], Apitoken.prototype, "email", void 0);
-__decorate([
-    (0, Orm_1.column)({ serializeAs: null }),
-    __metadata("design:type", String)
-], Apitoken.prototype, "password", void 0);
+], Usergroup.prototype, "name", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Object)
-], Apitoken.prototype, "rememberMeToken", void 0);
+    __metadata("design:type", Boolean)
+], Usergroup.prototype, "inactive", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
-], Apitoken.prototype, "createdAt", void 0);
+], Usergroup.prototype, "createdAt", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true, autoUpdate: true }),
     __metadata("design:type", luxon_1.DateTime)
-], Apitoken.prototype, "updatedAt", void 0);
-__decorate([
-    (0, Orm_1.column)({
-        prepare: (value) => JSON.stringify(value),
-        consume: (value) => JSON.parse(value),
-    }),
-    __metadata("design:type", Object)
-], Apitoken.prototype, "payload", void 0);
-__decorate([
-    (0, Orm_1.beforeSave)(),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Apitoken]),
-    __metadata("design:returntype", Promise)
-], Apitoken, "hashPassword", null);
-exports.default = Apitoken;
-//# sourceMappingURL=Apitoken.js.map
+], Usergroup.prototype, "updatedAt", void 0);
+exports.default = Usergroup;
+//# sourceMappingURL=Usergroup.js.map

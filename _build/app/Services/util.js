@@ -3,12 +3,19 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.currencyConverter = exports.logInJson = exports.DeleteFiles = void 0;
+exports.verifyPermission = exports.currencyConverter = exports.logInJson = exports.DeleteFiles = void 0;
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const fs = require('fs');
 async function DeleteFiles(folderPath) {
 }
 exports.DeleteFiles = DeleteFiles;
+const verifyPermission = (isSuperuser = false, permissions = [], permission_id) => {
+    if (isSuperuser)
+        return true;
+    const result = permissions?.some(p => p.permissiongroup_id === permission_id);
+    return result;
+};
+exports.verifyPermission = verifyPermission;
 async function logInJson(value) {
     const pathFile = Application_1.default.tmpPath('log.json');
     try {

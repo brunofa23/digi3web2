@@ -1,41 +1,34 @@
 "use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
-const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class BookRecordPermission {
-    async handle({ auth, response }, next, customGuards) {
+    async handle({ auth }, next, customGuards) {
         const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions;
         for (const guard of customGuards) {
-            if (guard === 'get' && authenticate.permission_level >= 0) {
+            if (guard === 'get') {
                 await next();
             }
-            else if (guard === 'post' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+            if (guard === 'fastfind' && (0, util_1.verifyPermission)(authenticate.superuser, permissions, 1)) {
                 await next();
+                return;
             }
-            else if (guard === 'patch' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+            if (guard === 'post' && (0, util_1.verifyPermission)(authenticate.superuser, permissions, 4)) {
                 await next();
+                return;
             }
-            else if (guard === 'destroy' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
+            if (guard === 'destroy' && (0, util_1.verifyPermission)(authenticate.superuser, permissions, 20)) {
                 await next();
+                return;
             }
-            else if (guard === 'generateOrUpdateBookrecords' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
+            if (guard === 'destroyManyBookRecords' && (0, util_1.verifyPermission)(authenticate.superuser, permissions, 20)) {
                 await next();
+                return;
             }
-            else if (guard === 'createorupdatebookrecords' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
+            if ((guard === 'generateOrUpdateBookrecords2' || guard === 'createorupdatebookrecords' || guard === 'generateOrUpdateBookrecords')
+                && (0, util_1.verifyPermission)(authenticate.superuser, permissions, 21)) {
                 await next();
-            }
-            else if (guard === 'destroyManyBookRecords' && (authenticate.permission_level >= 6 || authenticate.superuser)) {
-                await next();
-            }
-            else if (guard === 'indeximagesinitial' && (authenticate.permission_level >= 4 || authenticate.superuser)) {
-                await next();
-            }
-            else {
-                let errorValidation = await new validations_1.default('error_10');
-                throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+                return;
             }
         }
     }

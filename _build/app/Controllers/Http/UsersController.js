@@ -30,12 +30,16 @@ class UsersController {
     }
     async show({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        let query = "";
-        if (!authenticate.superuser)
-            query = ` companies_id=${authenticate.companies_id} `;
-        const data = await User_1.default.query()
-            .whereRaw(query)
-            .andWhere('id', "=", params.id).first();
+        const query = User_1.default.query().where('id', params.id)
+            .preload('usergroup', query => {
+            query.preload('groupxpermission', subQuery => {
+                subQuery.select('permissiongroup_id');
+            });
+        });
+        query.if(!authenticate.superuser, query => {
+            query.where('companies_id', authenticate.companies_id);
+        });
+        const data = await query.first();
         return response.status(200).send(data);
     }
     async store({ auth, request, response }) {

@@ -7,6 +7,7 @@ class UserValidator {
         this.schema = Validator_1.schema.create({
             id: Validator_1.schema.number.optional(),
             companies_id: Validator_1.schema.number(),
+            usergroup_id: Validator_1.schema.number(),
             name: Validator_1.schema.string({}, [Validator_1.rules.maxLength(45)]),
             username: Validator_1.schema.string({}, [Validator_1.rules.maxLength(45)]),
             email: Validator_1.schema.string.optional({}, [Validator_1.rules.email(), Validator_1.rules.maxLength(255)]),

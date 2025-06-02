@@ -18,11 +18,13 @@ const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Company_1 = __importDefault(require("./Company"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
+const Usergroup_1 = __importDefault(require("./Usergroup"));
 class User extends Orm_1.BaseModel {
     static get fillable() {
         return [
             'id',
             'companies_id',
+            'usergroup_id',
             'shortname',
             'name',
             'username',
@@ -58,6 +60,13 @@ __decorate([
     __metadata("design:type", Object)
 ], User.prototype, "company", void 0);
 __decorate([
+    (0, Orm_1.hasOne)(() => Usergroup_1.default, {
+        foreignKey: 'id',
+        localKey: 'usergroup_id'
+    }),
+    __metadata("design:type", Object)
+], User.prototype, "usergroup", void 0);
+__decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
 ], User.prototype, "id", void 0);
@@ -65,6 +74,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], User.prototype, "companies_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], User.prototype, "usergroup_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

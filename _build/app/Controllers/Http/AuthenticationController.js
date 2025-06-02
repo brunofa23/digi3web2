@@ -15,7 +15,14 @@ class AuthenticationController {
         const password = request.input('password');
         const user = await User_1.default
             .query()
-            .preload('company')
+            .preload('company', query => {
+            query.select('id', 'name', 'shortname', 'foldername', 'cloud');
+        })
+            .preload('usergroup', query => {
+            query.preload('groupxpermission', query => {
+                query.select('usergroup_id', 'permissiongroup_id');
+            });
+        })
             .where('username', username)
             .whereHas('company', builder => {
             builder.where('shortname', shortname);
@@ -29,9 +36,16 @@ class AuthenticationController {
             let errorValidation = await new validations_1.default('user_error_206');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
+        const permissions = user?.$preloaded.usergroup.$preloaded.groupxpermission || {};
         const token = await auth.use('api').generate(user, {
             expiresIn: '7 days',
-            name: username
+            name: username,
+            payload: {
+                permissions: permissions.map(p => ({
+                    usergroup_id: p.usergroup_id,
+                    permissiongroup_id: p.permissiongroup_id,
+                }))
+            }
         });
         return response.status(200).send({ token, user });
     }
