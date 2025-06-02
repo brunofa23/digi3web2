@@ -6,34 +6,43 @@ Route.group(() => {
   })//.middleware('level_permission:1')
 
   //BOOK
-  Route.get("/books", 'BooksController.index').middleware("level_permission:get")
-  Route.post("/books", 'BooksController.store').middleware("level_permission:post")
-  Route.patch("/books/:id", 'BooksController.update').middleware("level_permission:patch")
-  Route.delete("/books/:id", 'BooksController.destroy').middleware("level_permission:destroy")
+  Route.get("/books", 'BooksController.index')//.middleware("level_permission:get")
+  Route.post("/books", 'BooksController.store')//.middleware("level_permission:post")
+  Route.patch("/books/:id", 'BooksController.update')//.middleware("level_permission:patch")
+  Route.delete("/books/:id", 'BooksController.destroy')//.middleware("level_permission:destroy")
 
   //TYPEBOOK
   Route.get('/typebooks', 'TypebooksController.index')
-  Route.get('/typebooks/:id', 'TypebooksController.show').middleware('typebook_permission:get')
-  Route.get('/alltypebook', 'TypebooksController.allTypebook').middleware('typebook_permission:get')
-  Route.post('/typebooks', 'TypebooksController.store').middleware('typebook_permission:post')
-  Route.patch('/typebooks/:id', 'TypebooksController.update').middleware('typebook_permission:patch')
-  Route.delete('/typebooks/:id', 'TypebooksController.destroy').middleware('typebook_permission:destroy')
+  Route.get('/typebooks/:id', 'TypebooksController.show')//.middleware('typebook_permission:get')
+  Route.get('/alltypebook', 'TypebooksController.allTypebook')//.middleware('typebook_permission:get')
+  Route.post('/typebooks', 'TypebooksController.store')//.middleware('typebook_permission:post')
+  Route.patch('/typebooks/:id', 'TypebooksController.update')//.middleware('typebook_permission:patch')
+  Route.delete('/typebooks/:id', 'TypebooksController.destroy')//.middleware('typebook_permission:destroy')
 
 
   //COMPANIES
   Route.get("/companies", 'CompaniesController.index')
   Route.get("/companies/:id", 'CompaniesController.show')
-  Route.post("/companies", 'CompaniesController.store').middleware('company_permission:post')
-  Route.patch("/companies/:id", 'CompaniesController.update').middleware('company_permission:patch')
+  Route.post("/companies", 'CompaniesController.store')//.middleware('company_permission:post')
+  Route.patch("/companies/:id", 'CompaniesController.update')//.middleware('company_permission:patch')
 
 
   //USERS
   Route.get("/users", "UsersController.index")
   Route.get("/users/:id", "UsersController.show")
   Route.get("/accessimage/:id", "UsersController.accessImage")
-  Route.post("/users", "UsersController.store").middleware('user_permission:post')
-  Route.patch("/users/:id", "UsersController.update").middleware('user_permission:patch')
+  Route.post("/users", "UsersController.store")//.middleware('user_permission:post')
+  Route.patch("/users/:id", "UsersController.update")//.middleware('user_permission:patch')
   Route.post("/closeaccesimage/:id", "UsersController.closeAccesImage")//.middleware('user_permission:patch')
+
+  //USERGROUPS
+  Route.resource('/usergroups', "UsergroupsController").apiOnly()
+
+
+  //GROUPXPERMISSIONS
+  Route.resource("/groupxpermissions", "GroupxpermissionsController").apiOnly()
+  Route.get("/permissiongroupxusergroup/:usergroup_id", "GroupxpermissionsController.PermissiongroupXUsergroup")
+
 
 
   //BOOKRECORDS
@@ -42,17 +51,19 @@ Route.group(() => {
   Route.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show')
   Route.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary')
   Route.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post')
-  Route.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update').middleware('bookrecord_permission:patch')
+  Route.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update')//.middleware('bookrecord_permission:patch')
   Route.delete("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.destroy').middleware('bookrecord_permission:destroy')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords').middleware('bookrecord_permission:generateOrUpdateBookrecords')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords2", 'BookrecordsController.generateOrUpdateBookrecords2').middleware('bookrecord_permission:generateOrUpdateBookrecords')
   Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords').middleware('bookrecord_permission:createorupdatebookrecords')
   Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords')
-  Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:indeximagesinitial')
+  Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial')//.middleware('bookrecord_permission:indeximagesinitial')
   Route.get('/updatedfiles', 'BookrecordsController.updatedFiles')
-  Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument')//.middleware('bookrecord_permission:generateOrUpdateBookrecords')
-  Route.get("/fastfind", 'BookrecordsController.fastFind')
-  Route.get("/fastfinddocuments", 'BookrecordsController.fastFindDocuments')
+  Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords')
+
+  Route.get("/fastfind", 'BookrecordsController.fastFind').middleware('bookrecord_permission:fastfind')
+
+  Route.get("/fastfinddocuments", 'BookrecordsController.fastFindDocuments').middleware('bookrecord_permission:fastfind')
   Route.get("/maxbookrecord", 'BookrecordsController.maxBookRecord')
   Route.get("/sheetwithside/:typebooks_id/:book", 'BookrecordsController.sheetWithSide')
 
@@ -72,9 +83,9 @@ Route.group(() => {
   Route.get("/indeximages", "IndeximagesController.index")
   Route.get("/indeximages/:id", "IndeximagesController.show")
   Route.delete("/indeximages/:typebooks_id/:bookrecords_id/:file_name", "IndeximagesController.destroy")
-  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads').middleware('indeximage_permission:uploads')
-  Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download').middleware('indeximage_permission:download')
-  Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture').middleware('indeximage_permission:uploadCapture')
+  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')//.middleware('indeximage_permission:uploads')
+  Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')//.middleware('indeximage_permission:download')
+  Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')//.middleware('indeximage_permission:uploadCapture')
 
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")
@@ -96,7 +107,7 @@ Route.group(() => {
 
   //TOKENTOIMAGES
   //Route.resource("tokentoimages", "TokenToImagesController").middleware('tokentoimages_permission')
-  Route.post("/tokentoimages", "TokenToImagesController.store").middleware('tokentoimages_permission:post')
+  Route.post("/tokentoimages", "TokenToImagesController.store")//.middleware('tokentoimages_permission:post')
   Route.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
 
   //READFILES

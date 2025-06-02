@@ -21,6 +21,12 @@ export default class Apitoken extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
 
+  @column({
+    prepare: (value: any) => JSON.stringify(value),
+    consume: (value: string) => JSON.parse(value),
+  })
+  public payload: any
+
   @beforeSave()
   public static async hashPassword (apitoken: Apitoken) {
     if (apitoken.$dirty.password) {

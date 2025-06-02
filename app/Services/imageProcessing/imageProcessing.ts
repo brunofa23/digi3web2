@@ -17,8 +17,6 @@ export async function imageProcessing(inputImage: string) {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
-    console.log("Passo 1: Iniciando o processamento da imagem...");
-
     const buffer = await sharp(inputImage)
       .resize({ width: 2400, withoutEnlargement: true })
       .modulate({ brightness: 1.12, saturation: 1.05 })
@@ -45,9 +43,6 @@ export async function imageProcessing(inputImage: string) {
 
     fs.unlinkSync(inputImage);
     fs.renameSync(tempImage, inputImage);
-
-    console.log("Passo 2: Imagem recortada e processada com sucesso!");
-
   } catch (err) {
     console.error("Erro ao processar e recortar imagem:", err);
      // Garante que o temporário seja excluído se o processo falhar
