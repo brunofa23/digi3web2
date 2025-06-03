@@ -55,7 +55,7 @@ export default class GroupxpermissionsController {
 
   public async PermissiongroupXUsergroup({ auth, params, response }: HttpContextContract) {
     try {
-      console.log("params:", params)
+      
       await auth.use('api').authenticate()
       const data = await Database
         .from('permissiongroups as p')
