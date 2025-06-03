@@ -45,7 +45,6 @@ class GroupxpermissionsController {
     }
     async PermissiongroupXUsergroup({ auth, params, response }) {
         try {
-            console.log("params:", params);
             await auth.use('api').authenticate();
             const data = await Database_1.default
                 .from('permissiongroups as p')

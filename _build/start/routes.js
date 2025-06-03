@@ -61,7 +61,7 @@ Route_1.default.group(() => {
     Route_1.default.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture');
     Route_1.default.post("/login", "AuthenticationController.login");
     Route_1.default.post("/logout", "AuthenticationController.logout");
-    Route_1.default.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages");
+    Route_1.default.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages").middleware('user_permission:authorizeAccessImages');
     Route_1.default.post("/resetpassword", "UserPasswordsController.resetPassword");
     Route_1.default.post("/updatepassword", "UserPasswordsController.updatePassword");
     Route_1.default.post("/token", "TokensController.store");
