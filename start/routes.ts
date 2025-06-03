@@ -90,7 +90,7 @@ Route.group(() => {
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")
   Route.post("/logout", "AuthenticationController.logout")
-  Route.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages")//.middleware('user_permission:authorizeAccessImages')
+  Route.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages").middleware('user_permission:authorizeAccessImages')
 
   //USER PASSWORD
   Route.post("/resetpassword", "UserPasswordsController.resetPassword")
