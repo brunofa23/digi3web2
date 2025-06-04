@@ -59,6 +59,11 @@
         "messages": "Invalid password",
         "status": 401
     },
+     {
+        "code": "user_error_208",
+        "messages": "User free time between 07:00 and 19:00",
+        "status": 401
+    },
     {
         "code": "user_success_200",
         "messages": "User created successfully",
@@ -79,7 +84,7 @@
         "messages": "User reset password successfully",
         "status": 201
     },
-    {
+       {
         "code": "typebook_success_100",
         "messages": "Typebook created successfully",
         "status": 201
