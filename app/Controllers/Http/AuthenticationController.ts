@@ -4,6 +4,7 @@ import Hash from '@ioc:Adonis/Core/Hash'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import { DateTime } from 'luxon'
+import { verifyPermission } from 'App/Services/util'
 
 export default class AuthenticationController {
 
@@ -40,6 +41,21 @@ export default class AuthenticationController {
     }
 
     const permissions = user?.$preloaded.usergroup.$preloaded.groupxpermission || {}
+    //VERIFICAR HORARIO DISPONÍVEL
+    if (!verifyPermission(user.superuser, permissions, 31)) {
+
+      const now = DateTime.now().setZone('America/Sao_Paulo');
+      const hourNow = now.hour
+      const minuteNow = now.minute
+      const estaNoHorarioPermitido = hourNow >= 7 && (hourNow < 19 || (hourNow === 19 && minuteNow === 0));
+      if (!estaNoHorarioPermitido) {
+        console.log("NÃO ENTRAR")
+        const errorValidation = await new validations('user_error_208')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+
+      }
+    }
+
     const token = await auth.use('api').generate(user, {
       expiresIn: '7 days',
       name: username,

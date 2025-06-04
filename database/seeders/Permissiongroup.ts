@@ -151,10 +151,15 @@ export default class extends BaseSeeder {
         //   name: "Menu Cadastros - Grupos de Usuários",
         //   desc: "Menu -> Cadastros -> Grupos de Usuários"
         // },
+        // {
+        //   id: 30,
+        //   name: "Tela de Livros - Desbloqueio para Visualizar Imagens",
+        //   desc: "Tela de Livros -> (Cadeado)Desbloqueio para Visualizar Imagens"
+        // },
         {
-          id: 30,
-          name: "Tela de Livros - Desbloqueio para Visualizar Imagens",
-          desc: "Tela de Livros -> (Cadeado)Desbloqueio para Visualizar Imagens"
+          id: 31,
+          name: "Sem Restrição de Horário (07:00 às 19:00)",
+          desc: "Sem Restrição de Horário (07:00 às 19:00)"
         },
 
       ]

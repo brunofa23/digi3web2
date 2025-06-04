@@ -88,7 +88,7 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')//.middleware('indeximage_permission:uploadCapture')
 
   //AUTHENTICATION
-  Route.post("/login", "AuthenticationController.login")
+  Route.post("/login", "AuthenticationController.login")//.middleware('authentication_permission:free_time')
   Route.post("/logout", "AuthenticationController.logout")
   Route.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages").middleware('user_permission:authorizeAccessImages')
 
