@@ -8,6 +8,7 @@ const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash")
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const luxon_1 = require("luxon");
+const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class AuthenticationController {
     async login({ auth, request, response }) {
         const username = request.input('username');
@@ -37,6 +38,17 @@ class AuthenticationController {
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
         const permissions = user?.$preloaded.usergroup.$preloaded.groupxpermission || {};
+        if (!(0, util_1.verifyPermission)(user.superuser, permissions, 31)) {
+            const now = luxon_1.DateTime.now().setZone('America/Sao_Paulo');
+            const hourNow = now.hour;
+            const minuteNow = now.minute;
+            const estaNoHorarioPermitido = hourNow >= 7 && (hourNow < 19 || (hourNow === 19 && minuteNow === 0));
+            if (!estaNoHorarioPermitido) {
+                console.log("NÃO ENTRAR");
+                const errorValidation = await new validations_1.default('user_error_208');
+                throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+            }
+        }
         const token = await auth.use('api').generate(user, {
             expiresIn: '7 days',
             name: username,
