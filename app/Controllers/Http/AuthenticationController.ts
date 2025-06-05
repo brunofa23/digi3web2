@@ -81,6 +81,7 @@ export default class AuthenticationController {
   }
 
   public async authorizeAccessImages({ auth, request, response }) {
+    console.log("teste 12345")
     const { companies_id, username } = await auth.use('api').authenticate()
     const usernameAutorization = request.input('username')
     const password = request.input('password')
