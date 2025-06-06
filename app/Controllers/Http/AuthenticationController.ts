@@ -5,6 +5,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import { DateTime } from 'luxon'
 import { verifyPermission } from 'App/Services/util'
+import Groupxpermission from 'App/Models/Groupxpermission'
 
 export default class AuthenticationController {
 
@@ -86,49 +87,71 @@ export default class AuthenticationController {
     const password = request.input('password')
     const accessImage = request.input('accessimage')
 
-    const userAuthorization = await User
-      .query()
-      .where('username', usernameAutorization)
-      .andWhere('companies_id', '=', companies_id)
-      .first()
+    try {
+      // 1. Buscar o usuário que está sendo autorizado
+      const user = await User
+        .query()
+        .where('username', usernameAutorization)
+        .andWhere('companies_id', companies_id)
+        .first()
 
-    if (userAuthorization) {
-      if ((userAuthorization.permission_level < 3) && (!userAuthorization.superuser)) {
+      if (!user) {
+        const errorValidation = await new validations('user_error_205')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
+
+      // 2. Verificar a senha do usuário
+      const isPasswordValid = await Hash.verify(user.password, String(password))
+      if (!isPasswordValid) {
+        const errorValidation = await new validations('user_error_206')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
+
+      // 3. Verificar autorização (permGroup 30 ou superuser = 1)
+      const hasPermission = await User
+        .query()
+        .where('username', usernameAutorization)
+        .andWhere('companies_id', companies_id)
+        .join('groupxpermissions', 'users.usergroup_id', 'groupxpermissions.usergroup_id')
+        .where(query => {
+          query.where('groupxpermissions.permissiongroup_id', 30).orWhere('users.superuser', 1)
+        })
+        .select('users.id')
+        .first()
+
+      if (!hasPermission) {
         const errorValidation = await new validations('user_error_201')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
       }
-    }
 
-    if (!userAuthorization) {
-      const errorValidation = await new validations('user_error_205')
-      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-    }
-
-    // Verify password
-    if (!(await Hash.verify(userAuthorization.password, String(password)))) {
-      let errorValidation = await new validations('user_error_206')
-      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-    }
-
-    try {
+      // 4. Atualizar o acesso à imagem do usuário autenticado
       const limitDataAccess = DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm')
-      const user = await User.query()
+
+      const authenticatedUser = await User
+        .query()
         .where('username', username)
-        .andWhere('companies_id', '=', companies_id)
+        .andWhere('companies_id', companies_id)
         .first()
-      if (user) {
-        user.access_image = limitDataAccess
-        user.save()
+
+      if (authenticatedUser) {
+        authenticatedUser.access_image = limitDataAccess
+        await authenticatedUser.save()
         return response.status(201).send({ valor: true, tempo: accessImage })
+      } else {
+        throw new BadRequest("Usuário autenticado não encontrado.")
       }
 
     } catch (error) {
-      //let errorValidation = await new validations('user_error_206')
-      throw new BadRequest("Erro ao liberar o acesso.", errorValidation.status, errorValidation.code)
+      console.error("Erro:", error)
+      const defaultError = await new validations('user_error_999') // erro genérico se quiser
+      return response.badRequest({
+        message: error.messages || defaultError.messages,
+        code: error.code || defaultError.code,
+        status: error.status || 400
+      })
     }
-
-
   }
+
 
 }
 
