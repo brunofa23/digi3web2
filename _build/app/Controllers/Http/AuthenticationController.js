@@ -70,39 +70,58 @@ class AuthenticationController {
         const usernameAutorization = request.input('username');
         const password = request.input('password');
         const accessImage = request.input('accessimage');
-        const userAuthorization = await User_1.default
-            .query()
-            .where('username', usernameAutorization)
-            .andWhere('companies_id', '=', companies_id)
-            .first();
-        if (userAuthorization) {
-            if ((userAuthorization.permission_level < 3) && (!userAuthorization.superuser)) {
+        try {
+            const user = await User_1.default
+                .query()
+                .where('username', usernameAutorization)
+                .andWhere('companies_id', companies_id)
+                .first();
+            if (!user) {
+                const errorValidation = await new validations_1.default('user_error_205');
+                throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+            }
+            const isPasswordValid = await Hash_1.default.verify(user.password, String(password));
+            if (!isPasswordValid) {
+                const errorValidation = await new validations_1.default('user_error_206');
+                throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+            }
+            const hasPermission = await User_1.default
+                .query()
+                .where('username', usernameAutorization)
+                .andWhere('companies_id', companies_id)
+                .join('groupxpermissions', 'users.usergroup_id', 'groupxpermissions.usergroup_id')
+                .where(query => {
+                query.where('groupxpermissions.permissiongroup_id', 30).orWhere('users.superuser', 1);
+            })
+                .select('users.id')
+                .first();
+            if (!hasPermission) {
                 const errorValidation = await new validations_1.default('user_error_201');
                 throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
             }
-        }
-        if (!userAuthorization) {
-            const errorValidation = await new validations_1.default('user_error_205');
-            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
-        }
-        if (!(await Hash_1.default.verify(userAuthorization.password, String(password)))) {
-            let errorValidation = await new validations_1.default('user_error_206');
-            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
-        }
-        try {
             const limitDataAccess = luxon_1.DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm');
-            const user = await User_1.default.query()
+            const authenticatedUser = await User_1.default
+                .query()
                 .where('username', username)
-                .andWhere('companies_id', '=', companies_id)
+                .andWhere('companies_id', companies_id)
                 .first();
-            if (user) {
-                user.access_image = limitDataAccess;
-                user.save();
+            if (authenticatedUser) {
+                authenticatedUser.access_image = limitDataAccess;
+                await authenticatedUser.save();
                 return response.status(201).send({ valor: true, tempo: accessImage });
+            }
+            else {
+                throw new BadRequestException_1.default("Usuário autenticado não encontrado.");
             }
         }
         catch (error) {
-            throw new BadRequestException_1.default("Erro ao liberar o acesso.", errorValidation.status, errorValidation.code);
+            console.error("Erro:", error);
+            const defaultError = await new validations_1.default('user_error_999');
+            return response.badRequest({
+                message: error.messages || defaultError.messages,
+                code: error.code || defaultError.code,
+                status: error.status || 400
+            });
         }
     }
 }

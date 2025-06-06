@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
-const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class UserPermission {
     async handle({ auth }, next, customGuards) {
         const authenticate = await auth.use('api').authenticate();
@@ -22,16 +21,6 @@ class UserPermission {
             else if (guard === 'patch' && authenticate.superuser) {
                 await next();
                 return;
-            }
-            else if (guard === 'authorizeAccessImages') {
-                if ((0, util_1.verifyPermission)(authenticate.superuser, permissions, 30)) {
-                    await next();
-                    return;
-                }
-                else {
-                    const errorValidation = await new validations_1.default('user_error_201');
-                    throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
-                }
             }
             else {
                 let errorValidation = await new validations_1.default('error_10');
