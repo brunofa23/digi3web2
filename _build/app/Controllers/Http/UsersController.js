@@ -45,6 +45,7 @@ class UsersController {
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(UserValidator_1.default);
+        body.permission_level = 1;
         const userByName = await User_1.default.query()
             .where('username', '=', body.username)
             .andWhere('companies_id', '=', body.companies_id).first();
