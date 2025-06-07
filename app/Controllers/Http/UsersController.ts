@@ -59,9 +59,9 @@ export default class UsersController {
   }
 
   public async store({ auth, request, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(UserValidator)
+    body.permission_level=1
 
     const userByName = await User.query()
       .where('username', '=', body.username)
