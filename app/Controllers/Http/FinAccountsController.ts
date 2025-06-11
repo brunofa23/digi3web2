@@ -94,8 +94,6 @@ export default class FinAccountsController {
   }
 
 
-
-
   public async show({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     try {
@@ -133,6 +131,7 @@ export default class FinAccountsController {
     }
 
     try {
+
       const data = await FinAccount.create(body1)
       await uploadFinImage(authenticate.companies_id, data.id, request)
       await data.load('finPaymentMethod')
@@ -158,6 +157,7 @@ export default class FinAccountsController {
     body.date_conciliation = body.date_conciliation ? DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
 
     body.amount = isNaN(body.amount) ? 0 : await currencyConverter(body.amount)
+    body.limit_amount = isNaN(body.limit_amount) ? 0 : await currencyConverter(body.limit_amount)
 
     const { conciliation, ...body1 } = body
     try {

@@ -22,6 +22,11 @@ export default class FinAccountStoreValidator {
     cost: schema.string.nullableAndOptional(),
     ir: schema.boolean.nullableAndOptional(),
     obs: schema.string.nullableAndOptional(),
+    analyze: schema.boolean.nullableAndOptional(),
+    future: schema.boolean.nullableAndOptional(),
+    reserve: schema.boolean.nullableAndOptional(),
+    overplus: schema.boolean.nullableAndOptional(),
+    limit_amount: schema.number.nullableAndOptional(),
 
     // Campo virtual (não está na tabela)
     conciliation: schema.boolean.optional(),

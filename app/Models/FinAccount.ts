@@ -26,6 +26,11 @@ export default class FinAccount extends BaseModel {
       'cost',
       'ir',
       'obs',
+      'analyze',
+      'future',
+      'reserve',
+      'overplus',
+      'limit_amount',
     ]
   }
 
@@ -81,6 +86,17 @@ export default class FinAccount extends BaseModel {
   public date_due: DateTime
   @column()
   public replicate: boolean
+
+  @column()
+  public analyze: boolean
+  @column()
+  public future: boolean
+  @column()
+  public reserve: boolean
+  @column()
+  public overplus: boolean
+  @column()
+  public limit_amount: number
 
   @column.dateTime()
   public data_billing: DateTime
