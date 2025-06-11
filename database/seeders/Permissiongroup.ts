@@ -156,10 +156,15 @@ export default class extends BaseSeeder {
         //   name: "Tela de Livros - Desbloqueio para Visualizar Imagens",
         //   desc: "Tela de Livros -> (Cadeado)Desbloqueio para Visualizar Imagens"
         // },
+        // {
+        //   id: 31,
+        //   name: "Sem Restrição de Horário (07:00 às 19:00)",
+        //   desc: "Sem Restrição de Horário (07:00 às 19:00)"
+        // },
         {
-          id: 31,
-          name: "Sem Restrição de Horário (07:00 às 19:00)",
-          desc: "Sem Restrição de Horário (07:00 às 19:00)"
+          id: 32,
+          name: "Excluir Imagem - Tela de Visualização de Imagens",
+          desc: "Excluir Imagem - Tela de Livros -> Visualizar Imagens -> Botão Excluir"
         },
 
       ]

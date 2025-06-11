@@ -50,7 +50,6 @@ export default class AuthenticationController {
       const minuteNow = now.minute
       const estaNoHorarioPermitido = hourNow >= 7 && (hourNow < 19 || (hourNow === 19 && minuteNow === 0));
       if (!estaNoHorarioPermitido) {
-        console.log("NÃO ENTRAR")
         const errorValidation = await new validations('user_error_208')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
 
