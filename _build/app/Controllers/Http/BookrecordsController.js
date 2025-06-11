@@ -763,21 +763,21 @@ class BookrecordsController {
                 .count('* as totalRows')
                 .select(Database_1.default.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = bookrecords.companies_id and bkr.typebooks_id = bookrecords.typebooks_id and bkr.book=bookrecords.book and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
                 .select(Database_1.default.raw(`
-    (SELECT COUNT(*)
-     FROM indeximages
-     INNER JOIN bookrecords bkr ON
-       (indeximages.bookrecords_id = bkr.id AND
-       indeximages.companies_id = bkr.companies_id AND
-       indeximages.typebooks_id = bkr.typebooks_id)
-     WHERE bkr.companies_id = bookrecords.companies_id
-       AND bkr.typebooks_id = bookrecords.typebooks_id
-       AND bkr.book = bookrecords.book
-       AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
-       AND indeximages.companies_id = ${authenticate.companies_id}
-       AND indeximages.typebooks_id = ${typebooks_id}
-       GROUP BY bkr.book, bkr.indexbook
-         ) as totalFiles
-  `))
+        (SELECT COUNT(*)
+         FROM indeximages
+         INNER JOIN bookrecords bkr ON
+           (indeximages.bookrecords_id = bkr.id AND
+           indeximages.companies_id = bkr.companies_id AND
+           indeximages.typebooks_id = bkr.typebooks_id)
+         WHERE bkr.companies_id = bookrecords.companies_id
+           AND bkr.typebooks_id = bookrecords.typebooks_id
+           AND bkr.book = bookrecords.book
+           AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
+           AND indeximages.companies_id = ${authenticate.companies_id}
+           AND indeximages.typebooks_id = ${typebooks_id}
+           GROUP BY bkr.book, bkr.indexbook
+             ) as totalFiles
+      `))
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('typebooks_id', typebooks_id);
             if (book > 0) {

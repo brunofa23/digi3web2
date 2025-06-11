@@ -110,6 +110,7 @@ class FinAccountsController {
         body.data_billing = body.data_billing ? luxon_1.DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
         body.date_conciliation = body.date_conciliation ? luxon_1.DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
         body.amount = isNaN(body.amount) ? 0 : await (0, util_1.currencyConverter)(body.amount);
+        body.limit_amount = isNaN(body.limit_amount) ? 0 : await (0, util_1.currencyConverter)(body.limit_amount);
         const { conciliation, ...body1 } = body;
         try {
             await FinAccount_1.default.query()

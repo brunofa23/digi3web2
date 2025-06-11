@@ -39,6 +39,11 @@ class FinAccount extends Orm_1.BaseModel {
             'cost',
             'ir',
             'obs',
+            'analyze',
+            'future',
+            'reserve',
+            'overplus',
+            'limit_amount',
         ];
     }
 }
@@ -111,6 +116,26 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
 ], FinAccount.prototype, "replicate", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinAccount.prototype, "analyze", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinAccount.prototype, "future", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinAccount.prototype, "reserve", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinAccount.prototype, "overplus", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], FinAccount.prototype, "limit_amount", void 0);
 __decorate([
     Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)

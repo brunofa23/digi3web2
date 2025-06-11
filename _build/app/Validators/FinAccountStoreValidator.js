@@ -22,6 +22,11 @@ class FinAccountStoreValidator {
             cost: Validator_1.schema.string.nullableAndOptional(),
             ir: Validator_1.schema.boolean.nullableAndOptional(),
             obs: Validator_1.schema.string.nullableAndOptional(),
+            analyze: Validator_1.schema.boolean.nullableAndOptional(),
+            future: Validator_1.schema.boolean.nullableAndOptional(),
+            reserve: Validator_1.schema.boolean.nullableAndOptional(),
+            overplus: Validator_1.schema.boolean.nullableAndOptional(),
+            limit_amount: Validator_1.schema.number.nullableAndOptional(),
             conciliation: Validator_1.schema.boolean.optional(),
         });
         this.messages = {};
