@@ -23,6 +23,11 @@ export default class FinAccountUpdateValidator {
     cost: schema.string.optional(),
     ir: schema.boolean.optional(),
     obs: schema.string.optional(),
+    analyze: schema.boolean.nullableAndOptional(),
+    future: schema.boolean.nullableAndOptional(),
+    reserve: schema.boolean.nullableAndOptional(),
+    overplus: schema.boolean.nullableAndOptional(),
+    limit_amount: schema.string.nullableAndOptional(),
 
     // Campo virtual
     conciliation: schema.boolean.optional(),

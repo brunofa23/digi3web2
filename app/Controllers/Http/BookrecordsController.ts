@@ -265,8 +265,8 @@ export default class BookrecordsController {
     //     query.where('bookrecords.typebooks_id', typebook);
     if (book_name)
       query.where('documents.book_name', book_name)
-    if(obs)
-      query.where('documents.obs', 'like',`%${obs}%`)
+    if (obs)
+      query.where('documents.obs', 'like', `%${obs}%`)
 
     query.groupBy(
       'bookrecords.id',
@@ -806,7 +806,7 @@ export default class BookrecordsController {
           companies_id: authenticate.companies_id,
           indexbook: indexbook,
           year: year,
-          obs:obs,
+          obs: obs,
           approximate_term: approximate_term ? approximate_term++ : undefined
         };
 
@@ -946,44 +946,45 @@ export default class BookrecordsController {
     const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs()
 
     try {
-      const query = Database
-        .from('bookrecords')
-        .select('book', 'indexbook')
-        .min('cod as initialCod')
-        .max('cod as finalCod')
-        .min('sheet as initialSheet')
-        .max('sheet as finalSheet')
-        .count('* as totalRows')
-        .select(Database.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = bookrecords.companies_id and bkr.typebooks_id = bookrecords.typebooks_id and bkr.book=bookrecords.book and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
-        .select(Database.raw(`
-    (SELECT COUNT(*)
-     FROM indeximages
-     INNER JOIN bookrecords bkr ON
-       (indeximages.bookrecords_id = bkr.id AND
-       indeximages.companies_id = bkr.companies_id AND
-       indeximages.typebooks_id = bkr.typebooks_id)
-     WHERE bkr.companies_id = bookrecords.companies_id
-       AND bkr.typebooks_id = bookrecords.typebooks_id
-       AND bkr.book = bookrecords.book
-       AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
-       AND indeximages.companies_id = ${authenticate.companies_id}
-       AND indeximages.typebooks_id = ${typebooks_id}
-       GROUP BY bkr.book, bkr.indexbook
-         ) as totalFiles
-  `))
-        .where('companies_id', authenticate.companies_id)
-        .andWhere('typebooks_id', typebooks_id)
-      if (book > 0) {
-        query.andWhere('book', book)
-      } else if (bookStart > 0 || bookEnd > 0) {
-        if (bookStart > 0)
-          query.andWhere('book', '>=', bookStart)
-        if (bookEnd > 0)
-          query.andWhere('book', '<=', bookEnd)
-      }
+          const query = Database
+            .from('bookrecords')
+            .select('book', 'indexbook')
+            .min('cod as initialCod')
+            .max('cod as finalCod')
+            .min('sheet as initialSheet')
+            .max('sheet as finalSheet')
+            .count('* as totalRows')
+            .select(Database.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = bookrecords.companies_id and bkr.typebooks_id = bookrecords.typebooks_id and bkr.book=bookrecords.book and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
+            .select(Database.raw(`
+        (SELECT COUNT(*)
+         FROM indeximages
+         INNER JOIN bookrecords bkr ON
+           (indeximages.bookrecords_id = bkr.id AND
+           indeximages.companies_id = bkr.companies_id AND
+           indeximages.typebooks_id = bkr.typebooks_id)
+         WHERE bkr.companies_id = bookrecords.companies_id
+           AND bkr.typebooks_id = bookrecords.typebooks_id
+           AND bkr.book = bookrecords.book
+           AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
+           AND indeximages.companies_id = ${authenticate.companies_id}
+           AND indeximages.typebooks_id = ${typebooks_id}
+           GROUP BY bkr.book, bkr.indexbook
+             ) as totalFiles
+      `))
+            .where('companies_id', authenticate.companies_id)
+            .andWhere('typebooks_id', typebooks_id)
+          if (book > 0) {
+            query.andWhere('book', book)
+          } else if (bookStart > 0 || bookEnd > 0) {
+            if (bookStart > 0)
+              query.andWhere('book', '>=', bookStart)
+            if (bookEnd > 0)
+              query.andWhere('book', '<=', bookEnd)
+          }
 
-      query.groupBy('book', 'indexbook')
-      query.orderBy('bookrecords.book')
+          query.groupBy('book', 'indexbook')
+          query.orderBy('bookrecords.book')
+
       const bookSummaryPayload = await query
       //**************************************** */
       //FUNÇÃO PARA CONTAR AS FOLHAS FALTANTES
@@ -1029,13 +1030,13 @@ export default class BookrecordsController {
           item => `${item.sheet}-${item.side}`
         );
 
-        if(countSheetNotExists==="I"){
-          const oddItens = missingItems.filter(item=>item.sheet%2!==0 && item.side==="F")
+        if (countSheetNotExists === "I") {
+          const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === "F")
           return oddItens.map(item => `${item.sheet}${item.side}`).join(', ');
         }
 
-        if(countSheetNotExists==="PA"){
-          const pairItens = missingItems.filter(item=>item.sheet%2==0 && item.side==="V")
+        if (countSheetNotExists === "PA") {
+          const pairItens = missingItems.filter(item => item.sheet % 2 == 0 && item.side === "V")
           return pairItens.map(item => `${item.sheet}${item.side}`).join(', ');
         }
 
