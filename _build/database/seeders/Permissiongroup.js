@@ -9,9 +9,9 @@ class default_1 extends Seeder_1.default {
     async run() {
         await Permissiongroup_1.default.createMany([
             {
-                id: 31,
-                name: "Sem Restrição de Horário (07:00 às 19:00)",
-                desc: "Sem Restrição de Horário (07:00 às 19:00)"
+                id: 32,
+                name: "Excluir Imagem - Tela de Visualização de Imagens",
+                desc: "Excluir Imagem - Tela de Livros -> Visualizar Imagens -> Botão Excluir"
             },
         ]);
     }
