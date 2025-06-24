@@ -198,7 +198,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         await ErrorlogImage.create(objfileRename)
       }
       //chamar função de exclusão da imagem
-      console.log("PASSEI 5556 path folder:", folderPath)
       await deleteImage(`${folderPath}/${objfileRename.file_name}`)
     }
   } catch (error) {
