@@ -16,8 +16,8 @@ export default class FinAccount extends BaseModel {
       'description',
       'amount',
       'amount_paid',
-      'date',
-      'date_due',
+      'date', //data de lançamento
+      'date_due', //data de vencimento
       'replicate',
       'data_billing',
       'date_conciliation',

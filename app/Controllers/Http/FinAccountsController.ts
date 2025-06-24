@@ -6,6 +6,7 @@ import FinAccountUpdateValidator from 'App/Validators/FinAccountUpdateValidator'
 import { currencyConverter } from "App/Services/util"
 import { uploadFinImage } from 'App/Services/uploadFinImage/finImages'
 import { DateTime } from 'luxon'
+import { schema } from '@ioc:Adonis/Core/Validator'
 
 
 function toUTCISO(dateStr: string | null | undefined) {
@@ -16,7 +17,28 @@ export default class FinAccountsController {
 
   public async index({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
-    const body = request.qs()
+
+    const querySchema = schema.create({
+      fin_emp_id: schema.number.optional(),
+      fin_class_id: schema.number.optional(),
+      fin_paymentmethod_id: schema.number.optional(),
+      cost: schema.string.optional(),
+      payment_method: schema.string.optional(),
+      debit_credit: schema.string.optional(),
+      description: schema.string.optional(),
+      replicate: schema.boolean.optional(),
+      ir: schema.boolean.optional(),
+      isReconciled: schema.enum.optional(['C', 'N']),
+      date_start: schema.string.optional(),
+      date_end: schema.string.optional(),
+      typeDate: schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
+    })
+
+    const body = await request.validate({
+      schema: querySchema,
+      data: request.qs()
+    })
+
 
     try {
       const query = FinAccount.query()
@@ -48,12 +70,16 @@ export default class FinAccountsController {
         q.where('payment_method', body.payment_method)
       )
 
-      query.if(body.ir === 'true', q =>
+      query.if(body.ir === true, q =>
         q.where('ir', true)
       )
 
       query.if(body.debit_credit, q =>
         q.where('debit_credit', body.debit_credit)
+      )
+
+      query.if(body.replicate, q =>
+        q.where('replicate', body.replicate)
       )
 
       query.if(body.fin_paymentmethod_id, q =>
@@ -66,9 +92,9 @@ export default class FinAccountsController {
         const end = DateTime.fromISO(body.date_end).toUTC().endOf('day').toISO()
 
         const dateColumnMap = {
-          DATE: 'date',
-          DATE_DUE: 'date_due',
-          DATE_CONCILIATION: 'date_conciliation',
+          DATE: 'DATE',
+          DATE_DUE: 'DATE_DUE',
+          DATE_CONCILIATION: 'DATE_CONCILIATION',
         }
 
         const dateColumn = dateColumnMap[body.typeDate]
@@ -189,7 +215,6 @@ export default class FinAccountsController {
     try {
       const data = await FinAccount.query().where('id', id).firstOrFail()
       const { id: _id, date_conciliation: _date_conciliation, amount_paid: _amount_paid, ...basePayload } = data.$original
-
       const parcelas = []
 
       for (let i = 1; i <= installment; i++) {
@@ -202,14 +227,10 @@ export default class FinAccountsController {
           date_due: dueDate.toISODate(), // ou toISO() se quiser hora
           id_replication: _id,
           replicate: true
-
-          //installment_number: i + 1, // opcional: adicionar numeração da parcela
-          //created_by: user.id // se tiver controle de usuário
         })
       }
 
-      //console.log(parcelas)
-      //return parcelas
+
       await FinAccount.createMany(parcelas)
       return response.status(201).send({ message: 'Parcelas criadas com sucesso' })
     } catch (error) {
@@ -217,6 +238,65 @@ export default class FinAccountsController {
     }
   }
 
+
+  // public async replicate({ auth, request, response }: HttpContextContract) {
+  //   await auth.use('api').authenticate()
+  //   //PEGAR O ARRAY DE IDS PARA REPLICAR
+  //   const { idList } = request.only(['idList'])
+
+  //   if (!Array.isArray(idList) || idList.length === 0) {
+  //     throw new BadRequestException('Lista de IDs inválida ou vazia', 400)
+  //   }
+
+  //   try {
+  //     const originalAccounts = await FinAccount.query()
+  //       .whereIn('id', idList)
+  //       .exec()
+  //     const today = DateTime.now().toISODate()
+
+  //     console.log(originalAccounts)
+  //   }
+  //   //await FinAccount.createMany(accountList)
+  //   // return response.status(201).send({ message: 'Parcelas criadas com sucesso' })
+  //   catch (error) {
+  //     throw new BadRequestException('Erro ao criar parcelas', 400, error)
+  //   }
+  // }
+  public async replicate({ auth, request, response }: HttpContextContract) {
+    await auth.use('api').authenticate()
+    const { idList } = request.only(['idList'])
+    if (!Array.isArray(idList) || idList.length === 0) {
+      throw new BadRequestException('Lista de IDs inválida ou vazia', 400)
+    }
+
+    try {
+      // Busca todos os registros de uma vez só
+      const originalAccounts = await FinAccount.query()
+        .whereIn('id', idList)
+        .exec()
+
+      const today = DateTime.now().toISODate()
+      const accountList = originalAccounts.map((account) => {
+        const payload = { ...account.$original }
+        const id_replication = account.id
+        delete payload.id // remove o ID original
+        const dueDate = DateTime.fromISO(account.date_due.toISO()).plus({ months: 1 }).toISODate()
+        return {
+          ...payload,
+          date: today,
+          date_due: dueDate,
+          id_replication:id_replication
+        }
+
+      })
+      await FinAccount.createMany(accountList)
+      return response.status(201).send({ message: 'Parcelas replicadas com sucesso' })
+
+    } catch (error) {
+      console.error('Erro ao replicar contas:', error)
+      throw new BadRequestException('Erro ao replicar contas', 400, error)
+    }
+  }
 
 
   public async destroy({ }: HttpContextContract) { }
