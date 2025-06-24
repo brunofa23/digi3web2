@@ -149,7 +149,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
                 delete objfileRename.date_atualization;
                 await ErrorlogImage_1.default.create(objfileRename);
             }
-            console.log("PASSEI 5556 path folder:", folderPath);
             await deleteImage(`${folderPath}/${objfileRename.file_name}`);
         }
     }
