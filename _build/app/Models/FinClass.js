@@ -19,6 +19,9 @@ class FinClass extends Orm_1.BaseModel {
             'description',
             'excluded',
             'debit_credit',
+            'cost',
+            'allocation',
+            'limit_amount',
         ];
     }
 }
@@ -42,6 +45,18 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], FinClass.prototype, "debit_credit", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], FinClass.prototype, "cost", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], FinClass.prototype, "allocation", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], FinClass.prototype, "limit_amount", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

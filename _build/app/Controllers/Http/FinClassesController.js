@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const FinClass_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/FinClass"));
+const FinnClassStoreValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/FinnClassStoreValidator"));
+const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class FinClassesController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -19,8 +21,15 @@ class FinClassesController {
     }
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const body = request.only(FinClass_1.default.fillable);
-        body.companies_id = authenticate.companies_id;
+        const input = request.all();
+        if (input.limit_amount && typeof input.limit_amount === 'string') {
+            input.limit_amount = Number((0, util_1.currencyConverter)(input.limit_amount));
+        }
+        input.companies_id = authenticate.companies_id;
+        const body = await request.validate({
+            schema: new FinnClassStoreValidator_1.default().schema,
+            data: input,
+        });
         try {
             const data = await FinClass_1.default.create(body);
             return response.status(201).send(data);
@@ -41,7 +50,14 @@ class FinClassesController {
     }
     async update({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const body = request.only(FinClass_1.default.fillable);
+        const input = request.all();
+        if (input.limit_amount && typeof input.limit_amount === 'string') {
+            input.limit_amount = Number((0, util_1.currencyConverter)(input.limit_amount));
+        }
+        const body = await request.validate({
+            schema: new FinnClassStoreValidator_1.default().schema,
+            data: input,
+        });
         try {
             const data = await FinClass_1.default.query()
                 .where('companies_id', authenticate.companies_id)
