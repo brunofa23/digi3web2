@@ -10,6 +10,9 @@ export default class FinClass extends BaseModel {
       'description',
       'excluded',
       'debit_credit',
+      'cost',
+      'allocation',
+      'limit_amount',
     ]
   }
 
@@ -28,6 +31,13 @@ export default class FinClass extends BaseModel {
 
   @column()
   public debit_credit: string
+
+  @column()
+  public cost: string
+  @column()
+  public allocation: string
+  @column()
+  public limit_amount: number
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

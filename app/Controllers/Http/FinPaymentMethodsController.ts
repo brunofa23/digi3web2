@@ -34,6 +34,7 @@ export default class FinPaymentMethodsController {
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(FinPaymentMethod.fillable)
+
     try {
       const data = await FinPaymentMethod.query()
         .where('companies_id', authenticate.companies_id)

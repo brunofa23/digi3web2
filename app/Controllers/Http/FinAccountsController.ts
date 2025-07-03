@@ -44,7 +44,7 @@ export default class FinAccountsController {
       const query = FinAccount.query()
         .where('companies_id', user.companies_id)
         .where('excluded', false)
-        .preload('finclass', q => q.select('description'))
+        .preload('finclass', q => q.select('description', 'allocation', 'cost', 'debit_credit', 'limit_amount'))
         .preload('finemp', q => q.select('name'))
         .preload('finPaymentMethod', q => q.select('description'))
 
@@ -285,7 +285,7 @@ export default class FinAccountsController {
           ...payload,
           date: today,
           date_due: dueDate,
-          id_replication:id_replication
+          id_replication: id_replication
         }
 
       })
