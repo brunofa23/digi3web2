@@ -8,17 +8,23 @@ export default class FinPaymentMethod extends BaseModel {
       'id',
       'companies_id',
       'description',
-      'excluded',]
+      'future',
+      'excluded'
+    ]
   }
 
   @column({ isPrimary: true })
   public id: number
 
   @column()
-  public companies_id:number
+  public companies_id: number
 
   @column()
   public description: string
+
+  @column()
+  public future:boolean
+
   @column()
   public excluded: boolean
 
