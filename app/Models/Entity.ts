@@ -2,10 +2,12 @@ import { DateTime } from 'luxon'
 import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
 
 export default class Entity extends BaseModel {
+public static table = 'fin_entities'  // Define a tabela correta
 
   public static get fillable() {
     return [
       'id',
+      'companies_id',
       'description',
       'responsible',
       'phone',
@@ -15,8 +17,11 @@ export default class Entity extends BaseModel {
   }
 
 
+
   @column({ isPrimary: true })
   public id: number
+  @column()
+  public companies_id:number
   @column()
   public description: string
   @column()

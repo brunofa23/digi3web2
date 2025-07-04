@@ -6,8 +6,6 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 export default class FinEntitiesController {
 
   public async index({ auth, response }) {
-    console.log("teste")
-    return
     await auth.use('api').authenticate()
     try {
       const data = await Entity.query()
@@ -19,7 +17,7 @@ export default class FinEntitiesController {
 
 
   public async store({ auth, request, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     const querySchema = schema.create({
       description: schema.string.nullableAndOptional(),
       responsible: schema.string.nullableAndOptional(),
@@ -27,14 +25,14 @@ export default class FinEntitiesController {
       obs: schema.string.nullableAndOptional(),
       inactive: schema.boolean.nullableAndOptional()
     })
-
-    const body = request.validate({
+    const body = await request.validate({
       schema: querySchema,
-      data: request.qs()
+      data: request.body()
     })
+    body.companies_id = authenticate.companies_id
     try {
       const data = await Entity.create(body)
-      return response.status(201).send(body)
+      return response.status(201).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
     }
@@ -42,25 +40,28 @@ export default class FinEntitiesController {
   }
 
 
-  public async update({ auth, request, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+  public async update({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
     const querySchema = schema.create({
       description: schema.string.nullableAndOptional(),
       responsible: schema.string.nullableAndOptional(),
       phone: schema.string.nullableAndOptional(),
       obs: schema.string.nullableAndOptional(),
+      inactive: schema.boolean.nullableAndOptional()
     })
-
-    const body = request.validate({
+    const body = await request.validate({
       schema: querySchema,
-      data: request.qs()
+      data: request.body()
     })
-    // try {
-    //   // const data = await Entity.
-    //   // return response.status(201).send(body)
-    // } catch (error) {
-    //   throw new BadRequestException('Bad Request', 401, error)
-    // }
+    body.companies_id = authenticate.companies_id
+    
+    try {
+      const data = await Entity.findOrFail(params.id)
+      data.merge(body).save()
+      return response.status(201).send(data)
+    } catch (error) {
+      throw new BadRequestException('Bad Request', 401, error)
+    }
 
   }
 
