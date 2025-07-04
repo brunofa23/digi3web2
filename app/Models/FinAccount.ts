@@ -13,6 +13,7 @@ export default class FinAccount extends BaseModel {
       'fin_class_id',
       'fin_paymentmethod_id',
       'id_replication',
+      'entity_id',
       'description',
       'amount',
       'amount_paid',
@@ -69,6 +70,9 @@ export default class FinAccount extends BaseModel {
 
   @column()
   public id_replication: number
+
+  @column()
+  public entity_id:number
 
   @column()
   public description: string

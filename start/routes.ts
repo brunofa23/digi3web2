@@ -133,6 +133,8 @@ Route.group(() => {
   //FIN_PAYMENT_METHODS
   Route.resource("/finpaymentmethods", 'FinPaymentMethodsController').apiOnly()
 
+  //ENTITIES
+Route.resource("/finentities", 'FinEntitiesController').apiOnly()
 
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
