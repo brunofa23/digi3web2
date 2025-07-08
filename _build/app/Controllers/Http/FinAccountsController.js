@@ -21,6 +21,7 @@ class FinAccountsController {
             fin_emp_id: Validator_1.schema.number.optional(),
             fin_class_id: Validator_1.schema.number.optional(),
             fin_paymentmethod_id: Validator_1.schema.number.optional(),
+            entity_id: Validator_1.schema.number.optional(),
             cost: Validator_1.schema.string.optional(),
             payment_method: Validator_1.schema.string.optional(),
             debit_credit: Validator_1.schema.string.optional(),
@@ -72,6 +73,15 @@ class FinAccountsController {
                 q.whereNull('date_conciliation');
             });
             const data = await query;
+            if (data.length > 0) {
+                for (const entity of data) {
+                    if (entity.entity_id) {
+                        await entity.load('entity', (query) => {
+                            query.select('fin_entities.description');
+                        });
+                    }
+                }
+            }
             return response.ok(data);
         }
         catch (error) {

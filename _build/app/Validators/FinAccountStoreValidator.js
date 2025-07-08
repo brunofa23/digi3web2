@@ -10,6 +10,7 @@ class FinAccountStoreValidator {
             fin_class_id: Validator_1.schema.number(),
             fin_paymentmethod_id: Validator_1.schema.number(),
             id_replication: Validator_1.schema.number.optional(),
+            entity_id: Validator_1.schema.number.nullableAndOptional(),
             description: Validator_1.schema.string.optional(),
             amount: Validator_1.schema.number.nullableAndOptional(),
             date: Validator_1.schema.date.nullableAndOptional(),

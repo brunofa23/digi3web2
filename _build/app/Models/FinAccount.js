@@ -17,6 +17,7 @@ const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const FinClass_1 = __importDefault(require("./FinClass"));
 const FinEmp_1 = __importDefault(require("./FinEmp"));
 const FinPaymentMethod_1 = __importDefault(require("./FinPaymentMethod"));
+const Entity_1 = __importDefault(require("./Entity"));
 class FinAccount extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -26,6 +27,7 @@ class FinAccount extends Orm_1.BaseModel {
             'fin_class_id',
             'fin_paymentmethod_id',
             'id_replication',
+            'entity_id',
             'description',
             'amount',
             'amount_paid',
@@ -69,6 +71,13 @@ __decorate([
     __metadata("design:type", Object)
 ], FinAccount.prototype, "finPaymentMethod", void 0);
 __decorate([
+    (0, Orm_1.hasOne)(() => Entity_1.default, {
+        foreignKey: 'id',
+        localKey: 'entity_id'
+    }),
+    __metadata("design:type", Object)
+], FinAccount.prototype, "entity", void 0);
+__decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
 ], FinAccount.prototype, "id", void 0);
@@ -92,6 +101,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], FinAccount.prototype, "id_replication", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], FinAccount.prototype, "entity_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
