@@ -10,6 +10,7 @@ export default class FinAccountUpdateValidator {
     fin_class_id: schema.number.optional(),
     fin_paymentmethod_id: schema.number.optional(),
     id_replication: schema.number.optional(),
+    entity_id:schema.number.nullableAndOptional(),
     description: schema.string.optional(),
     amount: schema.string.optional(),
     //amount_paid: schema.string.optional(),

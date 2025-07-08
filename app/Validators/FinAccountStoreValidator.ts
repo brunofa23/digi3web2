@@ -9,6 +9,7 @@ export default class FinAccountStoreValidator {
     fin_class_id: schema.number(),
     fin_paymentmethod_id: schema.number(),
     id_replication: schema.number.optional(),
+    entity_id:schema.number.nullableAndOptional(),
     description: schema.string.optional(),
     amount: schema.number.nullableAndOptional(),
     //amount_paid: schema.number.nullableAndOptional(),

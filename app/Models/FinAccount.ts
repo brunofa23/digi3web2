@@ -3,6 +3,7 @@ import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import FinClass from './FinClass'
 import FinEmp from './FinEmp'
 import FinPaymentMethod from './FinPaymentMethod'
+import Entity from './Entity'
 export default class FinAccount extends BaseModel {
 
   public static get fillable() {
@@ -53,6 +54,14 @@ export default class FinAccount extends BaseModel {
   })
   public finPaymentMethod: HasOne<typeof FinPaymentMethod>
 
+  @hasOne(() => Entity, {
+    foreignKey: 'id',
+    localKey: 'entity_id'
+  })
+  public entity: HasOne<typeof Entity>
+
+
+
   @column({ isPrimary: true })
   public id: number
 
@@ -72,7 +81,7 @@ export default class FinAccount extends BaseModel {
   public id_replication: number
 
   @column()
-  public entity_id:number
+  public entity_id: number
 
   @column()
   public description: string

@@ -22,6 +22,7 @@ export default class FinAccountsController {
       fin_emp_id: schema.number.optional(),
       fin_class_id: schema.number.optional(),
       fin_paymentmethod_id: schema.number.optional(),
+      entity_id: schema.number.optional(),
       cost: schema.string.optional(),
       payment_method: schema.string.optional(),
       debit_credit: schema.string.optional(),
@@ -110,8 +111,17 @@ export default class FinAccountsController {
       query.if(body.isReconciled === 'N', q => {
         q.whereNull('date_conciliation')
       })
-
       const data = await query
+      if (data.length > 0) {
+        for (const entity of data) {
+          if (entity.entity_id) {
+            await entity.load('entity', (query) => {
+              query.select('fin_entities.description')
+            })
+          }
+        }
+      }
+
       return response.ok(data)
 
     } catch (error) {
