@@ -37,10 +37,20 @@ async function logInJson(value) {
     }
 }
 exports.logInJson = logInJson;
-const currencyConverter = (numeroBrasileiro) => {
-    const numeroSemMilhar = numeroBrasileiro.replace(/\./g, '');
-    const numeroDecimal = numeroSemMilhar.replace(',', '.');
-    const numeroFormatado = parseFloat(numeroDecimal).toFixed(2);
+const currencyConverter = (input) => {
+    if (typeof input !== 'string' || input.trim() === '') {
+        return '0.00';
+    }
+    let valor;
+    if (input.includes(',')) {
+        const numeroSemMilhar = input.replace(/\./g, '');
+        const numeroDecimal = numeroSemMilhar.replace(',', '.');
+        valor = parseFloat(numeroDecimal);
+    }
+    else {
+        valor = parseFloat(input);
+    }
+    const numeroFormatado = valor.toFixed(2);
     return numeroFormatado;
 };
 exports.currencyConverter = currencyConverter;
