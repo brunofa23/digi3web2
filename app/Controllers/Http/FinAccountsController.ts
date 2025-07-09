@@ -196,6 +196,7 @@ export default class FinAccountsController {
     body.limit_amount = isNaN(body.limit_amount) ? 0 : await currencyConverter(body.limit_amount)
 
     const { conciliation, ...body1 } = body
+
     try {
       // Realizando o update
       await FinAccount.query()
@@ -249,29 +250,6 @@ export default class FinAccountsController {
   }
 
 
-  // public async replicate({ auth, request, response }: HttpContextContract) {
-  //   await auth.use('api').authenticate()
-  //   //PEGAR O ARRAY DE IDS PARA REPLICAR
-  //   const { idList } = request.only(['idList'])
-
-  //   if (!Array.isArray(idList) || idList.length === 0) {
-  //     throw new BadRequestException('Lista de IDs inválida ou vazia', 400)
-  //   }
-
-  //   try {
-  //     const originalAccounts = await FinAccount.query()
-  //       .whereIn('id', idList)
-  //       .exec()
-  //     const today = DateTime.now().toISODate()
-
-  //     console.log(originalAccounts)
-  //   }
-  //   //await FinAccount.createMany(accountList)
-  //   // return response.status(201).send({ message: 'Parcelas criadas com sucesso' })
-  //   catch (error) {
-  //     throw new BadRequestException('Erro ao criar parcelas', 400, error)
-  //   }
-  // }
   public async replicate({ auth, request, response }: HttpContextContract) {
     await auth.use('api').authenticate()
     const { idList } = request.only(['idList'])
