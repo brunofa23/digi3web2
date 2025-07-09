@@ -6,9 +6,10 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 export default class FinEntitiesController {
 
   public async index({ auth, response }) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     try {
       const data = await Entity.query()
+      .where('companies_id',authenticate.companies_id)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, 'erro')
@@ -54,7 +55,7 @@ export default class FinEntitiesController {
       data: request.body()
     })
     body.companies_id = authenticate.companies_id
-    
+
     try {
       const data = await Entity.findOrFail(params.id)
       data.merge(body).save()
@@ -64,9 +65,5 @@ export default class FinEntitiesController {
     }
 
   }
-
-
-
-
 
 }
