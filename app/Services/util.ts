@@ -43,17 +43,24 @@ async function logInJson(value) {
 }
 
 
-const currencyConverter = (numeroBrasileiro: String) => {
-  // Remover pontos de milhar
-  const numeroSemMilhar = numeroBrasileiro.replace(/\./g, '');
-  // Trocar a vírgula por ponto
-  const numeroDecimal = numeroSemMilhar.replace(',', '.');
-  // Converter para float e arredondar para 2 casas decimais
-  const numeroFormatado = parseFloat(numeroDecimal).toFixed(2);
 
+const currencyConverter = (input: string): string => {
+   if (typeof input !== 'string' || input.trim() === '') {
+    return '0.00'; // ou retorne null, ou lance erro, conforme sua lógica
+  }
+  let valor: number;
+  if (input.includes(',')) {
+    // Formato brasileiro: 1.234,56
+    const numeroSemMilhar = input.replace(/\./g, '');
+    const numeroDecimal = numeroSemMilhar.replace(',', '.');
+    valor = parseFloat(numeroDecimal);
+  } else {
+    // Formato internacional: 1234.56
+    valor = parseFloat(input);
+  }
+  const numeroFormatado = valor.toFixed(2);
   return numeroFormatado;
-}
-
+};
 
 
 export { DeleteFiles, logInJson, currencyConverter, verifyPermission }
