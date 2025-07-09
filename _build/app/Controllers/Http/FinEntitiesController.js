@@ -8,9 +8,10 @@ const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 class FinEntitiesController {
     async index({ auth, response }) {
-        await auth.use('api').authenticate();
+        const authenticate = await auth.use('api').authenticate();
         try {
-            const data = await Entity_1.default.query();
+            const data = await Entity_1.default.query()
+                .where('companies_id', authenticate.companies_id);
             return response.status(200).send(data);
         }
         catch (error) {
