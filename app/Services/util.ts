@@ -44,22 +44,47 @@ async function logInJson(value) {
 
 
 
+// const currencyConverter = (input: string): string => {
+//    if (typeof input !== 'string' || input.trim() === '') {
+//     return '0.00'; // ou retorne null, ou lance erro, conforme sua lógica
+//   }
+//   let valor: number;
+//   if (input.includes(',')) {
+//     // Formato brasileiro: 1.234,56
+//     const numeroSemMilhar = input.replace(/\./g, '');
+//     const numeroDecimal = numeroSemMilhar.replace(',', '.');
+//     valor = parseFloat(numeroDecimal);
+//   } else {
+//     // Formato internacional: 1234.56
+//     valor = parseFloat(input);
+//   }
+//   const numeroFormatado = valor.toFixed(2);
+//   return numeroFormatado;
+// };
+
+
 const currencyConverter = (input: string): string => {
-   if (typeof input !== 'string' || input.trim() === '') {
-    return '0.00'; // ou retorne null, ou lance erro, conforme sua lógica
+  console.log("$$$", input)
+  if (typeof input !== 'string' || input.trim() === '') {
+    return '0.00';
   }
+
+  input = input.trim();
   let valor: number;
+  // Detecta se é formato brasileiro (tem vírgula como separador decimal)
   if (input.includes(',')) {
-    // Formato brasileiro: 1.234,56
-    const numeroSemMilhar = input.replace(/\./g, '');
-    const numeroDecimal = numeroSemMilhar.replace(',', '.');
-    valor = parseFloat(numeroDecimal);
+    // Remove pontos de milhar e troca vírgula por ponto decimal
+    const numeroConvertido = input.replace(/\./g, '').replace(',', '.');
+    valor = parseFloat(numeroConvertido);
   } else {
-    // Formato internacional: 1234.56
+    // Assume que já está no formato americano
     valor = parseFloat(input);
   }
-  const numeroFormatado = valor.toFixed(2);
-  return numeroFormatado;
+  // Se o valor for inválido, retorna "0.00"
+  if (isNaN(valor)) {
+    return '0.00';
+  }
+  return valor.toFixed(2);
 };
 
 
