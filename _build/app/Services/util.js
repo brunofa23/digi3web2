@@ -38,20 +38,23 @@ async function logInJson(value) {
 }
 exports.logInJson = logInJson;
 const currencyConverter = (input) => {
+    console.log("$$$", input);
     if (typeof input !== 'string' || input.trim() === '') {
         return '0.00';
     }
+    input = input.trim();
     let valor;
     if (input.includes(',')) {
-        const numeroSemMilhar = input.replace(/\./g, '');
-        const numeroDecimal = numeroSemMilhar.replace(',', '.');
-        valor = parseFloat(numeroDecimal);
+        const numeroConvertido = input.replace(/\./g, '').replace(',', '.');
+        valor = parseFloat(numeroConvertido);
     }
     else {
         valor = parseFloat(input);
     }
-    const numeroFormatado = valor.toFixed(2);
-    return numeroFormatado;
+    if (isNaN(valor)) {
+        return '0.00';
+    }
+    return valor.toFixed(2);
 };
 exports.currencyConverter = currencyConverter;
 //# sourceMappingURL=util.js.map
