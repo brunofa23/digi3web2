@@ -184,6 +184,8 @@ export default class FinAccountsController {
 
   //*********
   public async update({ auth, params, request, response }: HttpContextContract) {
+
+    console.log("passei no update....")
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountUpdateValidator)
 
@@ -191,12 +193,10 @@ export default class FinAccountsController {
     body.date_due = body.date_due ? DateTime.fromISO(body.date_due).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
     body.data_billing = body.data_billing ? DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
     body.date_conciliation = body.date_conciliation ? DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
-
-    body.amount = isNaN(body.amount) ? 0 : await currencyConverter(body.amount)
-    body.limit_amount = isNaN(body.limit_amount) ? 0 : await currencyConverter(body.limit_amount)
+    body.amount = await currencyConverter(body.amount)
+    body.limit_amount = await currencyConverter(body.limit_amount)
 
     const { conciliation, ...body1 } = body
-
     try {
       // Realizando o update
       await FinAccount.query()
