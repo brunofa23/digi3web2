@@ -28,6 +28,10 @@ class FinAccountsController {
             description: Validator_1.schema.string.optional(),
             replicate: Validator_1.schema.boolean.optional(),
             ir: Validator_1.schema.boolean.optional(),
+            analyze: Validator_1.schema.boolean.optional(),
+            future: Validator_1.schema.boolean.optional(),
+            reserve: Validator_1.schema.boolean.optional(),
+            overplus: Validator_1.schema.boolean.optional(),
             isReconciled: Validator_1.schema.enum.optional(['C', 'N']),
             date_start: Validator_1.schema.string.optional(),
             date_end: Validator_1.schema.string.optional(),
@@ -53,6 +57,11 @@ class FinAccountsController {
             query.if(body.debit_credit, q => q.where('debit_credit', body.debit_credit));
             query.if(body.replicate, q => q.where('replicate', body.replicate));
             query.if(body.fin_paymentmethod_id, q => q.where('fin_paymentmethod_id', body.fin_paymentmethod_id));
+            query.if(body.entity_id, q => q.where('entity_id', body.entity_id));
+            query.if(body.analyze, q => q.where('analyze', body.analyze));
+            query.if(body.future, q => q.where('future', body.future));
+            query.if(body.reserve, q => q.where('reserve', body.reserve));
+            query.if(body.overplus, q => q.where('overplus', body.overplus));
             if (body.date_start && body.date_end && body.typeDate) {
                 const start = luxon_1.DateTime.fromISO(body.date_start).toUTC().toISO();
                 const end = luxon_1.DateTime.fromISO(body.date_end).toUTC().endOf('day').toISO();
