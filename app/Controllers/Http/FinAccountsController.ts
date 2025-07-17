@@ -29,6 +29,10 @@ export default class FinAccountsController {
       description: schema.string.optional(),
       replicate: schema.boolean.optional(),
       ir: schema.boolean.optional(),
+      analyze: schema.boolean.optional(),
+      future: schema.boolean.optional(),
+      reserve: schema.boolean.optional(),
+      overplus: schema.boolean.optional(),
       isReconciled: schema.enum.optional(['C', 'N']),
       date_start: schema.string.optional(),
       date_end: schema.string.optional(),
@@ -39,7 +43,6 @@ export default class FinAccountsController {
       schema: querySchema,
       data: request.qs()
     })
-
 
     try {
       const query = FinAccount.query()
@@ -86,6 +89,12 @@ export default class FinAccountsController {
       query.if(body.fin_paymentmethod_id, q =>
         q.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
       )
+
+      query.if(body.entity_id, q => q.where('entity_id', body.entity_id))
+      query.if(body.analyze, q => q.where('analyze', body.analyze))
+      query.if(body.future, q => q.where('future', body.future))
+      query.if(body.reserve, q => q.where('reserve', body.reserve))
+      query.if(body.overplus, q => q.where('overplus', body.overplus))
 
       // Data inicial e final em UTC
       if (body.date_start && body.date_end && body.typeDate) {
