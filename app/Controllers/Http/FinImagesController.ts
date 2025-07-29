@@ -30,6 +30,7 @@ export default class FinImagesController {
 
   public async store({ auth, request, response }: HttpContextContract) {
     try {
+      console.log("passei no store....1500")
       const user = await auth.use('api').authenticate();
       const body = request.only(FinImage.fillable);
       // Validação do arquivo

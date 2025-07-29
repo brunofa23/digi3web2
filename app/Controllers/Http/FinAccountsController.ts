@@ -212,6 +212,7 @@ export default class FinAccountsController {
         .where('companies_id', authenticate.companies_id)
         .andWhere('id', params.id)
         .update(body1)
+      await uploadFinImage(authenticate.companies_id, params.id, request)
 
       const data = await FinAccount.findOrFail(params.id)
       await data.load('finPaymentMethod')
