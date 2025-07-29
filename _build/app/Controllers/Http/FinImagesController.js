@@ -22,6 +22,7 @@ class FinImagesController {
     }
     async store({ auth, request, response }) {
         try {
+            console.log("passei no store....1500");
             const user = await auth.use('api').authenticate();
             const body = request.only(FinImage_1.default.fillable);
             const image = request.file('file', {

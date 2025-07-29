@@ -157,6 +157,7 @@ class FinAccountsController {
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('id', params.id)
                 .update(body1);
+            await (0, finImages_1.uploadFinImage)(authenticate.companies_id, params.id, request);
             const data = await FinAccount_1.default.findOrFail(params.id);
             await data.load('finPaymentMethod');
             await data.load('finclass');

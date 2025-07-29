@@ -11,6 +11,7 @@ const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const luxon_1 = require("luxon");
 async function uploadFinImage(companies_id, fin_account_id, request) {
+    console.log("passei na função....150011");
     const fileInput = request;
     const image = fileInput.file('fileInput', {
         size: '8mb',
