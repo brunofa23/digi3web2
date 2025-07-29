@@ -16,6 +16,7 @@ import { DateTime } from 'luxon';
 
 
 async function uploadFinImage(companies_id: number, fin_account_id: number, request) {
+  console.log("passei na função....150011")
   const fileInput = request;
   // Pegando o arquivo corretamente
   const image = fileInput.file('fileInput', {
@@ -41,7 +42,7 @@ async function uploadFinImage(companies_id: number, fin_account_id: number, requ
   const clientName = `${baseName}_id${fin_account_id}_${timestamp}.${image.extname}`;
 
   // Cria o registro no banco de dados
- await FinImage.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq });
+  await FinImage.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq });
 
   // Obtém informações da empresa
   const company = await Company.findOrFail(companies_id);
