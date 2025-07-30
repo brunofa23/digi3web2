@@ -1,9 +1,10 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, hasMany, HasMany, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
 import FinClass from './FinClass'
 import FinEmp from './FinEmp'
 import FinPaymentMethod from './FinPaymentMethod'
 import Entity from './Entity'
+import FinImage from './FinImage'
 export default class FinAccount extends BaseModel {
 
   public static get fillable() {
@@ -59,6 +60,12 @@ export default class FinAccount extends BaseModel {
     localKey: 'entity_id'
   })
   public entity: HasOne<typeof Entity>
+
+  @hasMany(() => FinImage, {
+    foreignKey: 'fin_account_id',
+    localKey: 'id'
+  })
+  public finimage: HasMany<typeof FinImage>
 
 
 

@@ -161,7 +161,7 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
   }
 }
 
-import { imageProcessing } from "../imageProcessing/imageProcessing";
+//import { imageProcessing } from "../imageProcessing/imageProcessing";
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
   //await imageProcessing(folderPath,folderPath)
   try {

@@ -51,6 +51,7 @@ export default class FinAccountsController {
         .preload('finclass', q => q.select('description', 'allocation', 'cost', 'debit_credit', 'limit_amount'))
         .preload('finemp', q => q.select('name'))
         .preload('finPaymentMethod', q => q.select('description'))
+        .preload('finimage', q => q.select('id', 'file_name', 'fin_account_id', 'companies_id', 'path'))
 
 
       // Filtros dinâmicos

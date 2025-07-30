@@ -11,6 +11,7 @@ export default class FinImage extends BaseModel {
       'seq',
       'ext',
       'file_name',
+      'path'
 
     ]
   }
