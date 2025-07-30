@@ -129,6 +129,7 @@ Route.group(() => {
 
   //FIN_IMAGES
   Route.resource("/finimages", "FinImagesController").apiOnly()
+  Route.post('/finimages/downloadfinimage/:id', 'FinImagesController.downloadfinimage').as('downloadfinimage')//.middleware('indeximage_permission:download')
 
   //FIN_PAYMENT_METHODS
   Route.resource("/finpaymentmethods", 'FinPaymentMethodsController').apiOnly()
