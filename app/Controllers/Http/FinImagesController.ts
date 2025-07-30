@@ -11,6 +11,7 @@ import {
   sendListAllFiles,
   sendRenameFile
 } from "App/Services/googleDrive/googledrive"
+const path = require('path')
 
 import Company from 'App/Models/Company'
 import { DateTime } from 'luxon'
@@ -117,15 +118,26 @@ export default class FinImagesController {
   }
 
 
-  public async downloadfinimage({ auth, params, request }: HttpContextContract) {
+  public async downloadfinimage({ auth, request, response }: HttpContextContract) {
     console.log("passo 1 1522")
     const authenticate = await auth.use('api').authenticate()
-    //const { typebook_id } = request.only(['typebook_id'])
-    // const body = request.only(FinImage.fillable)
-    // const fileName = params.id
-    // const company = await Company.find(authenticate.companies_id)
-    //const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
-    //return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }
+    const { file_name, path_file } = request.only(['file_name', 'path_file'])
+    const company = await Company.find(authenticate.companies_id)
+
+
+    const parent = await sendSearchFile(path_file, company.cloud)
+    const extension = path.extname(file_name);
+    const fileId = await sendSearchFile(file_name, company.cloud, parent[0].id)
+    console.log('ext:', extension)
+    console.log('filename:', file_name, 'path:', path_file)
+    console.log("parente::::", parent[0].id)
+    console.log("nome do arquivo::::", fileId[0].id)
+    const download = await sendDownloadFile(fileId[0].id, extension, company?.cloud)
+    console.log("DOWNLOAD::::", download)
+     return response.status(201).send(download)
+    //return download
+
+
 
   }
 

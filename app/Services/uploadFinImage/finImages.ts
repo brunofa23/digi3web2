@@ -41,9 +41,6 @@ async function uploadFinImage(companies_id: number, fin_account_id: number, requ
   const baseName = image.clientName.split('.').slice(0, -1).join('.');
   const clientName = `${baseName}_id${fin_account_id}_${timestamp}.${image.extname}`;
 
-  // Cria o registro no banco de dados
-  await FinImage.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq });
-
   // Obtém informações da empresa
   const company = await Company.findOrFail(companies_id);
   const uploadPath = Application.tmpPath(`/finuploads/Client_${company.id}`);
@@ -62,6 +59,9 @@ async function uploadFinImage(companies_id: number, fin_account_id: number, requ
     await sendCreateFolder(`${company.foldername}.FINANCIAL`, company.cloud, mainFolder[0].id);
     parentFolder = await sendSearchFile(`${company.foldername}.FINANCIAL`, company.cloud);
   }
+
+  // Cria o registro no banco de dados
+  await FinImage.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq, path:`${company.foldername}.FINANCIAL` });
 
   // Faz o upload do arquivo para o Google Drive
   const result = await sendUploadFiles(parentFolder[0].id, uploadPath, clientName, company.cloud);
