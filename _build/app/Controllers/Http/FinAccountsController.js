@@ -47,7 +47,8 @@ class FinAccountsController {
                 .where('excluded', false)
                 .preload('finclass', q => q.select('description', 'allocation', 'cost', 'debit_credit', 'limit_amount'))
                 .preload('finemp', q => q.select('name'))
-                .preload('finPaymentMethod', q => q.select('description'));
+                .preload('finPaymentMethod', q => q.select('description'))
+                .preload('finimage', q => q.select('id', 'file_name', 'fin_account_id', 'companies_id', 'path'));
             query.if(body.description, q => q.where('description', 'like', `%${body.description}%`));
             query.if(body.fin_emp_id, q => q.where('fin_emp_id', body.fin_emp_id));
             query.if(body.fin_class_id, q => q.where('fin_class_id', body.fin_class_id));

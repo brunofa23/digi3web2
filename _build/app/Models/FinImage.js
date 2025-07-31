@@ -20,6 +20,7 @@ class FinImage extends Orm_1.BaseModel {
             'seq',
             'ext',
             'file_name',
+            'path'
         ];
     }
 }
@@ -47,6 +48,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], FinImage.prototype, "file_name", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], FinImage.prototype, "path", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

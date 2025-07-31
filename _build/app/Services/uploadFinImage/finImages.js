@@ -29,7 +29,6 @@ async function uploadFinImage(companies_id, fin_account_id, request) {
     const timestamp = luxon_1.DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss');
     const baseName = image.clientName.split('.').slice(0, -1).join('.');
     const clientName = `${baseName}_id${fin_account_id}_${timestamp}.${image.extname}`;
-    await FinImage_1.default.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq });
     const company = await Company_1.default.findOrFail(companies_id);
     const uploadPath = Application_1.default.tmpPath(`/finuploads/Client_${company.id}`);
     await image.move(uploadPath, { name: clientName });
@@ -42,6 +41,7 @@ async function uploadFinImage(companies_id, fin_account_id, request) {
         await (0, googledrive_1.sendCreateFolder)(`${company.foldername}.FINANCIAL`, company.cloud, mainFolder[0].id);
         parentFolder = await (0, googledrive_1.sendSearchFile)(`${company.foldername}.FINANCIAL`, company.cloud);
     }
+    await FinImage_1.default.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq, path: `${company.foldername}.FINANCIAL` });
     const result = await (0, googledrive_1.sendUploadFiles)(parentFolder[0].id, uploadPath, clientName, company.cloud);
     return result;
 }

@@ -18,6 +18,7 @@ const FinClass_1 = __importDefault(require("./FinClass"));
 const FinEmp_1 = __importDefault(require("./FinEmp"));
 const FinPaymentMethod_1 = __importDefault(require("./FinPaymentMethod"));
 const Entity_1 = __importDefault(require("./Entity"));
+const FinImage_1 = __importDefault(require("./FinImage"));
 class FinAccount extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -77,6 +78,13 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], FinAccount.prototype, "entity", void 0);
+__decorate([
+    (0, Orm_1.hasMany)(() => FinImage_1.default, {
+        foreignKey: 'fin_account_id',
+        localKey: 'id'
+    }),
+    __metadata("design:type", Object)
+], FinAccount.prototype, "finimage", void 0);
 __decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
