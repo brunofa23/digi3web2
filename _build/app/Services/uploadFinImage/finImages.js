@@ -10,8 +10,8 @@ const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Comp
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const luxon_1 = require("luxon");
+const promises_1 = __importDefault(require("fs/promises"));
 async function uploadFinImage(companies_id, fin_account_id, request) {
-    console.log("passei na função....150011");
     const fileInput = request;
     const image = fileInput.file('fileInput', {
         size: '8mb',
@@ -43,6 +43,14 @@ async function uploadFinImage(companies_id, fin_account_id, request) {
     }
     await FinImage_1.default.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq, path: `${company.foldername}.FINANCIAL` });
     const result = await (0, googledrive_1.sendUploadFiles)(parentFolder[0].id, uploadPath, clientName, company.cloud);
+    const fullFilePath = `${uploadPath}/${clientName}`;
+    try {
+        await promises_1.default.unlink(fullFilePath);
+        console.log(`Arquivo ${clientName} excluído de ${uploadPath}`);
+    }
+    catch (err) {
+        console.error(`Erro ao excluir o arquivo local: ${err.message}`);
+    }
     return result;
 }
 exports.uploadFinImage = uploadFinImage;
