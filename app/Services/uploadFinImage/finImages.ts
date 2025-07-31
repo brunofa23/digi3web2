@@ -6,17 +6,12 @@ import {
   sendUploadFiles,
   sendCreateFolder,
   sendSearchFile,
-  sendDownloadFile,
-  sendDeleteFile,
-  sendListAllFiles,
-  sendRenameFile
 } from "App/Services/googleDrive/googledrive"
 import { DateTime } from 'luxon';
-
-
+import fs from 'fs/promises'
 
 async function uploadFinImage(companies_id: number, fin_account_id: number, request) {
-  console.log("passei na função....150011")
+  
   const fileInput = request;
   // Pegando o arquivo corretamente
   const image = fileInput.file('fileInput', {
@@ -61,10 +56,19 @@ async function uploadFinImage(companies_id: number, fin_account_id: number, requ
   }
 
   // Cria o registro no banco de dados
-  await FinImage.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq, path:`${company.foldername}.FINANCIAL` });
+  await FinImage.create({ companies_id, fin_account_id, ext: image.extname, file_name: clientName, seq: newSeq, path: `${company.foldername}.FINANCIAL` });
 
   // Faz o upload do arquivo para o Google Drive
   const result = await sendUploadFiles(parentFolder[0].id, uploadPath, clientName, company.cloud);
+
+  // Após o upload, exclui o arquivo local
+  const fullFilePath = `${uploadPath}/${clientName}`;
+  try {
+    await fs.unlink(fullFilePath);
+    console.log(`Arquivo ${clientName} excluído de ${uploadPath}`);
+  } catch (err) {
+    console.error(`Erro ao excluir o arquivo local: ${err.message}`);
+  }
 
   return result;
 }
