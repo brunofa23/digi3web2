@@ -64,7 +64,7 @@ async function logInJson(value) {
 
 
 const currencyConverter = (input: string): string => {
-  console.log("$$$", input)
+  
   if (typeof input !== 'string' || input.trim() === '') {
     return '0.00';
   }
