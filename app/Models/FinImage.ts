@@ -11,6 +11,7 @@ export default class FinImage extends BaseModel {
       'seq',
       'ext',
       'file_name',
+      'path'
 
     ]
   }
@@ -32,6 +33,9 @@ export default class FinImage extends BaseModel {
 
   @column()
   public file_name: string
+
+  @column()
+  public path: string
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
