@@ -390,6 +390,7 @@ async function sendDeleteFile(fileId, cloud_number: number) {
 }
 
 async function sendSearchOrCreateFolder(folderName, cloud_number: number, parent = undefined) {
+
   const auth = await authorize(cloud_number)
   let findFolder = await searchFile(auth, folderName)
   if (findFolder.length > 0)
