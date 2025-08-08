@@ -37,6 +37,7 @@ export default class FinAccountsController {
       date_start: schema.string.optional(),
       date_end: schema.string.optional(),
       typeDate: schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
+      allocation: schema.string.optional()
     })
 
     const body = await request.validate({
@@ -96,6 +97,14 @@ export default class FinAccountsController {
       query.if(body.future, q => q.where('future', body.future))
       query.if(body.reserve, q => q.where('reserve', body.reserve))
       query.if(body.overplus, q => q.where('overplus', body.overplus))
+
+      query.if(body.allocation, q => {
+        q.whereHas('finclass', (subQuery) => {
+          subQuery.where('allocation', body.allocation)
+        })
+      })
+
+
 
       // Data inicial e final em UTC
       if (body.date_start && body.date_end && body.typeDate) {
@@ -194,8 +203,6 @@ export default class FinAccountsController {
 
   //*********
   public async update({ auth, params, request, response }: HttpContextContract) {
-
-    console.log("passei no update....")
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountUpdateValidator)
 
@@ -279,6 +286,7 @@ export default class FinAccountsController {
         const payload = { ...account.$original }
         const id_replication = account.id
         delete payload.id // remove o ID original
+        delete payload.date_conciliation
         const dueDate = DateTime.fromISO(account.date_due.toISO()).plus({ months: 1 }).toISODate()
         return {
           ...payload,

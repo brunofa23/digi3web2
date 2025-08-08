@@ -196,3 +196,22 @@ UTILIZAR O NGROK COMO COMANDO: ngrok http http://localhost:3333
 # RODAR ARQUIVOS DE TESTES SEPARADOS
 comando: node ace test --files tests/functional/test.spec.ts
 definir o nome do arquivo no inicio do teste
+
+## SO SERVE PARA MOSTRAR NO FRONT NÃO SERVE PARA GRAVAR NO BANCO
+## DECORATOR, NA MODEL UTILIZANOD ESSA CONFIGURAÇÃO AUTOMATICAMENTE RETORNARÁ NESSE FORMATO
+@column.dateTime({
+    serialize: (value: DateTime | null) => {
+      return value ? value.toFormat('yyyy-MM-dd') : null;
+    }
+  })
+  public date_conciliation: DateTime
+
+## PARA DATA E HORAS DE SÃO PAULO
+@column.dateTime({
+  serialize: (value: DateTime | null) => {
+    return value
+      ? value.setZone('America/Sao_Paulo').toFormat('yyyy-MM-dd HH:mm:ss')
+      : null;
+  },
+})
+public created_at: DateTime;

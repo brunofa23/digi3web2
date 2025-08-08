@@ -121,7 +121,13 @@ export default class FinAccount extends BaseModel {
   @column.dateTime()
   public data_billing: DateTime
 
-  @column.dateTime()
+  // @column.dateTime()
+  // public date_conciliation: DateTime
+  @column.dateTime({
+    serialize: (value: DateTime | null) => {
+      return value ? value.toFormat('yyyy-MM-dd') : null;
+    }
+  })
   public date_conciliation: DateTime
 
   @column()
@@ -142,4 +148,5 @@ export default class FinAccount extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
 }
