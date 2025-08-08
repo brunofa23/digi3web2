@@ -162,7 +162,11 @@ __decorate([
     __metadata("design:type", luxon_1.DateTime)
 ], FinAccount.prototype, "data_billing", void 0);
 __decorate([
-    Orm_1.column.dateTime(),
+    Orm_1.column.dateTime({
+        serialize: (value) => {
+            return value ? value.toFormat('yyyy-MM-dd') : null;
+        }
+    }),
     __metadata("design:type", luxon_1.DateTime)
 ], FinAccount.prototype, "date_conciliation", void 0);
 __decorate([

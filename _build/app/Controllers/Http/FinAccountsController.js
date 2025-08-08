@@ -36,6 +36,7 @@ class FinAccountsController {
             date_start: Validator_1.schema.string.optional(),
             date_end: Validator_1.schema.string.optional(),
             typeDate: Validator_1.schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
+            allocation: Validator_1.schema.string.optional()
         });
         const body = await request.validate({
             schema: querySchema,
@@ -63,6 +64,11 @@ class FinAccountsController {
             query.if(body.future, q => q.where('future', body.future));
             query.if(body.reserve, q => q.where('reserve', body.reserve));
             query.if(body.overplus, q => q.where('overplus', body.overplus));
+            query.if(body.allocation, q => {
+                q.whereHas('finclass', (subQuery) => {
+                    subQuery.where('allocation', body.allocation);
+                });
+            });
             if (body.date_start && body.date_end && body.typeDate) {
                 const start = luxon_1.DateTime.fromISO(body.date_start).toUTC().toISO();
                 const end = luxon_1.DateTime.fromISO(body.date_end).toUTC().endOf('day').toISO();
@@ -143,7 +149,6 @@ class FinAccountsController {
         }
     }
     async update({ auth, params, request, response }) {
-        console.log("passei no update....");
         const authenticate = await auth.use('api').authenticate();
         const body = await request.validate(FinAccountUpdateValidator_1.default);
         body.date = body.date ? luxon_1.DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
@@ -213,6 +218,7 @@ class FinAccountsController {
                 const payload = { ...account.$original };
                 const id_replication = account.id;
                 delete payload.id;
+                delete payload.date_conciliation;
                 const dueDate = luxon_1.DateTime.fromISO(account.date_due.toISO()).plus({ months: 1 }).toISODate();
                 return {
                     ...payload,
