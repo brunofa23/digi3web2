@@ -17,7 +17,7 @@ class AuthenticationController {
         const user = await User_1.default
             .query()
             .preload('company', query => {
-            query.select('id', 'name', 'shortname', 'foldername', 'cloud');
+            query.select('id', 'name', 'shortname', 'foldername', 'cloud', 'responsablename');
         })
             .preload('usergroup', query => {
             query.preload('groupxpermission', query => {
