@@ -3,7 +3,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import Company from 'App/Models/Company'
 import validations from 'App/Services/Validations/validations'
 import CompanyValidator from 'App/Validators/CompanyValidator'
-import {sendSearchOrCreateFolder} from "App/Services/googleDrive/googledrive"
+import { sendSearchOrCreateFolder } from "App/Services/googleDrive/googledrive"
 
 //const authorize = require('App/Services/googleDrive/googledrive')
 
@@ -73,7 +73,6 @@ export default class CompaniesController {
   public async show({ params, response }: HttpContextContract) {
     const data = await Company.find(params.id)
     return response.send(data)
-
   }
 
   //patch ou put
