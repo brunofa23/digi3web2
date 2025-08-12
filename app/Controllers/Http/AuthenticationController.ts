@@ -5,7 +5,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import { DateTime } from 'luxon'
 import { verifyPermission } from 'App/Services/util'
-import Groupxpermission from 'App/Models/Groupxpermission'
+//import Groupxpermission from 'App/Models/Groupxpermission'
 
 export default class AuthenticationController {
 
@@ -17,7 +17,7 @@ export default class AuthenticationController {
     const user = await User
       .query()
       .preload('company', query => {
-        query.select('id', 'name', 'shortname', 'foldername', 'cloud')
+        query.select('id', 'name', 'shortname', 'foldername', 'cloud','responsablename')
       })
       .preload('usergroup', query => {
         query.preload('groupxpermission', query => {
