@@ -51,7 +51,6 @@ export default class FinAccountsController {
       data: request.qs()
     })
 
-    console.log("passei aqui", body)
     try {
       const query = FinAccount.query()
         .where('companies_id', user.companies_id)
@@ -153,8 +152,6 @@ export default class FinAccountsController {
       query.if(body.isReconciled === 'N', q => {
         q.whereNull('date_conciliation')
       })
-
-      console.log(query.toQuery())
 
       const data = await query
       if (data.length > 0) {
