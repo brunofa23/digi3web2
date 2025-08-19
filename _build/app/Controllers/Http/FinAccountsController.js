@@ -36,7 +36,9 @@ class FinAccountsController {
             date_start: Validator_1.schema.string.optional(),
             date_end: Validator_1.schema.string.optional(),
             typeDate: Validator_1.schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
-            allocation: Validator_1.schema.string.optional()
+            allocation: Validator_1.schema.string.optional(),
+            fin_paymentmethod: Validator_1.schema.string.optional(),
+            fin_class: Validator_1.schema.string.optional()
         });
         const body = await request.validate({
             schema: querySchema,
@@ -59,6 +61,20 @@ class FinAccountsController {
             query.if(body.debit_credit, q => q.where('debit_credit', body.debit_credit));
             query.if(body.replicate, q => q.where('replicate', body.replicate));
             query.if(body.fin_paymentmethod_id, q => q.where('fin_paymentmethod_id', body.fin_paymentmethod_id));
+            query.if(body.fin_paymentmethod, q => {
+                const ids = body.fin_paymentmethod
+                    .split(',')
+                    .map((id) => Number(id.trim()))
+                    .filter((id) => !isNaN(id));
+                q.whereIn('fin_paymentmethod_id', ids);
+            });
+            query.if(body.fin_class, q => {
+                const ids = body.fin_class
+                    .split(',')
+                    .map((id) => Number(id.trim()))
+                    .filter((id) => !isNaN(id));
+                q.whereIn('fin_class_id', ids);
+            });
             query.if(body.entity_id, q => q.where('entity_id', body.entity_id));
             query.if(body.analyze, q => q.where('analyze', body.analyze));
             query.if(body.future, q => q.where('future', body.future));
