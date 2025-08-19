@@ -18,6 +18,9 @@ export default class FinAccountsController {
   public async index({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
 
+
+
+
     const querySchema = schema.create({
       fin_emp_id: schema.number.optional(),
       fin_class_id: schema.number.optional(),
@@ -37,8 +40,11 @@ export default class FinAccountsController {
       date_start: schema.string.optional(),
       date_end: schema.string.optional(),
       typeDate: schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
-      allocation: schema.string.optional()
+      allocation: schema.string.optional(),
+      fin_paymentmethod: schema.string.optional(),
+      fin_class: schema.string.optional()
     })
+
 
     const body = await request.validate({
       schema: querySchema,
@@ -92,6 +98,22 @@ export default class FinAccountsController {
         q.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
       )
 
+      query.if(body.fin_paymentmethod, q => {
+        const ids = body.fin_paymentmethod
+          .split(',')               // ["1", "2", "30"]
+          .map((id: string) => Number(id.trim())) // [1, 2, 30]
+          .filter((id: number) => !isNaN(id))     // garante só números
+        q.whereIn('fin_paymentmethod_id', ids)
+      })
+
+      query.if(body.fin_class, q => {
+        const ids = body.fin_class
+          .split(',')               // ["1", "2", "30"]
+          .map((id: string) => Number(id.trim())) // [1, 2, 30]
+          .filter((id: number) => !isNaN(id))     // garante só números
+        q.whereIn('fin_class_id', ids)
+      })
+
       query.if(body.entity_id, q => q.where('entity_id', body.entity_id))
       query.if(body.analyze, q => q.where('analyze', body.analyze))
       query.if(body.future, q => q.where('future', body.future))
@@ -130,6 +152,7 @@ export default class FinAccountsController {
       query.if(body.isReconciled === 'N', q => {
         q.whereNull('date_conciliation')
       })
+
       const data = await query
       if (data.length > 0) {
         for (const entity of data) {
