@@ -5,10 +5,18 @@ import FinEmp from 'App/Models/FinEmp'
 export default class FinEmpsController {
   public async index({ auth, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
+    //const inactive=request.input('inactive',false)
+
     try {
-      const data = await FinEmp.query()
+      const query = FinEmp.query()
         .where('companies_id', authenticate.companies_id)
         .where('excluded', false)
+        // .if(inactive, query=>{
+        //   query.andWhere('inactive',true)
+        // })
+
+        const data = await query
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)

@@ -9,6 +9,7 @@ export default class FinEmp extends BaseModel {
       'companies_id',
       'name',
       'excluded',
+      'inactive'
     ]
   }
 
@@ -24,6 +25,9 @@ export default class FinEmp extends BaseModel {
 
   @column()
   public excluded: boolean
+
+  @column()
+  public inactive:boolean
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

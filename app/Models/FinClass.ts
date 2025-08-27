@@ -9,6 +9,7 @@ export default class FinClass extends BaseModel {
       'companies_id',
       'description',
       'excluded',
+      'inactive',
       'debit_credit',
       'cost',
       'allocation',
@@ -28,6 +29,9 @@ export default class FinClass extends BaseModel {
 
   @column()
   public excluded: boolean
+
+  @column()
+  public inactive:boolean
 
   @column()
   public debit_credit: string

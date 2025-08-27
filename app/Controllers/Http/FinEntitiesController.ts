@@ -10,6 +10,7 @@ export default class FinEntitiesController {
     try {
       const data = await Entity.query()
       .where('companies_id',authenticate.companies_id)
+      .andWhere('inactive',false)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, 'erro')
