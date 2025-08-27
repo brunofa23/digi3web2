@@ -8,6 +8,7 @@ export default class FinnClassStoreValidator {
     companies_id: schema.number.optional(),
     description: schema.string(),
     excluded: schema.boolean.nullableAndOptional(),
+    inactive: schema.boolean.nullableAndOptional(),
     debit_credit: schema.string(),
     cost: schema.string.nullableAndOptional(),
     allocation: schema.string.nullableAndOptional(),
