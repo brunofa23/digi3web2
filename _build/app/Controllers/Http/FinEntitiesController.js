@@ -25,7 +25,8 @@ class FinEntitiesController {
             responsible: Validator_1.schema.string.nullableAndOptional(),
             phone: Validator_1.schema.string.nullableAndOptional(),
             obs: Validator_1.schema.string.nullableAndOptional(),
-            inactive: Validator_1.schema.boolean.nullableAndOptional()
+            inactive: Validator_1.schema.boolean.nullableAndOptional(),
+            excluded: Validator_1.schema.boolean.nullableAndOptional()
         });
         const body = await request.validate({
             schema: querySchema,
@@ -47,7 +48,8 @@ class FinEntitiesController {
             responsible: Validator_1.schema.string.nullableAndOptional(),
             phone: Validator_1.schema.string.nullableAndOptional(),
             obs: Validator_1.schema.string.nullableAndOptional(),
-            inactive: Validator_1.schema.boolean.nullableAndOptional()
+            inactive: Validator_1.schema.boolean.nullableAndOptional(),
+            excluded: Validator_1.schema.boolean.nullableAndOptional(),
         });
         const body = await request.validate({
             schema: querySchema,

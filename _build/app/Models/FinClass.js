@@ -18,6 +18,7 @@ class FinClass extends Orm_1.BaseModel {
             'companies_id',
             'description',
             'excluded',
+            'inactive',
             'debit_credit',
             'cost',
             'allocation',
@@ -41,6 +42,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
 ], FinClass.prototype, "excluded", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinClass.prototype, "inactive", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

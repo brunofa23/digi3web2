@@ -17,6 +17,7 @@ class FinPaymentMethod extends Orm_1.BaseModel {
             'id',
             'companies_id',
             'description',
+            'limit_amount',
             'future',
             'excluded'
         ];
@@ -34,6 +35,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], FinPaymentMethod.prototype, "description", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], FinPaymentMethod.prototype, "limit_amount", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)

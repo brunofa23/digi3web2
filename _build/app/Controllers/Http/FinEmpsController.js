@@ -9,9 +9,10 @@ class FinEmpsController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
         try {
-            const data = await FinEmp_1.default.query()
+            const query = FinEmp_1.default.query()
                 .where('companies_id', authenticate.companies_id)
                 .where('excluded', false);
+            const data = await query;
             return response.status(200).send(data);
         }
         catch (error) {

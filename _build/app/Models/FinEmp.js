@@ -18,6 +18,7 @@ class FinEmp extends Orm_1.BaseModel {
             'companies_id',
             'name',
             'excluded',
+            'inactive'
         ];
     }
 }
@@ -37,6 +38,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
 ], FinEmp.prototype, "excluded", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinEmp.prototype, "inactive", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
