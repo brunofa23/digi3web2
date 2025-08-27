@@ -10,7 +10,7 @@ export default class FinEntitiesController {
     try {
       const data = await Entity.query()
       .where('companies_id',authenticate.companies_id)
-      .andWhere('inactive',false)
+      //.andWhere('inactive',false)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, 'erro')
@@ -20,13 +20,16 @@ export default class FinEntitiesController {
 
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
     const querySchema = schema.create({
       description: schema.string.nullableAndOptional(),
       responsible: schema.string.nullableAndOptional(),
       phone: schema.string.nullableAndOptional(),
       obs: schema.string.nullableAndOptional(),
-      inactive: schema.boolean.nullableAndOptional()
+      inactive: schema.boolean.nullableAndOptional(),
+      excluded: schema.boolean.nullableAndOptional()
     })
+    
     const body = await request.validate({
       schema: querySchema,
       data: request.body()
@@ -49,7 +52,8 @@ export default class FinEntitiesController {
       responsible: schema.string.nullableAndOptional(),
       phone: schema.string.nullableAndOptional(),
       obs: schema.string.nullableAndOptional(),
-      inactive: schema.boolean.nullableAndOptional()
+      inactive: schema.boolean.nullableAndOptional(),
+      excluded:schema.boolean.nullableAndOptional(),
     })
     const body = await request.validate({
       schema: querySchema,
