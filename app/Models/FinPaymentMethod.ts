@@ -8,6 +8,7 @@ export default class FinPaymentMethod extends BaseModel {
       'id',
       'companies_id',
       'description',
+      'limit_amount',
       'future',
       'excluded'
     ]
@@ -21,6 +22,9 @@ export default class FinPaymentMethod extends BaseModel {
 
   @column()
   public description: string
+
+  @column()
+  public limit_amount:number
 
   @column()
   public future:boolean
