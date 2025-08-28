@@ -7,6 +7,7 @@ export default class FinClass extends BaseModel {
     return [
       'id',
       'companies_id',
+      'fin_emp_id',
       'description',
       'excluded',
       'inactive',
@@ -23,6 +24,9 @@ export default class FinClass extends BaseModel {
 
   @column()
   public companies_id: number
+
+  @column()
+  public fin_emp_id: number
 
   @column()
   public description: string
