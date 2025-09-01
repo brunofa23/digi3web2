@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, hasMany, HasMany, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, hasMany, HasMany, HasOne, hasOne, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
 import FinClass from './FinClass'
 import FinEmp from './FinEmp'
 import FinPaymentMethod from './FinPaymentMethod'
@@ -61,6 +61,15 @@ export default class FinAccount extends BaseModel {
   })
   public entity: HasOne<typeof Entity>
 
+  // ***********************************************
+  @belongsTo(() => Entity, {
+    foreignKey: 'entity_id',
+  })
+  public finentity: BelongsTo<typeof Entity>
+
+  // ***********************************************
+
+
   @hasMany(() => FinImage, {
     foreignKey: 'fin_account_id',
     localKey: 'id'
@@ -88,7 +97,7 @@ export default class FinAccount extends BaseModel {
   public id_replication: number
 
   @column()
-  public entity_id: number
+  public entity_id: number | null
 
   @column()
   public description: string
