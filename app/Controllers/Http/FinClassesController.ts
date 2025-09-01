@@ -11,6 +11,9 @@ export default class FinClassesController {
     try {
       const data =await FinClass.query()
         .where('companies_id', authenticate.companies_id)
+        .preload('finemp', query=>{
+          query.select('id', 'name')
+        })
         .if(finEmpId, (q) => {
           q.where((subQuery) => {
             subQuery.where('fin_emp_id', finEmpId).orWhereNull('fin_emp_id')
