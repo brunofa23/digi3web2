@@ -11,6 +11,7 @@ public static table = 'fin_entities'  // Define a tabela correta
       'description',
       'responsible',
       'phone',
+      'limit_amount',
       'obs',
       'inactive',
       'excluded',
@@ -30,12 +31,14 @@ public static table = 'fin_entities'  // Define a tabela correta
   @column()
   public phone: string
   @column()
+  public limit_amount:number
+  @column()
   public obs: string
   @column()
   public inactive:boolean
   @column()
   public excluded:boolean
-  
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
   @column.dateTime({ autoCreate: true, autoUpdate: true })
