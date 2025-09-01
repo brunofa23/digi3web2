@@ -79,6 +79,12 @@ __decorate([
     __metadata("design:type", Object)
 ], FinAccount.prototype, "entity", void 0);
 __decorate([
+    (0, Orm_1.belongsTo)(() => Entity_1.default, {
+        foreignKey: 'entity_id',
+    }),
+    __metadata("design:type", Object)
+], FinAccount.prototype, "finentity", void 0);
+__decorate([
     (0, Orm_1.hasMany)(() => FinImage_1.default, {
         foreignKey: 'fin_account_id',
         localKey: 'id'
@@ -111,7 +117,7 @@ __decorate([
 ], FinAccount.prototype, "id_replication", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], FinAccount.prototype, "entity_id", void 0);
 __decorate([
     (0, Orm_1.column)(),

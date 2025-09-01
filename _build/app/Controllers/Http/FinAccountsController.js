@@ -51,7 +51,8 @@ class FinAccountsController {
                 .preload('finclass', q => q.select('description', 'allocation', 'cost', 'debit_credit', 'limit_amount'))
                 .preload('finemp', q => q.select('name'))
                 .preload('finPaymentMethod', q => q.select('description'))
-                .preload('finimage', q => q.select('id', 'file_name', 'fin_account_id', 'companies_id', 'path'));
+                .preload('finimage', q => q.select('id', 'file_name', 'fin_account_id', 'companies_id', 'path'))
+                .preload('finentity', q => { q.select('fin_entities.description'); });
             query.if(body.description, q => q.where('description', 'like', `%${body.description}%`));
             query.if(body.fin_emp_id, q => q.where('fin_emp_id', body.fin_emp_id));
             query.if(body.fin_class_id, q => q.where('fin_class_id', body.fin_class_id));
@@ -86,7 +87,7 @@ class FinAccountsController {
                 });
             });
             if (body.date_start && body.date_end && body.typeDate) {
-                const start = luxon_1.DateTime.fromISO(body.date_start).toUTC().toISO();
+                const start = luxon_1.DateTime.fromISO(body.date_start).toUTC().startOf('day').toISO();
                 const end = luxon_1.DateTime.fromISO(body.date_end).toUTC().endOf('day').toISO();
                 const dateColumnMap = {
                     DATE: 'DATE',
@@ -105,15 +106,6 @@ class FinAccountsController {
                 q.whereNull('date_conciliation');
             });
             const data = await query;
-            if (data.length > 0) {
-                for (const entity of data) {
-                    if (entity.entity_id) {
-                        await entity.load('entity', (query) => {
-                            query.select('fin_entities.description');
-                        });
-                    }
-                }
-            }
             return response.ok(data);
         }
         catch (error) {

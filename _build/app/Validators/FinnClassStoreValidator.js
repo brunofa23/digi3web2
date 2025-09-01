@@ -6,6 +6,7 @@ class FinnClassStoreValidator {
         this.ctx = ctx;
         this.schema = Validator_1.schema.create({
             companies_id: Validator_1.schema.number.optional(),
+            fin_emp_id: Validator_1.schema.number.optional(),
             description: Validator_1.schema.string(),
             excluded: Validator_1.schema.boolean.nullableAndOptional(),
             inactive: Validator_1.schema.boolean.nullableAndOptional(),

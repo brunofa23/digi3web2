@@ -8,11 +8,20 @@ const FinClass_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Fin
 const FinnClassStoreValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/FinnClassStoreValidator"));
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class FinClassesController {
-    async index({ auth, response }) {
+    async index({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        const finEmpId = request.input('fin_emp_id');
         try {
             const data = await FinClass_1.default.query()
-                .where('companies_id', authenticate.companies_id);
+                .where('companies_id', authenticate.companies_id)
+                .preload('finemp', query => {
+                query.select('id', 'name');
+            })
+                .if(finEmpId, (q) => {
+                q.where((subQuery) => {
+                    subQuery.where('fin_emp_id', finEmpId).orWhereNull('fin_emp_id');
+                });
+            });
             return response.status(200).send(data);
         }
         catch (error) {
@@ -21,6 +30,7 @@ class FinClassesController {
     }
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        console.log("passei no store....");
         const input = request.all();
         if (input.limit_amount && typeof input.limit_amount === 'string') {
             input.limit_amount = Number((0, util_1.currencyConverter)(input.limit_amount));
@@ -49,6 +59,7 @@ class FinClassesController {
         }
     }
     async update({ auth, params, request, response }) {
+        console.log("passei no update.....");
         const authenticate = await auth.use('api').authenticate();
         const input = request.all();
         if (input.limit_amount && typeof input.limit_amount === 'string') {
@@ -59,10 +70,12 @@ class FinClassesController {
             data: input,
         });
         try {
-            const data = await FinClass_1.default.query()
+            await FinClass_1.default.query()
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('id', params.id)
                 .update(body);
+            const data = await FinClass_1.default.findOrFail(params.id);
+            await data.load('finemp');
             return response.status(201).send(data);
         }
         catch (error) {
