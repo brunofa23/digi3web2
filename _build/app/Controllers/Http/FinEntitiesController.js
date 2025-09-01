@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Entity_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Entity"));
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class FinEntitiesController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -26,11 +27,16 @@ class FinEntitiesController {
             phone: Validator_1.schema.string.nullableAndOptional(),
             obs: Validator_1.schema.string.nullableAndOptional(),
             inactive: Validator_1.schema.boolean.nullableAndOptional(),
-            excluded: Validator_1.schema.boolean.nullableAndOptional()
+            excluded: Validator_1.schema.boolean.nullableAndOptional(),
+            limit_amount: Validator_1.schema.number.nullableAndOptional()
         });
+        const input = request.all();
+        if (input.limit_amount && typeof input.limit_amount === 'string') {
+            input.limit_amount = Number((0, util_1.currencyConverter)(input.limit_amount));
+        }
         const body = await request.validate({
             schema: querySchema,
-            data: request.body()
+            data: input
         });
         body.companies_id = authenticate.companies_id;
         try {
@@ -51,9 +57,13 @@ class FinEntitiesController {
             inactive: Validator_1.schema.boolean.nullableAndOptional(),
             excluded: Validator_1.schema.boolean.nullableAndOptional(),
         });
+        const input = request.all();
+        if (input.limit_amount && typeof input.limit_amount === 'string') {
+            input.limit_amount = Number((0, util_1.currencyConverter)(input.limit_amount));
+        }
         const body = await request.validate({
             schema: querySchema,
-            data: request.body()
+            data: input
         });
         body.companies_id = authenticate.companies_id;
         try {

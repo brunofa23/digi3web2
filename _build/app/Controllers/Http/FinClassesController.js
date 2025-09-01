@@ -59,7 +59,6 @@ class FinClassesController {
         }
     }
     async update({ auth, params, request, response }) {
-        console.log("passei no update.....");
         const authenticate = await auth.use('api').authenticate();
         const input = request.all();
         if (input.limit_amount && typeof input.limit_amount === 'string') {

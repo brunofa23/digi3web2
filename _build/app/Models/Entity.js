@@ -19,6 +19,7 @@ class Entity extends Orm_1.BaseModel {
             'description',
             'responsible',
             'phone',
+            'limit_amount',
             'obs',
             'inactive',
             'excluded',
@@ -46,6 +47,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Entity.prototype, "phone", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Entity.prototype, "limit_amount", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
