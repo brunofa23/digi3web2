@@ -6,6 +6,7 @@ export default class FinnClassStoreValidator {
   public schema = schema.create({
 
     companies_id: schema.number.optional(),
+    fin_emp_id:schema.number.optional(),
     description: schema.string(),
     excluded: schema.boolean.nullableAndOptional(),
     inactive: schema.boolean.nullableAndOptional(),

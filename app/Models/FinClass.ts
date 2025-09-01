@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, hasOne, HasOne, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
+import FinEmp from './FinEmp'
 
 export default class FinClass extends BaseModel {
 
@@ -7,6 +8,7 @@ export default class FinClass extends BaseModel {
     return [
       'id',
       'companies_id',
+      'fin_emp_id',
       'description',
       'excluded',
       'inactive',
@@ -18,11 +20,22 @@ export default class FinClass extends BaseModel {
   }
 
 
+
   @column({ isPrimary: true })
   public id: number
 
   @column()
   public companies_id: number
+
+  // ********************************************
+  @column()
+  public fin_emp_id: number | null
+
+  @belongsTo(() => FinEmp, {
+    foreignKey: 'fin_emp_id',
+  })
+  public finemp: BelongsTo<typeof FinEmp>
+  // *********************************************
 
   @column()
   public description: string
@@ -31,7 +44,7 @@ export default class FinClass extends BaseModel {
   public excluded: boolean
 
   @column()
-  public inactive:boolean
+  public inactive: boolean
 
   @column()
   public debit_credit: string
