@@ -9,9 +9,9 @@ export default class FinClassesController {
     const authenticate = await auth.use('api').authenticate()
     const finEmpId = request.input('fin_emp_id')
     try {
-      const data =await FinClass.query()
+      const data = await FinClass.query()
         .where('companies_id', authenticate.companies_id)
-        .preload('finemp', query=>{
+        .preload('finemp', query => {
           query.select('id', 'name')
         })
         .if(finEmpId, (q) => {
@@ -29,6 +29,7 @@ export default class FinClassesController {
 
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    console.log("passei no store....")
     // const body = request.only(FinClass.fillable)
     // body.companies_id = authenticate.companies_id
     const input = request.all()
@@ -63,6 +64,7 @@ export default class FinClassesController {
 
 
   public async update({ auth, params, request, response }: HttpContextContract) {
+    console.log("passei no update.....")
     const authenticate = await auth.use('api').authenticate()
     const input = request.all()
     // Se vier como string tipo '100,00', converte
@@ -75,11 +77,12 @@ export default class FinClassesController {
     })
 
     try {
-      const data = await FinClass.query()
+      await FinClass.query()
         .where('companies_id', authenticate.companies_id)
         .andWhere('id', params.id)
         .update(body)
-
+        const data = await FinClass.findOrFail(params.id)
+        await data.load('finemp')
       return response.status(201).send(data)
 
     } catch (error) {
