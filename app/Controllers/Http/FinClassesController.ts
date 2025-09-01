@@ -64,7 +64,7 @@ export default class FinClassesController {
 
 
   public async update({ auth, params, request, response }: HttpContextContract) {
-    console.log("passei no update.....")
+
     const authenticate = await auth.use('api').authenticate()
     const input = request.all()
     // Se vier como string tipo '100,00', converte
