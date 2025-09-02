@@ -56,6 +56,7 @@ class FinEntitiesController {
             obs: Validator_1.schema.string.nullableAndOptional(),
             inactive: Validator_1.schema.boolean.nullableAndOptional(),
             excluded: Validator_1.schema.boolean.nullableAndOptional(),
+            limit_amount: Validator_1.schema.number.nullableAndOptional()
         });
         const input = request.all();
         if (input.limit_amount && typeof input.limit_amount === 'string') {

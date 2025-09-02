@@ -1,6 +1,6 @@
 {
   "name": "digi3web2",
-  "version": "1.1.298",
+  "version": "1.1.299",
   "private": true,
   "scripts": {
     "dev": "npm run docker:dev && node ace serve --watch",
