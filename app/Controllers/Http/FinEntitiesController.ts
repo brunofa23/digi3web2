@@ -58,6 +58,7 @@ export default class FinEntitiesController {
       obs: schema.string.nullableAndOptional(),
       inactive: schema.boolean.nullableAndOptional(),
       excluded: schema.boolean.nullableAndOptional(),
+      limit_amount: schema.number.nullableAndOptional()
     })
 
     const input = request.all()
