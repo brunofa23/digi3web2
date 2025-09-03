@@ -20,7 +20,7 @@ export default class FinAccountsController {
       fin_emp_id: schema.number.optional(),
       fin_class_id: schema.number.optional(),
       fin_paymentmethod_id: schema.number.optional(),
-      entity_id: schema.number.optional(),
+      fin_entity_List: schema.string.optional(),
       cost: schema.string.optional(),
       payment_method: schema.string.optional(),
       debit_credit: schema.string.optional(),
@@ -44,8 +44,6 @@ export default class FinAccountsController {
       schema: querySchema,
       data: request.qs()
     })
-
-    console.log(body)
 
     try {
       const query = FinAccount.query()
@@ -120,7 +118,19 @@ export default class FinAccountsController {
         q.whereIn('fin_class_id', ids)
       })
 
-      query.if(body.entity_id, q => q.where('entity_id', body.entity_id))
+      query.if(body.fin_entity_List, q => {
+        const ids = String(body.fin_entity_List)
+          .split(',')               // ['1','2','3']
+          .map((id) => Number(id.trim()))
+          .filter((id) => !isNaN(id))
+
+        if (ids.length > 1) {
+          q.whereIn('entity_id', ids)
+        } else if (ids.length === 1) {
+          q.where('entity_id', ids[0])
+        }
+      })
+
       query.if(body.analyze, q => q.where('analyze', body.analyze))
       query.if(body.future, q => q.where('future', body.future))
       query.if(body.reserve, q => q.where('reserve', body.reserve))
@@ -156,6 +166,7 @@ export default class FinAccountsController {
       query.if(body.isReconciled === 'N', q => {
         q.whereNull('date_conciliation')
       })
+
       const data = await query
       return response.ok(data)
 
