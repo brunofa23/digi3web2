@@ -73,7 +73,12 @@ Route_1.default.group(() => {
     Route_1.default.post("/sendmailcontactwebsite", "MailmanangersController.sendMailContactWebsite");
     Route_1.default.resource("/finemps", "FinEmpsController").apiOnly();
     Route_1.default.resource("/finclasses", "FinClassesController").apiOnly();
-    Route_1.default.resource("/finaccounts", "FinAccountsController").apiOnly();
+    Route_1.default.resource("/finaccounts", "FinAccountsController").apiOnly()
+        .middleware({ index: ['finaccount_permission:get'],
+        show: ['finaccount_permission:show'],
+        store: ['finaccount_permission:create'],
+        update: ['finaccount_permission:update']
+    });
     Route_1.default.post("/finaccounts/createmany", "FinAccountsController.createMany");
     Route_1.default.post("/finaccounts/replicate", "FinAccountsController.replicate");
     Route_1.default.resource("/finimages", "FinImagesController").apiOnly();
