@@ -124,8 +124,14 @@ Route.group(() => {
 
   //FIN_ACCOUNTS
   Route.resource("/finaccounts", "FinAccountsController").apiOnly()
+    .middleware({index:['finaccount_permission:get'],
+      show:['finaccount_permission:show'],
+      store:['finaccount_permission:create'],
+      update:['finaccount_permission:update']
+    })
   Route.post("/finaccounts/createmany", "FinAccountsController.createMany")
   Route.post("/finaccounts/replicate", "FinAccountsController.replicate")
+
 
   //FIN_IMAGES
   Route.resource("/finimages", "FinImagesController").apiOnly()

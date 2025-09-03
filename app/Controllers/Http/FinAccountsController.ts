@@ -12,160 +12,7 @@ import { schema } from '@ioc:Adonis/Core/Validator'
 function toUTCISO(dateStr: string | null | undefined) {
   return dateStr ? DateTime.fromISO(dateStr).toUTC().toISO() : null
 }
-
 export default class FinAccountsController {
-
-  // public async index({ auth, request, response }: HttpContextContract) {
-  //   const user = await auth.use('api').authenticate()
-
-  //   const querySchema = schema.create({
-  //     fin_emp_id: schema.number.optional(),
-  //     fin_class_id: schema.number.optional(),
-  //     fin_paymentmethod_id: schema.number.optional(),
-  //     entity_id: schema.number.optional(),
-  //     cost: schema.string.optional(),
-  //     payment_method: schema.string.optional(),
-  //     debit_credit: schema.string.optional(),
-  //     description: schema.string.optional(),
-  //     replicate: schema.boolean.optional(),
-  //     ir: schema.boolean.optional(),
-  //     analyze: schema.boolean.optional(),
-  //     future: schema.boolean.optional(),
-  //     reserve: schema.boolean.optional(),
-  //     overplus: schema.boolean.optional(),
-  //     isReconciled: schema.enum.optional(['C', 'N']),
-  //     date_start: schema.string.optional(),
-  //     date_end: schema.string.optional(),
-  //     typeDate: schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
-  //     allocation: schema.string.optional(),
-  //     fin_paymentmethod: schema.string.optional(),
-  //     fin_class: schema.string.optional()
-  //   })
-
-
-  //   const body = await request.validate({
-  //     schema: querySchema,
-  //     data: request.qs()
-  //   })
-
-  //   try {
-  //     const query = FinAccount.query()
-  //       .where('companies_id', user.companies_id)
-  //       .where('excluded', false)
-  //       .preload('finclass', q => q.select('description', 'allocation', 'cost', 'debit_credit', 'limit_amount'))
-  //       .preload('finemp', q => q.select('name'))
-  //       .preload('finPaymentMethod', q => q.select('description'))
-  //       .preload('finimage', q => q.select('id', 'file_name', 'fin_account_id', 'companies_id', 'path'))
-
-
-  //     // Filtros dinâmicos
-  //     query.if(body.description, q =>
-  //       q.where('description', 'like', `%${body.description}%`)
-  //     )
-
-  //     query.if(body.fin_emp_id, q =>
-  //       q.where('fin_emp_id', body.fin_emp_id)
-  //     )
-
-  //     query.if(body.fin_class_id, q =>
-  //       q.where('fin_class_id', body.fin_class_id)
-  //     )
-
-  //     query.if(body.cost, q =>
-  //       q.where('cost', body.cost)
-  //     )
-
-  //     query.if(body.payment_method, q =>
-  //       q.where('payment_method', body.payment_method)
-  //     )
-
-  //     query.if(body.ir === true, q =>
-  //       q.where('ir', true)
-  //     )
-
-  //     query.if(body.debit_credit, q =>
-  //       q.where('debit_credit', body.debit_credit)
-  //     )
-
-  //     query.if(body.replicate, q =>
-  //       q.where('replicate', body.replicate)
-  //     )
-
-  //     query.if(body.fin_paymentmethod_id, q =>
-  //       q.where('fin_paymentmethod_id', body.fin_paymentmethod_id)
-  //     )
-
-  //     query.if(body.fin_paymentmethod, q => {
-  //       const ids = body.fin_paymentmethod
-  //         .split(',')               // ["1", "2", "30"]
-  //         .map((id: string) => Number(id.trim())) // [1, 2, 30]
-  //         .filter((id: number) => !isNaN(id))     // garante só números
-  //       q.whereIn('fin_paymentmethod_id', ids)
-  //     })
-
-  //     query.if(body.fin_class, q => {
-  //       const ids = body.fin_class
-  //         .split(',')               // ["1", "2", "30"]
-  //         .map((id: string) => Number(id.trim())) // [1, 2, 30]
-  //         .filter((id: number) => !isNaN(id))     // garante só números
-  //       q.whereIn('fin_class_id', ids)
-  //     })
-
-  //     query.if(body.entity_id, q => q.where('entity_id', body.entity_id))
-  //     query.if(body.analyze, q => q.where('analyze', body.analyze))
-  //     query.if(body.future, q => q.where('future', body.future))
-  //     query.if(body.reserve, q => q.where('reserve', body.reserve))
-  //     query.if(body.overplus, q => q.where('overplus', body.overplus))
-
-  //     query.if(body.allocation, q => {
-  //       q.whereHas('finclass', (subQuery) => {
-  //         subQuery.where('allocation', body.allocation)
-  //       })
-  //     })
-
-  //     // Data inicial e final em UTC
-  //     if (body.date_start && body.date_end && body.typeDate) {
-  //       const start = DateTime.fromISO(body.date_start).toUTC().toISO()
-  //       const end = DateTime.fromISO(body.date_end).toUTC().endOf('day').toISO()
-
-  //       const dateColumnMap = {
-  //         DATE: 'DATE',
-  //         DATE_DUE: 'DATE_DUE',
-  //         DATE_CONCILIATION: 'DATE_CONCILIATION',
-  //       }
-
-  //       const dateColumn = dateColumnMap[body.typeDate]
-  //       if (dateColumn) {
-  //         query.where(dateColumn, '>=', start).where(dateColumn, '<=', end)
-  //       }
-  //     }
-
-  //     // Filtro por conciliação
-  //     query.if(body.isReconciled === 'C', q => {
-  //       q.whereNotNull('date_conciliation')
-  //     })
-  //     query.if(body.isReconciled === 'N', q => {
-  //       q.whereNull('date_conciliation')
-  //     })
-
-  //     const data = await query
-  //     if (data.length > 0) {
-  //       for (const entity of data) {
-  //         if (entity.entity_id) {
-  //           await entity.load('entity', (query) => {
-  //             query.select('fin_entities.description')
-  //           })
-  //         }
-  //       }
-  //     }
-
-  //     return response.ok(data)
-
-  //   } catch (error) {
-  //     throw new BadRequestException('Erro ao buscar lançamentos', 401, error)
-  //   }
-  // }
-
   public async index({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
 
@@ -193,11 +40,12 @@ export default class FinAccountsController {
       fin_class: schema.string.optional()
     })
 
-
     const body = await request.validate({
       schema: querySchema,
       data: request.qs()
     })
+
+    console.log(body)
 
     try {
       const query = FinAccount.query()
@@ -207,7 +55,7 @@ export default class FinAccountsController {
         .preload('finemp', q => q.select('name'))
         .preload('finPaymentMethod', q => q.select('description'))
         .preload('finimage', q => q.select('id', 'file_name', 'fin_account_id', 'companies_id', 'path'))
-        .preload('finentity', q=>{q.select('fin_entities.description')})
+        .preload('finentity', q => { q.select('fin_entities.description') })
 
       // Filtros dinâmicos
       query.if(body.description, q =>
@@ -234,9 +82,19 @@ export default class FinAccountsController {
         q.where('ir', true)
       )
 
-      query.if(body.debit_credit, q =>
-        q.where('debit_credit', body.debit_credit)
-      )
+      query.if(body.debit_credit, q => {
+        const values = body.debit_credit
+          .split(',')
+          .map((v: string) => v.trim())
+          .filter(v => v.length > 0)
+
+        if (values.length > 1) {
+          q.whereIn('debit_credit', values)
+        } else {
+          q.where('debit_credit', values[0])
+        }
+      })
+
 
       query.if(body.replicate, q =>
         q.where('replicate', body.replicate)
@@ -291,7 +149,6 @@ export default class FinAccountsController {
         }
       }
 
-
       // Filtro por conciliação
       query.if(body.isReconciled === 'C', q => {
         q.whereNotNull('date_conciliation')
@@ -299,18 +156,7 @@ export default class FinAccountsController {
       query.if(body.isReconciled === 'N', q => {
         q.whereNull('date_conciliation')
       })
-
       const data = await query
-      // if (data.length > 0) {
-      //   for (const entity of data) {
-      //     if (entity.entity_id) {
-      //       await entity.load('entity', (query) => {
-      //         query.select('fin_entities.description')
-      //       })
-      //     }
-      //   }
-      // }
-
       return response.ok(data)
 
     } catch (error) {
