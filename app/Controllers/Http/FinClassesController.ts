@@ -3,23 +3,44 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import FinClass from 'App/Models/FinClass'
 import FinnClassStoreValidator from 'App/Validators/FinnClassStoreValidator'
 import { currencyConverter } from "App/Services/util"
+import { schema } from '@ioc:Adonis/Core/Validator'
 export default class FinClassesController {
 
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const finEmpId = request.input('fin_emp_id')
+    const querySchema = schema.create({
+      fin_emp_id: schema.number.optional(),
+      description: schema.string.optional(),
+      excluded: schema.boolean.optional(),
+      inactive: schema.boolean.optional(),
+      debit_credit: schema.string.optional(),
+      cost: schema.string.optional(),
+      limit_amount: schema.number.optional(),
+    })
+
+    const body = await request.validate({
+      schema: querySchema,
+      data: request.qs()
+    })
+
     try {
-      const data = await FinClass.query()
+      const query = FinClass.query()
         .where('companies_id', authenticate.companies_id)
         .preload('finemp', query => {
           query.select('id', 'name')
         })
-        .if(finEmpId, (q) => {
+        .if(body.fin_emp_id, (q) => {
           q.where((subQuery) => {
-            subQuery.where('fin_emp_id', finEmpId).orWhereNull('fin_emp_id')
+            subQuery.where('fin_emp_id', body.fin_emp_id).orWhereNull('fin_emp_id')
           })
         })
-
+        .if(body.description, q => {
+          q.where('description', 'like', `%${body.description}%`)
+        })
+        .if(body.debit_credit, q => {
+          q.where('debit_credit', body.debit_credit)
+        })
+      const data = await query
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -29,9 +50,6 @@ export default class FinClassesController {
 
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    console.log("passei no store....")
-    // const body = request.only(FinClass.fillable)
-    // body.companies_id = authenticate.companies_id
     const input = request.all()
     // Se vier como string tipo '100,00', converte
     if (input.limit_amount && typeof input.limit_amount === 'string') {
@@ -81,8 +99,8 @@ export default class FinClassesController {
         .where('companies_id', authenticate.companies_id)
         .andWhere('id', params.id)
         .update(body)
-        const data = await FinClass.findOrFail(params.id)
-        await data.load('finemp')
+      const data = await FinClass.findOrFail(params.id)
+      await data.load('finemp')
       return response.status(201).send(data)
 
     } catch (error) {
