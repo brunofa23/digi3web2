@@ -5,11 +5,16 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import { currencyConverter } from "App/Services/util"
 export default class FinEntitiesController {
 
-  public async index({ auth, response }) {
+  public async index({ auth, request, response }) {
     const authenticate = await auth.use('api').authenticate()
+    const {description} = request.only(['description'])
     try {
-      const data = await Entity.query()
+      const query = Entity.query()
         .where('companies_id', authenticate.companies_id)
+        .if(description, query=>{
+          query.where('description','like',`%${description}%`)
+        })
+        const data = await query
       //.andWhere('inactive',false)
       return response.status(200).send(data)
     } catch (error) {

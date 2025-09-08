@@ -50,9 +50,6 @@ export default class FinClassesController {
 
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    console.log("passei no store....")
-    // const body = request.only(FinClass.fillable)
-    // body.companies_id = authenticate.companies_id
     const input = request.all()
     // Se vier como string tipo '100,00', converte
     if (input.limit_amount && typeof input.limit_amount === 'string') {
