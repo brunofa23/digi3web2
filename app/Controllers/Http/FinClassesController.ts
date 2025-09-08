@@ -8,11 +8,6 @@ export default class FinClassesController {
 
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    //const finEmpId = request.input('fin_emp_id')
-
-    const teste = request.body()
-    console.log("teste::", teste)
-
     const querySchema = schema.create({
       fin_emp_id: schema.number.optional(),
       description: schema.string.optional(),
@@ -28,10 +23,8 @@ export default class FinClassesController {
       data: request.qs()
     })
 
-    console.log(body)
-
     try {
-      const query =  FinClass.query()
+      const query = FinClass.query()
         .where('companies_id', authenticate.companies_id)
         .preload('finemp', query => {
           query.select('id', 'name')
@@ -41,17 +34,13 @@ export default class FinClassesController {
             subQuery.where('fin_emp_id', body.fin_emp_id).orWhereNull('fin_emp_id')
           })
         })
-        .if(body.description, q=>{
-          q.where('description', 'like',`%${body.description}%`)
+        .if(body.description, q => {
+          q.where('description', 'like', `%${body.description}%`)
         })
-        .if(body.debit_credit, q=>{
+        .if(body.debit_credit, q => {
           q.where('debit_credit', body.debit_credit)
         })
-
-        console.log(query.toQuery())
-
-        const data = await query
-
+      const data = await query
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
