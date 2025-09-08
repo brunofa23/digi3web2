@@ -8,11 +8,16 @@ const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class FinEntitiesController {
-    async index({ auth, response }) {
+    async index({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        const { description } = request.only(['description']);
         try {
-            const data = await Entity_1.default.query()
-                .where('companies_id', authenticate.companies_id);
+            const query = Entity_1.default.query()
+                .where('companies_id', authenticate.companies_id)
+                .if(description, query => {
+                query.where('description', 'like', `%${description}%`);
+            });
+            const data = await query;
             return response.status(200).send(data);
         }
         catch (error) {
