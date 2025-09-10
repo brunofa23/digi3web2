@@ -215,3 +215,7 @@ definir o nome do arquivo no inicio do teste
   },
 })
 public created_at: DateTime;
+
+
+## FORMATOS DE IMPORTAÇÃO DE IMAGENS
+L389(1).jpg = Importa pelo Livro e Código

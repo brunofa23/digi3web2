@@ -126,7 +126,11 @@ export default class IndeximagesController {
     const { dataImages } = request['requestBody']
     const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData']
 
-    if (indexImagesInitial == 'true') {//Através do nome da imagem é recriado o registro no bookrecord
+    console.log("PASSEI NO UPLOAD 45555", updateImage)
+
+    //Através do nome da imagem é recriado o registro no bookrecord
+    if (indexImagesInitial == 'true') {
+      console.log("PASSEI NO PASSO1 ")
       const listFilesImages = images.map((image) => {
         const imageName = image.clientName
         return imageName
@@ -143,7 +147,7 @@ export default class IndeximagesController {
 
     //ATUALIZAÇÃO DE LIVROS
     if (updateImage) {
-
+      console.log("PASSEI NO PASSO 2 ")
       const query = Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
@@ -193,7 +197,7 @@ export default class IndeximagesController {
       }
     } else if (updateImageDocument)//ATUALIZAÇÃO DE DOCUMENTOS
     {
-
+      console.log("PASSEI NO PASSO 3 ")
       //SEMPRE CRIAR UM NOVO REGISTRO
       const verifyExistBookrecord = await Bookrecord.query()
         .where('companies_id', authenticate.companies_id)
@@ -238,11 +242,9 @@ export default class IndeximagesController {
           throw error
         }
       }
-
-
     }
 
-
+    console.log("PASSO 4")
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
 
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
