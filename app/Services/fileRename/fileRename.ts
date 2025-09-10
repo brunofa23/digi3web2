@@ -216,6 +216,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   let objFileName
   let separators
   let arrayFileName
+  let isCreateBookrecord = false
   //Format L1(1).jpg = Livro 1 e Código 1
   const regexBookAndCod = /^L\d+\(\d+\).*$/;
   //Formato L1_1_F.jpg = Livro 1, Folha 1 e Lado Frente
@@ -226,8 +227,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   const regexDocumentAndProt = /^P\d+\(\d+\).*$/;
   //FORMATO L122F(1)F.jpg para Livro e folha e verifica ou insere registro no bookrecord
   const regexBookSheetSideInsertBookrecord = /^L[1-9]\d*F\([1-9]\d*\)[FV]\.[A-Za-z0-9]+$/;
-
-
 
   const query = Bookrecord.query()
     .preload('indeximage', query => {
@@ -260,6 +259,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
     return fileRename
   } else
+    //SE NÃO EXISTIR EM BOOKRECORD INSERE*******************************
     if (regexBookSheetSideInsertBookrecord.test(originalFileName.toUpperCase())) {
       const arrayFileName = originalFileName
         .substring(1)           // tira o "L"
@@ -267,14 +267,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         .filter(Boolean);       // remove strings vazias
       console.log("ENTREI NO NOVO FORMATO @#@#@", arrayFileName)
       objFileName = {
-        book:arrayFileName[0].replace("F",""),
+        book: arrayFileName[0].replace("F", ""),
         sheet: arrayFileName[1],
-        side:arrayFileName[2],
-        ext:arrayFileName[3]
+        side: arrayFileName[2],
+        ext: arrayFileName[3]
       }
       query.andWhere('book', objFileName.book)
       query.andWhere('sheet', objFileName.sheet)
       query.andWhere('side', objFileName.side)
+      isCreateBookrecord = true
 
     } else
       if (regexBookAndCod.test(originalFileName.toUpperCase())) {
@@ -378,10 +379,33 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         }
 
   try {
-    const bookRecord = await query.first()
+    let bookRecord = await query.first()
     console.log("PASSO 8", query.toQuery())
     let seq = 0
-    if (bookRecord === null) return
+    // *****************************************************************
+    if (bookRecord === null) {
+      console.log("entrei no retorno")
+      if (isCreateBookrecord) {
+        console.log("CRIAR REGISTRO NO BOOKRECORD")
+        try {
+          const books_id = await (await Typebook.findOrFail(typebooks_id)).books_id
+          console.log(">>>>>>",books_id)
+          bookRecord = await Bookrecord.create({
+            books_id:books_id,
+            typebooks_id: typebooks_id,
+            companies_id: companies_id,
+            book: objFileName.book,
+            sheet: objFileName.sheet,
+            side: objFileName.side
+          })
+        } catch (error) {
+          console.log("!!!!!!!", error)
+        }
+      } else {
+        console.log("SAIR FORA")
+        return
+      }
+    }
     if (bookRecord.indeximage.length == 0) seq = 1
     else seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1
 
