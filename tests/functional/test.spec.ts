@@ -4,57 +4,46 @@ import Application from '@ioc:Adonis/Core/Application'
 import fs from 'fs'
 import path from 'path'
 import sharp from 'sharp'
+import { fileRename } from "App/Services/fileRename/fileRename"
+import Bookrecord from 'App/Models/Bookrecord'
+import Typebook from 'App/Models/Typebook'
 
 test('test', async ({ client }) => {
-  // Caminho da imagem original
-  const inputImage = Application.tmpPath(`transferir.jpeg`);//'input.jpg';
-  const outputImage = Application.tmpPath('/test/processed.jpg')//'processed.jpg';
-  const dir = path.dirname(outputImage)
 
-  if(!fs.existsSync(dir)){
-    fs.mkdirSync(dir, {recursive:true})
-  }
+  // const teste = await fileRename("L389F(11)F.jpg", 236,10)
+  // console.log("Processamento completo!", teste);
 
-  // Etapa 1: Pré-processar a imagem com sharp
-  async function enhanceAndCropManuscript() {
-    try {
-      console.log('primeiro teste')
-      console.log("Passo 1: Iniciando o processamento da imagem..........");
-      // Etapa 1: Melhorar nitidez e contraste da imagem mantendo as cores
-      const buffer = await sharp(inputImage)
-        .resize({ width: 2400, withoutEnlargement: true })
-        .modulate({
-          brightness: 1.1,
-          saturation: 1.1
-        })
-        .linear(1.15, -10)
-        .sharpen(1.2, 0.5, 0.3)
-        .blur(0.3)
-        .normalize()
-        .toBuffer();
+  const books_id = await Typebook.findOrFail(236)
+  console.log("######", books_id.books_id)
 
-      // Etapa 2: Remover bordas pretas automaticamente
-      await sharp(buffer)
-        .trim({ threshold: 10 }) // ✅ Correção aqui
-        .extend({
-          top: 10,
-          bottom: 10,
-          left: 10,
-          right: 10,
-          background: { r: 255, g: 255, b: 255 }
-        })
-        .toFile(outputImage);
+  // const bookRecordFind = await Bookrecord.query()
+  // .preload('typebooks')
+  //   .where('typebooks_id', 236)
+  //   .max('cod as max_cod')
+  //   .max('books_id as max_books_id')
+  //   .first()//await Typebook.findOrFail(typebooks_id)
 
-      console.log("Passo 2: Imagem recortada e processada com sucesso!");
-    } catch (err) {
-      console.error("Erro ao processar e recortar imagem:", err);
-    }
-  }
+  // const regexBookCoverInsertBookrecord = /^L[1-9]\d*C\([1-9]\d*\).*$/
+  // const originalFileName = "L236C(1)-fasdf.jpg"
+  // const teste = regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())
+  // let objFileName
 
-  // Chama as funções de forma sequencial, com espera para garantir a ordem de execução
-  await enhanceAndCropManuscript();
-  //await extrairTexto();
+  // console.log("&&&&&&&:", teste)
+  // if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
+  //   const arrayFileName = originalFileName
+  //     .substring(1)           // tira o "L"
+  //     .split(/[()\.]/)       // quebra em F, (, ) e .
+  //     .filter(Boolean);       // remove strings vazias
+  //   console.log("ENTREI NO NOVO FORMATO @#@#@", arrayFileName)
+  //   objFileName = {
+  //     book: arrayFileName[0].replace("C", ""),
+  //     sheet: 0,
+  //     ext: path.extname(originalFileName).toLowerCase()//arrayFileName[3]
+  //   }
+  //   query.andWhere('book', objFileName.book)
+  //   isCreateBookrecord = true
 
-  console.log("Processamento completo!");
+  //   console.log(">>>>", objFileName)
+  // }
 
 })
