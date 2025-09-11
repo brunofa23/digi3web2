@@ -4,49 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const runner_1 = require("@japa/runner");
-const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
-const sharp_1 = __importDefault(require("sharp"));
+const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 (0, runner_1.test)('test', async ({ client }) => {
-    const inputImage = Application_1.default.tmpPath(`transferir.jpeg`);
-    const outputImage = Application_1.default.tmpPath('/test/processed.jpg');
-    const dir = path_1.default.dirname(outputImage);
-    if (!fs_1.default.existsSync(dir)) {
-        fs_1.default.mkdirSync(dir, { recursive: true });
-    }
-    async function enhanceAndCropManuscript() {
-        try {
-            console.log('primeiro teste');
-            console.log("Passo 1: Iniciando o processamento da imagem..........");
-            const buffer = await (0, sharp_1.default)(inputImage)
-                .resize({ width: 2400, withoutEnlargement: true })
-                .modulate({
-                brightness: 1.1,
-                saturation: 1.1
-            })
-                .linear(1.15, -10)
-                .sharpen(1.2, 0.5, 0.3)
-                .blur(0.3)
-                .normalize()
-                .toBuffer();
-            await (0, sharp_1.default)(buffer)
-                .trim({ threshold: 10 })
-                .extend({
-                top: 10,
-                bottom: 10,
-                left: 10,
-                right: 10,
-                background: { r: 255, g: 255, b: 255 }
-            })
-                .toFile(outputImage);
-            console.log("Passo 2: Imagem recortada e processada com sucesso!");
-        }
-        catch (err) {
-            console.error("Erro ao processar e recortar imagem:", err);
-        }
-    }
-    await enhanceAndCropManuscript();
-    console.log("Processamento completo!");
+    const books_id = await Typebook_1.default.findOrFail(236);
+    console.log("######", books_id.books_id);
 });
 //# sourceMappingURL=test.spec.js.map

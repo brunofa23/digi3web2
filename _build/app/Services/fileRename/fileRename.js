@@ -101,6 +101,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
             console.log("Error", image.errors);
         }
         _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
+        console.log("FILE RENAME 5000>", _fileRename);
         try {
             if (image && image.isValid) {
                 result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number));
@@ -161,10 +162,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     let objFileName;
     let separators;
     let arrayFileName;
+    let isCreateBookrecord = false;
+    let isCreateCover = false;
     const regexBookAndCod = /^L\d+\(\d+\).*$/;
     const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
     const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
     const regexDocumentAndProt = /^P\d+\(\d+\).*$/;
+    const regexBookSheetSideInsertBookrecord = /^L[1-9]\d*F\([1-9]\d*\)[FV]\.[A-Za-z0-9]+$/;
+    const regexBookCoverInsertBookrecord = /^L[1-9]\d*C\([1-9]\d*\).*$/;
     const query = Bookrecord_1.default.query()
         .preload('indeximage', query => {
         query.where('indeximages.typebooks_id', typebooks_id);
@@ -173,14 +178,17 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         .where('bookrecords.typebooks_id', '=', typebooks_id)
         .andWhere('bookrecords.companies_id', '=', companies_id);
     if (dataImages.typeBookFile) {
+        console.log("FILERENAME PASSO 1");
         let fileName;
         if (dataImages.book && dataImages.sheet && dataImages.side) {
             fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
         }
         else if (dataImages.book && dataImages.cod) {
+            console.log("FILERENAME PASSO 2");
             fileName = `L${dataImages.book}(${dataImages.cod})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
         }
         else if (dataImages.book && dataImages.approximateTerm) {
+            console.log("FILERENAME PASSO 3");
             fileName = `T${dataImages.book}(${dataImages.approximateTerm})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
         }
         const fileRename = {
@@ -191,6 +199,35 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             typeBookFile: true
         };
         return fileRename;
+    }
+    else if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
+        const arrayFileName = originalFileName
+            .substring(1)
+            .split(/[()\.]/)
+            .filter(Boolean);
+        objFileName = {
+            book: arrayFileName[0].replace("C", ""),
+            sheet: 0,
+            ext: path.extname(originalFileName).toLowerCase()
+        };
+        query.andWhere('book', objFileName.book);
+        isCreateCover = true;
+    }
+    else if (regexBookSheetSideInsertBookrecord.test(originalFileName.toUpperCase())) {
+        const arrayFileName = originalFileName
+            .substring(1)
+            .split(/[()\.]/)
+            .filter(Boolean);
+        objFileName = {
+            book: arrayFileName[0].replace("F", ""),
+            sheet: arrayFileName[1],
+            side: arrayFileName[2],
+            ext: path.extname(originalFileName).toLowerCase()
+        };
+        query.andWhere('book', objFileName.book);
+        query.andWhere('sheet', objFileName.sheet);
+        query.andWhere('side', objFileName.side);
+        isCreateBookrecord = true;
     }
     else if (regexBookAndCod.test(originalFileName.toUpperCase())) {
         separators = ["L", '\'', '(', ')', '|', '-'];
@@ -230,6 +267,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query.andWhere('cod', objFileName.cod);
     }
     else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
+        console.log("FILERENAME PASSO 7");
         const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
         objFileName = {
             book: arrayFileName[0],
@@ -252,6 +290,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         });
     }
     else {
+        console.log("FILERENAME PASSO 8");
         if (dataImages.id)
             query.andWhere('id', dataImages.id);
         if (dataImages.book)
@@ -271,10 +310,35 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         };
     }
     try {
-        const bookRecord = await query.first();
+        let bookRecord = await query.first();
         let seq = 0;
-        if (bookRecord === null)
-            return;
+        if (bookRecord === null || isCreateCover) {
+            if (isCreateBookrecord || isCreateCover) {
+                try {
+                    const book = await Typebook_1.default.findOrFail(typebooks_id);
+                    const bookRecordFind = await Bookrecord_1.default.query()
+                        .where('typebooks_id', typebooks_id)
+                        .max('cod as max_cod').first();
+                    const { ext, ...objFileNameWithoutExt } = objFileName;
+                    const objectInsert = {
+                        books_id: book.books_id,
+                        typebooks_id: typebooks_id,
+                        companies_id: companies_id,
+                        cod: bookRecordFind?.$extras.max_cod + 1,
+                        ...objFileNameWithoutExt
+                    };
+                    const createBookrecord = await Bookrecord_1.default.create(objectInsert);
+                    bookRecord = await query.where('id', createBookrecord.id).first();
+                }
+                catch (error) {
+                    console.log("!!!!!!!", error);
+                }
+            }
+            else {
+                console.log("SAIR FORA");
+                return;
+            }
+        }
         if (bookRecord.indeximage.length == 0)
             seq = 1;
         else

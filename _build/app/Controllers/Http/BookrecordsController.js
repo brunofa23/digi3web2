@@ -263,20 +263,6 @@ class BookrecordsController {
     async destroy({ auth, params, response }) {
         const { companies_id } = await auth.use('api').authenticate();
         try {
-            const listOfImagesToDeleteGDrive = await Indeximage_1.default.query()
-                .preload('typebooks', (query) => {
-                query.where('id', params.typebooks_id)
-                    .andWhere('companies_id', companies_id);
-            })
-                .where('typebooks_id', params.typebooks_id)
-                .andWhere('bookrecords_id', params.id)
-                .andWhere('companies_id', companies_id);
-            if (listOfImagesToDeleteGDrive.length > 0) {
-                var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-                    return { file_name: item.file_name, path: item.typebooks.path };
-                });
-                fileRename.deleteFile(file_name);
-            }
             await Indeximage_1.default.query()
                 .where('typebooks_id', '=', params.typebooks_id)
                 .andWhere('bookrecords_id', "=", params.id)
