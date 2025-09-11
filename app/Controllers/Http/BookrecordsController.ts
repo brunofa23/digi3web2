@@ -8,6 +8,7 @@ import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import Typebook from 'App/Models/Typebook'
 import Document from 'App/Models/Document'
+import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
 import { DateTime } from 'luxon'
 
@@ -763,10 +764,142 @@ export default class BookrecordsController {
   }
 
 
+  // public async generateOrUpdateBookrecords2({ auth, request, params, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate();
+  //   let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term, obs } =
+  //     request.only(['start_cod', 'end_cod', 'book', 'book_replace', 'sheet', 'side', 'model_book', 'books_id', 'indexbook', 'year', 'approximate_term', 'obs']);
+
+  //   let bookRecord = {};
+  //   if (start_cod > end_cod) throw new BadRequestException("erro: codigo inicial maior que o final");
+
+  //   async function modelBookNext(side: string | null, sheet: number | null) {
+  //     if (!side || !model_book) return { side, sheet }; // Ignorar se side ou model_book não forem fornecidos
+  //     if (model_book === "C") {
+  //       side = null;
+  //       sheet = 0;
+  //     } else if (model_book === "F") {
+  //       side = "F";
+  //       sheet = sheet !== null ? sheet + 1 : null;
+  //     } else if (model_book === "V") {
+  //       side = "V";
+  //       sheet = sheet !== null ? sheet + 1 : null;
+  //     } else if (model_book === "FV") {
+  //       side = side === "F" ? "V" : "F";
+  //       sheet = sheet !== null ? sheet + 1 : null;
+  //     } else if (model_book === "FVFV") {
+  //       if (side === "V") sheet = sheet !== null ? sheet + 1 : null;
+  //       side = side === "F" ? "V" : "F";
+  //     } else if (model_book === "F-IMPAR") {
+  //       sheet = sheet !== null ? sheet + 2 : null;
+  //     } else if (model_book === "V-PAR") {
+  //       sheet = sheet !== null ? sheet + 2 : null;
+  //     }
+  //     return { side, sheet };
+  //   }
+
+  //   try {
+  //     let model_book_state = { side: side || null, sheet: sheet || null }; // Garantir valores nulos se ausentes
+  //     while (start_cod <= end_cod) {
+  //       bookRecord = {
+  //         cod: start_cod,
+  //         typebooks_id: params.typebooks_id,
+  //         books_id: books_id,
+  //         book: book,
+  //         companies_id: authenticate.companies_id,
+  //         indexbook: indexbook,
+  //         year: year,
+  //         obs: obs,
+  //         approximate_term: approximate_term ? approximate_term++ : undefined
+  //       };
+
+  //       if (side && model_book) {
+  //         bookRecord.side = model_book_state.side;
+  //         bookRecord.sheet = model_book_state.sheet;
+  //         model_book_state = await modelBookNext(bookRecord.side, bookRecord.sheet);
+  //       } else if (sheet) {
+  //         bookRecord.sheet = sheet;
+  //         sheet++;
+  //       }
+  //       const query = Bookrecord.query()
+  //         .where('cod', bookRecord.cod)
+  //         .andWhere('companies_id', authenticate.companies_id)
+  //         .andWhere('typebooks_id', bookRecord.typebooks_id)
+  //         .andWhere('books_id', books_id)
+  //         .andWhere('book', bookRecord.book);
+  //       const verifyBookRecord = await query.first();
+
+  //       if (book_replace) {
+  //         bookRecord.book = book_replace;
+  //       }
+  //       if (bookRecord.sheet == null) {
+  //         bookRecord.sheet = undefined
+  //       }
+
+  //       if (verifyBookRecord) {
+  //         // UPDATE
+  //         await Bookrecord.query()
+  //           .where('id', verifyBookRecord.id)
+  //           .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
+  //           .andWhere('companies_id', verifyBookRecord.companies_id)
+  //           .andWhere('books_id', verifyBookRecord.books_id)
+  //           .andWhere('book', verifyBookRecord.book)
+  //           .update(bookRecord);
+  //       } else {
+  //         // CREATE
+  //         await Bookrecord.create(bookRecord);
+  //       }
+  //       start_cod++;
+  //     }
+
+  //     const successValidation = await new validations('bookrecord_success_100');
+  //     return response.status(201).send(successValidation.code);
+
+  //   } catch (error) {
+  //     throw new BadRequestException("Bad Request", 402, error);
+  //   }
+  // }
   public async generateOrUpdateBookrecords2({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate();
-    let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term, obs } =
-      request.only(['start_cod', 'end_cod', 'book', 'book_replace', 'sheet', 'side', 'model_book', 'books_id', 'indexbook', 'year', 'approximate_term', 'obs']);
+
+    // 1. Pega da URL
+    //const { typebooks_id } = params
+    // let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term, obs } =
+    //   request.only(['start_cod', 'end_cod', 'book', 'book_replace', 'sheet', 'side', 'model_book', 'books_id', 'indexbook', 'year', 'approximate_term', 'obs']);
+    // 2. Valida body
+
+    let {
+      is_create,
+      start_cod,
+      end_cod,
+      book,
+      book_replace,
+      sheet,
+      side,
+      model_book,
+      books_id,
+      indexbook,
+      year,
+      approximate_term,
+      obs
+    } = await request.validate({
+      schema: schema.create({
+        is_create:schema.boolean.optional(),
+        start_cod: schema.number(),
+        end_cod: schema.number(),
+        book: schema.number.optional(),
+        book_replace: schema.string.optional(),
+        sheet: schema.number.optional(),
+        side: schema.string.optional(),
+        model_book: schema.string.optional(),
+        books_id: schema.number(),
+        indexbook: schema.string.optional(),
+        year: schema.number.optional(),
+        approximate_term: schema.number.optional(),
+        obs: schema.string.optional(),
+      }),
+    })
+
+    console.log("PASSO 1", is_create)
 
     let bookRecord = {};
     if (start_cod > end_cod) throw new BadRequestException("erro: codigo inicial maior que o final");
@@ -843,8 +976,9 @@ export default class BookrecordsController {
             .andWhere('books_id', verifyBookRecord.books_id)
             .andWhere('book', verifyBookRecord.book)
             .update(bookRecord);
-        } else {
+        } else if(is_create) {
           // CREATE
+          console.log("CRIAR NOVOS REGISTROS")
           await Bookrecord.create(bookRecord);
         }
         start_cod++;
@@ -947,16 +1081,16 @@ export default class BookrecordsController {
     const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs()
 
     try {
-          const query = Database
-            .from('bookrecords')
-            .select('book', 'indexbook')
-            .min('cod as initialCod')
-            .max('cod as finalCod')
-            .min('sheet as initialSheet')
-            .max('sheet as finalSheet')
-            .count('* as totalRows')
-            .select(Database.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = bookrecords.companies_id and bkr.typebooks_id = bookrecords.typebooks_id and bkr.book=bookrecords.book and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
-            .select(Database.raw(`
+      const query = Database
+        .from('bookrecords')
+        .select('book', 'indexbook')
+        .min('cod as initialCod')
+        .max('cod as finalCod')
+        .min('sheet as initialSheet')
+        .max('sheet as finalSheet')
+        .count('* as totalRows')
+        .select(Database.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = bookrecords.companies_id and bkr.typebooks_id = bookrecords.typebooks_id and bkr.book=bookrecords.book and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
+        .select(Database.raw(`
         (SELECT COUNT(*)
          FROM indeximages
          INNER JOIN bookrecords bkr ON
@@ -972,19 +1106,19 @@ export default class BookrecordsController {
            GROUP BY bkr.book, bkr.indexbook
              ) as totalFiles
       `))
-            .where('companies_id', authenticate.companies_id)
-            .andWhere('typebooks_id', typebooks_id)
-          if (book > 0) {
-            query.andWhere('book', book)
-          } else if (bookStart > 0 || bookEnd > 0) {
-            if (bookStart > 0)
-              query.andWhere('book', '>=', bookStart)
-            if (bookEnd > 0)
-              query.andWhere('book', '<=', bookEnd)
-          }
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('typebooks_id', typebooks_id)
+      if (book > 0) {
+        query.andWhere('book', book)
+      } else if (bookStart > 0 || bookEnd > 0) {
+        if (bookStart > 0)
+          query.andWhere('book', '>=', bookStart)
+        if (bookEnd > 0)
+          query.andWhere('book', '<=', bookEnd)
+      }
 
-          query.groupBy('book', 'indexbook')
-          query.orderBy('bookrecords.book')
+      query.groupBy('book', 'indexbook')
+      query.orderBy('bookrecords.book')
 
       const bookSummaryPayload = await query
       //**************************************** */
