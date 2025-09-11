@@ -861,12 +861,6 @@ export default class BookrecordsController {
   public async generateOrUpdateBookrecords2({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate();
 
-    // 1. Pega da URL
-    //const { typebooks_id } = params
-    // let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term, obs } =
-    //   request.only(['start_cod', 'end_cod', 'book', 'book_replace', 'sheet', 'side', 'model_book', 'books_id', 'indexbook', 'year', 'approximate_term', 'obs']);
-    // 2. Valida body
-
     let {
       is_create,
       start_cod,
@@ -883,7 +877,8 @@ export default class BookrecordsController {
       obs
     } = await request.validate({
       schema: schema.create({
-        is_create:schema.boolean.optional(),
+        is_create: schema.boolean.optional(),
+        by_sheet: schema.boolean.optional(),
         start_cod: schema.number(),
         end_cod: schema.number(),
         book: schema.number.optional(),
@@ -976,7 +971,7 @@ export default class BookrecordsController {
             .andWhere('books_id', verifyBookRecord.books_id)
             .andWhere('book', verifyBookRecord.book)
             .update(bookRecord);
-        } else if(is_create) {
+        } else if (is_create) {
           // CREATE
           console.log("CRIAR NOVOS REGISTROS")
           await Bookrecord.create(bookRecord);
