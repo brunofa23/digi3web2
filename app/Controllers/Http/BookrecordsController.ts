@@ -355,20 +355,21 @@ export default class BookrecordsController {
     const { companies_id } = await auth.use('api').authenticate()
     try {
       //excluir imagens do google drive
-      const listOfImagesToDeleteGDrive = await Indeximage.query()
-        .preload('typebooks', (query) => {
-          query.where('id', params.typebooks_id)
-            .andWhere('companies_id', companies_id)
-        })
-        .where('typebooks_id', params.typebooks_id)
-        .andWhere('bookrecords_id', params.id)
-        .andWhere('companies_id', companies_id)
-      if (listOfImagesToDeleteGDrive.length > 0) {
-        var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-          return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
-        });
-        fileRename.deleteFile(file_name)
-      }
+      // const listOfImagesToDeleteGDrive = await Indeximage.query()
+      //   .preload('typebooks', (query) => {
+      //     query.where('id', params.typebooks_id)
+      //       .andWhere('companies_id', companies_id)
+      //   })
+      //   .where('typebooks_id', params.typebooks_id)
+      //   .andWhere('bookrecords_id', params.id)
+      //   .andWhere('companies_id', companies_id)
+
+      // if (listOfImagesToDeleteGDrive.length > 0) {
+      //   var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+      //     return { file_name: item.file_name, path: item.typebooks.path }   //retorna o item original elevado ao quadrado
+      //   });
+      //   fileRename.deleteFile(file_name)
+      // }
 
       await Indeximage.query()
         .where('typebooks_id', '=', params.typebooks_id)
