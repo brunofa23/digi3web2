@@ -12,6 +12,7 @@ const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const BadRequestException_2 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
+const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const BookrecordValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/BookrecordValidator"));
 const luxon_1 = require("luxon");
 const fileRename = require('../../Services/fileRename/fileRename');
@@ -572,98 +573,153 @@ class BookrecordsController {
             throw new BadRequestException_1.default("Bad Request", 402, error);
         }
     }
-    async generateOrUpdateBookrecords2({ auth, request, params, response }) {
+    async generateOrUpdateBookrecords2({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        let { start_cod, end_cod, book, book_replace, sheet, side, model_book, books_id, indexbook, year, approximate_term, obs } = request.only(['start_cod', 'end_cod', 'book', 'book_replace', 'sheet', 'side', 'model_book', 'books_id', 'indexbook', 'year', 'approximate_term', 'obs']);
-        let bookRecord = {};
-        if (start_cod > end_cod)
+        const body = await request.validate({
+            schema: Validator_1.schema.create({
+                is_create: Validator_1.schema.boolean.optional(),
+                by_sheet: Validator_1.schema.string.optional(),
+                start_cod: Validator_1.schema.number(),
+                end_cod: Validator_1.schema.number(),
+                book: Validator_1.schema.number.optional(),
+                book_replace: Validator_1.schema.string.optional(),
+                sheet: Validator_1.schema.number.optional(),
+                side: Validator_1.schema.string.optional(),
+                model_book: Validator_1.schema.string.optional(),
+                books_id: Validator_1.schema.number(),
+                indexbook: Validator_1.schema.string.optional(),
+                year: Validator_1.schema.number.optional(),
+                approximate_term: Validator_1.schema.number.optional(),
+                obs: Validator_1.schema.string.optional(),
+            }),
+        });
+        if (body.start_cod > body.end_cod) {
             throw new BadRequestException_1.default("erro: codigo inicial maior que o final");
-        async function modelBookNext(side, sheet) {
-            if (!side || !model_book)
+        }
+        function modelBookNext(model_book, side, sheet) {
+            if (!model_book)
                 return { side, sheet };
-            if (model_book === "C") {
-                side = null;
-                sheet = 0;
+            switch (model_book) {
+                case "C":
+                    return { side: null, sheet: 0 };
+                case "F":
+                    return { side: "F", sheet: (sheet ?? 0) + 1 };
+                case "V":
+                    return { side: "V", sheet: (sheet ?? 0) + 1 };
+                case "FV":
+                    return {
+                        side: side === "F" ? "V" : "F",
+                        sheet: (sheet ?? 0) + 1,
+                    };
+                case "FVFV":
+                    if (side === "V") {
+                        sheet = (sheet ?? 0) + 1;
+                    }
+                    return {
+                        side: side === "F" ? "V" : "F",
+                        sheet,
+                    };
+                case "F-IMPAR":
+                    return {
+                        side: "F",
+                        sheet: (sheet ?? 0) + 2,
+                    };
+                case "V-PAR":
+                    return {
+                        side: "V",
+                        sheet: (sheet ?? 0) + 2,
+                    };
+                default:
+                    return { side, sheet };
             }
-            else if (model_book === "F") {
-                side = "F";
-                sheet = sheet !== null ? sheet + 1 : null;
-            }
-            else if (model_book === "V") {
-                side = "V";
-                sheet = sheet !== null ? sheet + 1 : null;
-            }
-            else if (model_book === "FV") {
-                side = side === "F" ? "V" : "F";
-                sheet = sheet !== null ? sheet + 1 : null;
-            }
-            else if (model_book === "FVFV") {
-                if (side === "V")
-                    sheet = sheet !== null ? sheet + 1 : null;
-                side = side === "F" ? "V" : "F";
-            }
-            else if (model_book === "F-IMPAR") {
-                sheet = sheet !== null ? sheet + 2 : null;
-            }
-            else if (model_book === "V-PAR") {
-                sheet = sheet !== null ? sheet + 2 : null;
-            }
-            return { side, sheet };
         }
         try {
-            let model_book_state = { side: side || null, sheet: sheet || null };
-            while (start_cod <= end_cod) {
-                bookRecord = {
-                    cod: start_cod,
-                    typebooks_id: params.typebooks_id,
-                    books_id: books_id,
-                    book: book,
-                    companies_id: authenticate.companies_id,
-                    indexbook: indexbook,
-                    year: year,
-                    obs: obs,
-                    approximate_term: approximate_term ? approximate_term++ : undefined
-                };
-                if (side && model_book) {
-                    bookRecord.side = model_book_state.side;
-                    bookRecord.sheet = model_book_state.sheet;
-                    model_book_state = await modelBookNext(bookRecord.side, bookRecord.sheet);
-                }
-                else if (sheet) {
-                    bookRecord.sheet = sheet;
-                    sheet++;
-                }
-                const query = Bookrecord_1.default.query()
-                    .where('cod', bookRecord.cod)
-                    .andWhere('companies_id', authenticate.companies_id)
-                    .andWhere('typebooks_id', bookRecord.typebooks_id)
-                    .andWhere('books_id', books_id)
-                    .andWhere('book', bookRecord.book);
-                const verifyBookRecord = await query.first();
-                if (book_replace) {
-                    bookRecord.book = book_replace;
-                }
-                if (bookRecord.sheet == null) {
-                    bookRecord.sheet = undefined;
-                }
-                if (verifyBookRecord) {
-                    await Bookrecord_1.default.query()
-                        .where('id', verifyBookRecord.id)
-                        .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
-                        .andWhere('companies_id', verifyBookRecord.companies_id)
-                        .andWhere('books_id', verifyBookRecord.books_id)
-                        .andWhere('book', verifyBookRecord.book)
-                        .update(bookRecord);
+            const query = Bookrecord_1.default.query()
+                .andWhere("companies_id", authenticate.companies_id)
+                .andWhere("typebooks_id", params.typebooks_id)
+                .where("books_id", body.books_id)
+                .andWhere("book", body.book);
+            if (body.by_sheet == "S") {
+                query.andWhere("sheet", ">=", body.start_cod);
+                query.andWhere("sheet", "<=", body.end_cod);
+            }
+            else {
+                query.andWhere("cod", ">=", body.start_cod);
+                query.andWhere("cod", "<=", body.end_cod);
+            }
+            const result = await query;
+            const generatedArray = [];
+            let currentSheet = body.sheet ?? body.start_cod;
+            let currentSide = body.side ?? null;
+            for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
+                let recordsForCod;
+                if (body.by_sheet == "S") {
+                    recordsForCod = result.filter((r) => r.sheet === cod);
                 }
                 else {
-                    await Bookrecord_1.default.create(bookRecord);
+                    recordsForCod = result.filter((r) => r.cod === cod);
                 }
-                start_cod++;
+                if (recordsForCod.length === 0) {
+                    recordsForCod = [null];
+                }
+                for (const baseRecord of recordsForCod) {
+                    generatedArray.push({
+                        id: baseRecord?.id,
+                        typebooks_id: params.typebooks_id,
+                        books_id: baseRecord?.books_id ?? body.books_id,
+                        companies_id: authenticate.companies_id,
+                        cod: cod,
+                        book: baseRecord?.book ?? body.book,
+                        sheet: currentSheet,
+                        side: currentSide,
+                        approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                        indexbook: baseRecord?.indexbook ?? body.indexbook,
+                    });
+                    const next = modelBookNext(body.model_book, currentSide, currentSheet);
+                    currentSide = next.side;
+                    currentSheet = next.sheet ?? currentSheet;
+                }
             }
-            const successValidation = await new validations_1.default('bookrecord_success_100');
-            return response.status(201).send(successValidation.code);
+            const trx = await Database_1.default.transaction();
+            try {
+                for (const record of generatedArray) {
+                    if (record.id) {
+                        await Bookrecord_1.default.query({ client: trx })
+                            .where("id", record.id)
+                            .update({
+                            sheet: record.sheet,
+                            side: record.side,
+                            approximate_term: record.approximate_term,
+                            indexbook: record.indexbook,
+                        });
+                    }
+                    else if (body.is_create) {
+                        await Bookrecord_1.default.create({
+                            typebooks_id: params.typebooks_id,
+                            books_id: record.books_id,
+                            companies_id: authenticate.companies_id,
+                            cod: record.cod,
+                            book: record.book,
+                            sheet: record.sheet,
+                            side: record.side,
+                            approximate_term: record.approximate_term,
+                            indexbook: record.indexbook,
+                        }, { client: trx });
+                    }
+                }
+                await trx.commit();
+            }
+            catch (err) {
+                await trx.rollback();
+                throw err;
+            }
+            return response.status(200).send({
+                message: "Bookrecords atualizados/criados com sucesso!",
+                data: generatedArray,
+            });
         }
         catch (error) {
+            console.error(error);
             throw new BadRequestException_1.default("Bad Request", 402, error);
         }
     }
