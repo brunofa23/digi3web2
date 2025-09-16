@@ -1065,190 +1065,326 @@ export default class BookrecordsController {
 
   // }
 
-  public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
-    const authenticate = await auth.use('api').authenticate();
+ public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
+  const authenticate = await auth.use('api').authenticate();
 
-    const body = await request.validate({
-      schema: schema.create({
-        is_create: schema.boolean.optional(),
-        by_sheet: schema.string.optional(),
-        start_cod: schema.number(),
-        end_cod: schema.number(),
-        book: schema.number.optional(),
-        book_replace: schema.string.optional(),
-        sheet: schema.number.optional(),
-        side: schema.string.optional(),
-        model_book: schema.string.optional(),
-        books_id: schema.number(),
-        indexbook: schema.string.optional(),
-        year: schema.number.optional(),
-        approximate_term: schema.number.optional(),
-        obs: schema.string.optional(),
-      }),
-    });
+  const body = await request.validate({
+    schema: schema.create({
+      is_create: schema.boolean.optional(),
+      by_sheet: schema.string.optional(),
+      start_cod: schema.number(),
+      end_cod: schema.number(),
+      book: schema.number.optional(),
+      book_replace: schema.string.optional(),
+      sheet: schema.number.optional(),
+      side: schema.string.optional(),
+      model_book: schema.string.optional(),
+      books_id: schema.number(),
+      indexbook: schema.string.optional(),
+      year: schema.number.optional(),
+      approximate_term: schema.number.optional(),
+      obs: schema.string.optional(),
+    }),
+  });
 
-    if (body.start_cod > body.end_cod) {
-      throw new BadRequestException("erro: codigo inicial maior que o final");
-    }
+  if (body.start_cod > body.end_cod) {
+    throw new BadRequestException("erro: codigo inicial maior que o final");
+  }
 
-    /**
-     * Função que calcula o próximo side/sheet
-     */
-    function modelBookNext(
-      model_book: string | undefined,
-      side: string | null,
-      sheet: number | null
-    ) {
-      if (!model_book) return { side, sheet };
+  /**
+   * Função que calcula o próximo side/sheet
+   */
+  function modelBookNext(
+    model_book: string | undefined,
+    side: string | null,
+    sheet: number | null
+  ) {
+    if (!model_book) return { side, sheet: (sheet ?? 0) + 1 };
 
-      switch (model_book) {
-        case "C":
-          return { side: null, sheet: 0 };
+    switch (model_book) {
+      case "C":
+        return { side: null, sheet: 0 };
 
-        case "F":
-          return { side: "F", sheet: (sheet ?? 0) + 1 };
+      case "F":
+        return { side: "F", sheet: (sheet ?? 0) + 1 };
 
-        case "V":
-          return { side: "V", sheet: (sheet ?? 0) + 1 };
+      case "V":
+        return { side: "V", sheet: (sheet ?? 0) + 1 };
 
-        case "FV":
-          return {
-            side: side === "F" ? "V" : "F",
-            sheet: (sheet ?? 0) + 1,
-          };
+      case "FV":
+        // alterna o side e avança a folha a cada registro
+        return {
+          side: side === "F" ? "V" : "F",
+          sheet: (sheet ?? 0) + 1,
+        };
 
-        case "FVFV":
-          if (side === "V") {
-            sheet = (sheet ?? 0) + 1;
-          }
-          return {
-            side: side === "F" ? "V" : "F",
-            sheet,
-          };
-
-        case "F-IMPAR":
-          return {
-            side: "F",
-            sheet: (sheet ?? 0) + 2,
-          };
-
-        case "V-PAR":
-          return {
-            side: "V",
-            sheet: (sheet ?? 0) + 2,
-          };
-
-        default:
-          return { side, sheet };
-      }
-    }
-
-    try {
-      // Monta a query base
-      const query = Bookrecord.query()
-        .andWhere("companies_id", authenticate.companies_id)
-        .andWhere("typebooks_id", params.typebooks_id)
-        .where("books_id", body.books_id)
-        .andWhere("book", body.book);
-
-      if (body.by_sheet == "S") {
-        query.andWhere("sheet", ">=", body.start_cod);
-        query.andWhere("sheet", "<=", body.end_cod);
-      } else {
-        query.andWhere("cod", ">=", body.start_cod);
-        query.andWhere("cod", "<=", body.end_cod);
-      }
-      const result = await query;
-      // Agora montamos o array novo
-      const generatedArray: any[] = [];
-
-      let currentSheet = body.sheet ?? body.start_cod;
-      let currentSide = body.side ?? null;
-
-      for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
-        // Pega todos os registros para o cod/sheet atual
-        let recordsForCod: any[];
-
-        if (body.by_sheet == "S") {
-          recordsForCod = result.filter((r) => r.sheet === cod);
+      case "FVFV":
+        // F -> V (mesma folha), V -> F (avança folha)
+        if (side === "F") {
+          return { side: "V", sheet }; // mesmo sheet
         } else {
-          recordsForCod = result.filter((r) => r.cod === cod);
+          return { side: "F", sheet: (sheet ?? 0) + 1 }; // avança sheet
         }
 
-        // Se não houver registros, garantimos pelo menos um
-        if (recordsForCod.length === 0) {
-          recordsForCod = [null];
-        }
+      case "F-IMPAR":
+        return {
+          side: "F",
+          sheet: (sheet ?? 0) + 2,
+        };
 
-        for (const baseRecord of recordsForCod) {
-          generatedArray.push({
-            id: baseRecord?.id,
-            typebooks_id: params.typebooks_id,
-            books_id: baseRecord?.books_id ?? body.books_id,
-            companies_id: authenticate.companies_id,
-            cod: cod,
-            book: baseRecord?.book ?? body.book,
-            sheet: currentSheet,
-            side: currentSide,
-            approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
-            indexbook: baseRecord?.indexbook ?? body.indexbook,
-          });
+      case "V-PAR":
+        return {
+          side: "V",
+          sheet: (sheet ?? 0) + 2,
+        };
 
-          // Atualiza para o próximo sheet/side a cada registro
-          const next = modelBookNext(body.model_book, currentSide, currentSheet);
-          currentSide = next.side;
-          currentSheet = next.sheet ?? currentSheet;
-        }
-      }
-
-      // --- UPDATE/INSERT NO BANCO ---
-      const trx = await Database.transaction();
-
-      try {
-        for (const record of generatedArray) {
-          if (record.id) {
-            // Atualiza se já existe
-            await Bookrecord.query({ client: trx })
-              .where("id", record.id)
-              .update({
-                sheet: record.sheet,
-                side: record.side,
-                approximate_term: record.approximate_term,
-                indexbook: record.indexbook,
-              });
-          } else if (body.is_create) {
-            // Cria se não existe
-            await Bookrecord.create(
-              {
-                typebooks_id: params.typebooks_id,
-                books_id: record.books_id,
-                companies_id: authenticate.companies_id,
-                cod: record.cod,
-                book: record.book,
-                sheet: record.sheet,
-                side: record.side,
-                approximate_term: record.approximate_term,
-                indexbook: record.indexbook,
-              },
-              { client: trx }
-            );
-          }
-        }
-
-        await trx.commit();
-      } catch (err) {
-        await trx.rollback();
-        throw err;
-      }
-      return response.status(200).send({
-        message: "Bookrecords atualizados/criados com sucesso!",
-        data: generatedArray,
-      });
-    } catch (error) {
-      console.error(error);
-      throw new BadRequestException("Bad Request", 402, error);
+      default:
+        // comportamento seguro: avança folha por padrão
+        return { side, sheet: (sheet ?? 0) + 1 };
     }
   }
+
+  try {
+    // Monta a query base
+    const query = Bookrecord.query()
+      .andWhere("companies_id", authenticate.companies_id)
+      .andWhere("typebooks_id", params.typebooks_id)
+      .where("books_id", body.books_id)
+      .andWhere("book", body.book);
+
+    if (body.by_sheet == "S") {
+      query.andWhere("sheet", ">=", body.start_cod);
+      query.andWhere("sheet", "<=", body.end_cod);
+    } else {
+      query.andWhere("cod", ">=", body.start_cod);
+      query.andWhere("cod", "<=", body.end_cod);
+    }
+
+    const result = await query;
+
+    // array final que iremos atualizar/criar
+    const generatedArray: any[] = [];
+
+    // posição inicial da renumeração
+    let currentSheet = body.sheet ?? body.start_cod;
+    // inicializa currentSide com um default coerente se não vier no body
+    const defaultSideForModel = (() => {
+      switch (body.model_book) {
+        case "F":
+        case "F-IMPAR":
+          return "F";
+        case "V":
+        case "V-PAR":
+          return "V";
+        case "FV":
+        case "FVFV":
+          return "F"; // por padrão começa em F
+        default:
+          return body.side ?? null;
+      }
+    })();
+    let currentSide = body.side ?? defaultSideForModel;
+
+    // Ordena sem mutar o result original
+    const sortRecords = (arr: any[]) =>
+      (arr ?? []).slice().sort((a: any, b: any) => {
+        const ac = a?.cod ?? 0;
+        const bc = b?.cod ?? 0;
+        if (ac !== bc) return ac - bc;
+        return (a?.id ?? 0) - (b?.id ?? 0);
+      });
+
+    if (body.by_sheet == "S") {
+      if (body.is_create) {
+        // percorre cada número de sheet solicitado (cria quando não existir)
+        for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
+          let recordsForSheet = result.filter((r) => r.sheet === sheetNum);
+          recordsForSheet = sortRecords(recordsForSheet);
+
+          // mínimo de slots por sheet:
+          // - FVFV => 2 slots (F, V)
+          // - outros => 1 slot
+          const minSlots = body.model_book === "FVFV" ? 2 : 1;
+          const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
+
+          for (let slot = 0; slot < slotsToProcess; slot++) {
+            const baseRecord = recordsForSheet[slot] ?? null;
+
+            // Atribuímos side e sheet **pela sequência** (não pelo baseRecord.side)
+            const assignedSide = currentSide ?? defaultSideForModel;
+
+            generatedArray.push({
+              id: baseRecord?.id,
+              typebooks_id: params.typebooks_id,
+              books_id: baseRecord?.books_id ?? body.books_id,
+              companies_id: authenticate.companies_id,
+              cod: baseRecord?.cod ?? sheetNum,
+              book: baseRecord?.book ?? body.book,
+              sheet: currentSheet,
+              side: assignedSide,
+              approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+              indexbook: baseRecord?.indexbook ?? body.indexbook,
+            });
+
+            // avança a sequência segundo modelBookNext
+            const next = modelBookNext(body.model_book, assignedSide, currentSheet);
+            currentSide = next.side;
+            currentSheet = next.sheet ?? currentSheet;
+          }
+        }
+      } else {
+        // renumera apenas os sheets EXISTENTES (compacta gaps)
+        const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
+          .filter((s) => s !== undefined && s !== null)
+          .sort((a, b) => a - b);
+
+        for (const sheetVal of distinctSheets) {
+          let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
+          recordsForSheet = sortRecords(recordsForSheet);
+
+          if (recordsForSheet.length === 0) continue;
+
+          for (const baseRecord of recordsForSheet) {
+            const assignedSide = currentSide ?? defaultSideForModel;
+
+            generatedArray.push({
+              id: baseRecord?.id,
+              typebooks_id: params.typebooks_id,
+              books_id: baseRecord?.books_id ?? body.books_id,
+              companies_id: authenticate.companies_id,
+              cod: baseRecord?.cod ?? sheetVal,
+              book: baseRecord?.book ?? body.book,
+              sheet: currentSheet, // renumera compactando gaps
+              side: assignedSide,
+              approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+              indexbook: baseRecord?.indexbook ?? body.indexbook,
+            });
+
+            // avança a sequência por registro
+            const next = modelBookNext(body.model_book, assignedSide, currentSheet);
+            currentSide = next.side;
+            currentSheet = next.sheet ?? currentSheet;
+          }
+        }
+      }
+    } else {
+      // lógica por COD (comportamento análogo ao por sheet)
+      if (body.is_create) {
+        for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
+          let recordsForCod = result.filter((r) => r.cod === cod);
+          recordsForCod = sortRecords(recordsForCod);
+
+          // sempre pelo menos 1 slot quando is_create=true
+          const slotsToProcess = Math.max(recordsForCod.length, 1);
+
+          for (let slot = 0; slot < slotsToProcess; slot++) {
+            const baseRecord = recordsForCod[slot] ?? null;
+            const assignedSide = currentSide ?? defaultSideForModel;
+
+            generatedArray.push({
+              id: baseRecord?.id,
+              typebooks_id: params.typebooks_id,
+              books_id: baseRecord?.books_id ?? body.books_id,
+              companies_id: authenticate.companies_id,
+              cod: cod,
+              book: baseRecord?.book ?? body.book,
+              sheet: currentSheet,
+              side: assignedSide,
+              approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+              indexbook: baseRecord?.indexbook ?? body.indexbook,
+            });
+
+            const next = modelBookNext(body.model_book, assignedSide, currentSheet);
+            currentSide = next.side;
+            currentSheet = next.sheet ?? currentSheet;
+          }
+        }
+      } else {
+        // is_create == false -> só processa cods existentes
+        const distinctCods = Array.from(new Set(result.map((r) => r.cod)))
+          .filter((c) => c !== undefined && c !== null)
+          .sort((a, b) => a - b);
+
+        for (const codVal of distinctCods) {
+          let recordsForCod = result.filter((r) => r.cod === codVal);
+          recordsForCod = sortRecords(recordsForCod);
+
+          if (recordsForCod.length === 0) continue;
+
+          for (const baseRecord of recordsForCod) {
+            const assignedSide = currentSide ?? defaultSideForModel;
+
+            generatedArray.push({
+              id: baseRecord?.id,
+              typebooks_id: params.typebooks_id,
+              books_id: baseRecord?.books_id ?? body.books_id,
+              companies_id: authenticate.companies_id,
+              cod: codVal,
+              book: baseRecord?.book ?? body.book,
+              sheet: currentSheet,
+              side: assignedSide,
+              approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+              indexbook: baseRecord?.indexbook ?? body.indexbook,
+            });
+
+            const next = modelBookNext(body.model_book, assignedSide, currentSheet);
+            currentSide = next.side;
+            currentSheet = next.sheet ?? currentSheet;
+          }
+        }
+      }
+    }
+
+    // --- UPDATE/INSERT NO BANCO ---
+    const trx = await Database.transaction();
+
+    try {
+      for (const record of generatedArray) {
+        if (record.id) {
+          // Atualiza se já existe
+          await Bookrecord.query({ client: trx })
+            .where("id", record.id)
+            .update({
+              sheet: record.sheet,
+              side: record.side,
+              approximate_term: record.approximate_term,
+              indexbook: record.indexbook,
+            });
+        } else if (body.is_create) {
+          // Cria se não existe (ou é placeholder)
+          await Bookrecord.create(
+            {
+              typebooks_id: params.typebooks_id,
+              books_id: record.books_id,
+              companies_id: authenticate.companies_id,
+              cod: record.cod,
+              book: record.book,
+              sheet: record.sheet,
+              side: record.side,
+              approximate_term: record.approximate_term,
+              indexbook: record.indexbook,
+            },
+            { client: trx }
+          );
+        }
+      }
+
+      await trx.commit();
+    } catch (err) {
+      await trx.rollback();
+      throw err;
+    }
+
+    return response.status(200).send({
+      message: "Bookrecords atualizados/criados com sucesso!",
+      data: generatedArray,
+    });
+  } catch (error) {
+    console.error(error);
+    throw new BadRequestException("Bad Request", 402, error);
+  }
+}
+
 
 
   // *********************************************************************************************
