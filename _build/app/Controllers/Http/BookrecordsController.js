@@ -598,7 +598,7 @@ class BookrecordsController {
         }
         function modelBookNext(model_book, side, sheet) {
             if (!model_book)
-                return { side, sheet };
+                return { side, sheet: (sheet ?? 0) + 1 };
             switch (model_book) {
                 case "C":
                     return { side: null, sheet: 0 };
@@ -612,13 +612,12 @@ class BookrecordsController {
                         sheet: (sheet ?? 0) + 1,
                     };
                 case "FVFV":
-                    if (side === "V") {
-                        sheet = (sheet ?? 0) + 1;
+                    if (side === "F") {
+                        return { side: "V", sheet };
                     }
-                    return {
-                        side: side === "F" ? "V" : "F",
-                        sheet,
-                    };
+                    else {
+                        return { side: "F", sheet: (sheet ?? 0) + 1 };
+                    }
                 case "F-IMPAR":
                     return {
                         side: "F",
@@ -630,7 +629,7 @@ class BookrecordsController {
                         sheet: (sheet ?? 0) + 2,
                     };
                 default:
-                    return { side, sheet };
+                    return { side, sheet: (sheet ?? 0) + 1 };
             }
         }
         try {
@@ -650,34 +649,142 @@ class BookrecordsController {
             const result = await query;
             const generatedArray = [];
             let currentSheet = body.sheet ?? body.start_cod;
-            let currentSide = body.side ?? null;
-            for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
-                let recordsForCod;
-                if (body.by_sheet == "S") {
-                    recordsForCod = result.filter((r) => r.sheet === cod);
+            const defaultSideForModel = (() => {
+                switch (body.model_book) {
+                    case "F":
+                    case "F-IMPAR":
+                        return "F";
+                    case "V":
+                    case "V-PAR":
+                        return "V";
+                    case "FV":
+                    case "FVFV":
+                        return "F";
+                    default:
+                        return body.side ?? null;
+                }
+            })();
+            let currentSide = body.side ?? defaultSideForModel;
+            const sortRecords = (arr) => (arr ?? []).slice().sort((a, b) => {
+                const ac = a?.cod ?? 0;
+                const bc = b?.cod ?? 0;
+                if (ac !== bc)
+                    return ac - bc;
+                return (a?.id ?? 0) - (b?.id ?? 0);
+            });
+            if (body.by_sheet == "S") {
+                if (body.is_create) {
+                    for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
+                        let recordsForSheet = result.filter((r) => r.sheet === sheetNum);
+                        recordsForSheet = sortRecords(recordsForSheet);
+                        const minSlots = body.model_book === "FVFV" ? 2 : 1;
+                        const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
+                        for (let slot = 0; slot < slotsToProcess; slot++) {
+                            const baseRecord = recordsForSheet[slot] ?? null;
+                            const assignedSide = currentSide ?? defaultSideForModel;
+                            generatedArray.push({
+                                id: baseRecord?.id,
+                                typebooks_id: params.typebooks_id,
+                                books_id: baseRecord?.books_id ?? body.books_id,
+                                companies_id: authenticate.companies_id,
+                                cod: baseRecord?.cod ?? sheetNum,
+                                book: baseRecord?.book ?? body.book,
+                                sheet: currentSheet,
+                                side: assignedSide,
+                                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                                indexbook: baseRecord?.indexbook ?? body.indexbook,
+                            });
+                            const next = modelBookNext(body.model_book, assignedSide, currentSheet);
+                            currentSide = next.side;
+                            currentSheet = next.sheet ?? currentSheet;
+                        }
+                    }
                 }
                 else {
-                    recordsForCod = result.filter((r) => r.cod === cod);
+                    const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
+                        .filter((s) => s !== undefined && s !== null)
+                        .sort((a, b) => a - b);
+                    for (const sheetVal of distinctSheets) {
+                        let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
+                        recordsForSheet = sortRecords(recordsForSheet);
+                        if (recordsForSheet.length === 0)
+                            continue;
+                        for (const baseRecord of recordsForSheet) {
+                            const assignedSide = currentSide ?? defaultSideForModel;
+                            generatedArray.push({
+                                id: baseRecord?.id,
+                                typebooks_id: params.typebooks_id,
+                                books_id: baseRecord?.books_id ?? body.books_id,
+                                companies_id: authenticate.companies_id,
+                                cod: baseRecord?.cod ?? sheetVal,
+                                book: baseRecord?.book ?? body.book,
+                                sheet: currentSheet,
+                                side: assignedSide,
+                                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                                indexbook: baseRecord?.indexbook ?? body.indexbook,
+                            });
+                            const next = modelBookNext(body.model_book, assignedSide, currentSheet);
+                            currentSide = next.side;
+                            currentSheet = next.sheet ?? currentSheet;
+                        }
+                    }
                 }
-                if (recordsForCod.length === 0) {
-                    recordsForCod = [null];
+            }
+            else {
+                if (body.is_create) {
+                    for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
+                        let recordsForCod = result.filter((r) => r.cod === cod);
+                        recordsForCod = sortRecords(recordsForCod);
+                        const slotsToProcess = Math.max(recordsForCod.length, 1);
+                        for (let slot = 0; slot < slotsToProcess; slot++) {
+                            const baseRecord = recordsForCod[slot] ?? null;
+                            const assignedSide = currentSide ?? defaultSideForModel;
+                            generatedArray.push({
+                                id: baseRecord?.id,
+                                typebooks_id: params.typebooks_id,
+                                books_id: baseRecord?.books_id ?? body.books_id,
+                                companies_id: authenticate.companies_id,
+                                cod: cod,
+                                book: baseRecord?.book ?? body.book,
+                                sheet: currentSheet,
+                                side: assignedSide,
+                                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                                indexbook: baseRecord?.indexbook ?? body.indexbook,
+                            });
+                            const next = modelBookNext(body.model_book, assignedSide, currentSheet);
+                            currentSide = next.side;
+                            currentSheet = next.sheet ?? currentSheet;
+                        }
+                    }
                 }
-                for (const baseRecord of recordsForCod) {
-                    generatedArray.push({
-                        id: baseRecord?.id,
-                        typebooks_id: params.typebooks_id,
-                        books_id: baseRecord?.books_id ?? body.books_id,
-                        companies_id: authenticate.companies_id,
-                        cod: cod,
-                        book: baseRecord?.book ?? body.book,
-                        sheet: currentSheet,
-                        side: currentSide,
-                        approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
-                        indexbook: baseRecord?.indexbook ?? body.indexbook,
-                    });
-                    const next = modelBookNext(body.model_book, currentSide, currentSheet);
-                    currentSide = next.side;
-                    currentSheet = next.sheet ?? currentSheet;
+                else {
+                    const distinctCods = Array.from(new Set(result.map((r) => r.cod)))
+                        .filter((c) => c !== undefined && c !== null)
+                        .sort((a, b) => a - b);
+                    for (const codVal of distinctCods) {
+                        let recordsForCod = result.filter((r) => r.cod === codVal);
+                        recordsForCod = sortRecords(recordsForCod);
+                        if (recordsForCod.length === 0)
+                            continue;
+                        for (const baseRecord of recordsForCod) {
+                            const assignedSide = currentSide ?? defaultSideForModel;
+                            generatedArray.push({
+                                id: baseRecord?.id,
+                                typebooks_id: params.typebooks_id,
+                                books_id: baseRecord?.books_id ?? body.books_id,
+                                companies_id: authenticate.companies_id,
+                                cod: codVal,
+                                book: baseRecord?.book ?? body.book,
+                                sheet: currentSheet,
+                                side: assignedSide,
+                                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                                indexbook: baseRecord?.indexbook ?? body.indexbook,
+                            });
+                            const next = modelBookNext(body.model_book, assignedSide, currentSheet);
+                            currentSide = next.side;
+                            currentSheet = next.sheet ?? currentSheet;
+                        }
+                    }
                 }
             }
             const trx = await Database_1.default.transaction();
