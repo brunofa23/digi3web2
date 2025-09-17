@@ -1113,6 +1113,9 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
     throw new BadRequestException("erro: codigo inicial maior que o final");
   }
 
+  // Flag: quando true ignoramos modelBookNext para atribuir sheet/side e só renumeramos cod
+  const skipModel = !!body.renumerate_cod;
+
   function modelBookNext(model_book: string | undefined, side: string | null, sheet: number | null) {
     if (!model_book) return { side, sheet: (sheet ?? 0) + 1 };
 
@@ -1147,7 +1150,7 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
 
     const generatedArray: any[] = [];
 
-    // Sequência usada apenas internamente para calcular next side/sheet
+    // Sequência usada apenas internamente para calcular next side/sheet quando não estivermos em renumerate_cod
     let sequenceSheet = body.sheet ?? body.start_cod;
     const defaultSideForModel = (() => {
       switch (body.model_book) {
@@ -1170,8 +1173,7 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
         return (a?.id ?? 0) - (b?.id ?? 0);
       });
 
-    // ---- GERAÇÃO: atenção: usa sequenceSheet/sequenceSide para PROGRESSÃO,
-    // mas atribui record.sheet de acordo com renumerate_cod (preservando o sheet original) ----
+    // ---- GERAÇÃO ----
     if (body.by_sheet == "S") {
       if (body.is_create) {
         for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
@@ -1184,35 +1186,51 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
           for (let slot = 0; slot < slotsToProcess; slot++) {
             const baseRecord = recordsForSheet[slot] ?? null;
 
-            // assignedSide vem da sequência interna (model)
-            const assignedSide = sequenceSide ?? defaultSideForModel;
+            if (skipModel) {
+              // Quando renumerate_cod=true: preservamos sheet/side (se existirem) e NÃO avançamos modelBookNext
+              const assignedSide = baseRecord?.side ?? body.side ?? null;
+              const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
 
-            // assignedSheetOut: se renumerate_cod=true preservamos o sheet original (se existir),
-            // caso seja placeholder usamos o sheetNum; se renumerate_cod=false usamos a sequenceSheet (renumera sheet).
-            const assignedSheetOut = body.renumerate_cod
-              ? (baseRecord?.sheet ?? sheetNum)
-              : sequenceSheet;
+              generatedArray.push({
+                id: baseRecord?.id,
+                typebooks_id: params.typebooks_id,
+                books_id: baseRecord?.books_id ?? body.books_id,
+                companies_id: authenticate.companies_id,
+                cod: baseRecord?.cod ?? sheetNum, // será renumerado depois
+                book: baseRecord?.book ?? body.book,
+                sheet: assignedSheetOut,
+                side: assignedSide,
+                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                indexbook: baseRecord?.indexbook ?? body.indexbook,
+              });
 
-            generatedArray.push({
-              id: baseRecord?.id,
-              typebooks_id: params.typebooks_id,
-              books_id: baseRecord?.books_id ?? body.books_id,
-              companies_id: authenticate.companies_id,
-              cod: baseRecord?.cod ?? sheetNum, // será renumerado depois se renumerate_cod=true
-              book: baseRecord?.book ?? body.book,
-              sheet: assignedSheetOut,
-              side: assignedSide,
-              approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
-              indexbook: baseRecord?.indexbook ?? body.indexbook,
-            });
+              // Não avançamos sequenceSide/sequenceSheet nem chamamos modelBookNext
+            } else {
+              // comportamento antigo: usamos modelBookNext para controlar sequência
+              const assignedSide = sequenceSide ?? defaultSideForModel;
+              const assignedSheetOut = sequenceSheet;
 
-            // avança a sequência (usando sequenceSide/sequenceSheet)
-            const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-            sequenceSide = next.side;
-            sequenceSheet = next.sheet ?? sequenceSheet;
+              generatedArray.push({
+                id: baseRecord?.id,
+                typebooks_id: params.typebooks_id,
+                books_id: baseRecord?.books_id ?? body.books_id,
+                companies_id: authenticate.companies_id,
+                cod: baseRecord?.cod ?? sheetNum,
+                book: baseRecord?.book ?? body.book,
+                sheet: assignedSheetOut,
+                side: assignedSide,
+                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                indexbook: baseRecord?.indexbook ?? body.indexbook,
+              });
+
+              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+              sequenceSide = next.side;
+              sequenceSheet = next.sheet ?? sequenceSheet;
+            }
           }
         }
       } else {
+        // is_create == false
         const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
           .filter((s) => s !== undefined && s !== null)
           .sort((a, b) => a - b);
@@ -1222,34 +1240,50 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
           recordsForSheet = sortRecords(recordsForSheet);
 
           for (const baseRecord of recordsForSheet) {
-            const assignedSide = sequenceSide ?? defaultSideForModel;
+            if (skipModel) {
+              const assignedSide = baseRecord?.side ?? body.side ?? null;
+              const assignedSheetOut = baseRecord?.sheet ?? sheetVal; // preserva o sheet original
 
-            const assignedSheetOut = body.renumerate_cod
-              ? (baseRecord?.sheet ?? sheetVal) // preserva sheet original
-              : sequenceSheet; // renumera sheet se renumerate_cod=false
+              generatedArray.push({
+                id: baseRecord?.id,
+                typebooks_id: params.typebooks_id,
+                books_id: baseRecord?.books_id ?? body.books_id,
+                companies_id: authenticate.companies_id,
+                cod: baseRecord?.cod ?? sheetVal, // será renumerado depois
+                book: baseRecord?.book ?? body.book,
+                sheet: assignedSheetOut,
+                side: assignedSide,
+                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                indexbook: baseRecord?.indexbook ?? body.indexbook,
+              });
 
-            generatedArray.push({
-              id: baseRecord?.id,
-              typebooks_id: params.typebooks_id,
-              books_id: baseRecord?.books_id ?? body.books_id,
-              companies_id: authenticate.companies_id,
-              cod: baseRecord?.cod ?? sheetVal, // será renumerado depois se renumerate_cod=true
-              book: baseRecord?.book ?? body.book,
-              sheet: assignedSheetOut,
-              side: assignedSide,
-              approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
-              indexbook: baseRecord?.indexbook ?? body.indexbook,
-            });
+              // não chamamos modelBookNext
+            } else {
+              const assignedSide = sequenceSide ?? defaultSideForModel;
+              const assignedSheetOut = sequenceSheet;
 
-            const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-            sequenceSide = next.side;
-            sequenceSheet = next.sheet ?? sequenceSheet;
+              generatedArray.push({
+                id: baseRecord?.id,
+                typebooks_id: params.typebooks_id,
+                books_id: baseRecord?.books_id ?? body.books_id,
+                companies_id: authenticate.companies_id,
+                cod: baseRecord?.cod ?? sheetVal,
+                book: baseRecord?.book ?? body.book,
+                sheet: assignedSheetOut,
+                side: assignedSide,
+                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                indexbook: baseRecord?.indexbook ?? body.indexbook,
+              });
+
+              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+              sequenceSide = next.side;
+              sequenceSheet = next.sheet ?? sequenceSheet;
+            }
           }
         }
       }
     } else {
-      // lógica por COD — comportamento análogo: usamos sequenceSheet/sequenceSide para progressão,
-      // mas preservamos sheet original quando renumerate_cod=true (para registros existentes).
+      // by cod
       if (body.is_create) {
         for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
           let recordsForCod = result.filter((r) => r.cod === cod);
@@ -1258,28 +1292,46 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
           const slotsToProcess = Math.max(recordsForCod.length, 1);
           for (let slot = 0; slot < slotsToProcess; slot++) {
             const baseRecord = recordsForCod[slot] ?? null;
-            const assignedSide = sequenceSide ?? defaultSideForModel;
 
-            const assignedSheetOut = body.renumerate_cod
-              ? (baseRecord?.sheet ?? sequenceSheet) // preserva sheet se existir, caso contrário usa sequenceSheet
-              : sequenceSheet;
+            if (skipModel) {
+              const assignedSide = baseRecord?.side ?? body.side ?? null;
+              const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
 
-            generatedArray.push({
-              id: baseRecord?.id,
-              typebooks_id: params.typebooks_id,
-              books_id: baseRecord?.books_id ?? body.books_id,
-              companies_id: authenticate.companies_id,
-              cod: cod,
-              book: baseRecord?.book ?? body.book,
-              sheet: assignedSheetOut,
-              side: assignedSide,
-              approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
-              indexbook: baseRecord?.indexbook ?? body.indexbook,
-            });
+              generatedArray.push({
+                id: baseRecord?.id,
+                typebooks_id: params.typebooks_id,
+                books_id: baseRecord?.books_id ?? body.books_id,
+                companies_id: authenticate.companies_id,
+                cod: cod, // será renumerado depois
+                book: baseRecord?.book ?? body.book,
+                sheet: assignedSheetOut,
+                side: assignedSide,
+                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                indexbook: baseRecord?.indexbook ?? body.indexbook,
+              });
 
-            const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-            sequenceSide = next.side;
-            sequenceSheet = next.sheet ?? sequenceSheet;
+              // não chamamos modelBookNext
+            } else {
+              const assignedSide = sequenceSide ?? defaultSideForModel;
+              const assignedSheetOut = sequenceSheet;
+
+              generatedArray.push({
+                id: baseRecord?.id,
+                typebooks_id: params.typebooks_id,
+                books_id: baseRecord?.books_id ?? body.books_id,
+                companies_id: authenticate.companies_id,
+                cod: cod,
+                book: baseRecord?.book ?? body.book,
+                sheet: assignedSheetOut,
+                side: assignedSide,
+                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                indexbook: baseRecord?.indexbook ?? body.indexbook,
+              });
+
+              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+              sequenceSide = next.side;
+              sequenceSheet = next.sheet ?? sequenceSheet;
+            }
           }
         }
       } else {
@@ -1292,36 +1344,53 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
           recordsForCod = sortRecords(recordsForCod);
 
           for (const baseRecord of recordsForCod) {
-            const assignedSide = sequenceSide ?? defaultSideForModel;
+            if (skipModel) {
+              const assignedSide = baseRecord?.side ?? body.side ?? null;
+              const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
 
-            const assignedSheetOut = body.renumerate_cod
-              ? (baseRecord?.sheet ?? sequenceSheet)
-              : sequenceSheet;
+              generatedArray.push({
+                id: baseRecord?.id,
+                typebooks_id: params.typebooks_id,
+                books_id: baseRecord?.books_id ?? body.books_id,
+                companies_id: authenticate.companies_id,
+                cod: codVal, // será renumerado depois
+                book: baseRecord?.book ?? body.book,
+                sheet: assignedSheetOut,
+                side: assignedSide,
+                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                indexbook: baseRecord?.indexbook ?? body.indexbook,
+              });
 
-            generatedArray.push({
-              id: baseRecord?.id,
-              typebooks_id: params.typebooks_id,
-              books_id: baseRecord?.books_id ?? body.books_id,
-              companies_id: authenticate.companies_id,
-              cod: codVal,
-              book: baseRecord?.book ?? body.book,
-              sheet: assignedSheetOut,
-              side: assignedSide,
-              approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
-              indexbook: baseRecord?.indexbook ?? body.indexbook,
-            });
+              // não chamamos modelBookNext
+            } else {
+              const assignedSide = sequenceSide ?? defaultSideForModel;
+              const assignedSheetOut = sequenceSheet;
 
-            const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-            sequenceSide = next.side;
-            sequenceSheet = next.sheet ?? sequenceSheet;
+              generatedArray.push({
+                id: baseRecord?.id,
+                typebooks_id: params.typebooks_id,
+                books_id: baseRecord?.books_id ?? body.books_id,
+                companies_id: authenticate.companies_id,
+                cod: codVal,
+                book: baseRecord?.book ?? body.book,
+                sheet: assignedSheetOut,
+                side: assignedSide,
+                approximate_term: baseRecord?.approximate_term ?? body.approximate_term,
+                indexbook: baseRecord?.indexbook ?? body.indexbook,
+              });
+
+              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+              sequenceSide = next.side;
+              sequenceSheet = next.sheet ?? sequenceSheet;
+            }
           }
         }
       }
     }
 
-    // ---- RENUMERAÇÃO DE COD: aqui renumeramos APENAS cod, mantendo sheet como já está em generatedArray ----
+    // ---- RENUMERAÇÃO DE COD (apenas cod) ----
     if (body.renumerate_cod) {
-      let newCod = body.sheet ?? body.start_cod; // começa a partir do parâmetro "sheet" (ou start_cod como fallback)
+      let newCod = body.sheet ?? body.start_cod; // começa a partir do parâmetro "sheet" (ou start_cod fallback)
 
       // ordena por sheet (preservado), depois por side (F antes de V), depois id
       const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
@@ -1335,7 +1404,7 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
 
       for (const rec of generatedArray) {
         rec.cod = newCod++;
-        // NÃO alteramos rec.sheet aqui — sheet permanece como já atribuído
+        // NÃO alteramos rec.sheet aqui — sheet permanece como já atribuído/preservado
       }
     }
 
@@ -1385,6 +1454,7 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
     throw new BadRequestException("Bad Request", 402, error);
   }
 }
+
 
 
 
