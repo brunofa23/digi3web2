@@ -583,7 +583,7 @@ class BookrecordsController {
                 start_cod: Validator_1.schema.number(),
                 end_cod: Validator_1.schema.number(),
                 book: Validator_1.schema.number.optional(),
-                book_replace: Validator_1.schema.string.optional(),
+                book_replace: Validator_1.schema.number.optional(),
                 sheet: Validator_1.schema.number.optional(),
                 side: Validator_1.schema.string.optional(),
                 model_book: Validator_1.schema.string.optional(),
@@ -596,6 +596,18 @@ class BookrecordsController {
         });
         if (body.start_cod > body.end_cod) {
             throw new BadRequestException_1.default("erro: codigo inicial maior que o final");
+        }
+        if (body.book_replace && body.book_replace > 0) {
+            const updatedCount = await Bookrecord_1.default.query()
+                .where("companies_id", authenticate.companies_id)
+                .andWhere("typebooks_id", params.typebooks_id)
+                .where("books_id", body.books_id)
+                .andWhere("book", body.book)
+                .update({ book: body.book_replace });
+            return response.status(200).send({
+                message: `Bookrecords atualizados para ${body.book_replace}!`,
+                updatedCount,
+            });
         }
         const skipModel = !!body.renumerate_cod;
         function modelBookNext(model_book, side, sheet) {
