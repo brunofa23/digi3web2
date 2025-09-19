@@ -1530,9 +1530,6 @@ export default class BookrecordsController {
               }).filter(([_, v]) => v !== null && v !== undefined && v !== "")
             );
 
-            console.log("body", body);
-            console.log("update", updateData);
-
             if (Object.keys(updateData).length > 0) {
               await Bookrecord.query({ client: trx })
                 .where("id", record.id)
