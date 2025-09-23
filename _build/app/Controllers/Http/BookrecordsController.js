@@ -609,7 +609,8 @@ class BookrecordsController {
                 updatedCount,
             });
         }
-        const skipModel = !!body.renumerate_cod;
+        const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
+        const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
         function modelBookNext(model_book, side, sheet) {
             if (!model_book)
                 return { side, sheet: (sheet ?? 0) + 1 };
@@ -673,8 +674,8 @@ class BookrecordsController {
                         const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
                         for (let slot = 0; slot < slotsToProcess; slot++) {
                             const baseRecord = recordsForSheet[slot] ?? null;
-                            if (skipModel) {
-                                const assignedSide = baseRecord?.side ?? body.side ?? null;
+                            if (!shouldApplyModel) {
+                                const assignedSide = baseRecord?.side ?? null;
                                 const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
                                 generatedArray.push({
                                     id: baseRecord?.id,
@@ -723,8 +724,8 @@ class BookrecordsController {
                         let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
                         recordsForSheet = sortRecords(recordsForSheet);
                         for (const baseRecord of recordsForSheet) {
-                            if (skipModel) {
-                                const assignedSide = baseRecord?.side ?? body.side ?? null;
+                            if (!shouldApplyModel) {
+                                const assignedSide = baseRecord?.side ?? null;
                                 const assignedSheetOut = baseRecord?.sheet ?? sheetVal;
                                 generatedArray.push({
                                     id: baseRecord?.id,
@@ -774,8 +775,8 @@ class BookrecordsController {
                         const slotsToProcess = Math.max(recordsForCod.length, 1);
                         for (let slot = 0; slot < slotsToProcess; slot++) {
                             const baseRecord = recordsForCod[slot] ?? null;
-                            if (skipModel) {
-                                const assignedSide = baseRecord?.side ?? body.side ?? null;
+                            if (!shouldApplyModel) {
+                                const assignedSide = baseRecord?.side ?? null;
                                 const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
                                 generatedArray.push({
                                     id: baseRecord?.id,
@@ -824,8 +825,8 @@ class BookrecordsController {
                         let recordsForCod = result.filter((r) => r.cod === codVal);
                         recordsForCod = sortRecords(recordsForCod);
                         for (const baseRecord of recordsForCod) {
-                            if (skipModel) {
-                                const assignedSide = baseRecord?.side ?? body.side ?? null;
+                            if (!shouldApplyModel) {
+                                const assignedSide = baseRecord?.side ?? null;
                                 const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
                                 generatedArray.push({
                                     id: baseRecord?.id,
@@ -867,7 +868,7 @@ class BookrecordsController {
                     }
                 }
             }
-            if (body.renumerate_cod) {
+            if (shouldRenumerate) {
                 let newCod = body.sheet ?? body.start_cod;
                 const sideRank = (s) => (s === "F" ? 0 : s === "V" ? 1 : 2);
                 generatedArray.sort((a, b) => {
@@ -893,23 +894,31 @@ class BookrecordsController {
             try {
                 for (const record of generatedArray) {
                     if (record.id) {
-                        const updateData = Object.fromEntries(Object.entries({
-                            sheet: record.sheet,
-                            side: record.side,
-                            cod: record.cod,
-                            approximate_term: record.approximate_term,
-                            indexbook: record.indexbook,
-                            year: record.year,
-                            obs: record.obs,
-                        }).filter(([_, v]) => v !== null && v !== undefined && v !== ""));
-                        if (Object.keys(updateData).length > 0) {
+                        const updateData = {};
+                        if (shouldApplyModel) {
+                            updateData.sheet = record.sheet;
+                            updateData.side = record.side;
+                        }
+                        if (shouldRenumerate) {
+                            updateData.cod = record.cod;
+                        }
+                        if (body.approximate_term !== undefined)
+                            updateData.approximate_term = record.approximate_term;
+                        if (body.indexbook !== undefined)
+                            updateData.indexbook = record.indexbook;
+                        if (body.year !== undefined)
+                            updateData.year = record.year;
+                        if (body.obs !== undefined)
+                            updateData.obs = record.obs;
+                        const finalUpdateData = Object.fromEntries(Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== ""));
+                        if (Object.keys(finalUpdateData).length > 0) {
                             await Bookrecord_1.default.query({ client: trx })
                                 .where("id", record.id)
-                                .update(updateData);
+                                .update(finalUpdateData);
                         }
                     }
                     else if (body.is_create) {
-                        await Bookrecord_1.default.create({
+                        const createPayload = {
                             typebooks_id: params.typebooks_id,
                             books_id: record.books_id,
                             companies_id: authenticate.companies_id,
@@ -917,11 +926,16 @@ class BookrecordsController {
                             book: record.book,
                             sheet: record.sheet,
                             side: record.side,
-                            approximate_term: record.approximate_term,
-                            indexbook: record.indexbook,
-                            year: record.year,
-                            obs: record.obs,
-                        }, { client: trx });
+                        };
+                        if (body.approximate_term !== undefined)
+                            createPayload.approximate_term = record.approximate_term;
+                        if (body.indexbook !== undefined)
+                            createPayload.indexbook = record.indexbook;
+                        if (body.year !== undefined)
+                            createPayload.year = record.year;
+                        if (body.obs !== undefined)
+                            createPayload.obs = record.obs;
+                        await Bookrecord_1.default.create(createPayload, { client: trx });
                     }
                 }
                 await trx.commit();
