@@ -209,7 +209,6 @@ class IndeximagesController {
                 }
             }
         }
-        console.log("PASSO 4");
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
         return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" });
     }

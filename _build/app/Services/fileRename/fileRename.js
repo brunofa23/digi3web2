@@ -101,7 +101,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
             console.log("Error", image.errors);
         }
         _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
-        console.log("FILE RENAME 5000>", _fileRename);
         try {
             if (image && image.isValid) {
                 result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number));
@@ -178,17 +177,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         .where('bookrecords.typebooks_id', '=', typebooks_id)
         .andWhere('bookrecords.companies_id', '=', companies_id);
     if (dataImages.typeBookFile) {
-        console.log("FILERENAME PASSO 1");
         let fileName;
         if (dataImages.book && dataImages.sheet && dataImages.side) {
             fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
         }
         else if (dataImages.book && dataImages.cod) {
-            console.log("FILERENAME PASSO 2");
             fileName = `L${dataImages.book}(${dataImages.cod})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
         }
         else if (dataImages.book && dataImages.approximateTerm) {
-            console.log("FILERENAME PASSO 3");
             fileName = `T${dataImages.book}(${dataImages.approximateTerm})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`;
         }
         const fileRename = {
@@ -267,7 +263,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query.andWhere('cod', objFileName.cod);
     }
     else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
-        console.log("FILERENAME PASSO 7");
         const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
         objFileName = {
             book: arrayFileName[0],
@@ -290,7 +285,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         });
     }
     else {
-        console.log("FILERENAME PASSO 8");
         if (dataImages.id)
             query.andWhere('id', dataImages.id);
         if (dataImages.book)
@@ -315,9 +309,12 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         if (bookRecord === null || isCreateCover) {
             if (isCreateBookrecord || isCreateCover) {
                 try {
-                    const book = await Typebook_1.default.findOrFail(typebooks_id);
+                    const book = await Typebook_1.default.query()
+                        .where('companies_id', companies_id)
+                        .andWhere('id', typebooks_id).first();
                     const bookRecordFind = await Bookrecord_1.default.query()
                         .where('typebooks_id', typebooks_id)
+                        .andWhere('companies_id', companies_id)
                         .max('cod as max_cod').first();
                     const { ext, ...objFileNameWithoutExt } = objFileName;
                     const objectInsert = {
@@ -335,14 +332,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                 }
             }
             else {
-                console.log("SAIR FORA");
                 return;
             }
         }
-        if (bookRecord.indeximage.length == 0)
+        if (bookRecord.indeximage.length == 0) {
             seq = 1;
-        else
+        }
+        else {
             seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1;
+        }
         let fileRename;
         try {
             fileRename = {
