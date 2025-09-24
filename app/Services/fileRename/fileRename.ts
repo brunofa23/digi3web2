@@ -101,10 +101,8 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
   //******************************************************************************** */
   //imagem única para upload
   if (capture) {
-
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
     //console.log("CAPTURE PARTE 4,5>>", _fileRename)
-
     try {
       //  console.log("código 5666 - PARTE 5")
       await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, cloud_number, true)
@@ -115,7 +113,6 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     }
   }
 
-  //console.log("código 5666 - PARTE 6")
   let cont = 0
   let _fileRename
   for (let image of images) {
@@ -133,18 +130,11 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 
     //console.log("código 5666 - PARTE 7",image.clientName,"-", params.typebooks_id,"--", companies_id,"---", dataImages)
     //************************************************************************************************************* */
-
-
     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
 
-    console.log("FILE RENAME 5000>", _fileRename)
-
-    //console.log("código 5666 - PARTE 8")
     try {
       if (image && image.isValid) {
-        //console.log("código 5666 - PARTE 9")
         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
-        //console.log("RESULT TUDO OK:", result)
       }
     } catch (error) {
       await new BadRequestException(error + 'pushImageToGoogle', 409)
@@ -217,7 +207,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   let separators
   let arrayFileName
   let isCreateBookrecord = false
-  let isCreateCover=false
+  let isCreateCover = false
   //Format L1(1).jpg = Livro 1 e Código 1
   const regexBookAndCod = /^L\d+\(\d+\).*$/;
   //Formato L1_1_F.jpg = Livro 1, Folha 1 e Lado Frente
@@ -240,16 +230,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     .where('bookrecords.typebooks_id', '=', typebooks_id)
     .andWhere('bookrecords.companies_id', '=', companies_id)
   if (dataImages.typeBookFile) {
-    console.log("FILERENAME PASSO 1")
     let fileName
     if (dataImages.book && dataImages.sheet && dataImages.side) {
       fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
     }
     else if (dataImages.book && dataImages.cod) {
-      console.log("FILERENAME PASSO 2")
       fileName = `L${dataImages.book}(${dataImages.cod})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
     } else if (dataImages.book && dataImages.approximateTerm) {
-      console.log("FILERENAME PASSO 3")
       fileName = `T${dataImages.book}(${dataImages.approximateTerm})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
     }
 
@@ -281,6 +268,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     //SE NÃO EXISTIR EM BOOKRECORD INSERE*******************************
     else
       if (regexBookSheetSideInsertBookrecord.test(originalFileName.toUpperCase())) {
+
+
         const arrayFileName = originalFileName
           .substring(1)           // tira o "L"
           .split(/[()\.]/)       // quebra em F, (, ) e .
@@ -296,8 +285,10 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         query.andWhere('side', objFileName.side)
         isCreateBookrecord = true
 
+
       } else
         if (regexBookAndCod.test(originalFileName.toUpperCase())) {
+
           separators = ["L", '\'', '(', ')', '|', '-'];
           arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
           objFileName = {
@@ -342,7 +333,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           }
           //ARQUIVOS COM A MÁSCARA T1(121)
           else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
-            console.log("FILERENAME PASSO 7")
+
             const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
             objFileName = {
               book: arrayFileName[0],
@@ -368,9 +359,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             })
 
           }
-
           else {
-            console.log("FILERENAME PASSO 8")
+
             if (dataImages.id)
               query.andWhere('id', dataImages.id)
             if (dataImages.book)
@@ -391,6 +381,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
           }
 
+
   try {
     let bookRecord = await query.first()
     let seq = 0
@@ -398,9 +389,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     if (bookRecord === null || isCreateCover) {
       if (isCreateBookrecord || isCreateCover) {
         try {
-          const book = await Typebook.findOrFail(typebooks_id)
+          const book = await Typebook.query()
+            .where('companies_id', companies_id)
+            .andWhere('id', typebooks_id).first()
+
           const bookRecordFind = await Bookrecord.query()
             .where('typebooks_id', typebooks_id)
+            .andWhere('companies_id', companies_id)
             .max('cod as max_cod').first()
 
           const { ext, ...objFileNameWithoutExt } = objFileName
@@ -417,12 +412,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           console.log("!!!!!!!", error)
         }
       } else {
-        console.log("SAIR FORA")
         return
       }
     }
-    if (bookRecord.indeximage.length == 0) seq = 1
-    else seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1
+    if (bookRecord.indeximage.length == 0) {
+      seq = 1
+    }
+    else {
+      seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1
+    }
 
     let fileRename
     try {

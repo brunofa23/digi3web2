@@ -128,6 +128,7 @@ export default class IndeximagesController {
 
     console.log("PASSEI NO UPLOAD 45555", updateImage)
 
+
     //Através do nome da imagem é recriado o registro no bookrecord
     if (indexImagesInitial == 'true') {
       console.log("PASSEI NO PASSO1 ")
@@ -244,7 +245,7 @@ export default class IndeximagesController {
       }
     }
 
-    console.log("PASSO 4")
+    //console.log("PASSO 4",images, params, authenticate.companies_id, company?.cloud, false, dataImages)
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
 
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
