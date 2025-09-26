@@ -192,6 +192,7 @@ export default class FinAccountsController {
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountStoreValidator)
+
     body.companies_id = authenticate.companies_id
     // Convertendo as datas para o formato adequado
     if (body.date) {
@@ -206,11 +207,10 @@ export default class FinAccountsController {
     if (body.data_billing) {
       body.data_billing = DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day')
     }
-
     const { conciliation, ...body1 } = body
-    if (conciliation == true) {
-      body1.date_conciliation = body.date_due
-    }
+    // if (conciliation == true) {
+    //   body1.date_conciliation = body.date_due
+    // }
 
     try {
 
@@ -232,6 +232,7 @@ export default class FinAccountsController {
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(FinAccountUpdateValidator)
+    console.log(body.conciliation)
 
     body.date = body.date ? DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
     body.date_due = body.date_due ? DateTime.fromISO(body.date_due).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
