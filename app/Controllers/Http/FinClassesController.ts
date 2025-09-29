@@ -40,6 +40,12 @@ export default class FinClassesController {
         .if(body.debit_credit, q => {
           q.where('debit_credit', body.debit_credit)
         })
+        .if(body.excluded, q => {
+          q.where('excluded', true)
+        })
+        .if(body.inactive, q => {
+          q.where('inactive', true)
+        })
       const data = await query
       return response.status(200).send(data)
     } catch (error) {

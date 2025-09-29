@@ -23,6 +23,7 @@ export default class FinAccount extends BaseModel {
       'date_due', //data de vencimento
       'replicate',
       'data_billing',
+      'conciliation',
       'date_conciliation',
       'excluded',
       'debit_credit',
@@ -132,6 +133,10 @@ export default class FinAccount extends BaseModel {
 
   // @column.dateTime()
   // public date_conciliation: DateTime
+
+  @column()
+  public conciliation: boolean
+
   @column.dateTime({
     serialize: (value: DateTime | null) => {
       return value ? value.toFormat('yyyy-MM-dd') : null;

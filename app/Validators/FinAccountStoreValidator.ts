@@ -29,6 +29,7 @@ export default class FinAccountStoreValidator {
     overplus: schema.boolean.nullableAndOptional(),
     limit_amount: schema.number.nullableAndOptional(),
 
+
     // Campo virtual (não está na tabela)
     conciliation: schema.boolean.optional(),
   })
