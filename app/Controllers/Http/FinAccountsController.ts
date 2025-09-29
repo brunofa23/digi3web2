@@ -37,7 +37,8 @@ export default class FinAccountsController {
       typeDate: schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
       allocation: schema.string.optional(),
       fin_paymentmethod: schema.string.optional(),
-      fin_class: schema.string.optional()
+      fin_class: schema.string.optional(),
+      conciliation:schema.boolean.optional()
     })
 
     const body = await request.validate({
@@ -231,8 +232,9 @@ export default class FinAccountsController {
   //*********
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    //console.log("enteri 5555", request.body())
     const body = await request.validate(FinAccountUpdateValidator)
-    console.log(body.conciliation)
+    // console.log(params.id)
 
     body.date = body.date ? DateTime.fromISO(body.date, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
     body.date_due = body.date_due ? DateTime.fromISO(body.date_due).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null
@@ -241,13 +243,27 @@ export default class FinAccountsController {
     body.amount = await currencyConverter(body.amount)
     body.limit_amount = await currencyConverter(body.limit_amount)
 
-    const { conciliation, ...body1 } = body
+    console.log(body)
+    //const { conciliation, ...body1 } = body
     try {
       // Realizando o update
-      await FinAccount.query()
+      // await FinAccount.query()
+      //   .where('companies_id', authenticate.companies_id)
+      //   .andWhere('id', params.id)
+      //   .update(body)
+      // Busca o registro específico da empresa
+      const finAccount = await FinAccount
+        .query()
         .where('companies_id', authenticate.companies_id)
         .andWhere('id', params.id)
-        .update(body1)
+        .firstOrFail()
+
+      // Faz o merge dos dados
+      finAccount.merge(body)
+
+      // Salva no banco
+      await finAccount.save()
+
       await uploadFinImage(authenticate.companies_id, params.id, request)
 
       const data = await FinAccount.findOrFail(params.id)
