@@ -39,7 +39,8 @@ class FinAccountsController {
             allocation: Validator_1.schema.string.optional(),
             fin_paymentmethod: Validator_1.schema.string.optional(),
             fin_class: Validator_1.schema.string.optional(),
-            conciliation: Validator_1.schema.boolean.optional()
+            conciliation: Validator_1.schema.boolean.optional(),
+            obs: Validator_1.schema.string.optional()
         });
         const body = await request.validate({
             schema: querySchema,
@@ -127,6 +128,9 @@ class FinAccountsController {
             });
             query.if(body.isReconciled === 'N', q => {
                 q.whereNull('date_conciliation');
+            });
+            query.if(body.obs, q => {
+                q.where('obs', 'like', `%${body.obs}%`);
             });
             const data = await query;
             return response.ok(data);
