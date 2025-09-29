@@ -38,7 +38,8 @@ export default class FinAccountsController {
       allocation: schema.string.optional(),
       fin_paymentmethod: schema.string.optional(),
       fin_class: schema.string.optional(),
-      conciliation:schema.boolean.optional()
+      conciliation:schema.boolean.optional(),
+      obs:schema.string.optional()
     })
 
     const body = await request.validate({
@@ -166,6 +167,9 @@ export default class FinAccountsController {
       })
       query.if(body.isReconciled === 'N', q => {
         q.whereNull('date_conciliation')
+      })
+      query.if(body.obs, q=>{
+        q.where('obs','like',`%${body.obs}%`)
       })
 
       const data = await query
