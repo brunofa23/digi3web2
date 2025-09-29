@@ -38,7 +38,8 @@ class FinAccountsController {
             typeDate: Validator_1.schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
             allocation: Validator_1.schema.string.optional(),
             fin_paymentmethod: Validator_1.schema.string.optional(),
-            fin_class: Validator_1.schema.string.optional()
+            fin_class: Validator_1.schema.string.optional(),
+            conciliation: Validator_1.schema.boolean.optional()
         });
         const body = await request.validate({
             schema: querySchema,
@@ -163,9 +164,6 @@ class FinAccountsController {
             body.data_billing = luxon_1.DateTime.fromISO(body.data_billing, { zone: 'utc' }).startOf('day');
         }
         const { conciliation, ...body1 } = body;
-        if (conciliation == true) {
-            body1.date_conciliation = body.date_due;
-        }
         try {
             const data = await FinAccount_1.default.create(body1);
             await (0, finImages_1.uploadFinImage)(authenticate.companies_id, data.id, request);
@@ -187,12 +185,15 @@ class FinAccountsController {
         body.date_conciliation = body.date_conciliation ? luxon_1.DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
         body.amount = await (0, util_1.currencyConverter)(body.amount);
         body.limit_amount = await (0, util_1.currencyConverter)(body.limit_amount);
-        const { conciliation, ...body1 } = body;
+        console.log(body);
         try {
-            await FinAccount_1.default.query()
+            const finAccount = await FinAccount_1.default
+                .query()
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('id', params.id)
-                .update(body1);
+                .firstOrFail();
+            finAccount.merge(body);
+            await finAccount.save();
             await (0, finImages_1.uploadFinImage)(authenticate.companies_id, params.id, request);
             const data = await FinAccount_1.default.findOrFail(params.id);
             await data.load('finPaymentMethod');

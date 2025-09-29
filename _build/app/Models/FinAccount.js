@@ -36,6 +36,7 @@ class FinAccount extends Orm_1.BaseModel {
             'date_due',
             'replicate',
             'data_billing',
+            'conciliation',
             'date_conciliation',
             'excluded',
             'debit_credit',
@@ -167,6 +168,10 @@ __decorate([
     Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], FinAccount.prototype, "data_billing", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], FinAccount.prototype, "conciliation", void 0);
 __decorate([
     Orm_1.column.dateTime({
         serialize: (value) => {
