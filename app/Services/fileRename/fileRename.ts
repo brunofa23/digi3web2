@@ -219,7 +219,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   //FORMATO L122F(1)F.jpg para Livro e folha e verifica ou insere registro no bookrecord
   const regexBookSheetSideInsertBookrecord = /^L[1-9]\d*F\([1-9]\d*\)[FV]\.[A-Za-z0-9]+$/;
   //FORMATO DE CAPA OU SEJA L999C(1).jpg OU SEJA PEGA O LIVRO E FOLHA 0
-  const regexBookCoverInsertBookrecord = /^L[1-9]\d*C\([1-9]\d*\).*$/
+  const regexBookCoverInsertBookrecord = /^L([1-9]\d*)C\(([1-9]\d*)\)([a-zA-Z]*)\.(.+)$/i;
+  // /^L[1-9]\d*C\([1-9]\d*\).*$/
+
 
 
   const query = Bookrecord.query()
@@ -252,18 +254,30 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   } else
     //INSERE CAPA NO LIVRO
     if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
-      const arrayFileName = originalFileName
-        .substring(1)           // tira o "L"
-        .split(/[()\.]/)       // quebra em F, (, ) e .
-        .filter(Boolean);       // remove strings vazias
-      objFileName = {
-        book: arrayFileName[0].replace("C", ""),
-        sheet: 0,
-        ext: path.extname(originalFileName).toLowerCase()//arrayFileName[3]
-      }
-      query.andWhere('book', objFileName.book)
-      isCreateCover = true
+      const match = originalFileName.match(regexBookCoverInsertBookrecord);
+      if (match) {
+        objFileName = {
+          book: match[1],                               // número do livro → 123
+          sheet: match[2],                              // número da folha → 1
+          letter: match[3] || "",                       // letras opcionais → ABC
+          ext: "." + match[4].toLowerCase(),            // extensão → .jpg
+        };
+        query.andWhere('book', objFileName.book)
+        isCreateCover = true
 
+        // const arrayFileName = originalFileName
+        //   .substring(1)           // tira o "L"
+        //   .split(/[()\.]/)       // quebra em F, (, ) e .
+        //   .filter(Boolean);       // remove strings vazias
+        // objFileName = {
+        //   book: arrayFileName[0].replace("C", ""),
+        //   sheet: 0,
+        //   ext: path.extname(originalFileName).toLowerCase()//arrayFileName[3]
+        // }
+        // query.andWhere('book', objFileName.book)
+        // isCreateCover = true
+
+      }
     }
     //SE NÃO EXISTIR EM BOOKRECORD INSERE*******************************
     else

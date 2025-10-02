@@ -10,40 +10,27 @@ import Typebook from 'App/Models/Typebook'
 
 test('test', async ({ client }) => {
 
-  // const teste = await fileRename("L389F(11)F.jpg", 236,10)
-  // console.log("Processamento completo!", teste);
+  const regexBookCoverInsertBookrecord = /^L([1-9]\d*)C\(([1-9]\d*)\)([a-zA-Z]*)\.(.+)$/i;
+  const originalFileName = "L123c(1).JPG";
+  let objFileName
 
-  const books_id = await Typebook.findOrFail(236)
-  console.log("######", books_id.books_id)
+  if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
+    console.log("entrei no ccccc")
+    const match = originalFileName.match(regexBookCoverInsertBookrecord);
 
-  // const bookRecordFind = await Bookrecord.query()
-  // .preload('typebooks')
-  //   .where('typebooks_id', 236)
-  //   .max('cod as max_cod')
-  //   .max('books_id as max_books_id')
-  //   .first()//await Typebook.findOrFail(typebooks_id)
+    if (match) {
+      objFileName = {
+        book: match[1],                               // número do livro → 123
+        sheet: match[2],                              // número da folha → 1
+        letter: match[3] || "",                       // letras opcionais → ABC
+        ext: "." + match[4].toLowerCase(),            // extensão → .jpg
+      };
 
-  // const regexBookCoverInsertBookrecord = /^L[1-9]\d*C\([1-9]\d*\).*$/
-  // const originalFileName = "L236C(1)-fasdf.jpg"
-  // const teste = regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())
-  // let objFileName
+      console.log("ENTROU NO TEST!!!", objFileName)
+      return
+      // query.andWhere('book', objFileName.book)
+      // isCreateCover = true
 
-  // console.log("&&&&&&&:", teste)
-  // if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
-  //   const arrayFileName = originalFileName
-  //     .substring(1)           // tira o "L"
-  //     .split(/[()\.]/)       // quebra em F, (, ) e .
-  //     .filter(Boolean);       // remove strings vazias
-  //   console.log("ENTREI NO NOVO FORMATO @#@#@", arrayFileName)
-  //   objFileName = {
-  //     book: arrayFileName[0].replace("C", ""),
-  //     sheet: 0,
-  //     ext: path.extname(originalFileName).toLowerCase()//arrayFileName[3]
-  //   }
-  //   query.andWhere('book', objFileName.book)
-  //   isCreateBookrecord = true
+    }
 
-  //   console.log(">>>>", objFileName)
-  // }
-
-})
+  })
