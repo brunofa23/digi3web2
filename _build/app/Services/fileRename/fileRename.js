@@ -168,7 +168,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
     const regexDocumentAndProt = /^P\d+\(\d+\).*$/;
     const regexBookSheetSideInsertBookrecord = /^L[1-9]\d*F\([1-9]\d*\)[FV]\.[A-Za-z0-9]+$/;
-    const regexBookCoverInsertBookrecord = /^L[1-9]\d*C\([1-9]\d*\).*$/;
+    const regexBookCoverInsertBookrecord = /^L([1-9]\d*)C\(([1-9]\d*)\)([a-zA-Z]*)\.(.+)$/i;
     const query = Bookrecord_1.default.query()
         .preload('indeximage', query => {
         query.where('indeximages.typebooks_id', typebooks_id);
@@ -197,17 +197,17 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         return fileRename;
     }
     else if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
-        const arrayFileName = originalFileName
-            .substring(1)
-            .split(/[()\.]/)
-            .filter(Boolean);
-        objFileName = {
-            book: arrayFileName[0].replace("C", ""),
-            sheet: 0,
-            ext: path.extname(originalFileName).toLowerCase()
-        };
-        query.andWhere('book', objFileName.book);
-        isCreateCover = true;
+        const match = originalFileName.match(regexBookCoverInsertBookrecord);
+        if (match) {
+            objFileName = {
+                book: match[1],
+                sheet: match[2],
+                letter: match[3] || "",
+                ext: "." + match[4].toLowerCase(),
+            };
+            query.andWhere('book', objFileName.book);
+            isCreateCover = true;
+        }
     }
     else if (regexBookSheetSideInsertBookrecord.test(originalFileName.toUpperCase())) {
         const arrayFileName = originalFileName
