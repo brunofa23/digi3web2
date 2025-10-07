@@ -10,27 +10,59 @@ import Typebook from 'App/Models/Typebook'
 
 test('test', async ({ client }) => {
 
-  const regexBookCoverInsertBookrecord = /^L([1-9]\d*)C\(([1-9]\d*)\)([a-zA-Z]*)\.(.+)$/i;
-  const originalFileName = "L123c(1).JPG";
-  let objFileName
+  // const regexBookSheetSideInsertBookrecord = /^l\d+f\(\d+\)[vf]/i;
+  // const originalFileName = "L123F(1)f.JPG";
+  // let objFileName
 
-  if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
-    console.log("entrei no ccccc")
-    const match = originalFileName.match(regexBookCoverInsertBookrecord);
+  // if (regexBookSheetSideInsertBookrecord.test(originalFileName)) {
+  //   console.log("entrei no VALIDADO!!!")
+  //   const match = originalFileName.match(regexBookSheetSideInsertBookrecord);
+  //   // console.log(">>>>>>>>",match)
+  //   if (match) {
+  //     objFileName = {
+  //       book: match[1],                               // número do livro → 123
+  //        sheet: match[2],                              // número da folha → 1
+  //        letter: match[3] || "",                       // letras opcionais → ABC
+  //        //ext: "." + match[4].toLowerCase(),            // extensão → .jpg
+  //     };
 
-    if (match) {
-      objFileName = {
-        book: match[1],                               // número do livro → 123
-        sheet: match[2],                              // número da folha → 1
-        letter: match[3] || "",                       // letras opcionais → ABC
-        ext: "." + match[4].toLowerCase(),            // extensão → .jpg
-      };
+  //     console.log("ENTROU NO TEST!!!", objFileName)
+  //   }
+  // }
+  // else console.log("NÃO ENTRA NO FORMATO")
 
-      console.log("ENTROU NO TEST!!!", objFileName)
-      return
-      // query.andWhere('book', objFileName.book)
-      // isCreateCover = true
 
-    }
+  const regexBookSheetSideInsertBookrecord = /^l(\d+)f\((\d+)\)([vf])(\d)?[^.]*\.(\w+)$/i;
 
-  })
+const examples = [
+  "L123F(1)f.JPG",
+  "L123F(1)v1.JPG",
+  "L123F(1)f155aaaa.JPG",
+  "L123F(1)V-primeira.JPG",
+  "l10f(3)F3extra.png"
+];
+
+const originalFileName ="L123F(1)f155aaaa.JPG"
+
+//for (const originalFileName of examples) {
+  const match = originalFileName.match(regexBookSheetSideInsertBookrecord);
+
+  if (match) {
+    const objFileName = {
+      book: match[1],        // número entre L e F → 123
+      sheet: match[2],       // número entre parênteses → 1
+      side: match[3].toUpperCase(), // letra depois do parêntese → F/V
+      indexbook: match[4] ? Number(match[4]) : null, // primeiro dígito após F/V
+      ext: "." + match[5].toLowerCase(), // extensão do arquivo
+    };
+
+    console.log("✅ VALIDADO:", originalFileName, objFileName);
+  } else {
+    console.log("❌ NÃO ENTRA NO FORMATO:", originalFileName);
+  }
+//}
+
+
+
+
+})
