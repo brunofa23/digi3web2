@@ -102,9 +102,7 @@ class IndeximagesController {
         });
         const { dataImages } = request['requestBody'];
         const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData'];
-        console.log("PASSEI NO UPLOAD 45555", updateImage);
         if (indexImagesInitial == 'true') {
-            console.log("PASSEI NO PASSO1 ");
             const listFilesImages = images.map((image) => {
                 const imageName = image.clientName;
                 return imageName;
@@ -120,7 +118,6 @@ class IndeximagesController {
             }
         }
         if (updateImage) {
-            console.log("PASSEI NO PASSO 2 ");
             const query = Bookrecord_1.default.query()
                 .where('typebooks_id', params.typebooks_id)
                 .andWhere('companies_id', authenticate.companies_id)
@@ -167,7 +164,6 @@ class IndeximagesController {
             }
         }
         else if (updateImageDocument) {
-            console.log("PASSEI NO PASSO 3 ");
             const verifyExistBookrecord = await Bookrecord_1.default.query()
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('cod', dataImages.cod)

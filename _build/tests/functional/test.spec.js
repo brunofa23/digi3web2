@@ -2,22 +2,28 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const runner_1 = require("@japa/runner");
 (0, runner_1.test)('test', async ({ client }) => {
-    const regexBookCoverInsertBookrecord = /^L([1-9]\d*)C\(([1-9]\d*)\)([a-zA-Z]*)\.(.+)$/i;
-    const originalFileName = "L123c(1).JPG";
-    let objFileName;
-    if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
-        console.log("entrei no ccccc");
-        const match = originalFileName.match(regexBookCoverInsertBookrecord);
-        if (match) {
-            objFileName = {
-                book: match[1],
-                sheet: match[2],
-                letter: match[3] || "",
-                ext: "." + match[4].toLowerCase(),
-            };
-            console.log("ENTROU NO TEST!!!", objFileName);
-            return;
-        }
+    const regexBookSheetSideInsertBookrecord = /^l(\d+)f\((\d+)\)([vf])(\d)?[^.]*\.(\w+)$/i;
+    const examples = [
+        "L123F(1)f.JPG",
+        "L123F(1)v1.JPG",
+        "L123F(1)f155aaaa.JPG",
+        "L123F(1)V-primeira.JPG",
+        "l10f(3)F3extra.png"
+    ];
+    const originalFileName = "L123F(1)f155aaaa.JPG";
+    const match = originalFileName.match(regexBookSheetSideInsertBookrecord);
+    if (match) {
+        const objFileName = {
+            book: match[1],
+            sheet: match[2],
+            side: match[3].toUpperCase(),
+            indexbook: match[4] ? Number(match[4]) : null,
+            ext: "." + match[5].toLowerCase(),
+        };
+        console.log("✅ VALIDADO:", originalFileName, objFileName);
+    }
+    else {
+        console.log("❌ NÃO ENTRA NO FORMATO:", originalFileName);
     }
 });
 //# sourceMappingURL=test.spec.js.map
