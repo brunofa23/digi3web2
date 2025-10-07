@@ -150,7 +150,7 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
     const idFile = await sendSearchFile(filename, cloud_number, idFolderPath[0].id)
     const renameFile = await sendRenameFile(idFile[0].id, newTitle, cloud_number)
   } catch (error) {
-    console.log("ERROR 1456", error)
+
   }
 }
 
@@ -221,9 +221,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   //FORMATO DE CAPA OU SEJA L999C(1).jpg OU SEJA PEGA O LIVRO E FOLHA 0
   const regexBookCoverInsertBookrecord = /^L([1-9]\d*)C\(([1-9]\d*)\)([a-zA-Z]*)\.(.+)$/i;
 
-
-
-
   const query = Bookrecord.query()
     .preload('indeximage', query => {
       query.where('indeximages.typebooks_id', typebooks_id)
@@ -282,7 +279,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
     case regexBookSheetSideInsertBookrecord.test(originalFileName): {
       const match = originalFileName.match(regexBookSheetSideInsertBookrecord);
-
       if (match) {
         objFileName = {
           book: match[1],        // número entre L e F → 123
@@ -292,9 +288,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           ext: path.extname(originalFileName).toLowerCase() //"." + match[5].toLowerCase(), // extensão do arquivo
         };
 
+
         query.andWhere('book', objFileName.book)
         query.andWhere('sheet', objFileName.sheet)
         query.andWhere('side', objFileName.side)
+        if (objFileName?.indexbook)
+          query.andWhere('indexbook', objFileName.indexbook)
+        else query.andWhereNull('indexbook')
+
         isCreateBookrecord = true
         break
       }
@@ -388,20 +389,26 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 
   try {
+
     let bookRecord = await query.first()
     let seq = 0
     // *****************************************************************
     if (bookRecord === null || isCreateCover) {
       if (isCreateBookrecord || isCreateCover) {
         try {
-          const book = await Typebook.query()
+          const query = Typebook.query()
             .where('companies_id', companies_id)
-            .andWhere('id', typebooks_id).first()
+            .andWhere('id', typebooks_id)//.first()
+          const book = await query.first()
+          //console.log("passo 1:", query.toQuery())
 
-          const bookRecordFind = await Bookrecord.query()
+          const query2 = Bookrecord.query()
             .where('typebooks_id', typebooks_id)
             .andWhere('companies_id', companies_id)
-            .max('cod as max_cod').first()
+            .max('cod as max_cod')//.first()
+
+          const bookRecordFind = await query2.first()
+          //console.log("passo 2:", query2.toQuery())
 
           const { ext, ...objFileNameWithoutExt } = objFileName
           const objectInsert = {
@@ -411,21 +418,24 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             cod: bookRecordFind?.$extras.max_cod + 1,
             ...objFileNameWithoutExt
           }
-          const createBookrecord = await Bookrecord.create(objectInsert)
-          bookRecord = await query.where('id', createBookrecord.id).first()
+          bookRecord = await Bookrecord.create(objectInsert)
+          seq = 1
+
         } catch (error) {
           console.log("!!!!!!!", error)
         }
       } else {
         return
       }
+    } else {
+      if (bookRecord.indeximage.length == 0) {
+        seq = 1
+      }
+      else {
+        seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1
+      }
     }
-    if (bookRecord.indeximage.length == 0) {
-      seq = 1
-    }
-    else {
-      seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1
-    }
+
 
     let fileRename
     try {
@@ -456,12 +466,10 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
   let dateNow: DateTime = DateTime.now()
   dateNow = dateNow.toFormat('yyyyMMddHHmm')
 
-
   return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
 }
 
 async function deleteFile(listFiles: [{}], cloud_number: number) {
-
   try {
 
     const idFolder = await sendSearchFile(listFiles[0]['path'], cloud_number)
