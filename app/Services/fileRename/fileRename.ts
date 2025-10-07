@@ -154,7 +154,7 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
   }
 }
 
-//import { imageProcessing } from "../imageProcessing/imageProcessing";
+
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
   //await imageProcessing(folderPath,folderPath)
   try {
@@ -217,10 +217,10 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   //Format P1(123).jpg para prot do Documents
   const regexDocumentAndProt = /^P\d+\(\d+\).*$/;
   //FORMATO L122F(1)F.jpg para Livro e folha e verifica ou insere registro no bookrecord
-  const regexBookSheetSideInsertBookrecord = /^L[1-9]\d*F\([1-9]\d*\)[FV]\.[A-Za-z0-9]+$/;
+  const regexBookSheetSideInsertBookrecord = /^l(\d+)f\((\d+)\)([vf])(\d)?[^.]*\.(\w+)$/i;
   //FORMATO DE CAPA OU SEJA L999C(1).jpg OU SEJA PEGA O LIVRO E FOLHA 0
   const regexBookCoverInsertBookrecord = /^L([1-9]\d*)C\(([1-9]\d*)\)([a-zA-Z]*)\.(.+)$/i;
-  // /^L[1-9]\d*C\([1-9]\d*\).*$/
+
 
 
 
@@ -231,169 +231,160 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     })
     .where('bookrecords.typebooks_id', '=', typebooks_id)
     .andWhere('bookrecords.companies_id', '=', companies_id)
+
+  //********************************************************** */
   if (dataImages.typeBookFile) {
     let fileName
-    if (dataImages.book && dataImages.sheet && dataImages.side) {
-      fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
-    }
-    else if (dataImages.book && dataImages.cod) {
-      fileName = `L${dataImages.book}(${dataImages.cod})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
-    } else if (dataImages.book && dataImages.approximateTerm) {
-      fileName = `T${dataImages.book}(${dataImages.approximateTerm})-${dataImages.typeBookFile}${path.extname(originalFileName).toLowerCase()}`
+    const ext = path.extname(originalFileName).toLowerCase()
+
+    switch (true) {
+      case (dataImages.book && dataImages.sheet && dataImages.side):
+        fileName = `L${dataImages.book}_${dataImages.sheet}_${dataImages.side}-${dataImages.typeBookFile}${ext}`
+        break
+
+      case (dataImages.book && dataImages.cod):
+        fileName = `L${dataImages.book}(${dataImages.cod})-${dataImages.typeBookFile}${ext}`
+        break
+
+      case (dataImages.book && dataImages.approximateTerm):
+        fileName = `T${dataImages.book}(${dataImages.approximateTerm})-${dataImages.typeBookFile}${ext}`
+        break
     }
 
-    const fileRename = {
+    return {
       file_name: fileName,
       typebooks_id,
       companies_id,
       previous_file_name: originalFileName,
       typeBookFile: true
     }
+  }
 
-    return fileRename
-  } else
-    //INSERE CAPA NO LIVRO
-    if (regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase())) {
-      const match = originalFileName.match(regexBookCoverInsertBookrecord);
+  // -------------------------------------------------------
+  // Se não for typeBookFile → entra no switch de regex
+  // -------------------------------------------------------
+
+  switch (true) {
+    case regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase()): {
+      const match = originalFileName.match(regexBookCoverInsertBookrecord)
       if (match) {
         objFileName = {
-          book: match[1],                               // número do livro → 123
-          sheet: match[2],                              // número da folha → 1
-          letter: match[3] || "",                       // letras opcionais → ABC
-          ext: "." + match[4].toLowerCase(),            // extensão → .jpg
-        };
+          book: match[1],
+          sheet: match[2],
+          letter: match[3] || "",
+          ext: "." + match[4].toLowerCase(),
+        }
         query.andWhere('book', objFileName.book)
         isCreateCover = true
-
-        // const arrayFileName = originalFileName
-        //   .substring(1)           // tira o "L"
-        //   .split(/[()\.]/)       // quebra em F, (, ) e .
-        //   .filter(Boolean);       // remove strings vazias
-        // objFileName = {
-        //   book: arrayFileName[0].replace("C", ""),
-        //   sheet: 0,
-        //   ext: path.extname(originalFileName).toLowerCase()//arrayFileName[3]
-        // }
-        // query.andWhere('book', objFileName.book)
-        // isCreateCover = true
-
       }
+      break
     }
-    //SE NÃO EXISTIR EM BOOKRECORD INSERE*******************************
-    else
-      if (regexBookSheetSideInsertBookrecord.test(originalFileName.toUpperCase())) {
 
+    case regexBookSheetSideInsertBookrecord.test(originalFileName): {
+      const match = originalFileName.match(regexBookSheetSideInsertBookrecord);
 
-        const arrayFileName = originalFileName
-          .substring(1)           // tira o "L"
-          .split(/[()\.]/)       // quebra em F, (, ) e .
-          .filter(Boolean);       // remove strings vazias
+      if (match) {
         objFileName = {
-          book: arrayFileName[0].replace("F", ""),
-          sheet: arrayFileName[1],
-          side: arrayFileName[2],
-          ext: path.extname(originalFileName).toLowerCase()//arrayFileName[3]
-        }
+          book: match[1],        // número entre L e F → 123
+          sheet: match[2],       // número entre parênteses → 1
+          side: match[3].toUpperCase(), // letra depois do parêntese → F/V
+          indexbook: match[4] ? Number(match[4]) : null, // primeiro dígito após F/V
+          ext: path.extname(originalFileName).toLowerCase() //"." + match[5].toLowerCase(), // extensão do arquivo
+        };
+
         query.andWhere('book', objFileName.book)
         query.andWhere('sheet', objFileName.sheet)
         query.andWhere('side', objFileName.side)
         isCreateBookrecord = true
+        break
+      }
+    }
 
+    case regexBookAndCod.test(originalFileName.toUpperCase()): {
+      separators = ["L", '\'', '(', ')', '|', '-']
+      arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'))
 
-      } else
-        if (regexBookAndCod.test(originalFileName.toUpperCase())) {
+      objFileName = {
+        type: arrayFileName[1],
+        book: arrayFileName[2],
+        cod: arrayFileName[4],
+        ext: arrayFileName[6]
+      }
+      query.andWhere('cod', objFileName.cod)
+      query.andWhere('book', objFileName.book)
+      break
+    }
 
-          separators = ["L", '\'', '(', ')', '|', '-'];
-          arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
-          objFileName = {
-            type: arrayFileName[1],
-            book: arrayFileName[2],
-            cod: arrayFileName[4],
-            ext: arrayFileName[6]
-          }
-          //query = ` cod =${objFileName.cod} and book = ${objFileName.book} `
-          query.andWhere('cod', objFileName.cod)
-          query.andWhere('book', objFileName.book)
-        }
-        else
-          if (regexBookSheetSide.test(originalFileName.toUpperCase())) {
-            separators = ["L", '_', '|', '-'];
-            arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
-            objFileName = {
-              type: arrayFileName[1],
-              book: arrayFileName[2],
-              sheet: arrayFileName[4],
-              side: arrayFileName[6][0],
-              ext: path.extname(originalFileName).toLowerCase()
-            }
-            //query = ` book = ${objFileName.book} and sheet =${objFileName.sheet} and side='${objFileName.side}'`
-            query.andWhere('book', objFileName.book)
-            query.andWhere('sheet', objFileName.sheet)
-            query.andWhere('side', objFileName.side)
-          }
-          //ARQUIVOS QUE INICIAM COM ID
-          else if (path.basename(originalFileName).startsWith('Id')) {
-            const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
-            objFileName = {
-              id: arrayFileName[0].replace('Id', ''),
-              cod: arrayFileName[1].replace('(', '').replace(')', ''),
-              ext: `.${arrayFileName[arrayFileName.length - 1]}`
-            }
-            originalFileName = path.basename(originalFileName)
-            //query = ` id=${objFileName.id} and cod=${objFileName.cod} `
-            query.andWhere('id', objFileName.id)
-            query.andWhere('cod', objFileName.cod)
+    case regexBookSheetSide.test(originalFileName.toUpperCase()): {
+      separators = ["L", '_', '|', '-']
+      arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'))
 
-          }
-          //ARQUIVOS COM A MÁSCARA T1(121)
-          else if (regexBookAndTerm.test(originalFileName.toUpperCase())) {
+      objFileName = {
+        type: arrayFileName[1],
+        book: arrayFileName[2],
+        sheet: arrayFileName[4],
+        side: arrayFileName[6][0],
+        ext: path.extname(originalFileName).toLowerCase()
+      }
+      query.andWhere('book', objFileName.book)
+      query.andWhere('sheet', objFileName.sheet)
+      query.andWhere('side', objFileName.side)
+      break
+    }
 
-            const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
-            objFileName = {
-              book: arrayFileName[0],
-              approximate_term: arrayFileName[1],
-              ext: `.${arrayFileName[3]}`
-            }
-            //query = ` approximate_term=${objFileName.approximate_term} and book=${objFileName.book} `
-            query.andWhere('approximate_term', objFileName.approximate_term)
-            query.andWhere('book', objFileName.book)
+    case path.basename(originalFileName).startsWith('Id'): {
+      const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
+      objFileName = {
+        id: arrayFileName[0].replace('Id', ''),
+        cod: arrayFileName[1].replace('(', '').replace(')', ''),
+        ext: `.${arrayFileName[arrayFileName.length - 1]}`
+      }
+      originalFileName = path.basename(originalFileName)
+      query.andWhere('id', objFileName.id)
+      query.andWhere('cod', objFileName.cod)
+      break
+    }
 
-          }
-          //ANEXAR DOCUMENTOS POR NUMERO DE PROTOCOLO E CAIXA
-          else if (regexDocumentAndProt.test(originalFileName.toUpperCase())) {
-            const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
-            objFileName = {
-              book: arrayFileName[0],
-              prot: arrayFileName[1],
-              ext: `.${arrayFileName[3]}`
-            }
-            query.andWhere('book', objFileName.book)
-            query.whereHas('document', query => {
-              query.where('documents.prot', objFileName.prot)
-            })
+    case regexBookAndTerm.test(originalFileName.toUpperCase()): {
+      const arrayFileName = originalFileName.substring(1).split(/[()\.]/)
+      objFileName = {
+        book: arrayFileName[0],
+        approximate_term: arrayFileName[1],
+        ext: `.${arrayFileName[3]}`
+      }
+      query.andWhere('approximate_term', objFileName.approximate_term)
+      query.andWhere('book', objFileName.book)
+      break
+    }
 
-          }
-          else {
+    case regexDocumentAndProt.test(originalFileName.toUpperCase()): {
+      const arrayFileName = originalFileName.substring(1).split(/[()\.]/)
+      objFileName = {
+        book: arrayFileName[0],
+        prot: arrayFileName[1],
+        ext: `.${arrayFileName[3]}`
+      }
+      query.andWhere('book', objFileName.book)
+      query.whereHas('document', q => {
+        q.where('documents.prot', objFileName.prot)
+      })
+      break
+    }
 
-            if (dataImages.id)
-              query.andWhere('id', dataImages.id)
-            if (dataImages.book)
-              query.andWhere('book', dataImages.book)
-            if (dataImages.sheet)
-              query.andWhere('sheet', dataImages.sheet)
-            if (dataImages.side)
-              query.andWhere('side', dataImages.side)
-            if (dataImages.cod)
-              query.andWhere('cod', dataImages.cod)
-            if (dataImages.approximateTerm)
-              query.andWhere('approximate_term', dataImages.approximateTerm)
-            if (dataImages.indexBook)
-              query.andWhere('indexbook', dataImages.indexBook)
-            objFileName = {
-              ext: path.extname(originalFileName).toLowerCase()
-            }
+    default: {
+      if (dataImages.id) query.andWhere('id', dataImages.id)
+      if (dataImages.book) query.andWhere('book', dataImages.book)
+      if (dataImages.sheet) query.andWhere('sheet', dataImages.sheet)
+      if (dataImages.side) query.andWhere('side', dataImages.side)
+      if (dataImages.cod) query.andWhere('cod', dataImages.cod)
+      if (dataImages.approximateTerm) query.andWhere('approximate_term', dataImages.approximateTerm)
+      if (dataImages.indexBook) query.andWhere('indexbook', dataImages.indexBook)
 
-          }
+      objFileName = { ext: path.extname(originalFileName).toLowerCase() }
+    }
+  }
+
+  //********************************************************** */
 
 
   try {
