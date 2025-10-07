@@ -120,7 +120,6 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
         const renameFile = await (0, googledrive_1.sendRenameFile)(idFile[0].id, newTitle, cloud_number);
     }
     catch (error) {
-        console.log("ERROR 1456", error);
     }
 }
 exports.renameFileGoogle = renameFileGoogle;
@@ -226,6 +225,10 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                 query.andWhere('book', objFileName.book);
                 query.andWhere('sheet', objFileName.sheet);
                 query.andWhere('side', objFileName.side);
+                if (objFileName?.indexbook)
+                    query.andWhere('indexbook', objFileName.indexbook);
+                else
+                    query.andWhereNull('indexbook');
                 isCreateBookrecord = true;
                 break;
             }
@@ -318,13 +321,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         if (bookRecord === null || isCreateCover) {
             if (isCreateBookrecord || isCreateCover) {
                 try {
-                    const book = await Typebook_1.default.query()
+                    const query = Typebook_1.default.query()
                         .where('companies_id', companies_id)
-                        .andWhere('id', typebooks_id).first();
-                    const bookRecordFind = await Bookrecord_1.default.query()
+                        .andWhere('id', typebooks_id);
+                    const book = await query.first();
+                    const query2 = Bookrecord_1.default.query()
                         .where('typebooks_id', typebooks_id)
                         .andWhere('companies_id', companies_id)
-                        .max('cod as max_cod').first();
+                        .max('cod as max_cod');
+                    const bookRecordFind = await query2.first();
                     const { ext, ...objFileNameWithoutExt } = objFileName;
                     const objectInsert = {
                         books_id: book.books_id,
@@ -333,8 +338,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                         cod: bookRecordFind?.$extras.max_cod + 1,
                         ...objFileNameWithoutExt
                     };
-                    const createBookrecord = await Bookrecord_1.default.create(objectInsert);
-                    bookRecord = await query.where('id', createBookrecord.id).first();
+                    bookRecord = await Bookrecord_1.default.create(objectInsert);
+                    seq = 1;
                 }
                 catch (error) {
                     console.log("!!!!!!!", error);
@@ -344,11 +349,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                 return;
             }
         }
-        if (bookRecord.indeximage.length == 0) {
-            seq = 1;
-        }
         else {
-            seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1;
+            if (bookRecord.indeximage.length == 0) {
+                seq = 1;
+            }
+            else {
+                seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1;
+            }
         }
         let fileRename;
         try {
