@@ -763,444 +763,923 @@ export default class BookrecordsController {
     //SUBSTITUI O NUMERO DO LIVRO
   }
 
-public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
-  const authenticate = await auth.use('api').authenticate();
+  // public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate();
 
-  const body = await request.validate({
-    schema: schema.create({
-      renumerate_cod: schema.boolean.optional(),
-      is_create: schema.boolean.optional(),
-      by_sheet: schema.string.optional(),
-      start_cod: schema.number(),
-      end_cod: schema.number(),
-      book: schema.number.optional(),
-      book_replace: schema.number.optional(),
-      sheet: schema.number.optional(),
-      side: schema.string.optional(),
-      model_book: schema.string.optional(),
-      books_id: schema.number(),
-      indexbook: schema.string.optional(),
-      year: schema.number.optional(),
-      approximate_term: schema.number.optional(),
-      obs: schema.string.optional(),
-    }),
-  });
+  //   const body = await request.validate({
+  //     schema: schema.create({
+  //       renumerate_cod: schema.boolean.optional(),
+  //       is_create: schema.boolean.optional(),
+  //       by_sheet: schema.string.optional(),
+  //       start_cod: schema.number(),
+  //       end_cod: schema.number(),
+  //       book: schema.number.optional(),
+  //       book_replace: schema.number.optional(),
+  //       sheet: schema.number.optional(),
+  //       side: schema.string.optional(),
+  //       model_book: schema.string.optional(),
+  //       books_id: schema.number(),
+  //       indexbook: schema.string.optional(),
+  //       year: schema.number.optional(),
+  //       approximate_term: schema.number.optional(),
+  //       obs: schema.string.optional(),
+  //     }),
+  //   });
 
-  if (body.start_cod > body.end_cod) {
-    throw new BadRequestException("erro: codigo inicial maior que o final");
-  }
+  //   if (body.start_cod > body.end_cod) {
+  //     throw new BadRequestException("erro: codigo inicial maior que o final");
+  //   }
 
-  // --- FLUXO DE SUBSTITUIÇÃO SIMPLES ---
-  if (body.book_replace && body.book_replace > 0) {
-    const updatedCount = await Bookrecord.query()
-      .where("companies_id", authenticate.companies_id)
-      .andWhere("typebooks_id", params.typebooks_id)
-      .where("books_id", body.books_id)
-      .andWhere("book", body.book)
-      .update({ book: body.book_replace });
+  //   // --- FLUXO DE SUBSTITUIÇÃO SIMPLES ---
+  //   if (body.book_replace && body.book_replace > 0) {
+  //     const updatedCount = await Bookrecord.query()
+  //       .where("companies_id", authenticate.companies_id)
+  //       .andWhere("typebooks_id", params.typebooks_id)
+  //       .where("books_id", body.books_id)
+  //       .andWhere("book", body.book)
+  //       .update({ book: body.book_replace });
 
-    return response.status(200).send({
-      message: `Bookrecords atualizados para ${body.book_replace}!`,
-      updatedCount,
-    });
-  }
+  //     return response.status(200).send({
+  //       message: `Bookrecords atualizados para ${body.book_replace}!`,
+  //       updatedCount,
+  //     });
+  //   }
 
-  // Condições novas:
-  // shouldApplyModel => só quando usuário passou sheet ou side ou model_book
-  const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
-  // só renumera cod se renumerate_cod = true E se deve aplicar o model (ou seja, user enviou parâmetros de sheet/side/model_book)
-  const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
+  //   // Condições novas:
+  //   // shouldApplyModel => só quando usuário passou sheet ou side ou model_book
+  //   const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
+  //   // só renumera cod se renumerate_cod = true E se deve aplicar o model (ou seja, user enviou parâmetros de sheet/side/model_book)
+  //   const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
 
-  function modelBookNext(model_book: string | undefined, side: string | null, sheet: number | null) {
-    if (!model_book) return { side, sheet: (sheet ?? 0) + 1 };
+  //   function modelBookNext(model_book: string | undefined, side: string | null, sheet: number | null) {
+  //     if (!model_book) return { side, sheet: (sheet ?? 0) + 1 };
 
-    switch (model_book) {
-      case "C": return { side: null, sheet: 0 };
-      case "F": return { side: "F", sheet: (sheet ?? 0) + 1 };
-      case "V": return { side: "V", sheet: (sheet ?? 0) + 1 };
-      case "FV": return { side: side === "F" ? "V" : "F", sheet: (sheet ?? 0) + 1 };
-      case "FVFV":
-        if (side === "F") return { side: "V", sheet };
-        return { side: "F", sheet: (sheet ?? 0) + 1 };
-      case "F-IMPAR": return { side: "F", sheet: (sheet ?? 0) + 2 };
-      case "V-PAR": return { side: "V", sheet: (sheet ?? 0) + 2 };
-      default: return { side, sheet: (sheet ?? 0) + 1 };
-    }
-  }
+  //     switch (model_book) {
+  //       case "C": return { side: null, sheet: 0 };
+  //       case "F": return { side: "F", sheet: (sheet ?? 0) + 1 };
+  //       case "V": return { side: "V", sheet: (sheet ?? 0) + 1 };
+  //       case "FV": return { side: side === "F" ? "V" : "F", sheet: (sheet ?? 0) + 1 };
+  //       case "FVFV":
+  //         if (side === "F") return { side: "V", sheet };
+  //         return { side: "F", sheet: (sheet ?? 0) + 1 };
+  //       case "F-IMPAR": return { side: "F", sheet: (sheet ?? 0) + 2 };
+  //       case "V-PAR": return { side: "V", sheet: (sheet ?? 0) + 2 };
+  //       default: return { side, sheet: (sheet ?? 0) + 1 };
+  //     }
+  //   }
 
-  try {
-    const query = Bookrecord.query()
-      .andWhere("companies_id", authenticate.companies_id)
-      .andWhere("typebooks_id", params.typebooks_id)
-      .where("books_id", body.books_id)
-      .andWhere("book", body.book);
+  //   try {
+  //     const query = Bookrecord.query()
+  //       .andWhere("companies_id", authenticate.companies_id)
+  //       .andWhere("typebooks_id", params.typebooks_id)
+  //       .where("books_id", body.books_id)
+  //       .andWhere("book", body.book);
 
-    if (body.by_sheet == "S") {
-      query.andWhere("sheet", ">=", body.start_cod).andWhere("sheet", "<=", body.end_cod);
-    } else {
-      query.andWhere("cod", ">=", body.start_cod).andWhere("cod", "<=", body.end_cod);
-    }
+  //     if (body.by_sheet == "S") {
+  //       query.andWhere("sheet", ">=", body.start_cod).andWhere("sheet", "<=", body.end_cod);
+  //     } else {
+  //       query.andWhere("cod", ">=", body.start_cod).andWhere("cod", "<=", body.end_cod);
+  //     }
 
-    const result = await query;
+  //     const result = await query;
 
-    // helper: sobrescreve só se bodyValue !== undefined && !== null && !== ""
-    function overwriteIfValid<T>(bodyValue: T | null | undefined, dbValue: T | undefined): T | undefined {
-      return bodyValue !== undefined && bodyValue !== null && bodyValue !== "" ? (bodyValue as T) : dbValue;
-    }
+  //     // helper: sobrescreve só se bodyValue !== undefined && !== null && !== ""
+  //     function overwriteIfValid<T>(bodyValue: T | null | undefined, dbValue: T | undefined): T | undefined {
+  //       return bodyValue !== undefined && bodyValue !== null && bodyValue !== "" ? (bodyValue as T) : dbValue;
+  //     }
 
-    const generatedArray: any[] = [];
+  //     const generatedArray: any[] = [];
 
-    let sequenceSheet = body.sheet ?? body.start_cod;
-    const defaultSideForModel = (() => {
-      switch (body.model_book) {
-        case "F":
-        case "F-IMPAR": return "F";
-        case "V":
-        case "V-PAR": return "V";
-        case "FV":
-        case "FVFV": return "F";
-        default: return body.side ?? null;
-      }
-    })();
-    let sequenceSide = body.side ?? defaultSideForModel;
+  //     let sequenceSheet = body.sheet ?? body.start_cod;
+  //     const defaultSideForModel = (() => {
+  //       switch (body.model_book) {
+  //         case "F":
+  //         case "F-IMPAR": return "F";
+  //         case "V":
+  //         case "V-PAR": return "V";
+  //         case "FV":
+  //         case "FVFV": return "F";
+  //         default: return body.side ?? null;
+  //       }
+  //     })();
+  //     let sequenceSide = body.side ?? defaultSideForModel;
 
-    const sortRecords = (arr: any[]) =>
-      (arr ?? []).slice().sort((a: any, b: any) => {
-        const as = a?.sheet ?? 0;
-        const bs = b?.sheet ?? 0;
-        if (as !== bs) return as - bs;
-        return (a?.id ?? 0) - (b?.id ?? 0);
-      });
+  //     const sortRecords = (arr: any[]) =>
+  //       (arr ?? []).slice().sort((a: any, b: any) => {
+  //         const as = a?.sheet ?? 0;
+  //         const bs = b?.sheet ?? 0;
+  //         if (as !== bs) return as - bs;
+  //         return (a?.id ?? 0) - (b?.id ?? 0);
+  //       });
 
-    // ---- GERAÇÃO ----
-    if (body.by_sheet == "S") {
-      if (body.is_create) {
-        for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
-          let recordsForSheet = result.filter((r) => r.sheet === sheetNum);
-          recordsForSheet = sortRecords(recordsForSheet);
+  //     // ---- GERAÇÃO ----
+  //     if (body.by_sheet == "S") {
+  //       if (body.is_create) {
+  //         for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
+  //           let recordsForSheet = result.filter((r) => r.sheet === sheetNum);
+  //           recordsForSheet = sortRecords(recordsForSheet);
 
-          const minSlots = body.model_book === "FVFV" ? 2 : 1;
-          const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
+  //           const minSlots = body.model_book === "FVFV" ? 2 : 1;
+  //           const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
 
-          for (let slot = 0; slot < slotsToProcess; slot++) {
-            const baseRecord = recordsForSheet[slot] ?? null;
+  //           for (let slot = 0; slot < slotsToProcess; slot++) {
+  //             const baseRecord = recordsForSheet[slot] ?? null;
 
-            if (!shouldApplyModel) {
-              // não aplicar modelo: manter sheet/side do banco (ou usar sheetNum quando não houver baseRecord)
-              const assignedSide = baseRecord?.side ?? null;
-              const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
+  //             if (!shouldApplyModel) {
+  //               // não aplicar modelo: manter sheet/side do banco (ou usar sheetNum quando não houver baseRecord)
+  //               const assignedSide = baseRecord?.side ?? null;
+  //               const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
 
-              generatedArray.push({
-                id: baseRecord?.id,
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: baseRecord?.cod ?? sheetNum,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(body.year, baseRecord?.year),
-                obs: overwriteIfValid(body.obs, baseRecord?.obs),
-              });
-            } else {
-              // aplicar modelo: usar sequência / valores vindos no body
-              const assignedSide = sequenceSide ?? defaultSideForModel;
-              const assignedSheetOut = sequenceSheet;
+  //               generatedArray.push({
+  //                 id: baseRecord?.id,
+  //                 typebooks_id: params.typebooks_id,
+  //                 books_id: baseRecord?.books_id ?? body.books_id,
+  //                 companies_id: authenticate.companies_id,
+  //                 cod: baseRecord?.cod ?? sheetNum,
+  //                 book: baseRecord?.book ?? body.book,
+  //                 sheet: assignedSheetOut,
+  //                 side: assignedSide,
+  //                 approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+  //                 indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+  //                 year: overwriteIfValid(body.year, baseRecord?.year),
+  //                 obs: overwriteIfValid(body.obs, baseRecord?.obs),
+  //               });
+  //             } else {
+  //               // aplicar modelo: usar sequência / valores vindos no body
+  //               const assignedSide = sequenceSide ?? defaultSideForModel;
+  //               const assignedSheetOut = sequenceSheet;
 
-              generatedArray.push({
-                id: baseRecord?.id,
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: baseRecord?.cod ?? sheetNum,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(body.year, baseRecord?.year),
-                obs: overwriteIfValid(body.obs, baseRecord?.obs),
-              });
+  //               generatedArray.push({
+  //                 id: baseRecord?.id,
+  //                 typebooks_id: params.typebooks_id,
+  //                 books_id: baseRecord?.books_id ?? body.books_id,
+  //                 companies_id: authenticate.companies_id,
+  //                 cod: baseRecord?.cod ?? sheetNum,
+  //                 book: baseRecord?.book ?? body.book,
+  //                 sheet: assignedSheetOut,
+  //                 side: assignedSide,
+  //                 approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+  //                 indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+  //                 year: overwriteIfValid(body.year, baseRecord?.year),
+  //                 obs: overwriteIfValid(body.obs, baseRecord?.obs),
+  //               });
 
-              // avança sequência somente se estamos aplicando modelo (ou seja: usuário enviou sheet/side/model_book)
-              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-              sequenceSide = next.side;
-              sequenceSheet = next.sheet ?? sequenceSheet;
-            }
-          }
-        }
-      } else {
-        const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
-          .filter((s) => s !== undefined && s !== null)
-          .sort((a, b) => a - b);
+  //               // avança sequência somente se estamos aplicando modelo (ou seja: usuário enviou sheet/side/model_book)
+  //               const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+  //               sequenceSide = next.side;
+  //               sequenceSheet = next.sheet ?? sequenceSheet;
+  //             }
+  //           }
+  //         }
+  //       } else {
+  //         const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
+  //           .filter((s) => s !== undefined && s !== null)
+  //           .sort((a, b) => a - b);
 
-        for (const sheetVal of distinctSheets) {
-          let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
-          recordsForSheet = sortRecords(recordsForSheet);
+  //         for (const sheetVal of distinctSheets) {
+  //           let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
+  //           recordsForSheet = sortRecords(recordsForSheet);
 
-          for (const baseRecord of recordsForSheet) {
-            if (!shouldApplyModel) {
-              const assignedSide = baseRecord?.side ?? null;
-              const assignedSheetOut = baseRecord?.sheet ?? sheetVal;
+  //           for (const baseRecord of recordsForSheet) {
+  //             if (!shouldApplyModel) {
+  //               const assignedSide = baseRecord?.side ?? null;
+  //               const assignedSheetOut = baseRecord?.sheet ?? sheetVal;
 
-              generatedArray.push({
-                id: baseRecord?.id,
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: baseRecord?.cod ?? sheetVal,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(body.year, baseRecord?.year),
-                obs: overwriteIfValid(body.obs, baseRecord?.obs),
-              });
-            } else {
-              const assignedSide = sequenceSide ?? defaultSideForModel;
-              const assignedSheetOut = sequenceSheet;
+  //               generatedArray.push({
+  //                 id: baseRecord?.id,
+  //                 typebooks_id: params.typebooks_id,
+  //                 books_id: baseRecord?.books_id ?? body.books_id,
+  //                 companies_id: authenticate.companies_id,
+  //                 cod: baseRecord?.cod ?? sheetVal,
+  //                 book: baseRecord?.book ?? body.book,
+  //                 sheet: assignedSheetOut,
+  //                 side: assignedSide,
+  //                 approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+  //                 indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+  //                 year: overwriteIfValid(body.year, baseRecord?.year),
+  //                 obs: overwriteIfValid(body.obs, baseRecord?.obs),
+  //               });
+  //             } else {
+  //               const assignedSide = sequenceSide ?? defaultSideForModel;
+  //               const assignedSheetOut = sequenceSheet;
 
-              generatedArray.push({
-                id: baseRecord?.id,
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: baseRecord?.cod ?? sheetVal,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(body.year, baseRecord?.year),
-                obs: overwriteIfValid(body.obs, baseRecord?.obs),
-              });
+  //               generatedArray.push({
+  //                 id: baseRecord?.id,
+  //                 typebooks_id: params.typebooks_id,
+  //                 books_id: baseRecord?.books_id ?? body.books_id,
+  //                 companies_id: authenticate.companies_id,
+  //                 cod: baseRecord?.cod ?? sheetVal,
+  //                 book: baseRecord?.book ?? body.book,
+  //                 sheet: assignedSheetOut,
+  //                 side: assignedSide,
+  //                 approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+  //                 indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+  //                 year: overwriteIfValid(body.year, baseRecord?.year),
+  //                 obs: overwriteIfValid(body.obs, baseRecord?.obs),
+  //               });
 
-              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-              sequenceSide = next.side;
-              sequenceSheet = next.sheet ?? sequenceSheet;
-            }
-          }
-        }
-      }
-    } else {
-      // by cod
-      if (body.is_create) {
-        for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
-          let recordsForCod = result.filter((r) => r.cod === cod);
-          recordsForCod = sortRecords(recordsForCod);
+  //               const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+  //               sequenceSide = next.side;
+  //               sequenceSheet = next.sheet ?? sequenceSheet;
+  //             }
+  //           }
+  //         }
+  //       }
+  //     } else {
+  //       // by cod
+  //       if (body.is_create) {
+  //         for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
+  //           let recordsForCod = result.filter((r) => r.cod === cod);
+  //           recordsForCod = sortRecords(recordsForCod);
 
-          const slotsToProcess = Math.max(recordsForCod.length, 1);
-          for (let slot = 0; slot < slotsToProcess; slot++) {
-            const baseRecord = recordsForCod[slot] ?? null;
+  //           const slotsToProcess = Math.max(recordsForCod.length, 1);
+  //           for (let slot = 0; slot < slotsToProcess; slot++) {
+  //             const baseRecord = recordsForCod[slot] ?? null;
 
-            if (!shouldApplyModel) {
-              const assignedSide = baseRecord?.side ?? null;
-              const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
+  //             if (!shouldApplyModel) {
+  //               const assignedSide = baseRecord?.side ?? null;
+  //               const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
 
-              generatedArray.push({
-                id: baseRecord?.id,
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: cod,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(body.year, baseRecord?.year),
-                obs: overwriteIfValid(body.obs, baseRecord?.obs),
-              });
-            } else {
-              const assignedSide = sequenceSide ?? defaultSideForModel;
-              const assignedSheetOut = sequenceSheet;
+  //               generatedArray.push({
+  //                 id: baseRecord?.id,
+  //                 typebooks_id: params.typebooks_id,
+  //                 books_id: baseRecord?.books_id ?? body.books_id,
+  //                 companies_id: authenticate.companies_id,
+  //                 cod: cod,
+  //                 book: baseRecord?.book ?? body.book,
+  //                 sheet: assignedSheetOut,
+  //                 side: assignedSide,
+  //                 approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+  //                 indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+  //                 year: overwriteIfValid(body.year, baseRecord?.year),
+  //                 obs: overwriteIfValid(body.obs, baseRecord?.obs),
+  //               });
+  //             } else {
+  //               const assignedSide = sequenceSide ?? defaultSideForModel;
+  //               const assignedSheetOut = sequenceSheet;
 
-              generatedArray.push({
-                id: baseRecord?.id,
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: cod,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(body.year, baseRecord?.year),
-                obs: overwriteIfValid(body.obs, baseRecord?.obs),
-              });
+  //               generatedArray.push({
+  //                 id: baseRecord?.id,
+  //                 typebooks_id: params.typebooks_id,
+  //                 books_id: baseRecord?.books_id ?? body.books_id,
+  //                 companies_id: authenticate.companies_id,
+  //                 cod: cod,
+  //                 book: baseRecord?.book ?? body.book,
+  //                 sheet: assignedSheetOut,
+  //                 side: assignedSide,
+  //                 approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+  //                 indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+  //                 year: overwriteIfValid(body.year, baseRecord?.year),
+  //                 obs: overwriteIfValid(body.obs, baseRecord?.obs),
+  //               });
 
-              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-              sequenceSide = next.side;
-              sequenceSheet = next.sheet ?? sequenceSheet;
-            }
-          }
-        }
-      } else {
-        const distinctCods = Array.from(new Set(result.map((r) => r.cod)))
-          .filter((c) => c !== undefined && c !== null)
-          .sort((a, b) => a - b);
+  //               const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+  //               sequenceSide = next.side;
+  //               sequenceSheet = next.sheet ?? sequenceSheet;
+  //             }
+  //           }
+  //         }
+  //       } else {
+  //         const distinctCods = Array.from(new Set(result.map((r) => r.cod)))
+  //           .filter((c) => c !== undefined && c !== null)
+  //           .sort((a, b) => a - b);
 
-        for (const codVal of distinctCods) {
-          let recordsForCod = result.filter((r) => r.cod === codVal);
-          recordsForCod = sortRecords(recordsForCod);
+  //         for (const codVal of distinctCods) {
+  //           let recordsForCod = result.filter((r) => r.cod === codVal);
+  //           recordsForCod = sortRecords(recordsForCod);
 
-          for (const baseRecord of recordsForCod) {
-            if (!shouldApplyModel) {
-              const assignedSide = baseRecord?.side ?? null;
-              const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
+  //           for (const baseRecord of recordsForCod) {
+  //             if (!shouldApplyModel) {
+  //               const assignedSide = baseRecord?.side ?? null;
+  //               const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
 
-              generatedArray.push({
-                id: baseRecord?.id,
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: codVal,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(body.year, baseRecord?.year),
-                obs: overwriteIfValid(body.obs, baseRecord?.obs),
-              });
-            } else {
-              const assignedSide = sequenceSide ?? defaultSideForModel;
-              const assignedSheetOut = sequenceSheet;
+  //               generatedArray.push({
+  //                 id: baseRecord?.id,
+  //                 typebooks_id: params.typebooks_id,
+  //                 books_id: baseRecord?.books_id ?? body.books_id,
+  //                 companies_id: authenticate.companies_id,
+  //                 cod: codVal,
+  //                 book: baseRecord?.book ?? body.book,
+  //                 sheet: assignedSheetOut,
+  //                 side: assignedSide,
+  //                 approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+  //                 indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+  //                 year: overwriteIfValid(body.year, baseRecord?.year),
+  //                 obs: overwriteIfValid(body.obs, baseRecord?.obs),
+  //               });
+  //             } else {
+  //               const assignedSide = sequenceSide ?? defaultSideForModel;
+  //               const assignedSheetOut = sequenceSheet;
 
-              generatedArray.push({
-                id: baseRecord?.id,
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: codVal,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(body.year, baseRecord?.year),
-                obs: overwriteIfValid(body.obs, baseRecord?.obs),
-              });
+  //               generatedArray.push({
+  //                 id: baseRecord?.id,
+  //                 typebooks_id: params.typebooks_id,
+  //                 books_id: baseRecord?.books_id ?? body.books_id,
+  //                 companies_id: authenticate.companies_id,
+  //                 cod: codVal,
+  //                 book: baseRecord?.book ?? body.book,
+  //                 sheet: assignedSheetOut,
+  //                 side: assignedSide,
+  //                 approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+  //                 indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+  //                 year: overwriteIfValid(body.year, baseRecord?.year),
+  //                 obs: overwriteIfValid(body.obs, baseRecord?.obs),
+  //               });
 
-              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-              sequenceSide = next.side;
-              sequenceSheet = next.sheet ?? sequenceSheet;
-            }
-          }
-        }
-      }
-    }
+  //               const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+  //               sequenceSide = next.side;
+  //               sequenceSheet = next.sheet ?? sequenceSheet;
+  //             }
+  //           }
+  //         }
+  //       }
+  //     }
 
-    // ---- RENUMERAÇÃO DE COD ----
-    if (shouldRenumerate) {
-      let newCod = body.sheet ?? body.start_cod;
-      const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+  //     // ---- RENUMERAÇÃO DE COD ----
+  //     if (shouldRenumerate) {
+  //       console.log("passei.....55556666")
+  //       let newCod = body.sheet ?? body.start_cod;
+  //       const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
 
-      generatedArray.sort((a, b) => {
-        if (a.sheet !== b.sheet) return a.sheet - b.sheet;
-        const sa = sideRank(a.side); const sb = sideRank(b.side);
-        if (sa !== sb) return sa - sb;
-        return (a.id ?? 0) - (b.id ?? 0);
-      });
+  //       generatedArray.sort((a, b) => {
+  //         if (a.sheet !== b.sheet) return a.sheet - b.sheet;
+  //         const sa = sideRank(a.side); const sb = sideRank(b.side);
+  //         if (sa !== sb) return sa - sb;
+  //         return (a.id ?? 0) - (b.id ?? 0);
+  //       });
 
-      for (const rec of generatedArray) {
-        rec.cod = newCod++;
-      }
-    }
+  //       for (const rec of generatedArray) {
+  //         rec.cod = newCod++;
+  //       }
+  //     }
 
-    // ---- RENUMERAÇÃO DE approximate_term ----
-    // Este bloco permanece: só renumera approximate_term se veio no body
-    if (body.approximate_term !== undefined) {
-      let newApprox = body.approximate_term;
-      for (const rec of generatedArray) {
-        rec.approximate_term = newApprox++;
-      }
-    }
+  //     // ---- RENUMERAÇÃO DE approximate_term ----
+  //     // Este bloco permanece: só renumera approximate_term se veio no body
+  //     if (body.approximate_term !== undefined) {
+  //       let newApprox = body.approximate_term;
+  //       for (const rec of generatedArray) {
+  //         rec.approximate_term = newApprox++;
+  //       }
+  //     }
 
-    // --- UPDATE/INSERT NO BANCO ---
-    const trx = await Database.transaction();
-    try {
-      for (const record of generatedArray) {
-        if (record.id) {
-          // montar updateData: incluir apenas os campos que devemos realmente alterar
-          const updateData: Record<string, any> = {};
+  //     // --- UPDATE/INSERT NO BANCO ---
+  //     const trx = await Database.transaction();
+  //     try {
+  //       for (const record of generatedArray) {
+  //         if (record.id) {
+  //           // montar updateData: incluir apenas os campos que devemos realmente alterar
+  //           const updateData: Record<string, any> = {};
 
-          // sheet/side: só atualiza se usuário enviou parâmetros de model (shouldApplyModel)
-          if (shouldApplyModel) {
-            updateData.sheet = record.sheet;
-            updateData.side = record.side;
-          }
+  //           // sheet/side: só atualiza se usuário enviou parâmetros de model (shouldApplyModel)
+  //           if (shouldApplyModel) {
+  //             updateData.sheet = record.sheet;
+  //             updateData.side = record.side;
+  //           }
 
-          // cod: só atualiza se estamos renumerando
-          if (shouldRenumerate) {
-            updateData.cod = record.cod;
-          }
+  //           // cod: só atualiza se estamos renumerando
+  //           if (shouldRenumerate) {
+  //             updateData.cod = record.cod;
+  //           }
 
-          // campos controlados individualmente: só atualizar se vier no body
-          if (body.approximate_term !== undefined) updateData.approximate_term = record.approximate_term;
-          if (body.indexbook !== undefined) updateData.indexbook = record.indexbook;
-          if (body.year !== undefined) updateData.year = record.year;
-          if (body.obs !== undefined) updateData.obs = record.obs;
+  //           // campos controlados individualmente: só atualizar se vier no body
+  //           if (body.approximate_term !== undefined) updateData.approximate_term = record.approximate_term;
+  //           if (body.indexbook !== undefined) updateData.indexbook = record.indexbook;
+  //           if (body.year !== undefined) updateData.year = record.year;
+  //           if (body.obs !== undefined) updateData.obs = record.obs;
 
-          // remove null/undefined/"" (por exemplo side pode ser null explicitamente e ainda assim desejado)
-          const finalUpdateData = Object.fromEntries(
-            Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== "")
-          );
+  //           // remove null/undefined/"" (por exemplo side pode ser null explicitamente e ainda assim desejado)
+  //           const finalUpdateData = Object.fromEntries(
+  //             Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== "")
+  //           );
 
-          if (Object.keys(finalUpdateData).length > 0) {
-            await Bookrecord.query({ client: trx })
-              .where("id", record.id)
-              .update(finalUpdateData);
-          }
-        } else if (body.is_create) {
-          // criar: sempre precisa informar cod/book/sheet/side (conforme gerado),
-          // mas apenas incluir indexbook/year/approximate_term/obs se vierem no body
-          const createPayload: Record<string, any> = {
-            typebooks_id: params.typebooks_id,
-            books_id: record.books_id,
-            companies_id: authenticate.companies_id,
-            cod: record.cod,
-            book: record.book,
-            sheet: record.sheet,
-            side: record.side,
-          };
+  //           if (Object.keys(finalUpdateData).length > 0) {
+  //             await Bookrecord.query({ client: trx })
+  //               .where("id", record.id)
+  //               .update(finalUpdateData);
+  //           }
+  //         } else if (body.is_create) {
+  //           // criar: sempre precisa informar cod/book/sheet/side (conforme gerado),
+  //           // mas apenas incluir indexbook/year/approximate_term/obs se vierem no body
+  //           const createPayload: Record<string, any> = {
+  //             typebooks_id: params.typebooks_id,
+  //             books_id: record.books_id,
+  //             companies_id: authenticate.companies_id,
+  //             cod: record.cod,
+  //             book: record.book,
+  //             sheet: record.sheet,
+  //             side: record.side,
+  //           };
 
-          if (body.approximate_term !== undefined) createPayload.approximate_term = record.approximate_term;
-          if (body.indexbook !== undefined) createPayload.indexbook = record.indexbook;
-          if (body.year !== undefined) createPayload.year = record.year;
-          if (body.obs !== undefined) createPayload.obs = record.obs;
+  //           if (body.approximate_term !== undefined) createPayload.approximate_term = record.approximate_term;
+  //           if (body.indexbook !== undefined) createPayload.indexbook = record.indexbook;
+  //           if (body.year !== undefined) createPayload.year = record.year;
+  //           if (body.obs !== undefined) createPayload.obs = record.obs;
 
-          await Bookrecord.create(createPayload, { client: trx });
-        }
-      }
-      await trx.commit();
-    } catch (err) {
-      await trx.rollback();
-      throw err;
-    }
+  //           await Bookrecord.create(createPayload, { client: trx });
+  //         }
+  //       }
+  //       await trx.commit();
+  //     } catch (err) {
+  //       await trx.rollback();
+  //       throw err;
+  //     }
 
-    return response.status(200).send({
-      message: "Bookrecords atualizados/criados com sucesso!",
-      data: generatedArray,
-    });
-  } catch (error) {
-    console.error(error);
-    throw new BadRequestException("Bad Request", 402, error);
-  }
-}
+  //     return response.status(200).send({
+  //       message: "Bookrecords atualizados/criados com sucesso!",
+  //       data: generatedArray,
+  //     });
+  //   } catch (error) {
+  //     console.error(error);
+  //     throw new BadRequestException("Bad Request", 402, error);
+  //   }
+  // }
 
 
 
 
 
   // *********************************************************************************************
+  public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate();
 
+    const body = await request.validate({
+      schema: schema.create({
+        renumerate_cod: schema.boolean.optional(),
+        is_create: schema.boolean.optional(),
+        by_sheet: schema.string.optional(),
+        start_cod: schema.number(),
+        end_cod: schema.number(),
+        book: schema.number.optional(),
+        book_replace: schema.number.optional(),
+        sheet: schema.number.optional(), // usado como ponto inicial da renumeração do COD quando renumerate_cod = true
+        side: schema.string.optional(),
+        model_book: schema.string.optional(),
+        books_id: schema.number(),
+        indexbook: schema.string.optional(),
+        year: schema.number.optional(),
+        approximate_term: schema.number.optional(),
+        obs: schema.string.optional(),
+      }),
+    });
 
+    if (body.start_cod > body.end_cod) {
+      throw new BadRequestException("erro: codigo inicial maior que o final");
+    }
 
+    // --- FLUXO DE SUBSTITUIÇÃO SIMPLES ---
+    if (body.book_replace && body.book_replace > 0) {
+      const updatedCount = await Bookrecord.query()
+        .where("companies_id", authenticate.companies_id)
+        .andWhere("typebooks_id", params.typebooks_id)
+        .where("books_id", body.books_id)
+        .andWhere("book", body.book)
+        .update({ book: body.book_replace });
+
+      return response.status(200).send({
+        message: `Bookrecords atualizados para ${body.book_replace}!`,
+        updatedCount,
+      });
+    }
+
+    // Condições novas:
+    // shouldApplyModel => só quando usuário passou sheet ou side ou model_book
+    const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
+    // só renumera cod se renumerate_cod = true E se deve aplicar o model (ou seja, user enviou parâmetros de sheet/side/model_book)
+    const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
+
+    function modelBookNext(model_book: string | undefined, side: string | null, sheet: number | null) {
+      if (!model_book) return { side, sheet: (sheet ?? 0) + 1 };
+
+      switch (model_book) {
+        case "C": return { side: null, sheet: 0 };
+        case "F": return { side: "F", sheet: (sheet ?? 0) + 1 };
+        case "V": return { side: "V", sheet: (sheet ?? 0) + 1 };
+        case "FV": return { side: side === "F" ? "V" : "F", sheet: (sheet ?? 0) + 1 };
+        case "FVFV":
+          if (side === "F") return { side: "V", sheet };
+          return { side: "F", sheet: (sheet ?? 0) + 1 };
+        case "F-IMPAR": return { side: "F", sheet: (sheet ?? 0) + 2 };
+        case "V-PAR": return { side: "V", sheet: (sheet ?? 0) + 2 };
+        default: return { side, sheet: (sheet ?? 0) + 1 };
+      }
+    }
+
+    try {
+      const query = Bookrecord.query()
+        .andWhere("companies_id", authenticate.companies_id)
+        .andWhere("typebooks_id", params.typebooks_id)
+        .where("books_id", body.books_id)
+        .andWhere("book", body.book);
+
+      if (body.by_sheet == "S") {
+        query.andWhere("sheet", ">=", body.start_cod).andWhere("sheet", "<=", body.end_cod);
+      } else {
+        query.andWhere("cod", ">=", body.start_cod).andWhere("cod", "<=", body.end_cod);
+      }
+
+      const result = await query;
+
+      // =======================
+      // RENUMERAÇÃO PURA DE COD
+      // =======================
+      // Se renumerate_cod = true, renumera APENAS o campo `cod`, na ordem por sheet/side (quando by_sheet == 'S')
+      // ou por cod (quando by_sheet != 'S'), iniciando em:
+      //   - body.sheet (se informado) OU
+      //   - body.start_cod (fallback)
+      // Nenhum outro campo é alterado.
+      if (body.renumerate_cod) {
+        const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+
+        const ordered = (result ?? []).slice().sort((a: any, b: any) => {
+          if (body.by_sheet == "S") {
+            const as = a?.sheet ?? 0;
+            const bs = b?.sheet ?? 0;
+            if (as !== bs) return as - bs;
+            const sa = sideRank(a?.side);
+            const sb = sideRank(b?.side);
+            if (sa !== sb) return sa - sb;
+            return (a?.id ?? 0) - (b?.id ?? 0);
+          } else {
+            const ac = a?.cod ?? 0;
+            const bc = b?.cod ?? 0;
+            if (ac !== bc) return ac - bc;
+            return (a?.id ?? 0) - (b?.id ?? 0);
+          }
+        });
+
+        let newCod = (body.sheet ?? body.start_cod);
+
+        const trx = await Database.transaction();
+        try {
+          for (const rec of ordered) {
+            await Bookrecord.query({ client: trx })
+              .where("id", rec.id)
+              .update({ cod: newCod++ }); // <<< SOMENTE COD >>>
+          }
+          await trx.commit();
+
+          return response.status(200).send({
+            message: "Cod renumerado com sucesso (sem alterar outros campos).",
+            updatedCount: ordered.length,
+            start_from: body.sheet ?? body.start_cod,
+            last_cod: newCod - 1,
+          });
+        } catch (err) {
+          await trx.rollback();
+          throw err;
+        }
+      }
+
+      // helper: sobrescreve só se bodyValue !== undefined && !== null && !== ""
+      function overwriteIfValid<T>(bodyValue: T | null | undefined, dbValue: T | undefined): T | undefined {
+        return bodyValue !== undefined && bodyValue !== null && bodyValue !== "" ? (bodyValue as T) : dbValue;
+      }
+
+      const generatedArray: any[] = [];
+
+      let sequenceSheet = body.sheet ?? body.start_cod;
+      const defaultSideForModel = (() => {
+        switch (body.model_book) {
+          case "F":
+          case "F-IMPAR": return "F";
+          case "V":
+          case "V-PAR": return "V";
+          case "FV":
+          case "FVFV": return "F";
+          default: return body.side ?? null;
+        }
+      })();
+      let sequenceSide = body.side ?? defaultSideForModel;
+
+      const sortRecords = (arr: any[]) =>
+        (arr ?? []).slice().sort((a: any, b: any) => {
+          const as = a?.sheet ?? 0;
+          const bs = b?.sheet ?? 0;
+          if (as !== bs) return as - bs;
+          return (a?.id ?? 0) - (b?.id ?? 0);
+        });
+
+      // ---- GERAÇÃO ----
+      if (body.by_sheet == "S") {
+        if (body.is_create) {
+          for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
+            let recordsForSheet = result.filter((r) => r.sheet === sheetNum);
+            recordsForSheet = sortRecords(recordsForSheet);
+
+            const minSlots = body.model_book === "FVFV" ? 2 : 1;
+            const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
+
+            for (let slot = 0; slot < slotsToProcess; slot++) {
+              const baseRecord = recordsForSheet[slot] ?? null;
+
+              if (!shouldApplyModel) {
+                // não aplicar modelo: manter sheet/side do banco (ou usar sheetNum quando não houver baseRecord)
+                const assignedSide = baseRecord?.side ?? null;
+                const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
+
+                generatedArray.push({
+                  id: baseRecord?.id,
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: baseRecord?.cod ?? sheetNum,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(body.year, baseRecord?.year),
+                  obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                });
+              } else {
+                // aplicar modelo: usar sequência / valores vindos no body
+                const assignedSide = sequenceSide ?? defaultSideForModel;
+                const assignedSheetOut = sequenceSheet;
+
+                generatedArray.push({
+                  id: baseRecord?.id,
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: baseRecord?.cod ?? sheetNum,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(body.year, baseRecord?.year),
+                  obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                });
+
+                // avança sequência somente se estamos aplicando modelo (ou seja: usuário enviou sheet/side/model_book)
+                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                sequenceSide = next.side;
+                sequenceSheet = next.sheet ?? sequenceSheet;
+              }
+            }
+          }
+        } else {
+          const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
+            .filter((s) => s !== undefined && s !== null)
+            .sort((a, b) => a - b);
+
+          for (const sheetVal of distinctSheets) {
+            let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
+            recordsForSheet = sortRecords(recordsForSheet);
+
+            for (const baseRecord of recordsForSheet) {
+              if (!shouldApplyModel) {
+                const assignedSide = baseRecord?.side ?? null;
+                const assignedSheetOut = baseRecord?.sheet ?? sheetVal;
+
+                generatedArray.push({
+                  id: baseRecord?.id,
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: baseRecord?.cod ?? sheetVal,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(body.year, baseRecord?.year),
+                  obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                });
+              } else {
+                const assignedSide = sequenceSide ?? defaultSideForModel;
+                const assignedSheetOut = sequenceSheet;
+
+                generatedArray.push({
+                  id: baseRecord?.id,
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: baseRecord?.cod ?? sheetVal,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(body.year, baseRecord?.year),
+                  obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                });
+
+                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                sequenceSide = next.side;
+                sequenceSheet = next.sheet ?? sequenceSheet;
+              }
+            }
+          }
+        }
+      } else {
+        // by cod
+        if (body.is_create) {
+          for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
+            let recordsForCod = result.filter((r) => r.cod === cod);
+            recordsForCod = sortRecords(recordsForCod);
+
+            const slotsToProcess = Math.max(recordsForCod.length, 1);
+            for (let slot = 0; slot < slotsToProcess; slot++) {
+              const baseRecord = recordsForCod[slot] ?? null;
+
+              if (!shouldApplyModel) {
+                const assignedSide = baseRecord?.side ?? null;
+                const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
+
+                generatedArray.push({
+                  id: baseRecord?.id,
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: cod,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(body.year, baseRecord?.year),
+                  obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                });
+              } else {
+                const assignedSide = sequenceSide ?? defaultSideForModel;
+                const assignedSheetOut = sequenceSheet;
+
+                generatedArray.push({
+                  id: baseRecord?.id,
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: cod,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(body.year, baseRecord?.year),
+                  obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                });
+
+                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                sequenceSide = next.side;
+                sequenceSheet = next.sheet ?? sequenceSheet;
+              }
+            }
+          }
+        } else {
+          const distinctCods = Array.from(new Set(result.map((r) => r.cod)))
+            .filter((c) => c !== undefined && c !== null)
+            .sort((a, b) => a - b);
+
+          for (const codVal of distinctCods) {
+            let recordsForCod = result.filter((r) => r.cod === codVal);
+            recordsForCod = sortRecords(recordsForCod);
+
+            for (const baseRecord of recordsForCod) {
+              if (!shouldApplyModel) {
+                const assignedSide = baseRecord?.side ?? null;
+                const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
+
+                generatedArray.push({
+                  id: baseRecord?.id,
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: codVal,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(body.year, baseRecord?.year),
+                  obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                });
+              } else {
+                const assignedSide = sequenceSide ?? defaultSideForModel;
+                const assignedSheetOut = sequenceSheet;
+
+                generatedArray.push({
+                  id: baseRecord?.id,
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: codVal,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(body.year, baseRecord?.year),
+                  obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                });
+
+                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                sequenceSide = next.side;
+                sequenceSheet = next.sheet ?? sequenceSheet;
+              }
+            }
+          }
+        }
+      }
+
+      // ---- RENUMERAÇÃO DE COD ----
+      if (shouldRenumerate) {
+        console.log("passei.....55556666")
+        let newCod = body.sheet ?? body.start_cod;
+        const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+
+        generatedArray.sort((a, b) => {
+          if (a.sheet !== b.sheet) return a.sheet - b.sheet;
+          const sa = sideRank(a.side); const sb = sideRank(b.side);
+          if (sa !== sb) return sa - sb;
+          return (a.id ?? 0) - (b.id ?? 0);
+        });
+
+        for (const rec of generatedArray) {
+          rec.cod = newCod++;
+        }
+      }
+
+      // ---- RENUMERAÇÃO DE approximate_term ----
+      // Este bloco permanece: só renumera approximate_term se veio no body
+      if (body.approximate_term !== undefined) {
+        let newApprox = body.approximate_term;
+        for (const rec of generatedArray) {
+          rec.approximate_term = newApprox++;
+        }
+      }
+
+      // --- UPDATE/INSERT NO BANCO ---
+      const trx = await Database.transaction();
+      try {
+        for (const record of generatedArray) {
+          if (record.id) {
+            // montar updateData: incluir apenas os campos que devemos realmente alterar
+            const updateData: Record<string, any> = {};
+
+            // sheet/side: só atualiza se usuário enviou parâmetros de model (shouldApplyModel)
+            if (shouldApplyModel) {
+              updateData.sheet = record.sheet;
+              updateData.side = record.side;
+            }
+
+            // cod: só atualiza se estamos renumerando
+            if (shouldRenumerate) {
+              updateData.cod = record.cod;
+            }
+
+            // campos controlados individualmente: só atualizar se vier no body
+            if (body.approximate_term !== undefined) updateData.approximate_term = record.approximate_term;
+            if (body.indexbook !== undefined) updateData.indexbook = record.indexbook;
+            if (body.year !== undefined) updateData.year = record.year;
+            if (body.obs !== undefined) updateData.obs = record.obs;
+
+            // remove null/undefined/"" (por exemplo side pode ser null explicitamente e ainda assim desejado)
+            const finalUpdateData = Object.fromEntries(
+              Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== "")
+            );
+
+            if (Object.keys(finalUpdateData).length > 0) {
+              await Bookrecord.query({ client: trx })
+                .where("id", record.id)
+                .update(finalUpdateData);
+            }
+          } else if (body.is_create) {
+            // criar: sempre precisa informar cod/book/sheet/side (conforme gerado),
+            // mas apenas incluir indexbook/year/approximate_term/obs se vierem no body
+            const createPayload: Record<string, any> = {
+              typebooks_id: params.typebooks_id,
+              books_id: record.books_id,
+              companies_id: authenticate.companies_id,
+              cod: record.cod,
+              book: record.book,
+              sheet: record.sheet,
+              side: record.side,
+            };
+
+            if (body.approximate_term !== undefined) createPayload.approximate_term = record.approximate_term;
+            if (body.indexbook !== undefined) createPayload.indexbook = record.indexbook;
+            if (body.year !== undefined) createPayload.year = record.year;
+            if (body.obs !== undefined) createPayload.obs = record.obs;
+
+            await Bookrecord.create(createPayload, { client: trx });
+          }
+        }
+        await trx.commit();
+      } catch (err) {
+        await trx.rollback();
+        throw err;
+      }
+
+      return response.status(200).send({
+        message: "Bookrecords atualizados/criados com sucesso!",
+        data: generatedArray,
+      });
+    } catch (error) {
+      console.error(error);
+      throw new BadRequestException("Bad Request", 402, error);
+    }
+  }
 
 
   public async indeximagesinitial({ auth, params, response }: HttpContextContract) {
