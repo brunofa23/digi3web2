@@ -203,7 +203,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             if (match) {
                 objFileName = {
                     book: match[1],
-                    sheet: match[2],
+                    sheet: 0,
                     letter: match[3] || "",
                     ext: "." + match[4].toLowerCase(),
                 };

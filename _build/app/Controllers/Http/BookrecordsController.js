@@ -611,6 +611,11 @@ class BookrecordsController {
         }
         const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
         const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
+        const zeroToNull = (v) => (v === 0 || v === "0" ? null : v);
+        const bodyIndexbook = zeroToNull(body.indexbook);
+        const bodyYear = zeroToNull(body.year);
+        const bodyApprox = zeroToNull(body.approximate_term);
+        const bodyObs = zeroToNull(body.obs);
         function modelBookNext(model_book, side, sheet) {
             if (!model_book)
                 return { side, sheet: (sheet ?? 0) + 1 };
@@ -641,6 +646,49 @@ class BookrecordsController {
                 query.andWhere("cod", ">=", body.start_cod).andWhere("cod", "<=", body.end_cod);
             }
             const result = await query;
+            if (body.renumerate_cod) {
+                const sideRank = (s) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+                const ordered = (result ?? []).slice().sort((a, b) => {
+                    if (body.by_sheet == "S") {
+                        const as = a?.sheet ?? 0;
+                        const bs = b?.sheet ?? 0;
+                        if (as !== bs)
+                            return as - bs;
+                        const sa = sideRank(a?.side);
+                        const sb = sideRank(b?.side);
+                        if (sa !== sb)
+                            return sa - sb;
+                        return (a?.id ?? 0) - (b?.id ?? 0);
+                    }
+                    else {
+                        const ac = a?.cod ?? 0;
+                        const bc = b?.cod ?? 0;
+                        if (ac !== bc)
+                            return ac - bc;
+                        return (a?.id ?? 0) - (b?.id ?? 0);
+                    }
+                });
+                let newCod = (body.sheet ?? body.start_cod);
+                const trx = await Database_1.default.transaction();
+                try {
+                    for (const rec of ordered) {
+                        await Bookrecord_1.default.query({ client: trx })
+                            .where("id", rec.id)
+                            .update({ cod: newCod++ });
+                    }
+                    await trx.commit();
+                    return response.status(200).send({
+                        message: "Cod renumerado com sucesso (sem alterar outros campos).",
+                        updatedCount: ordered.length,
+                        start_from: body.sheet ?? body.start_cod,
+                        last_cod: newCod - 1,
+                    });
+                }
+                catch (err) {
+                    await trx.rollback();
+                    throw err;
+                }
+            }
             function overwriteIfValid(bodyValue, dbValue) {
                 return bodyValue !== undefined && bodyValue !== null && bodyValue !== "" ? bodyValue : dbValue;
             }
@@ -686,10 +734,10 @@ class BookrecordsController {
                                     book: baseRecord?.book ?? body.book,
                                     sheet: assignedSheetOut,
                                     side: assignedSide,
-                                    approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                                    indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                                    year: overwriteIfValid(body.year, baseRecord?.year),
-                                    obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                                 });
                             }
                             else {
@@ -704,10 +752,10 @@ class BookrecordsController {
                                     book: baseRecord?.book ?? body.book,
                                     sheet: assignedSheetOut,
                                     side: assignedSide,
-                                    approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                                    indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                                    year: overwriteIfValid(body.year, baseRecord?.year),
-                                    obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                                 });
                                 const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
                                 sequenceSide = next.side;
@@ -736,10 +784,10 @@ class BookrecordsController {
                                     book: baseRecord?.book ?? body.book,
                                     sheet: assignedSheetOut,
                                     side: assignedSide,
-                                    approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                                    indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                                    year: overwriteIfValid(body.year, baseRecord?.year),
-                                    obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                                 });
                             }
                             else {
@@ -754,10 +802,10 @@ class BookrecordsController {
                                     book: baseRecord?.book ?? body.book,
                                     sheet: assignedSheetOut,
                                     side: assignedSide,
-                                    approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                                    indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                                    year: overwriteIfValid(body.year, baseRecord?.year),
-                                    obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                                 });
                                 const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
                                 sequenceSide = next.side;
@@ -787,10 +835,10 @@ class BookrecordsController {
                                     book: baseRecord?.book ?? body.book,
                                     sheet: assignedSheetOut,
                                     side: assignedSide,
-                                    approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                                    indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                                    year: overwriteIfValid(body.year, baseRecord?.year),
-                                    obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                                 });
                             }
                             else {
@@ -805,10 +853,10 @@ class BookrecordsController {
                                     book: baseRecord?.book ?? body.book,
                                     sheet: assignedSheetOut,
                                     side: assignedSide,
-                                    approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                                    indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                                    year: overwriteIfValid(body.year, baseRecord?.year),
-                                    obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                                 });
                                 const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
                                 sequenceSide = next.side;
@@ -837,10 +885,10 @@ class BookrecordsController {
                                     book: baseRecord?.book ?? body.book,
                                     sheet: assignedSheetOut,
                                     side: assignedSide,
-                                    approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                                    indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                                    year: overwriteIfValid(body.year, baseRecord?.year),
-                                    obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                                 });
                             }
                             else {
@@ -855,10 +903,10 @@ class BookrecordsController {
                                     book: baseRecord?.book ?? body.book,
                                     sheet: assignedSheetOut,
                                     side: assignedSide,
-                                    approximate_term: overwriteIfValid(body.approximate_term, baseRecord?.approximate_term),
-                                    indexbook: overwriteIfValid(body.indexbook, baseRecord?.indexbook),
-                                    year: overwriteIfValid(body.year, baseRecord?.year),
-                                    obs: overwriteIfValid(body.obs, baseRecord?.obs),
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                                 });
                                 const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
                                 sequenceSide = next.side;
@@ -869,6 +917,7 @@ class BookrecordsController {
                 }
             }
             if (shouldRenumerate) {
+                console.log("passei.....55556666");
                 let newCod = body.sheet ?? body.start_cod;
                 const sideRank = (s) => (s === "F" ? 0 : s === "V" ? 1 : 2);
                 generatedArray.sort((a, b) => {
@@ -885,9 +934,16 @@ class BookrecordsController {
                 }
             }
             if (body.approximate_term !== undefined) {
-                let newApprox = body.approximate_term;
-                for (const rec of generatedArray) {
-                    rec.approximate_term = newApprox++;
+                let newApprox = bodyApprox ?? null;
+                if (newApprox !== null) {
+                    for (const rec of generatedArray) {
+                        rec.approximate_term = newApprox++;
+                    }
+                }
+                else {
+                    for (const rec of generatedArray) {
+                        rec.approximate_term = null;
+                    }
                 }
             }
             const trx = await Database_1.default.transaction();
@@ -903,13 +959,13 @@ class BookrecordsController {
                             updateData.cod = record.cod;
                         }
                         if (body.approximate_term !== undefined)
-                            updateData.approximate_term = record.approximate_term;
+                            updateData.approximate_term = bodyApprox;
                         if (body.indexbook !== undefined)
-                            updateData.indexbook = record.indexbook;
+                            updateData.indexbook = bodyIndexbook;
                         if (body.year !== undefined)
-                            updateData.year = record.year;
+                            updateData.year = bodyYear;
                         if (body.obs !== undefined)
-                            updateData.obs = record.obs;
+                            updateData.obs = bodyObs;
                         const finalUpdateData = Object.fromEntries(Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== ""));
                         if (Object.keys(finalUpdateData).length > 0) {
                             await Bookrecord_1.default.query({ client: trx })
@@ -928,13 +984,13 @@ class BookrecordsController {
                             side: record.side,
                         };
                         if (body.approximate_term !== undefined)
-                            createPayload.approximate_term = record.approximate_term;
+                            createPayload.approximate_term = bodyApprox;
                         if (body.indexbook !== undefined)
-                            createPayload.indexbook = record.indexbook;
+                            createPayload.indexbook = bodyIndexbook;
                         if (body.year !== undefined)
-                            createPayload.year = record.year;
+                            createPayload.year = bodyYear;
                         if (body.obs !== undefined)
-                            createPayload.obs = record.obs;
+                            createPayload.obs = bodyObs;
                         await Bookrecord_1.default.create(createPayload, { client: trx });
                     }
                 }
