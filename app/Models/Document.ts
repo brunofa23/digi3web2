@@ -17,6 +17,7 @@ export default class Document extends BaseModel {
       'month',
       'yeardoc',
       'documenttype_id',
+      'document_type_book_id',
       'free',
       'averb_anot',
       'book_name',
@@ -99,6 +100,8 @@ export default class Document extends BaseModel {
   public yeardoc: number
   @column()
   public documenttype_id: number
+  @column()
+  public document_type_book_id:number
   @column()
   public free: boolean
   @column()

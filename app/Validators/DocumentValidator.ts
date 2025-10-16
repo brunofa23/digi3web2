@@ -11,6 +11,8 @@ export default class DocumentValidator {
     prot: schema.number.nullableAndOptional(),
     month: schema.number.nullableAndOptional([rules.range(1, 12)]),
     yeardoc: schema.number.nullableAndOptional(),
+    documenttype_id: schema.number.optional(),
+    document_type_book_id: schema.number.optional(),
     intfield1: schema.number.nullableAndOptional(),
     stringfield1: schema.string.nullableAndOptional(),
     datefield1: schema.date.nullableAndOptional(),
