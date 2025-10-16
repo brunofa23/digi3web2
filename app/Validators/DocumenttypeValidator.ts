@@ -2,9 +2,7 @@ import { schema, rules } from '@ioc:Adonis/Core/Validator'
 
 export default class DocumenttypeValidator {
   public schema = schema.create({
-    companies_id: schema.number([
-      rules.required(),
-    ]),
+    companies_id: schema.number.optional(),
 
     name: schema.string({}, [
       rules.required(),
@@ -19,7 +17,7 @@ export default class DocumenttypeValidator {
   })
 
   public messages = {
-    'companies_id.required': 'O campo empresa é obrigatório',
+    // 'companies_id.required': 'O campo empresa é obrigatório',
     'name.required': 'O campo nome é obrigatório',
     'name.maxLength': 'O nome deve ter no máximo 100 caracteres',
     'description.maxLength': 'A descrição deve ter no máximo 255 caracteres',

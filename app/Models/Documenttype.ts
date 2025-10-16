@@ -24,7 +24,7 @@ export default class Documenttype extends BaseModel {
   public name:string
 
   @column()
-  public descrition:string
+  public description:string
 
   @column()
   public status:boolean

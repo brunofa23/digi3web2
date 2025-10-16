@@ -19,14 +19,12 @@ export default class DocumentTypesController {
 
 
   public async store({ auth, request, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     try {
       const body = await request.validate(DocumenttypeValidator)
+      body.companies_id = authenticate.companies_id
       const documentType = await Documenttype.create(body)
-      return response.status(201).send({
-        message: 'Tipo de documento criado com sucesso',
-        data: documentType,
-      })
+      return response.status(201).send(documentType)
     } catch (error) {
       console.error('Erro ao criar tipo de documento:', error)
       // ✅ Tratamento de erro com retorno amigável
@@ -37,16 +35,14 @@ export default class DocumentTypesController {
 
 
   public async update({ auth, request, params, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     try {
       const body = await request.validate(DocumenttypeValidator)
+      body.companies_id = authenticate.companies_id
       const documentType = await Documenttype.findOrFail(params.id)
       documentType.merge(body)
       await documentType.save()
-      return response.status(200).send({
-        message: 'Tipo de documento atualizado com sucesso',
-        data: documentType,
-      })
+      return response.status(200).send(documentType)
     } catch (error) {
       console.error('Erro ao atualizar tipo de documento:', error)
       throw new BadRequest('Erro ao atualizar tipo de documento', 400, error)
