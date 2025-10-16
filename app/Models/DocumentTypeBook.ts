@@ -1,27 +1,22 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
 
-export default class Documenttype extends BaseModel {
+export default class DocumentTypeBook extends BaseModel {
 
   public static get fillable() {
     return [
       'id',
       'companies_id',
-      'name',
       'description',
       'status',
     ]
   }
-
 
   @column({ isPrimary: true })
   public id: number
 
   @column()
   public companies_id:number
-
-  @column()
-  public name:string
 
   @column()
   public descrition:string
