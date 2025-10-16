@@ -62,6 +62,7 @@ export default class TypebooksController {
   }
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
+    
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles', 'isDocument'])
     let data
@@ -101,29 +102,6 @@ export default class TypebooksController {
       }
       queryData.orderBy('name')
       data = await queryData
-
-      // let _status
-      // if (typebookPayload.status !== undefined) {
-      //   if (typebookPayload.status === 'TRUE' || typebookPayload.status === '1')
-      //     _status = 1
-      //   else
-      //     if (typebookPayload.status === 'FALSE' || typebookPayload.status === '0')
-      //       _status = 0
-      //   query += ` and status =${_status} `
-      // }
-      // if (typebookPayload.name !== undefined)
-      //   query += ` and name like '%${typebookPayload.name}%' `
-
-      // if (typebookPayload.books_id !== undefined) {
-      //   query += ` and books_id = ${typebookPayload.books_id} `
-      // }
-      // data = await Typebook.query()
-      //   .preload('book')
-      //   .where("companies_id", '=', companies_id)
-      //   .whereRaw(query)
-      //   .orderBy('name')
-
-
     }
 
     if (typebookPayload.totalfiles) {
