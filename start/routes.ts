@@ -76,7 +76,7 @@ Route.group(() => {
   Route.resource("documentconfig", "DocumentconfigsController")
 
   //DOCUMENT TYPES
-  Route.resource("documenttypes", "DocumentTypesController")
+  Route.resource("documenttypes", "DocumentTypesController").apiOnly()
 
   //INDEXIMAGES
   //Route.resource("/indeximages", "IndeximagesController").apiOnly()
