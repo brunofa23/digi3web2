@@ -19,7 +19,7 @@ export default class DocumentTypeBook extends BaseModel {
   public companies_id:number
 
   @column()
-  public descrition:string
+  public description:string
 
   @column()
   public status:boolean
