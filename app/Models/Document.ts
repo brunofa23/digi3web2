@@ -12,6 +12,7 @@ export default class Document extends BaseModel {
       'typebooks_id',
       'books_id',
       'companies_id',
+      'fin_entities_id',
       'box2',
       'prot',
       'month',
@@ -92,6 +93,8 @@ export default class Document extends BaseModel {
   public books_id: number
   @column()
   public companies_id: number
+  @column()
+  public fin_entities_id:number
   @column()
   public box2: number
   @column()

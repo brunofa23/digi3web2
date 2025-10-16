@@ -325,9 +325,12 @@ export default class BookrecordsController {
   }
 
   public async update({ auth, request, params, response }: HttpContextContract) {
+    console.log("passei aqui......1111")
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
     const { document } = request.only(['document'])
+
+    console.log(document)
 
     body.id = params.id
     body.companies_id = authenticate.companies_id
