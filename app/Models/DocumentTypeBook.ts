@@ -8,7 +8,7 @@ export default class DocumentTypeBook extends BaseModel {
       'id',
       'companies_id',
       'description',
-      'status',
+      'inactive',
     ]
   }
 
@@ -16,13 +16,13 @@ export default class DocumentTypeBook extends BaseModel {
   public id: number
 
   @column()
-  public companies_id:number
+  public companies_id: number
 
   @column()
-  public description:string
+  public description: string
 
   @column()
-  public status:boolean
+  public inactive: boolean
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
