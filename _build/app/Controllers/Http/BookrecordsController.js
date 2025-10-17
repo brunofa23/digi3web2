@@ -65,7 +65,13 @@ class BookrecordsController {
             })
                 .preload('document', query => {
                 query.where('typebooks_id', params.typebooks_id)
-                    .andWhere("companies_id", authenticate.companies_id);
+                    .andWhere("documents.companies_id", authenticate.companies_id)
+                    .preload('documenttype', query => {
+                    query.select('name');
+                })
+                    .preload('documenttypebook', query => {
+                    query.select('description');
+                });
             })
                 .whereRaw(query)
                 .orderBy("book", "asc")

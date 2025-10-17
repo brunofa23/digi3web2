@@ -12,7 +12,7 @@ class DocumentTypeBooksController {
         try {
             const data = await DocumentTypeBook_1.default.query()
                 .where('companies_id', authenticate.companies_id)
-                .orderBy('id', 'asc');
+                .orderBy('description', 'asc');
             return response.status(200).send(data);
         }
         catch (error) {

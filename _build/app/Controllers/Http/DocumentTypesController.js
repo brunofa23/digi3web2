@@ -11,7 +11,8 @@ class DocumentTypesController {
         const authenticate = await auth.use('api').authenticate();
         try {
             const documentType = await Documenttype_1.default.query()
-                .where('companies_id', authenticate.companies_id);
+                .where('companies_id', authenticate.companies_id)
+                .orderBy('name');
             return response.status(200).send(documentType);
         }
         catch (error) {

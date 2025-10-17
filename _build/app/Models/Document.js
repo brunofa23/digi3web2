@@ -16,6 +16,7 @@ const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Bookrecord_1 = __importDefault(require("./Bookrecord"));
 const Documenttype_1 = __importDefault(require("./Documenttype"));
+const DocumentTypeBook_1 = __importDefault(require("./DocumentTypeBook"));
 class Document extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -87,12 +88,17 @@ __decorate([
     __metadata("design:type", Object)
 ], Document.prototype, "bookrecord", void 0);
 __decorate([
-    (0, Orm_1.hasOne)(() => Documenttype_1.default, {
-        foreignKey: 'id',
-        localKey: 'documenttype_id'
+    (0, Orm_1.belongsTo)(() => Documenttype_1.default, {
+        foreignKey: 'documenttype_id',
     }),
     __metadata("design:type", Object)
 ], Document.prototype, "documenttype", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => DocumentTypeBook_1.default, {
+        foreignKey: 'document_type_book_id',
+    }),
+    __metadata("design:type", Object)
+], Document.prototype, "documenttypebook", void 0);
 __decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
