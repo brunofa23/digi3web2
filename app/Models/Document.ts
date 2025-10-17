@@ -12,11 +12,13 @@ export default class Document extends BaseModel {
       'typebooks_id',
       'books_id',
       'companies_id',
+      'fin_entities_id',
       'box2',
       'prot',
       'month',
       'yeardoc',
       'documenttype_id',
+      'document_type_book_id',
       'free',
       'averb_anot',
       'book_name',
@@ -92,6 +94,8 @@ export default class Document extends BaseModel {
   @column()
   public companies_id: number
   @column()
+  public fin_entities_id:number
+  @column()
   public box2: number
   @column()
   public month: number
@@ -99,6 +103,8 @@ export default class Document extends BaseModel {
   public yeardoc: number
   @column()
   public documenttype_id: number
+  @column()
+  public document_type_book_id:number
   @column()
   public free: boolean
   @column()
