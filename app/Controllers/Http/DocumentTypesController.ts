@@ -10,6 +10,7 @@ export default class DocumentTypesController {
     try {
       const documentType = await Documenttype.query()
         .where('companies_id', authenticate.companies_id)
+        .orderBy('name')
       return response.status(200).send(documentType)
     } catch (error) {
       throw new BadRequest('Bad Request', 401, 'erro')
