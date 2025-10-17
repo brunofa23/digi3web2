@@ -37,8 +37,8 @@ export default class BookrecordsController {
       book_name,
       book_number,
       sheet_number,
-      created_atStart,
-      created_atEnd,
+      created_atstart,
+      created_atend,
       document_type_book_id,
       obs_document
 
@@ -159,12 +159,14 @@ export default class BookrecordsController {
     if (document == 'true') {
       queryExecute.whereHas('document', query => {
         //Data inicial
-        if (created_atStart != undefined)
-          query.where('created_at', '>=', created_atStart)
+        if (created_atstart != undefined) {
+          query.where('created_at', '>=', created_atstart)
+        }
 
         //Data Final
-        if (created_atEnd != undefined)
-          query.where('created_at', '<=', DateTime.fromISO(created_atEnd).plus({ days: 1 }).toFormat("yyyy-MM-dd"))
+        if (created_atend != undefined) {
+          query.where('created_at', '<=', DateTime.fromISO(created_atend).plus({ days: 1 }).toFormat("yyyy-MM-dd"))
+        }
 
         //Protocolo
         if (prot != undefined)
@@ -203,8 +205,6 @@ export default class BookrecordsController {
         //OBS
         if (obs_document != undefined)
           query.where('obs', 'like', `%${obs_document}%`)
-
-
 
       })
     }

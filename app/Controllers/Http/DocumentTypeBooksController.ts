@@ -28,11 +28,7 @@ export default class DocumentTypeBooksController {
     try {
       const body = await request.validate(DocumentTypeBookValidator)
       body.companies_id = authenticate.companies_id
-      console.log(body)
-
-
       const documentTypeBook = await DocumentTypeBook.create(body)
-
       return response.status(201).send(documentTypeBook)
     } catch (error) {
       console.error('Erro ao criar tipo de livro/documento:', error)
