@@ -4,7 +4,7 @@ const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 class DocumenttypeValidator {
     constructor() {
         this.schema = Validator_1.schema.create({
-            companies_id: Validator_1.schema.number(),
+            companies_id: Validator_1.schema.number.optional(),
             name: Validator_1.schema.string({}, [
                 Validator_1.rules.required(),
                 Validator_1.rules.maxLength(100),
