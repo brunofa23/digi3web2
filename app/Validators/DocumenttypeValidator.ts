@@ -2,7 +2,8 @@ import { schema, rules } from '@ioc:Adonis/Core/Validator'
 
 export default class DocumenttypeValidator {
   public schema = schema.create({
-    companies_id: schema.number(),
+
+    companies_id: schema.number.optional(),
 
     name: schema.string({}, [
       rules.required(),
