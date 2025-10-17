@@ -25,7 +25,6 @@ class DocumentTypeBooksController {
         try {
             const body = await request.validate(DocmentTypeBookValidator_1.default);
             body.companies_id = authenticate.companies_id;
-            console.log(body);
             const documentTypeBook = await DocumentTypeBook_1.default.create(body);
             return response.status(201).send(documentTypeBook);
         }

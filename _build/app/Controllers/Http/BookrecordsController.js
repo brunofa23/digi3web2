@@ -19,7 +19,7 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atStart, created_atEnd, document_type_book_id, obs_document } = request.qs();
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document } = request.qs();
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -107,10 +107,12 @@ class BookrecordsController {
                 queryExecute.where('sheet', '>', 0);
         if (document == 'true') {
             queryExecute.whereHas('document', query => {
-                if (created_atStart != undefined)
-                    query.where('created_at', '>=', created_atStart);
-                if (created_atEnd != undefined)
-                    query.where('created_at', '<=', luxon_1.DateTime.fromISO(created_atEnd).plus({ days: 1 }).toFormat("yyyy-MM-dd"));
+                if (created_atstart != undefined) {
+                    query.where('created_at', '>=', created_atstart);
+                }
+                if (created_atend != undefined) {
+                    query.where('created_at', '<=', luxon_1.DateTime.fromISO(created_atend).plus({ days: 1 }).toFormat("yyyy-MM-dd"));
+                }
                 if (prot != undefined)
                     query.where('documents.prot', prot);
                 if (documenttype_id != undefined)
