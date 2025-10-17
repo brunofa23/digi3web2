@@ -17,7 +17,7 @@ export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
+    console.log("passei aqui.....2222@@")
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -94,10 +94,19 @@ export default class BookrecordsController {
         .preload('indeximage', (queryIndex) => {
           queryIndex.where("typebooks_id", '=', params.typebooks_id)
             .andWhere("companies_id", '=', authenticate.companies_id)
+
         })
         .preload('document', query => {
           query.where('typebooks_id', params.typebooks_id)
-            .andWhere("companies_id", authenticate.companies_id)
+            .andWhere("documents.companies_id", authenticate.companies_id)
+            .preload('documenttype', query=>{
+              query.select('name')
+            })
+            .preload('documenttypebook', query=>{
+              query.select('description')
+            })
+
+
         })
         .whereRaw(query)
         .orderBy("book", "asc")
@@ -209,7 +218,7 @@ export default class BookrecordsController {
       })
     }
     //*******************************************************************/
-
+    
 
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)

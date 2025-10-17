@@ -12,7 +12,7 @@ export default class DocumentTypeBooksController {
     try {
       const data = await DocumentTypeBook.query()
         .where('companies_id', authenticate.companies_id)
-        .orderBy('id', 'asc')
+        .orderBy('description', 'asc')
       return response.status(200).send(data)
     } catch (error) {
       console.error('Erro ao listar tipos de livros/documentos:', error)

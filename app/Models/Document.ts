@@ -1,7 +1,8 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, HasMany, hasMany, HasOne, hasOne } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, column, HasMany, hasMany, HasOne, hasOne, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
 import Bookrecord from './Bookrecord'
 import Documenttype from './Documenttype'
+import DocumentTypeBook from './DocumentTypeBook'
 
 export default class Document extends BaseModel {
 
@@ -75,12 +76,22 @@ export default class Document extends BaseModel {
   })
   public bookrecord: HasOne<typeof Bookrecord>
 
-  @hasOne(() => Documenttype, {
-    foreignKey: 'id',
-    localKey: 'documenttype_id'
-  })
-  public documenttype: HasOne<typeof Documenttype>
+ //*************************************** */
+  // @hasOne(() => Documenttype, {
+  //   foreignKey: 'id',
+  //   localKey: 'documenttype_id'
+  // })
+  // public documenttype: HasOne<typeof Documenttype>
 
+  @belongsTo(() => Documenttype, {
+    foreignKey: 'documenttype_id',
+  })
+  public documenttype: BelongsTo<typeof Documenttype>
+//****************************************************** */
+  @belongsTo(() => DocumentTypeBook, {
+    foreignKey: 'document_type_book_id',
+  })
+  public documenttypebook: BelongsTo<typeof DocumentTypeBook>
 
 
   @column({ isPrimary: true })
@@ -94,7 +105,7 @@ export default class Document extends BaseModel {
   @column()
   public companies_id: number
   @column()
-  public fin_entities_id:number
+  public fin_entities_id: number
   @column()
   public box2: number
   @column()
@@ -104,7 +115,7 @@ export default class Document extends BaseModel {
   @column()
   public documenttype_id: number
   @column()
-  public document_type_book_id:number
+  public document_type_book_id: number
   @column()
   public free: boolean
   @column()
