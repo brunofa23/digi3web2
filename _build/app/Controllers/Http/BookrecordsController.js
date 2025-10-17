@@ -19,7 +19,7 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atStart, created_atEnd } = request.requestData;
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codMax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atStart, created_atEnd, document_type_book_id, obs_document } = request.qs();
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -115,6 +115,8 @@ class BookrecordsController {
                     query.where('documents.prot', prot);
                 if (documenttype_id != undefined)
                     query.where('documenttype_id', documenttype_id);
+                if (document_type_book_id != undefined)
+                    query.where('document_type_book_id', document_type_book_id);
                 if (free == 'true') {
                     query.where('free', 1);
                 }
@@ -131,6 +133,8 @@ class BookrecordsController {
                     query.where('month', month);
                 if (yeardoc != undefined)
                     query.where('yeardoc', yeardoc);
+                if (obs_document != undefined)
+                    query.where('obs', 'like', `%${obs_document}%`);
             });
         }
         data = await queryExecute.paginate(page, limit);
@@ -917,7 +921,6 @@ class BookrecordsController {
                 }
             }
             if (shouldRenumerate) {
-                console.log("passei.....55556666");
                 let newCod = body.sheet ?? body.start_cod;
                 const sideRank = (s) => (s === "F" ? 0 : s === "V" ? 1 : 2);
                 generatedArray.sort((a, b) => {

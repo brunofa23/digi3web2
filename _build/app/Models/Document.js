@@ -24,11 +24,13 @@ class Document extends Orm_1.BaseModel {
             'typebooks_id',
             'books_id',
             'companies_id',
+            'fin_entities_id',
             'box2',
             'prot',
             'month',
             'yeardoc',
             'documenttype_id',
+            'document_type_book_id',
             'free',
             'averb_anot',
             'book_name',
@@ -114,6 +116,10 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
+], Document.prototype, "fin_entities_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
 ], Document.prototype, "box2", void 0);
 __decorate([
     (0, Orm_1.column)(),
@@ -127,6 +133,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
 ], Document.prototype, "documenttype_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], Document.prototype, "document_type_book_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
