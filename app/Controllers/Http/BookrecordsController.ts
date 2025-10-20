@@ -17,7 +17,7 @@ export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -333,6 +333,8 @@ export default class BookrecordsController {
     body.companies_id = companies_id
     const bodyDocument = document
 
+    console.log(document)
+
     try {
       const data = await Bookrecord.create(body)
       if (body.books_id == 13 && data.id) {
@@ -355,6 +357,9 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     const body = request.only(Bookrecord.fillable)
     const { document } = request.only(['document'])
+
+
+    console.log("Passei aqçui 7878", document)
 
     body.id = params.id
     body.companies_id = authenticate.companies_id
