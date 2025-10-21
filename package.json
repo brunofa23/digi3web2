@@ -36,10 +36,11 @@
     "googleapis": "^109.0.1",
     "luxon": "^3.0.1",
     "mysql2": "^3.0.1",
+    "pdf-lib": "^1.17.1",
     "phc-argon2": "^1.1.4",
     "proxy-addr": "^2.0.7",
     "reflect-metadata": "^0.1.13",
-    "sharp": "^0.34.1",
+    "sharp": "^0.34.4",
     "source-map-support": "^0.5.21",
     "standard-version": "^9.5.0",
     "xlsx": "^0.18.5"
