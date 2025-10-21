@@ -1,15 +1,24 @@
-FROM node:16.18.1-alpine3.16
+FROM node:20-bullseye
 
-ENV NODE_VERSION 16.18.1
+# Ghostscript para compressão
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ghostscript \
+ && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /home/node/app
+WORKDIR /app
 
+# Instala deps (inclui devDeps para poder compilar)
 COPY package*.json ./
-
 RUN npm ci
 
+# Copia código e compila para _build/
 COPY . .
+RUN npx node ace build --production --ignore-ts-errors
 
+ENV NODE_ENV=production
+ENV PORT=8080
+ENV HOST=0.0.0.0
 EXPOSE 8080
 
-CMD [ "node", "_build/server.js"]
+# >>> sua saída é _build
+CMD ["node", "_build/server.js"]
