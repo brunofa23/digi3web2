@@ -1,69 +1,97 @@
 import fs from 'fs'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { PDFDocument } from 'pdf-lib'
-import sharp from 'sharp'
+
+const execFileAsync = promisify(execFile)
 
 export default class PdfOptimizer {
   /**
-   * Verifica se o PDF é escaneado (imagem) ou OCR/textual.
-   * Retorna true se for escaneado.
+   * Detecta se o PDF é escaneado (imagens) ou possui texto/OCR.
+   * Heurística: conta /Image e comandos de texto (Tj/TJ/BT/ET).
    */
   public static async isScannedPdf(filePath: string): Promise<boolean> {
     const bytes = fs.readFileSync(filePath)
     const pdfDoc = await PDFDocument.load(bytes)
-    const context = pdfDoc.context
+    const ctx = pdfDoc.context
 
-    let hasText = false
-    let hasImage = false
-
-    for (const [, obj] of context.enumerateIndirectObjects()) {
-      const str = obj.toString()
-
-      // Procura por comandos e fontes de texto
-      if (str.includes('/Font') || str.match(/\b(Tj|TJ|BT|ET)\b/)) {
-        hasText = true
-      }
-      // Procura por objetos de imagem
-      if (str.includes('/Image')) {
-        hasImage = true
-      }
+    let img = 0
+    let txt = 0
+    for (const [, obj] of ctx.enumerateIndirectObjects()) {
+      const s = obj.toString()
+      if (s.includes('/Image')) img++
+      if (/\b(Tj|TJ|BT|ET)\b/.test(s)) txt++
     }
-
-    // Se tem imagem e não tem texto, consideramos escaneado
-    return hasImage && !hasText
+    console.log(`📊 Detecção: ${img} imagens, ${txt} blocos de texto`)
+    // Considera escaneado se tem imagem e quase nenhum texto
+    return img > 0 && txt < 3
   }
 
   /**
-   * Compacta o PDF apenas se ele for escaneado.
-   * Mantém o original se for OCR/textual.
+   * Comprime PDF usando Ghostscript.
+   * - Mantém texto/OCR (não rasteriza texto).
+   * - Recomprime apenas imagens embutidas.
+   */
+  private static async compressWithGhostscript(input: string, output: string) {
+    // Parâmetros equilibrados (ajuste conforme sua necessidade)
+    const args = [
+      '-sDEVICE=pdfwrite',
+      '-dCompatibilityLevel=1.5',
+      '-dPDFSETTINGS=/ebook',              // /screen (mais leve) /ebook /printer /prepress
+      '-dDetectDuplicateImages=true',
+      '-dCompressFonts=true',
+      '-dSubsetFonts=true',
+      '-dEmbedAllFonts=true',
+      '-dColorImageDownsampleType=/Bicubic',
+      '-dColorImageResolution=150',       // ajuste (120–200) conforme qualidade
+      '-dGrayImageDownsampleType=/Bicubic',
+      '-dGrayImageResolution=150',
+      '-dMonoImageDownsampleType=/Subsample',
+      '-dMonoImageResolution=300',
+      '-dDownsampleColorImages=true',
+      '-dDownsampleGrayImages=true',
+      '-dDownsampleMonoImages=true',
+      '-dNOPAUSE',
+      '-dQUIET',
+      '-dBATCH',
+      `-sOutputFile=${output}`,
+      input,
+    ]
+
+    try {
+      await execFileAsync('gs', args, { maxBuffer: 1024 * 1024 * 64 }) // 64MB de stdout/stderr
+    } catch (err: any) {
+      // se falhar, propaga erro legível
+      const msg = err?.stderr?.toString?.() || err?.message || String(err)
+      throw new Error(`Ghostscript falhou: ${msg}`)
+    }
+  }
+
+  /**
+   * Se for escaneado → comprime com gs.
+   * Se tiver texto/OCR → só regrava (sem perda) para limpar estruturas.
    */
   public static async compressIfScanned(inputPath: string, outputPath: string): Promise<void> {
     console.log('🔎 Analisando PDF:', inputPath)
-
     const isScanned = await this.isScannedPdf(inputPath)
 
     if (!isScanned) {
-      console.log('📄 PDF contém texto/OCR — não será comprimido.')
-      fs.copyFileSync(inputPath, outputPath)
+      console.log('📄 PDF com texto/OCR — regravando sem compressão agressiva...')
+      const bytes = fs.readFileSync(inputPath)
+      const pdfDoc = await PDFDocument.load(bytes)
+      const saved = await pdfDoc.save({ useObjectStreams: true })
+      fs.writeFileSync(outputPath, saved)
+      const orig = (fs.statSync(inputPath).size / 1024 / 1024).toFixed(2)
+      const out = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(2)
+      console.log(`✅ Regravado: ${orig} MB → ${out} MB`)
       return
     }
 
-    console.log('🖼️ PDF escaneado detectado — iniciando compressão...')
+    console.log('🖼️ PDF escaneado — comprimindo com Ghostscript...')
+    await this.compressWithGhostscript(inputPath, outputPath)
 
-    // Lê o PDF original
-    const buffer = fs.readFileSync(inputPath)
-
-    // ⚠️ Compressão básica: recompressão global (funciona para PDFs 100% imagem)
-    // Para PDFs multi-página ou com imagens embutidas, a otimização real exige extração de imagens individuais
-    const compressedBuffer = await sharp(buffer)
-      .jpeg({ quality: 70, mozjpeg: true })
-      .toBuffer()
-
-    // Grava resultado
-    fs.writeFileSync(outputPath, compressedBuffer)
-
-    // Mostra resultado
-    const originalSize = (fs.statSync(inputPath).size / 1024 / 1024).toFixed(2)
-    const optimizedSize = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(2)
-    console.log(`✅ Compressão concluída: ${originalSize} MB → ${optimizedSize} MB`)
+    const orig = (fs.statSync(inputPath).size / 1024 / 1024).toFixed(2)
+    const out = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(2)
+    console.log(`✅ Compressão concluída: ${orig} MB → ${out} MB`)
   }
 }

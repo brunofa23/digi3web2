@@ -13,7 +13,12 @@ import PdfOptimizer from 'App/Services/imageProcessing/PdfOptimizer'
 test('test', async ({ client }) => {
 
   console.log("sucesso!!")
-await PdfOptimizer.compressIfScanned('/tmp/test2/original.pdf', '/tmp/test2/optimized.pdf')
+
+  const inputImage = Application.tmpPath('/test2/original.pdf');//'input.jpg';
+  const outputImage = Application.tmpPath('/test2/optimized.pdf')//'processed.jpg';
+
+console.log("input>>", inputImage)
+await PdfOptimizer.compressIfScanned(inputImage, outputImage)
 
 
 
