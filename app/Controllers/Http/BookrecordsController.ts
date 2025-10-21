@@ -17,7 +17,7 @@ export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -99,10 +99,10 @@ export default class BookrecordsController {
         .preload('document', query => {
           query.where('typebooks_id', params.typebooks_id)
             .andWhere("documents.companies_id", authenticate.companies_id)
-            .preload('documenttype', query=>{
+            .preload('documenttype', query => {
               query.select('name')
             })
-            .preload('documenttypebook', query=>{
+            .preload('documenttypebook', query => {
               query.select('description')
             })
 
@@ -326,58 +326,210 @@ export default class BookrecordsController {
     }
   }
 
+  // public async store({ auth, request, response }: HttpContextContract) {
+  //   console.log("PASSO 1 1980")
+  //   const { companies_id } = await auth.use('api').authenticate()
+  //   const body = await request.validate(BookrecordValidator)
+  //   const { document } = request.only(['document'])//await request.validate(DocumentValidator)
+  //   body.companies_id = companies_id
+  //   const bodyDocument = document
+
+  //   try {
+  //     const data = await Bookrecord.create(body)
+  //     if (body.books_id == 13 && data.id) {
+  //       bodyDocument.bookrecords_id = data.id
+  //       bodyDocument.typebooks_id = body.typebooks_id
+  //       bodyDocument.books_id = body.books_id
+  //       bodyDocument.companies_id = body.companies_id
+  //       await Document.create(bodyDocument)
+  //     }
+  //     return response.status(201).send(data)
+
+  //   } catch (error) {
+  //     throw new BadRequestException('Bad Request', 401, error)
+  //   }
+  // }
+
+
+  //   public async update({ auth, request, params, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate()
+
+  //   // Obtém apenas campos preenchíveis do Bookrecord
+  //   const body = request.only(Bookrecord.fillable)
+  //   const { document } = request.only(['document'])
+
+  //   body.id = params.id
+  //   body.companies_id = authenticate.companies_id
+  //   body.userid = authenticate.id
+
+  //   try {
+  //     // Atualiza o registro principal (bookrecord)
+  //     await Bookrecord.query()
+  //       .where('id', body.id)
+  //       .andWhere('typebooks_id', body.typebooks_id)
+  //       .andWhere('companies_id', authenticate.companies_id)
+  //       .update(body)
+
+  //     // Atualiza o documento vinculado se necessário
+  //     if (body.books_id === 13 && document && document.id) {
+  //       // 🔹 Cria uma cópia filtrada do objeto, removendo os relacionamentos
+  //       const cleanDocument = { ...document }
+
+  //       delete cleanDocument.documenttype
+  //       delete cleanDocument.documenttypebook
+
+  //       // Alternativamente, se quiser garantir que apenas campos válidos sejam enviados:
+  //       // const cleanDocument = request.only(Document.fillable)
+
+  //       await Document.query()
+  //         .where('id', cleanDocument.id)
+  //         .andWhere('typebooks_id', body.typebooks_id)
+  //         .andWhere('companies_id', authenticate.companies_id)
+  //         .update(cleanDocument)
+  //     }
+
+  //     // Renomeia arquivo se necessário
+  //     await fileRename.updateFileName(body)
+
+  //     return response.status(201).send({ success: true, id: params.id })
+  //   } catch (error) {
+  //     console.error('Erro ao atualizar registro:', error)
+  //     throw new BadRequestException('Erro ao atualizar registro', 400, error)
+  //   }
+  // }
   public async store({ auth, request, response }: HttpContextContract) {
-    const { companies_id } = await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(BookrecordValidator)
-    const { document } = request.only(['document'])//await request.validate(DocumentValidator)
-    body.companies_id = companies_id
-    const bodyDocument = document
+    const { document } = request.only(['document'])
 
     try {
-      const data = await Bookrecord.create(body)
-      if (body.books_id == 13 && data.id) {
-        bodyDocument.bookrecords_id = data.id
-        bodyDocument.typebooks_id = body.typebooks_id
-        bodyDocument.books_id = body.books_id
-        bodyDocument.companies_id = body.companies_id
-        await Document.create(bodyDocument)
+      // 🔹 Define informações de contexto
+      body.companies_id = authenticate.companies_id
+      body.userid = authenticate.id
+
+      // 🔹 Cria o Bookrecord principal
+      const bookrecord = await Bookrecord.create(body)
+
+      let createdDocument = null
+
+      // 🔹 Se for um tipo de livro que precisa de Document
+      if (bookrecord.books_id === 13 && document) {
+        // Remove campos de relacionamento do Document
+        const cleanDocument = { ...document }
+        delete cleanDocument.documenttype
+        delete cleanDocument.documenttypebook
+
+        // Define chaves de relação
+        cleanDocument.bookrecords_id = bookrecord.id
+        cleanDocument.typebooks_id = bookrecord.typebooks_id
+        cleanDocument.books_id = bookrecord.books_id
+        cleanDocument.companies_id = bookrecord.companies_id
+
+        // Cria o Document
+        createdDocument = await Document.create(cleanDocument)
       }
-      return response.status(201).send(data)
 
+      // 🔹 Recarrega o Bookrecord com seus relacionamentos
+      await bookrecord.load((loader) => {
+        loader
+          .preload('document', (documentQuery) => {
+            documentQuery
+              .preload('documenttype')
+              .preload('documenttypebook')
+          })
+      })
+
+      // 🔹 (Opcional) atualiza nome do arquivo
+      await fileRename.updateFileName(bookrecord)
+
+      // ✅ Retorno completo
+      return response.status(201).send({
+        success: true,
+        message: 'Registro criado com sucesso',
+        bookrecord,
+        document: createdDocument,
+      })
     } catch (error) {
-      throw new BadRequestException('Bad Request', 401, error)
+      console.error('Erro ao criar registro:', error)
+      throw new BadRequestException('Erro ao criar registro', 400, error)
     }
-
-
   }
+
+
+
+
 
   public async update({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const body = request.only(Bookrecord.fillable)
     const { document } = request.only(['document'])
+    const body = request.only(Bookrecord.fillable)
 
-    body.id = params.id
-    body.companies_id = authenticate.companies_id
-    body.userid = authenticate.id
     try {
-      await Bookrecord.query()
-        .where('id', body.id)
+      // 🔹 Busca o Bookrecord
+      const bookrecord = await Bookrecord.query()
+        .where('id', params.id)
         .andWhere('typebooks_id', body.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
-        .update(body)
-      if (body.books_id == 13 && body.id) {
-        await Document.query()
+        .firstOrFail()
+
+      // 🔹 Atualiza campos do Bookrecord
+      bookrecord.merge({
+        ...body,
+        companies_id: authenticate.companies_id,
+        userid: authenticate.id,
+      })
+      await bookrecord.save()
+
+      let updatedDocument = null
+
+      // 🔹 Atualiza o documento vinculado (se aplicável)
+      if (bookrecord.books_id === 13 && document && document.id) {
+        const doc = await Document.query()
           .where('id', document.id)
-          .andWhere('typebooks_id', body.typebooks_id)
+          .andWhere('typebooks_id', bookrecord.typebooks_id)
           .andWhere('companies_id', authenticate.companies_id)
-          .update(document)
+          .first()
+
+        if (doc) {
+          const cleanDocument = { ...document }
+          delete cleanDocument.documenttype
+          delete cleanDocument.documenttypebook
+
+          doc.merge(cleanDocument)
+          await doc.save()
+          updatedDocument = doc
+        }
       }
-      fileRename.updateFileName(body)
-      return response.status(201).send({ body, params: params.id })
+
+      // 🔹 Recarrega o bookrecord com relacionamentos úteis
+      await bookrecord.load((loader) => {
+        loader
+          .preload('document', (documentQuery) => {
+            documentQuery
+              .preload('documenttype')
+              .preload('documenttypebook')
+          })
+      })
+
+
+      await fileRename.updateFileName(bookrecord)
+
+      // ✅ Retorna o objeto atualizado completo
+      return response.status(200).send({
+        success: true,
+        message: 'Registro atualizado com sucesso',
+        bookrecord,
+        document: updatedDocument,
+      })
     } catch (error) {
-      throw new BadRequestException('Bad Request', 401, error)
+      console.error('Erro ao atualizar registro:', error)
+      throw new BadRequestException('Erro ao atualizar registro', 400, error)
     }
   }
+
+
+
+
 
   public async destroy({ auth, params, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
