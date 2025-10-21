@@ -59,16 +59,17 @@ Esses são alguns dos comandos Docker mais utilizados. Você pode obter informa�
 
 
 
-docker run -p 8081:8080 \
-  -e PORT=8080 \
-  -e HOST=0.0.0.0 \
+docker run --rm -p 8081:8080 \
+  -e PORT=8080 -e HOST=0.0.0.0 \
   -e APP_KEY=8uYecZwiVFqijmaJl5MzCu1ZRRUbpjQ0 \
   -e DRIVE_DISK=local \
-  -e DB_CONNECTION=mysql \
+  my-adonis-gs:node22
+
+
+docker run --rm -p 8081:8080 \
+  --env-file .env \
+  -e HOST=0.0.0.0 \
+  -e PORT=8080 \
   -e MYSQL_HOST=host.docker.internal \
-  -e MYSQL_PORT=3309 \
-  -e MYSQL_USER=root \
-  -e MYSQL_PASSWORD='Cartorio@12345' \
-  -e MYSQL_DB_NAME=digi3web \
   --add-host=host.docker.internal:host-gateway \
-  my-adonis-gs
+  my-adonis-gs:node22
