@@ -20,6 +20,7 @@ import {
 } from "App/Services/googleDrive/googledrive"
 import { file } from "googleapis/build/src/apis/file";
 import PdfOptimizer from "../imageProcessing/PdfOptimizer";
+import { processImage } from 'App/Services/imageProcessing/processImage'
 
 //const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -158,19 +159,6 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
 
 
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
-  //await imageProcessing(folderPath,folderPath)
-  // console.log("passo 1222 upload @@@@", `${folderPath}/${objfileRename.file_name}`)
-  // if (fs.existsSync(`${folderPath}/${objfileRename.file_name}`)) {
-  //   console.log('📄 O arquivo existe!')
-  // } else {
-  //   console.log('❌ O arquivo não existe!')
-  // }
-
-  // if (image.subtype === 'pdf') {
-  //   console.log("Vai compactar o aquivo", objfileRename)
-  //   const nameFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
-  //   console.log("ARQUIVO gerado:", nameFile)
-  // }
 
   try {
     //copia o arquivo para servidor
@@ -184,7 +172,20 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       });
     }
     else {
+      console.log(">>>>",image.type)
+      const newPath = path.join(folderPath, objfileRename.file_name)//`${folderPath}/${objfileRename.file_name}`
+
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
+      if (image.subtype.toLowerCase() === 'pdf') {
+        const returnPathFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
+        fs.renameSync(returnPathFile, newPath);
+      }else
+        if(image.type==='image'){
+          const returnPathFile = await processImage(`${folderPath}/${objfileRename.file_name}`)
+          console.log('é imagem', returnPathFile)
+          fs.renameSync(returnPathFile,newPath)
+        }
+
     }
 
     //FAZ O TRATAMENTO DA IMAGEM ANTES DE ENVIAR PARA O GDRIVE
