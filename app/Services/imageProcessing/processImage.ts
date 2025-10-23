@@ -9,12 +9,16 @@ export function processImage(inputPath: string): Promise<string> {
 
       // 🔹 Verifica se o arquivo de entrada existe
       if (!fs.existsSync(inputPath)) {
+        console.log("passo 1.1##")
         return reject(new Error(`Arquivo não encontrado: ${inputPath}`))
       }
 
       // 🔹 Caminho do script Python
+      console.log("passo 1.2##")
       const script = path.resolve(__dirname, './process_image.py')
+      console.log("passo 1.2-2##", script)
       if (!fs.existsSync(script)) {
+        console.log("passo 1.3##")
         return reject(new Error(`Script Python não encontrado: ${script}`))
       }
 
