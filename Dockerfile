@@ -13,16 +13,16 @@ RUN npx node ace build --production --ignore-ts-errors
 # ---------- STAGE 2: RUNTIME ----------
 FROM node:22-bookworm-slim AS runtime
 
-# 🧰 Instala Python + dependências necessárias para processamento de imagem e PDF
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ghostscript \
     python3 \
     python3-pip \
- && pip3 install --no-cache-dir \
+ && pip3 install --no-cache-dir --break-system-packages \
     opencv-python-headless \
     numpy \
     Pillow \
  && rm -rf /var/lib/apt/lists/*
+
 
 # 🌎 Configuração de ambiente
 ENV NODE_ENV=production
