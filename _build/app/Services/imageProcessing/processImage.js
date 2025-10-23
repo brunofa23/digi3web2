@@ -12,10 +12,14 @@ function processImage(inputPath) {
         try {
             console.log("passo 1##");
             if (!fs_1.default.existsSync(inputPath)) {
+                console.log("passo 1.1##");
                 return reject(new Error(`Arquivo não encontrado: ${inputPath}`));
             }
+            console.log("passo 1.2##");
             const script = path_1.default.resolve(__dirname, './process_image.py');
+            console.log("passo 1.2-2##", script);
             if (!fs_1.default.existsSync(script)) {
+                console.log("passo 1.3##");
                 return reject(new Error(`Script Python não encontrado: ${script}`));
             }
             console.log("passo 2##");
