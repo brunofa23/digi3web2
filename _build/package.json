@@ -1,0 +1,52 @@
+{
+  "name": "digi3web2",
+  "version": "1.1.129",
+  "private": true,
+  "scripts": {
+    "dev": "npm run docker:dev && node ace serve --watch",
+    "build": "node ace build --production && mkdir -p _build/tmp/uploads",
+    "start": "./start.sh",
+    "ini": "node ace serve --watch",
+    "start2": "node server.js",
+    "docker:dev": "./scripts/docker-dev-start.sh",
+    "docker:restore": "./scripts/import-dump.sh",
+    "release": "standard-version -a"
+  },
+  "devDependencies": {
+    "@adonisjs/assembler": "^5.8.1",
+    "@japa/preset-adonis": "^1.1.0",
+    "@japa/runner": "^2.0.9",
+    "adonis-preset-ts": "^2.1.0",
+    "pino-pretty": "^9.0.1",
+    "supertest": "^6.3.3",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "~4.6",
+    "youch": "^3.2.0",
+    "youch-terminal": "^2.1.4"
+  },
+  "dependencies": {
+    "@adonisjs/auth": "^8.2.3",
+    "@adonisjs/core": "^5.8.6",
+    "@adonisjs/lucid": "^18.3.0",
+    "@adonisjs/mail": "^8.2.0",
+    "@adonisjs/repl": "^3.1.11",
+    "@adonisjs/view": "^6.2.0",
+    "@google-cloud/local-auth": "^2.1.1",
+    "@logtail/node": "^0.3.1",
+    "googleapis": "^109.0.1",
+    "luxon": "^3.0.1",
+    "mysql2": "^3.0.1",
+    "pdf-image": "^2.0.0",
+    "pdf-lib": "^1.17.1",
+    "phc-argon2": "^1.1.4",
+    "proxy-addr": "^2.0.7",
+    "reflect-metadata": "^0.1.13",
+    "sharp": "^0.34.4",
+    "source-map-support": "^0.5.21",
+    "standard-version": "^9.5.0",
+    "xlsx": "^0.18.5"
+  },
+  "engines": {
+    "node": "20.x || 22.x"
+  }
+}
