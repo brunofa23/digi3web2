@@ -39,6 +39,12 @@ jobs:
           mkdir -p _build/app/Services/Validations
           cp -fR app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json
 
+
+      - run: |
+          git fetch --tags origin
+          git tag -l | xargs git tag -d || true
+          git fetch origin --tags
+
       # Commita as alterações no _build
       - run: |
           git add -A
