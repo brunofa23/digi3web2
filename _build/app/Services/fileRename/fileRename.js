@@ -14,6 +14,8 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const pino_std_serializers_1 = require("pino-std-serializers");
 const luxon_1 = require("luxon");
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
+const PdfOptimizer_1 = __importDefault(require("../imageProcessing/PdfOptimizer"));
+const processImage_1 = global[Symbol.for('ioc.use')]("App/Services/imageProcessing/processImage");
 const fs = require('fs');
 const path = require('path');
 function sleep(ms) {
@@ -135,7 +137,18 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
             });
         }
         else {
+            console.log(">>>>", image.type);
+            const newPath = path.join(folderPath, objfileRename.file_name);
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
+            if (image.subtype.toLowerCase() === 'pdf') {
+                const returnPathFile = await PdfOptimizer_1.default.compressIfScanned(`${folderPath}/${objfileRename.file_name}`);
+                fs.renameSync(returnPathFile, newPath);
+            }
+            else if (image.type === 'image') {
+                const returnPathFile = await (0, processImage_1.processImage)(`${folderPath}/${objfileRename.file_name}`);
+                console.log('é imagem', returnPathFile);
+                fs.renameSync(returnPathFile, newPath);
+            }
         }
         const sendUpload = await (0, googledrive_1.sendUploadFiles)(idParent, folderPath, `${objfileRename.file_name}`, cloud_number);
         if (sendUpload.status === 200) {

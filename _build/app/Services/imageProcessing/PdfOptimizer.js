@@ -28,13 +28,9 @@ class PdfOptimizer {
         return { valido: true, motivo: 'Arquivo PDF válido.' };
     }
     static async isScannedPdf(filePath) {
-        console.log("IS SCANED STEP 1@", filePath);
         const bytes = fs_1.default.readFileSync(filePath);
-        console.log("IS SCANED STEP 2.1@");
         const pdfDoc = await pdf_lib_1.PDFDocument.load(bytes);
-        console.log("IS SCANED STEP 2.2@");
         const ctx = pdfDoc.context;
-        console.log("IS SCANED STEP 2.3@");
         let img = 0;
         let txt = 0;
         for (const [, obj] of ctx.enumerateIndirectObjects()) {
@@ -44,8 +40,6 @@ class PdfOptimizer {
             if (/\b(Tj|TJ|BT|ET)\b/.test(s))
                 txt++;
         }
-        console.log("IS SCANED STEP 3@");
-        console.log(`📊 Detecção: ${img} imagens, ${txt} blocos de texto`);
         return img > 0 && txt < 3;
     }
     static async compressWithGhostscript(input, output) {
@@ -81,32 +75,17 @@ class PdfOptimizer {
         }
     }
     static async compressIfScanned(inputPath) {
-        console.log("passo 1 ###");
-        console.log('🔎 Analisando PDF:', inputPath);
-        console.log("passo 1.1 ###");
         const isScanned = await this.isScannedPdf(inputPath);
-        console.log("passo 1.2 ###");
         const { dir, name, ext } = node_path_1.default.parse(inputPath);
         const outputPath = node_path_1.default.join(dir, `${name}c${ext}`);
         if (!isScanned) {
-            console.log("passo 2 ###");
-            console.log('📄 PDF com texto/OCR — regravando sem compressão agressiva...');
             const bytes = fs_1.default.readFileSync(inputPath);
             const pdfDoc = await pdf_lib_1.PDFDocument.load(bytes);
             const saved = await pdfDoc.save({ useObjectStreams: true });
             fs_1.default.writeFileSync(outputPath, saved);
-            const orig = (fs_1.default.statSync(inputPath).size / 1024 / 1024).toFixed(2);
-            const out = (fs_1.default.statSync(outputPath).size / 1024 / 1024).toFixed(2);
-            console.log(`✅ Regravado: ${orig} MB → ${out} MB`);
             return outputPath;
         }
-        console.log("passo 3 ###");
-        console.log('🖼️ PDF escaneado — comprimindo com Ghostscript...');
         await this.compressWithGhostscript(inputPath, outputPath);
-        const orig = (fs_1.default.statSync(inputPath).size / 1024 / 1024).toFixed(2);
-        const out = (fs_1.default.statSync(outputPath).size / 1024 / 1024).toFixed(2);
-        console.log(`✅ Compressão concluída: ${orig} MB → ${out} MB`);
-        console.log("passo 4 ###");
         return outputPath;
     }
 }
