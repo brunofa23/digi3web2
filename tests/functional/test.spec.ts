@@ -16,11 +16,10 @@ test('test', async ({ client }) => {
   const inputImage = Application.tmpPath('/test2/ImagemLivro.jpg');//'input.jpg';
   const outputImage = Application.tmpPath('/test2/ImagemLivroAlterada.jpg')//'processed.jpg';
 
-  processImage(inputImage, outputImage)
-  .then(p => console.log('OK ->', p))
-  .catch(e => console.error('ERRO:', e.message))
+ // ⚡ use await para esperar o resultado
+  const result = await processImage(inputImage, outputImage)
 
-  console.log("sucesso!!")
+  console.log('✅ OK ->', result)
 
 
 })
