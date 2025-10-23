@@ -1,35 +1,49 @@
-name: Build and deploy api
-concurrency: deploy_production
+name: Build and deploy (development-test)
+concurrency: deploy_development
 on:
   push:
     branches:
-      - main
+      - development-test
+
 jobs:
-
   build:
-    name: Build api typescript project and deploy it to server
+    name: Build AdonisJS and deploy to DigitalOcean (development-test)
     runs-on: ubuntu-latest
+
     steps:
+      # Clona o repositório completo (sem shallow clone)
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-    - uses: actions/checkout@v3
-      with:
-        fetch-depth: 0
-    - uses: actions/setup-node@v3
-      with:
-        node-version: 20
+      # Define Node.js
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20
 
-    - run: git config --global user.email "brunofa23@gmail.com"
-    - run: git config --global user.name "Bruno Favato"
-    - run: git status
-    - run: git checkout main-production
-    - run: git pull
-    - run: git merge main
-    - run: pwd && npm ci
-    - run: node ace build --production --ignore-ts-errors
-    - run: cp -fR tmp _build
-    - run: cp -fR app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json
-    - run: git add -A
-    - run: npm run release --commit-all
-    - run: git push --follow-tags origin main-production
+      # Configura o Git
+      - run: |
+          git config --global user.email "brunofa23@gmail.com"
+          git config --global user.name "Bruno Favato"
 
+      # Garante que estamos na branch correta
+      - run: |
+          git checkout development-test
+          git pull origin development-test
 
+      # Instala dependências e compila
+      - run: |
+          pwd && npm ci
+          node ace build --production --ignore-ts-errors
+          cp -fR tmp _build || true
+          mkdir -p _build/app/Services/Validations
+          cp -fR app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json
+
+      # Commita as alterações no _build
+      - run: |
+          git add -A
+          npm run release --commit-all
+
+      # Faz push de volta para a mesma branch (development-test)
+      - run: |
+          git push --follow-tags origin development-test
