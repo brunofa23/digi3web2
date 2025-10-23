@@ -26,7 +26,7 @@ export default class BookrecordsController {
       letter,
       sheetstart, sheetend,
       side, obs, sheetzero, noAttachment,
-      lastPagesOfEachBook, codMax,
+      lastPagesOfEachBook, codmax,
       document,
       month,
       yeardoc,
@@ -78,11 +78,11 @@ export default class BookrecordsController {
 
       //data = await queryExecute.paginate(page, limit)
     }
-    else if (codMax) {
+    else if (codmax) {
       data = await Database.from('bookrecords')
         .where('companies_id', authenticate.companies_id)
         .where('typebooks_id', params.typebooks_id)
-        .max('cod as codMax');
+        .max('cod as codmax');
       return response.status(200).send(data)
 
     }
