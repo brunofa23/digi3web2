@@ -7,49 +7,40 @@ on:
 
 jobs:
   build:
-    name: Build AdonisJS and deploy to DigitalOcean (development-test)
+    name: Build AdonisJS and push build to branch
     runs-on: ubuntu-latest
 
     steps:
-      # Clona o repositório completo (sem shallow clone)
+      # 1️⃣ Clonar repositório completo
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
-      # Define Node.js
+      # 2️⃣ Configurar Node
       - uses: actions/setup-node@v3
         with:
           node-version: 20
 
-      # Configura o Git
+      # 3️⃣ Configurar Git
       - run: |
           git config --global user.email "brunofa23@gmail.com"
           git config --global user.name "Bruno Favato"
 
-      # Garante que estamos na branch correta
+      # 4️⃣ Garantir que estamos na branch correta
       - run: |
           git checkout development-test
           git pull origin development-test
 
-      # Instala dependências e compila
+      # 5️⃣ Instalar dependências e gerar build do Adonis
       - run: |
-          pwd && npm ci
+          npm ci
           node ace build --production --ignore-ts-errors
-          cp -fR tmp _build || true
           mkdir -p _build/app/Services/Validations
-          cp -fR app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json
+          cp -fR tmp _build || true
+          cp -f app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json || true
 
-
-      - run: |
-          git fetch --tags origin
-          git tag -l | xargs git tag -d || true
-          git fetch origin --tags
-
-      # Commita as alterações no _build
+      # 6️⃣ Comitar e enviar alterações para a mesma branch
       - run: |
           git add -A
-          npm run release --commit-all
-
-      # Faz push de volta para a mesma branch (development-test)
-      - run: |
-          git push --follow-tags origin development-test
+          git commit -m "chore(build): update build [skip ci]" || echo "No changes to commit"
+          git push origin development-test
