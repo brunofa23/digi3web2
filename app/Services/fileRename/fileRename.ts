@@ -18,6 +18,8 @@ import {
   sendListAllFiles,
   sendRenameFile
 } from "App/Services/googleDrive/googledrive"
+import { file } from "googleapis/build/src/apis/file";
+import PdfOptimizer from "../imageProcessing/PdfOptimizer";
 
 //const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -157,8 +159,19 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
 
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
   //await imageProcessing(folderPath,folderPath)
+  // console.log("passo 1222 upload @@@@", `${folderPath}/${objfileRename.file_name}`)
+  // if (fs.existsSync(`${folderPath}/${objfileRename.file_name}`)) {
+  //   console.log('📄 O arquivo existe!')
+  // } else {
+  //   console.log('❌ O arquivo não existe!')
+  // }
 
-  console.log("passo 1222 upload @@@@")
+  // if (image.subtype === 'pdf') {
+  //   console.log("Vai compactar o aquivo", objfileRename)
+  //   const nameFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
+  //   console.log("ARQUIVO gerado:", nameFile)
+  // }
+
   try {
     //copia o arquivo para servidor
     if (capture) {

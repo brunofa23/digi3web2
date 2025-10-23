@@ -116,6 +116,7 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     const images = request.files('images', {
@@ -125,6 +126,8 @@ export default class IndeximagesController {
 
     const { dataImages } = request['requestBody']
     const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData']
+
+    console.log("passo 4>>")
     //Através do nome da imagem é recriado o registro no bookrecord
     if (indexImagesInitial == 'true') {
       const listFilesImages = images.map((image) => {

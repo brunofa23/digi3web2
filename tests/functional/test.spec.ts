@@ -14,11 +14,12 @@ test('test', async ({ client }) => {
 
   console.log("sucesso!!")
 
-  const inputImage = Application.tmpPath('/test2/original.pdf');//'input.jpg';
+  const inputImage = Application.tmpPath('/test2/ContaLuz.pdf');//'input.jpg';
   const outputImage = Application.tmpPath('/test2/optimized.pdf')//'processed.jpg';
 
 console.log("input>>", inputImage)
-await PdfOptimizer.compressIfScanned(inputImage, outputImage)
+const teste = await PdfOptimizer.compressIfScanned(inputImage)
+console.log("retorno",teste)
 
 
 
