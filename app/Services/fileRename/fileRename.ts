@@ -157,6 +157,8 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
 
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
   //await imageProcessing(folderPath,folderPath)
+
+  console.log("passo 1222 upload @@@@")
   try {
     //copia o arquivo para servidor
     if (capture) {
