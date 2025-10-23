@@ -2,7 +2,7 @@ import Route from '@ioc:Adonis/Core/Route'
 
 Route.group(() => {
   Route.get('/', async () => {
-    return { hello: 'Sistema de Gerenciamento de Imagens - v108 - UTILIZANDO DOCKERFILE' }
+    return { hello: 'Sistema de Gerenciamento de Imagens - v109 - UTILIZANDO DOCKERFILE' }
   })//.middleware('level_permission:1')
 
   //BOOK
