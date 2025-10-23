@@ -158,23 +158,11 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
 
 
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
-  //await imageProcessing(folderPath,folderPath)
-  // console.log("passo 1222 upload @@@@", `${folderPath}/${objfileRename.file_name}`)
-  // if (fs.existsSync(`${folderPath}/${objfileRename.file_name}`)) {
-  //   console.log('📄 O arquivo existe!')
-  // } else {
-  //   console.log('❌ O arquivo não existe!')
-  // }
-
-  // if (image.subtype === 'pdf') {
-  //   console.log("Vai compactar o aquivo", objfileRename)
-  //   const nameFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
-  //   console.log("ARQUIVO gerado:", nameFile)
-  // }
 
   try {
     //copia o arquivo para servidor
     if (capture) {
+      //await fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
       await fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
         if (err) {
           throw err;
@@ -185,6 +173,15 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     }
     else {
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
+
+      if (image.subtype.toLowerCase() === 'pdf') {
+        console.log("Vai compactar o aquivo", objfileRename.file_name)
+        const returnPathFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
+        const newPath = path.join(folderPath, objfileRename.file_name)//`${folderPath}/${objfileRename.file_name}`
+        fs.renameSync(returnPathFile, newPath);
+        console.log("SUCESSO!!!")
+      }
+
     }
 
     //FAZ O TRATAMENTO DA IMAGEM ANTES DE ENVIAR PARA O GDRIVE
