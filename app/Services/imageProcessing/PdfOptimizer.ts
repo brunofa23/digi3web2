@@ -40,15 +40,10 @@ export default class PdfOptimizer {
    * Heurística: conta /Image e comandos de texto (Tj/TJ/BT/ET).
    */
   public static async isScannedPdf(filePath: string): Promise<boolean> {
-    console.log("IS SCANED STEP 1@", filePath)
+
     const bytes = fs.readFileSync(filePath)
-    console.log("IS SCANED STEP 2.1@")
     const pdfDoc = await PDFDocument.load(bytes)
-    console.log("IS SCANED STEP 2.2@")
     const ctx = pdfDoc.context
-
-    console.log("IS SCANED STEP 2.3@")
-
     let img = 0
     let txt = 0
     for (const [, obj] of ctx.enumerateIndirectObjects()) {
@@ -57,8 +52,8 @@ export default class PdfOptimizer {
       if (/\b(Tj|TJ|BT|ET)\b/.test(s)) txt++
     }
 
-    console.log("IS SCANED STEP 3@")
-    console.log(`📊 Detecção: ${img} imagens, ${txt} blocos de texto`)
+    // console.log("IS SCANED STEP 3@")
+    // console.log(`📊 Detecção: ${img} imagens, ${txt} blocos de texto`)
     // Considera escaneado se tem imagem e quase nenhum texto
     return img > 0 && txt < 3
   }
@@ -108,45 +103,26 @@ export default class PdfOptimizer {
    * Se tiver texto/OCR → só regrava (sem perda) para limpar estruturas.
    */
   public static async compressIfScanned(inputPath: string): Promise<void|string> {
-    // const verify = await this.verificarSeEhPDF(inputPath)
-    // if (!verify.valido) {
-    //   console.log("NÃO É PDF")
-    //   return
-    // }
-
-    console.log("passo 1 ###")
-    console.log('🔎 Analisando PDF:', inputPath)
-    console.log("passo 1.1 ###")
     const isScanned = await this.isScannedPdf(inputPath)
-    console.log("passo 1.2 ###")
-
     // 🔹 Gera automaticamente o nome do novo arquivo com "c" no final
     const { dir, name, ext } = path.parse(inputPath)
     const outputPath = path.join(dir, `${name}c${ext}`)
 
 
     if (!isScanned) {
-      console.log("passo 2 ###")
-      console.log('📄 PDF com texto/OCR — regravando sem compressão agressiva...')
       const bytes = fs.readFileSync(inputPath)
       const pdfDoc = await PDFDocument.load(bytes)
       const saved = await pdfDoc.save({ useObjectStreams: true })
       fs.writeFileSync(outputPath, saved)
 
-      const orig = (fs.statSync(inputPath).size / 1024 / 1024).toFixed(2)
-      const out = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(2)
-      console.log(`✅ Regravado: ${orig} MB → ${out} MB`)
+      // const orig = (fs.statSync(inputPath).size / 1024 / 1024).toFixed(2)
+      // const out = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(2)
       return outputPath
     }
 
-    console.log("passo 3 ###")
-    console.log('🖼️ PDF escaneado — comprimindo com Ghostscript...')
     await this.compressWithGhostscript(inputPath, outputPath)
-
-    const orig = (fs.statSync(inputPath).size / 1024 / 1024).toFixed(2)
-    const out = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(2)
-    console.log(`✅ Compressão concluída: ${orig} MB → ${out} MB`)
-    console.log("passo 4 ###")
+    // const orig = (fs.statSync(inputPath).size / 1024 / 1024).toFixed(2)
+    // const out = (fs.statSync(outputPath).size / 1024 / 1024).toFixed(2)
     return outputPath
 
   }

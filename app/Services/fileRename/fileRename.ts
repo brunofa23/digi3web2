@@ -162,7 +162,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
   try {
     //copia o arquivo para servidor
     if (capture) {
-      //await fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
       await fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
         if (err) {
           throw err;
@@ -173,13 +172,10 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     }
     else {
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
-
       if (image.subtype.toLowerCase() === 'pdf') {
-        console.log("Vai compactar o aquivo", objfileRename.file_name)
         const returnPathFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
         const newPath = path.join(folderPath, objfileRename.file_name)//`${folderPath}/${objfileRename.file_name}`
         fs.renameSync(returnPathFile, newPath);
-        console.log("SUCESSO!!!")
       }
 
     }
