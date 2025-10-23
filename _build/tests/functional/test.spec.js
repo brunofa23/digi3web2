@@ -8,9 +8,10 @@ const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core
 const PdfOptimizer_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/imageProcessing/PdfOptimizer"));
 (0, runner_1.test)('test', async ({ client }) => {
     console.log("sucesso!!");
-    const inputImage = Application_1.default.tmpPath('/test2/original.pdf');
+    const inputImage = Application_1.default.tmpPath('/test2/ContaLuz.pdf');
     const outputImage = Application_1.default.tmpPath('/test2/optimized.pdf');
     console.log("input>>", inputImage);
-    await PdfOptimizer_1.default.compressIfScanned(inputImage, outputImage);
+    const teste = await PdfOptimizer_1.default.compressIfScanned(inputImage);
+    console.log("retorno", teste);
 });
 //# sourceMappingURL=test.spec.js.map

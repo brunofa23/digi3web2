@@ -102,6 +102,7 @@ class IndeximagesController {
         });
         const { dataImages } = request['requestBody'];
         const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData'];
+        console.log("passo 4>>");
         if (indexImagesInitial == 'true') {
             const listFilesImages = images.map((image) => {
                 const imageName = image.clientName;
