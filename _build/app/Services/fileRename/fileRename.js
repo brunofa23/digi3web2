@@ -124,6 +124,7 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
 }
 exports.renameFileGoogle = renameFileGoogle;
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
+    console.log("passo 1222 upload @@@@");
     try {
         if (capture) {
             await fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
