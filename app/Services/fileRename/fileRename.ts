@@ -172,18 +172,20 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       });
     }
     else {
-      console.log(">>>>",image.type)
+      console.log(">>>>", image.type)
       const newPath = path.join(folderPath, objfileRename.file_name)//`${folderPath}/${objfileRename.file_name}`
 
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
       if (image.subtype.toLowerCase() === 'pdf') {
         const returnPathFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
         fs.renameSync(returnPathFile, newPath);
-      }else
-        if(image.type==='image'){
+      } else
+        if (image.type == 'image') {
+          console.log("Entrei no image 1$$$$")
           const returnPathFile = await processImage(`${folderPath}/${objfileRename.file_name}`)
+          console.log("Entrei no image 2$$$$")
           console.log('é imagem', returnPathFile)
-          fs.renameSync(returnPathFile,newPath)
+          fs.renameSync(returnPathFile, newPath)
         }
 
     }
