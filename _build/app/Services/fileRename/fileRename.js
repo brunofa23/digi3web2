@@ -15,7 +15,6 @@ const pino_std_serializers_1 = require("pino-std-serializers");
 const luxon_1 = require("luxon");
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const PdfOptimizer_1 = __importDefault(require("../imageProcessing/PdfOptimizer"));
-const processImage_1 = global[Symbol.for('ioc.use')]("App/Services/imageProcessing/processImage");
 const fs = require('fs');
 const path = require('path');
 function sleep(ms) {
@@ -142,13 +141,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
             if (image.subtype.toLowerCase() === 'pdf') {
                 const returnPathFile = await PdfOptimizer_1.default.compressIfScanned(`${folderPath}/${objfileRename.file_name}`);
-                fs.renameSync(returnPathFile, newPath);
-            }
-            else if (image.type == 'image') {
-                console.log("Entrei no image 1$$$$");
-                const returnPathFile = await (0, processImage_1.processImage)(`${folderPath}/${objfileRename.file_name}`);
-                console.log("Entrei no image 2$$$$");
-                console.log('é imagem', returnPathFile);
                 fs.renameSync(returnPathFile, newPath);
             }
         }
