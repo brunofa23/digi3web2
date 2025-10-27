@@ -49,17 +49,14 @@ jobs:
           cp -f app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json || true
 
       # 6️⃣ Commit de build e push do HEAD para main-production
-      - name: Commit e push para main-production
+      - name: Commit e push para main-production (forçando com segurança)
         run: |
-          # cria/atualiza uma branch temporária local a partir do estado atual
           git checkout -B build-to-production
           git add -A
           git commit -m "chore(build): publish from ${GITHUB_SHA} [skip ci]" || echo "No changes to commit"
 
-          # cria a branch main-production se não existir
-          if ! git ls-remote --exit-code --heads origin main-production; then
-            echo "main-production não existe no remoto. Criando…"
-            git push origin HEAD:main-production
-          else
-            git push origin HEAD:main-production
-          fi
+          # garante que temos a referência remota atual p/ 'with-lease'
+          git fetch origin main-production || true
+
+          # sobrescreve o histórico de main-production com o build atual
+          git push --force-with-lease origin HEAD:main-production
