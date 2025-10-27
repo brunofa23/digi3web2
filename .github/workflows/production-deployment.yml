@@ -1,46 +1,65 @@
-name: Build and deploy (development-test)
-concurrency: deploy_development
+name: Build and deploy (main → main-production)
+concurrency: deploy_main_to_prod
+
 on:
   push:
     branches:
-      - development-test
+      - main
+
+permissions:
+  contents: write  # necessário para dar push
 
 jobs:
   build:
-    name: Build AdonisJS and push build to branch
+    name: Build AdonisJS e publicar em main-production
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Clonar repositório completo
-      - uses: actions/checkout@v3
+      # 1️⃣ Checkout do código que acabou de ser enviado para a main
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: true
 
-      # 2️⃣ Configurar Node
-      - uses: actions/setup-node@v3
+      # 2️⃣ Node
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      # 3️⃣ Configurar Git
-      - run: |
+      # 3️⃣ Git básico
+      - name: Setup Git
+        run: |
           git config --global user.email "brunofa23@gmail.com"
           git config --global user.name "Bruno Favato"
+          git fetch origin
 
-      # 4️⃣ Garantir que estamos na branch correta
-      - run: |
-          git checkout development-test
-          git pull origin development-test
+      # 4️⃣ Garantir que estamos exatamente no commit da main que disparou o job
+      - name: Ensure main checked out
+        run: |
+          git checkout main
+          git pull --ff-only origin main
 
-      # 5️⃣ Instalar dependências e gerar build do Adonis
-      - run: |
+      # 5️⃣ Build do Adonis e cópias necessárias
+      - name: Build Adonis
+        run: |
           npm ci
           node ace build --production --ignore-ts-errors
           mkdir -p _build/app/Services/Validations
           cp -fR tmp _build || true
           cp -f app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json || true
 
-      # 6️⃣ Comitar e enviar alterações para a mesma branch
-      - run: |
+      # 6️⃣ Commit de build e push do HEAD para main-production
+      - name: Commit e push para main-production
+        run: |
+          # cria/atualiza uma branch temporária local a partir do estado atual
+          git checkout -B build-to-production
           git add -A
-          git commit -m "chore(build): update build [skip ci]" || echo "No changes to commit"
-          git push origin development-test
+          git commit -m "chore(build): publish from ${GITHUB_SHA} [skip ci]" || echo "No changes to commit"
+
+          # cria a branch main-production se não existir
+          if ! git ls-remote --exit-code --heads origin main-production; then
+            echo "main-production não existe no remoto. Criando…"
+            git push origin HEAD:main-production
+          else
+            git push origin HEAD:main-production
+          fi
