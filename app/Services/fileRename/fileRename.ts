@@ -21,6 +21,8 @@ import {
 import { file } from "googleapis/build/src/apis/file";
 import PdfOptimizer from "../imageProcessing/PdfOptimizer";
 import { processImage } from 'App/Services/imageProcessing/processImage'
+import { Query } from "mysql2/typings/mysql/lib/protocol/sequences/Query";
+import Document from "App/Models/Document";
 
 //const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
@@ -179,7 +181,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       if (image.subtype.toLowerCase() === 'pdf') {
         const returnPathFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
         fs.renameSync(returnPathFile, newPath);
-       }
+      }
       //else
       //   if (image.type == 'image') {
       //     console.log("Entrei no image 1$$$$")
@@ -384,12 +386,28 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         prot: arrayFileName[1],
         ext: `.${arrayFileName[3]}`
       }
-      query.andWhere('book', objFileName.book)
-      query.whereHas('document', q => {
-        q.where('documents.prot', objFileName.prot)
-      })
-      break
-    }
+
+      // const match = originalFileName.match(regexDocumentAndProt);
+      // if (match) {
+      //   const objFileName1 = {
+      //     book: match[1],        // número entre L e F → 123
+      //     prot: match[2],       // número entre parênteses → 1
+      //     ext: path.extname(originalFileName).toLowerCase() //"." + match[5].toLowerCase(), // extensão do arquivo
+      //   };
+
+      //   console.log("MATCH>>>>>>>>@@@>", objFileName1)
+      // }
+
+        query.andWhere('book', objFileName.book)
+        query.whereHas('document', q => {
+          q.where('documents.prot', objFileName.prot)
+        })
+
+        console.log("passei aqui dentro do DOCUMENT###")
+
+        isCreateBookrecord = true
+        break
+      }
 
     default: {
       if (dataImages.id) query.andWhere('id', dataImages.id)
@@ -405,10 +423,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   }
 
   //********************************************************** */
-
-
   try {
 
+    //console.log("passei aqui dentro do DOCUMENT###", query.toQuery())
     let bookRecord = await query.first()
     let seq = 0
     // *****************************************************************
@@ -429,7 +446,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           const bookRecordFind = await query2.first()
           //console.log("passo 2:", query2.toQuery())
 
-          const { ext, ...objFileNameWithoutExt } = objFileName
+          console.log("passei 2.1 ###")
+
+          const { ext, prot, ...objFileNameWithoutExt } = objFileName
           const objectInsert = {
             books_id: book.books_id,
             typebooks_id: typebooks_id,
@@ -438,12 +457,27 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             ...objFileNameWithoutExt
           }
           bookRecord = await Bookrecord.create(objectInsert)
+
+          //if prot exist then generate the document row
+          if (prot)
+            await Document.create({
+              bookrecords_id: bookRecord.id,
+              typebooks_id: bookRecord.typebooks_id,
+              books_id: bookRecord.books_id,
+              companies_id: bookRecord.companies_id,
+              prot
+            })
+
+          console.log("PROTOCOLO:", prot)
+          console.log("id:", bookRecord.id, "typebook id:", bookRecord.typebooks_id, "books_id:", bookRecord.books_id, "companies_id", bookRecord.companies_id)
+
           seq = 1
 
         } catch (error) {
           console.log("!!!!!!!", error)
         }
       } else {
+        console.log("passei 4.55 ###")
         return
       }
     } else {
@@ -455,6 +489,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       }
     }
 
+    console.log("passei 3 ###")
 
     let fileRename
     try {
@@ -468,10 +503,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         //previous_file_name: originalFileName
       }
     } catch (error) {
+      console.log("passei 4 ###")
       return error
     }
+    console.log("passei 5 ###", fileRename)
     return fileRename
   } catch (error) {
+    console.log("passei 6###")
     return error
   }
 
