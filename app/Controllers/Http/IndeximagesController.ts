@@ -127,7 +127,6 @@ export default class IndeximagesController {
     const { dataImages } = request['requestBody']
     const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData']
 
-    console.log("passo 4>>")
     //Através do nome da imagem é recriado o registro no bookrecord
     if (indexImagesInitial == 'true') {
       const listFilesImages = images.map((image) => {
@@ -224,6 +223,7 @@ export default class IndeximagesController {
             companies_id: authenticate.companies_id,
             prot: dataImages.prot,
             documenttype_id: dataImages.documenttype_id,
+            document_type_book_id: dataImages.document_type_book_id,
             book_name: dataImages.book_name,
             book_number: dataImages.book_number,
             sheet_number: dataImages.sheet_number,
