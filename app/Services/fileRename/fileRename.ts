@@ -174,7 +174,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       });
     }
     else {
-      console.log(">>>>", image.type)
       const newPath = path.join(folderPath, objfileRename.file_name)//`${folderPath}/${objfileRename.file_name}`
 
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
@@ -182,6 +181,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         const returnPathFile = await PdfOptimizer.compressIfScanned(`${folderPath}/${objfileRename.file_name}`)
         fs.renameSync(returnPathFile, newPath);
       }
+      //UTILIZA A FUNÇÃO EM PYTHON PARA MELHORAR IMAGEM
       //else
       //   if (image.type == 'image') {
       //     console.log("Entrei no image 1$$$$")
@@ -222,8 +222,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 }
 
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
-  //console.log("cheguei aqui filerename", originalFileName, "-", typebooks_id, "--", companies_id, "---", dataImages)
-
   let objFileName
   let separators
   let arrayFileName
@@ -394,9 +392,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
       query.whereHas('document', q => {
         q.where('documents.prot', objFileName.prot)
       })
-
-      console.log("passei aqui dentro do DOCUMENT###")
-
       isCreateBookrecord = true
       break
     }
@@ -428,7 +423,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             .where('companies_id', companies_id)
             .andWhere('id', typebooks_id)//.first()
           const book = await query.first()
-          //console.log("passo 1:", query.toQuery())
 
           const query2 = Bookrecord.query()
             .where('typebooks_id', typebooks_id)
@@ -436,10 +430,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             .max('cod as max_cod')//.first()
 
           const bookRecordFind = await query2.first()
-          //console.log("passo 2:", query2.toQuery())
-
-          console.log("passei 2.1 ###")
-
           const { ext, prot, obs, ...objFileNameWithoutExt } = objFileName
           const objectInsert = {
             books_id: book.books_id,
