@@ -12,14 +12,32 @@ import { processImage } from 'App/Services/imageProcessing/processImage'
 
 test('test', async ({ client }) => {
 
+const originalFileName = "P1(11)F - Copia.jpg";
 
-  const inputImage = Application.tmpPath('/test2/ImagemLivro.jpg');//'input.jpg';
-  //const outputImage = Application.tmpPath('/test2/ImagemLivroc.jpg')//'processed.jpg';
+// ✅ Regex explicado abaixo
+const regexDocumentAndProt = /^P(\d+)\((\d+)\)(.*?)(?:\.[^.]+)?$/i;
 
- // ⚡ use await para esperar o resultado
-  const result = await processImage(inputImage)
 
-  console.log('✅ OK ->', result)
+const teste = regexDocumentAndProt.test(originalFileName.toUpperCase())
+console.log("!!!!",teste)
+return
+
+
+const match = originalFileName.match(regexDocumentAndProt);
+
+if (match) {
+  const objFileName1 = {
+    book: match[1],  // número após o P → 1
+    prot: match[2],  // número entre parênteses → 11
+    obs: match[3]?.trim() || null, // texto entre parênteses e extensão → "teste teste"
+    ext: path.extname(originalFileName).toLowerCase(), // extensão → ".jpg"
+  };
+
+  console.log("Resultado:", objFileName1);
+} else {
+  console.log("❌ Nenhum padrão reconhecido no nome do arquivo.");
+}
+
 
 
 })

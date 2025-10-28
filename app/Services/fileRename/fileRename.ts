@@ -236,7 +236,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   //Format T123(123)livro.jpg
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
   //Format P1(123).jpg para prot do Documents
-  const regexDocumentAndProt = /^P\d+\(\d+\).*$/;
+  const regexDocumentAndProt = /^P(\d+)\((\d+)\)(.*?)(?:\.[^.]+)?$/i; ///^P\d+\(\d+\).*$/;
   //FORMATO L122F(1)F.jpg para Livro e folha e verifica ou insere registro no bookrecord
   const regexBookSheetSideInsertBookrecord = /^l(\d+)f\((\d+)\)([vf])(\d)?[^.]*\.(\w+)$/i;
   //FORMATO DE CAPA OU SEJA L999C(1).jpg OU SEJA PEGA O LIVRO E FOLHA 0
@@ -380,34 +380,26 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
 
     case regexDocumentAndProt.test(originalFileName.toUpperCase()): {
-      const arrayFileName = originalFileName.substring(1).split(/[()\.]/)
-      objFileName = {
-        book: arrayFileName[0],
-        prot: arrayFileName[1],
-        ext: `.${arrayFileName[3]}`
+      const match = originalFileName.match(regexDocumentAndProt);
+      if (match) {
+        objFileName = {
+          book: match[1],  // número após o P → 1
+          prot: match[2],  // número entre parênteses → 11
+          obs: match[3]?.trim() || null, // texto entre parênteses e extensão → "teste teste"
+          ext: path.extname(originalFileName).toLowerCase(), // extensão → ".jpg"
+        };
       }
 
-      // const match = originalFileName.match(regexDocumentAndProt);
-      // if (match) {
-      //   const objFileName1 = {
-      //     book: match[1],        // número entre L e F → 123
-      //     prot: match[2],       // número entre parênteses → 1
-      //     ext: path.extname(originalFileName).toLowerCase() //"." + match[5].toLowerCase(), // extensão do arquivo
-      //   };
+      query.andWhere('book', objFileName.book)
+      query.whereHas('document', q => {
+        q.where('documents.prot', objFileName.prot)
+      })
 
-      //   console.log("MATCH>>>>>>>>@@@>", objFileName1)
-      // }
+      console.log("passei aqui dentro do DOCUMENT###")
 
-        query.andWhere('book', objFileName.book)
-        query.whereHas('document', q => {
-          q.where('documents.prot', objFileName.prot)
-        })
-
-        console.log("passei aqui dentro do DOCUMENT###")
-
-        isCreateBookrecord = true
-        break
-      }
+      isCreateBookrecord = true
+      break
+    }
 
     default: {
       if (dataImages.id) query.andWhere('id', dataImages.id)
@@ -448,7 +440,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
           console.log("passei 2.1 ###")
 
-          const { ext, prot, ...objFileNameWithoutExt } = objFileName
+          const { ext, prot, obs, ...objFileNameWithoutExt } = objFileName
           const objectInsert = {
             books_id: book.books_id,
             typebooks_id: typebooks_id,
@@ -465,19 +457,15 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
               typebooks_id: bookRecord.typebooks_id,
               books_id: bookRecord.books_id,
               companies_id: bookRecord.companies_id,
-              prot
+              prot,
+              obs
             })
-
-          console.log("PROTOCOLO:", prot)
-          console.log("id:", bookRecord.id, "typebook id:", bookRecord.typebooks_id, "books_id:", bookRecord.books_id, "companies_id", bookRecord.companies_id)
-
           seq = 1
 
         } catch (error) {
           console.log("!!!!!!!", error)
         }
       } else {
-        console.log("passei 4.55 ###")
         return
       }
     } else {
@@ -488,8 +476,6 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         seq = bookRecord.indeximage[bookRecord.indeximage.length - 1].seq + 1
       }
     }
-
-    console.log("passei 3 ###")
 
     let fileRename
     try {
@@ -503,13 +489,11 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         //previous_file_name: originalFileName
       }
     } catch (error) {
-      console.log("passei 4 ###")
       return error
     }
-    console.log("passei 5 ###", fileRename)
+
     return fileRename
   } catch (error) {
-    console.log("passei 6###")
     return error
   }
 
