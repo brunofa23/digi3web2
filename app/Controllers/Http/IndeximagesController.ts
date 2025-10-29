@@ -242,9 +242,9 @@ export default class IndeximagesController {
     }
 
 
-    console.time('teste')
+    // console.time('teste')
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
-    console.timeEnd('teste')
+    // console.timeEnd('teste')
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
