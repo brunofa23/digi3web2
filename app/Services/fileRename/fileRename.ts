@@ -8,6 +8,8 @@ import ErrorlogImage from "App/Models/ErrorlogImage";
 import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
 import { DateTime } from "luxon";
+import { promises as fsp } from 'fs'
+
 
 import {
   sendUploadFiles,
@@ -59,95 +61,189 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
   return download
 }
 
+//******************************************************************************************** */
+// async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
+
+//   //**PARTE ONDE CRIA AS PASTAS */
+//   const _companies_id = companies_id
+//   let result: Object[] = []
+//   //Verificar se existe o caminho da pasta com as imagens
+//   const uploadsBasePath = Application.tmpPath('uploads')
+//   const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
+
+//   try {
+//     if (!fs.existsSync(uploadsBasePath)) {
+//       fs.mkdirSync(uploadsBasePath)
+//     }
+//     if (!fs.existsSync(folderPath)) {
+//       fs.mkdirSync(folderPath)
+//     }
+//   } catch (error) {
+//     throw new BadRequestException('could not create client directory', 409, error)
+//   }
+
+//   const directoryParent = await Typebook.query()
+//     .where('id', '=', params.typebooks_id)
+//     .andWhere('companies_id', '=', companies_id).first()
+
+//   if (!directoryParent || directoryParent == undefined)
+//     throw new BadRequestException('undefined book', 409)
+
+//   //verifica se existe essa pasta no Google e retorna o id do google
+//   let parent = await sendSearchFile(directoryParent?.path, cloud_number)
+
+//   //se não tiver a pasta vai criar
+//   if (parent.length == 0) {
+//     console.log("CÓDIGO 8888555")
+//     //criar a pasta
+//     const company = await Company.findByOrFail('id', _companies_id)
+//     const idFolderCompany = await sendSearchFile(company.foldername, cloud_number)
+
+//     await sendCreateFolder(directoryParent?.path, cloud_number, idFolderCompany[0].id)
+//     await sleep(2000)
+//     //return "Erro: Esta pasta não existe no GoogleDrive"
+//   }
+//   await sleep(1000);
+//   const idParent = await sendSearchFile(directoryParent?.path, cloud_number)
+
+//   //******************************************************************************** */
+//   //imagem única para upload
+//   if (capture) {
+//     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
+//     //console.log("CAPTURE PARTE 4,5>>", _fileRename)
+//     try {
+//       //  console.log("código 5666 - PARTE 5")
+//       await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, cloud_number, true)
+//       return images
+//     } catch (error) {
+//       console.log(error);
+//       return error
+//     }
+//   }
+
+//   let cont = 0
+//   let _fileRename
+//   for (let image of images) {
+//     cont++
+//     if (cont >= 6) {
+//       await sleep(4000);
+//       cont = 0
+//     }
+//     if (!image) {
+//       console.log("não é imagem")
+//     }
+//     if (!image.isValid) {
+//       console.log("Error", image.errors);
+//     }
+
+//     //console.log("código 5666 - PARTE 7",image.clientName,"-", params.typebooks_id,"--", companies_id,"---", dataImages)
+//     //************************************************************************************************************* */
+//     _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
+//     try {
+//       if (image && image.isValid) {
+//         result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
+//       }
+//     } catch (error) {
+//       await new BadRequestException(error + 'pushImageToGoogle', 409)
+//     }
+//   }
+
+//   return result
+// }
+
+// ✅ NOVA função pequena: garante o id da pasta no Drive sem usar sleep e sem re-buscar
+
+async function ensureDriveFolder(path: string, cloud_number: number, companies_id: number): Promise<string> {
+  // 1) tenta achar
+  const found = await sendSearchFile(path, cloud_number) // ideal: pageSize=1, fields='files(id,name,parents)'
+  if (found && found[0]?.id) return found[0].id
+
+  // 2) não achou → pega pasta da empresa (raiz) e cria
+  const company = await Company.findByOrFail('id', companies_id)
+  const roots = await sendSearchFile(company.foldername, cloud_number) // idem: limitar fields/pageSize
+  const parentCompanyId = roots?.[0]?.id
+  if (!parentCompanyId) {
+    throw new BadRequestException('company root folder not found in Google Drive', 404)
+  }
+
+  // 3) cria e usa o id retornado (sem buscar de novo, sem sleep)
+  const created = await sendCreateFolder(path, cloud_number, parentCompanyId)
+  const createdId = created?.id ?? created?.[0]?.id // dependendo de como sua função retorna
+  if (!createdId) {
+    throw new BadRequestException('failed to create folder on Google Drive', 500)
+  }
+  return createdId
+}
+
 async function transformFilesNameToId(images, params, companies_id, cloud_number: number, capture = false, dataImages = {}) {
-
-  //**PARTE ONDE CRIA AS PASTAS */
-  const _companies_id = companies_id
-  let result: Object[] = []
-  //Verificar se existe o caminho da pasta com as imagens
-  const uploadsBasePath = Application.tmpPath('uploads')
-  const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
-
+  // **PASTAS LOCAIS** (idempotente e sem sync)
   try {
-    if (!fs.existsSync(uploadsBasePath)) {
-      fs.mkdirSync(uploadsBasePath)
-    }
-    if (!fs.existsSync(folderPath)) {
-      fs.mkdirSync(folderPath)
-    }
+    const uploadsBasePath = Application.tmpPath('uploads')
+    const folderPath = Application.tmpPath(`/uploads/Client_${companies_id}`)
+    await fsp.mkdir(uploadsBasePath, { recursive: true })
+    await fsp.mkdir(folderPath, { recursive: true })
   } catch (error) {
     throw new BadRequestException('could not create client directory', 409, error)
   }
-  //console.log("código 698 - passo 3")
+
+  // Valida o "directoryParent"
   const directoryParent = await Typebook.query()
-    .where('id', '=', params.typebooks_id)
-    .andWhere('companies_id', '=', companies_id).first()
+    .where('id', params.typebooks_id)
+    .andWhere('companies_id', companies_id)
+    .first()
 
-  if (!directoryParent || directoryParent == undefined)
-    throw new BadRequestException('undefined book', 409)
+  if (!directoryParent) throw new BadRequestException('undefined book', 409)
 
-  //verifica se existe essa pasta no Google e retorna o id do google
-  let parent = await sendSearchFile(directoryParent?.path, cloud_number)
+  // ✅ pega (ou cria) a pasta alvo no Drive e obtém o id sem sleep e sem re-buscar
+  const parentId = await ensureDriveFolder(directoryParent.path, cloud_number, companies_id)
 
-  //se não tiver a pasta vai criar
-  if (parent.length == 0) {
-    //criar a pasta
-    const company = await Company.findByOrFail('id', _companies_id)
-    const idFolderCompany = await sendSearchFile(company.foldername, cloud_number)
-
-    await sendCreateFolder(directoryParent?.path, cloud_number, idFolderCompany[0].id)
-    await sleep(2000)
-    //return "Erro: Esta pasta não existe no GoogleDrive"
-  }
-  await sleep(1000);
-  const idParent = await sendSearchFile(directoryParent?.path, cloud_number)
-
-  //console.log("código 5666 - PARTE 4")
-  //******************************************************************************** */
-  //imagem única para upload
+  // **imagem única (capture)**
   if (capture) {
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
-    //console.log("CAPTURE PARTE 4,5>>", _fileRename)
     try {
-      //  console.log("código 5666 - PARTE 5")
-      await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, cloud_number, true)
+      // IMPORTANTE: `await` aqui já garante que o upload terminou no Google
+      await pushImageToGoogle(images, Application.tmpPath(`/uploads/Client_${companies_id}`), _fileRename, parentId, cloud_number, true)
       return images
     } catch (error) {
-      console.log(error);
+      console.log(error)
       return error
     }
   }
 
-  let cont = 0
-  let _fileRename
-  for (let image of images) {
-    cont++
-    if (cont >= 6) {
-      await sleep(4000);
-      cont = 0
-    }
-    if (!image) {
-      console.log("não é imagem")
-    }
+  // **lote**
+  const result: Object[] = []
+  for (const image of images) {
+    if (!image) continue
     if (!image.isValid) {
-      console.log("Error", image.errors);
+      console.log("Error", image.errors)
+      continue
     }
 
-    //console.log("código 5666 - PARTE 7",image.clientName,"-", params.typebooks_id,"--", companies_id,"---", dataImages)
-    //************************************************************************************************************* */
-    _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
+    const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
+
 
     try {
-      if (image && image.isValid) {
-        result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number))
-      }
+      // ✅ `await` garante que cada upload terminou; não precisa de sleep entre eles
+      const r = await pushImageToGoogle(
+        image,
+        Application.tmpPath(`/uploads/Client_${companies_id}`),
+        _fileRename,
+        parentId,
+        cloud_number
+      )
+      result.push(r)
     } catch (error) {
       await new BadRequestException(error + 'pushImageToGoogle', 409)
+    } finally {
+
     }
   }
 
   return result
+
 }
+
+
 
 async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: number) {
   try {
