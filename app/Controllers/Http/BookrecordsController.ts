@@ -16,6 +16,8 @@ const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
+
+
     const authenticate = await auth.use('api').authenticate()
 
     const { codstart, codend,
@@ -40,9 +42,14 @@ export default class BookrecordsController {
       created_atstart,
       created_atend,
       document_type_book_id,
-      obs_document
+      obs_document,
+      fin_entity_List
 
     } = request.qs()
+
+    console.log("PASSEI AQUI 555666", fin_entity_List)
+
+
     let query = " 1=1 "
 
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
@@ -215,11 +222,24 @@ export default class BookrecordsController {
         if (obs_document != undefined)
           query.where('obs', 'like', `%${obs_document}%`)
 
+        //ENTIDADE
+        query.if(fin_entity_List, q => {
+          const ids = String(fin_entity_List)
+            .split(',')               // ['1','2','3']
+            .map((id) => Number(id.trim()))
+            .filter((id) => !isNaN(id))
+
+          if (ids.length > 1) {
+            q.whereIn('fin_entities_id', ids)
+          } else if (ids.length === 1) {
+            q.where('fin_entities_id', ids[0])
+          }
+        })
       })
     }
     //*******************************************************************/
 
-
+    console.log(queryExecute.toQuery())
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
   }
