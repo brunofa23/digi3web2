@@ -189,7 +189,6 @@ class FinAccountsController {
         body.date_conciliation = body.date_conciliation ? luxon_1.DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
         body.amount = await (0, util_1.currencyConverter)(body.amount);
         body.limit_amount = await (0, util_1.currencyConverter)(body.limit_amount);
-        console.log(body);
         try {
             const finAccount = await FinAccount_1.default
                 .query()

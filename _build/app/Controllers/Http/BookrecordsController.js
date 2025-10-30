@@ -19,7 +19,7 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document } = request.qs();
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List } = request.qs();
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -70,6 +70,9 @@ class BookrecordsController {
                     query.select('name');
                 })
                     .preload('documenttypebook', query => {
+                    query.select('description');
+                })
+                    .preload('entity', query => {
                     query.select('description');
                 });
             })
@@ -143,6 +146,18 @@ class BookrecordsController {
                     query.where('yeardoc', yeardoc);
                 if (obs_document != undefined)
                     query.where('obs', 'like', `%${obs_document}%`);
+                query.if(fin_entity_List, q => {
+                    const ids = String(fin_entity_List)
+                        .split(',')
+                        .map((id) => Number(id.trim()))
+                        .filter((id) => !isNaN(id));
+                    if (ids.length > 1) {
+                        q.whereIn('fin_entities_id', ids);
+                    }
+                    else if (ids.length === 1) {
+                        q.where('fin_entities_id', ids[0]);
+                    }
+                });
             });
         }
         data = await queryExecute.paginate(page, limit);
