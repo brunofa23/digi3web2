@@ -3,6 +3,7 @@ import { BaseModel, column, HasMany, hasMany, HasOne, hasOne, belongsTo, Belongs
 import Bookrecord from './Bookrecord'
 import Documenttype from './Documenttype'
 import DocumentTypeBook from './DocumentTypeBook'
+import Entity from './Entity'
 
 export default class Document extends BaseModel {
 
@@ -92,6 +93,11 @@ export default class Document extends BaseModel {
     foreignKey: 'document_type_book_id',
   })
   public documenttypebook: BelongsTo<typeof DocumentTypeBook>
+
+  @belongsTo(() => Entity, {
+    foreignKey: 'fin_entities_id',
+  })
+  public entity: BelongsTo<typeof Entity>
 
 
   @column({ isPrimary: true })

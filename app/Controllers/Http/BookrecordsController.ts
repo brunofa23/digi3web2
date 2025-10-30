@@ -44,14 +44,9 @@ export default class BookrecordsController {
       document_type_book_id,
       obs_document,
       fin_entity_List
-
     } = request.qs()
 
-    console.log("PASSEI AQUI 555666", fin_entity_List)
-
-
     let query = " 1=1 "
-
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
       (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
       return null
@@ -110,6 +105,9 @@ export default class BookrecordsController {
               query.select('name')
             })
             .preload('documenttypebook', query => {
+              query.select('description')
+            })
+            .preload('entity', query=>{
               query.select('description')
             })
 
@@ -238,8 +236,6 @@ export default class BookrecordsController {
       })
     }
     //*******************************************************************/
-
-    console.log(queryExecute.toQuery())
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
   }

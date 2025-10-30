@@ -247,7 +247,7 @@ export default class FinAccountsController {
     body.amount = await currencyConverter(body.amount)
     body.limit_amount = await currencyConverter(body.limit_amount)
 
-    console.log(body)
+    
     //const { conciliation, ...body1 } = body
     try {
       // Realizando o update
