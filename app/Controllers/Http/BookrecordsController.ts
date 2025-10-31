@@ -90,9 +90,13 @@ export default class BookrecordsController {
     }
     else {
 
+      console.log(params.typebooks_id)
       queryExecute = Bookrecord.query()
         .where("bookrecords.companies_id", authenticate.companies_id)
-        .andWhere("bookrecords.typebooks_id", params.typebooks_id)
+        .if(params.typebooks_id > 0, query=>{
+          query.andWhere("bookrecords.typebooks_id", params.typebooks_id)
+        })
+        // .andWhere("bookrecords.typebooks_id", params.typebooks_id)
         .preload('indeximage', (queryIndex) => {
           queryIndex.where("typebooks_id", '=', params.typebooks_id)
             .andWhere("companies_id", '=', authenticate.companies_id)
