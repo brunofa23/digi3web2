@@ -93,6 +93,7 @@ export default class BookrecordsController {
       console.log(params.typebooks_id)
       queryExecute = Bookrecord.query()
         .where("bookrecords.companies_id", authenticate.companies_id)
+        //IF PARAMETER=0 THEN COME ALL
         .if(params.typebooks_id > 0, query=>{
           query.andWhere("bookrecords.typebooks_id", params.typebooks_id)
         })
@@ -102,10 +103,8 @@ export default class BookrecordsController {
             .andWhere("companies_id", '=', authenticate.companies_id)
 
         })
-        .preload('document', query => {
-          query.where('typebooks_id', params.typebooks_id)
-            .andWhere("documents.companies_id", authenticate.companies_id)
-            .preload('documenttype', query => {
+        .preload('document',query=>{
+          query.preload('documenttype', query => {
               query.select('name')
             })
             .preload('documenttypebook', query => {
@@ -114,9 +113,21 @@ export default class BookrecordsController {
             .preload('entity', query=>{
               query.select('description')
             })
-
-
         })
+
+        // .preload('document', query => {
+        //   query.where('typebooks_id', params.typebooks_id)
+        //     .andWhere("documents.companies_id", authenticate.companies_id)
+        //     .preload('documenttype', query => {
+        //       query.select('name')
+        //     })
+        //     .preload('documenttypebook', query => {
+        //       query.select('description')
+        //     })
+        //     .preload('entity', query=>{
+        //       query.select('description')
+        //     })
+        // })
         .whereRaw(query)
         .orderBy("book", "asc")
         .orderBy("cod", "asc")
@@ -241,6 +252,9 @@ export default class BookrecordsController {
     }
     //*******************************************************************/
     data = await queryExecute.paginate(page, limit)
+
+    console.log(data)
+
     return response.status(200).send(data)
   }
 
