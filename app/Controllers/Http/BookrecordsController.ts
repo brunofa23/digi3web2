@@ -46,6 +46,9 @@ export default class BookrecordsController {
       fin_entity_List
     } = request.qs()
 
+    console.log(created_atstart, "-",document_type_book_id)
+
+
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
       (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -90,30 +93,37 @@ export default class BookrecordsController {
     }
     else {
 
-      console.log(params.typebooks_id)
+
       queryExecute = Bookrecord.query()
         .where("bookrecords.companies_id", authenticate.companies_id)
         //IF PARAMETER=0 THEN COME ALL
-        .if(params.typebooks_id > 0, query=>{
+        .if(params.typebooks_id > 0, query => {
           query.andWhere("bookrecords.typebooks_id", params.typebooks_id)
         })
         // .andWhere("bookrecords.typebooks_id", params.typebooks_id)
-        .preload('indeximage', (queryIndex) => {
-          queryIndex.where("typebooks_id", '=', params.typebooks_id)
-            .andWhere("companies_id", '=', authenticate.companies_id)
 
+        .preload('indeximage', (queryIndex) => {
+          queryIndex.where("companies_id", '=', authenticate.companies_id)
         })
-        .preload('document',query=>{
+        // .preload('indeximage', (queryIndex) => {
+        //   queryIndex.where("typebooks_id", '=', params.typebooks_id)
+        //     .andWhere("companies_id", '=', authenticate.companies_id)
+        // })
+        .preload('document', query => {
           query.preload('documenttype', query => {
-              query.select('name')
-            })
+            query.select('name')
+          })
             .preload('documenttypebook', query => {
               query.select('description')
             })
-            .preload('entity', query=>{
+            .preload('entity', query => {
               query.select('description')
             })
         })
+
+        // .preload('typebooks', query=>{
+        //   query.select('name')
+        // })
 
         // .preload('document', query => {
         //   query.where('typebooks_id', params.typebooks_id)
@@ -184,8 +194,15 @@ export default class BookrecordsController {
       if (!sheetzero || (sheetzero == 'false'))
         queryExecute.where('sheet', '>', 0)
 
+
     //DOCUMENTOS***************************************************
     if (document == 'true') {
+
+      if (params.typebooks_id == 0)
+        queryExecute.preload('typebooks', query => {
+          query.select('name')
+        })
+
       queryExecute.whereHas('document', query => {
         //Data inicial
         if (created_atstart != undefined) {
@@ -252,8 +269,6 @@ export default class BookrecordsController {
     }
     //*******************************************************************/
     data = await queryExecute.paginate(page, limit)
-
-    console.log(data)
 
     return response.status(200).send(data)
   }
