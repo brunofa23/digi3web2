@@ -62,18 +62,13 @@ export default class TypebooksController {
   }
   //listar livro
   public async index({ auth, response, request }: HttpContextContract) {
-
     const { companies_id } = await auth.use('api').authenticate()
     const typebookPayload = request.only(['name', 'status', 'books_id', 'totalfiles', 'isDocument'])
-
-    console.log(typebookPayload.isDocument)
-
     let data
     if (!companies_id)
       throw new BadRequest('company not exists', 401)
 
     if (!typebookPayload.name && !typebookPayload.status && !typebookPayload.books_id) {
-      console.log("passei aqui 2222")
       data = await Typebook.query()
         .preload('documentconfig')
         .preload('book')
@@ -103,7 +98,6 @@ export default class TypebooksController {
         if (typebookPayload.isDocument == "true")
           queryData.where('books_id', 13)
         if (typebookPayload.isDocument == "false") {
-          console.log("entrei aqui...888")
           queryData.whereNotIn('books_id', [13])
         }
       }

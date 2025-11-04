@@ -46,9 +46,6 @@ export default class BookrecordsController {
       fin_entity_List
     } = request.qs()
 
-    console.log("-", params.typebooks_id)
-
-
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
       (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
