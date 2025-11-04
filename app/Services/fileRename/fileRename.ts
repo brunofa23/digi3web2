@@ -237,7 +237,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     const sendUpload = await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
 
     if (sendUpload.status === 200) {
-      //console.log("IMAGEM INSERIDA COM SUCESSO!!!!!!!!!!!", objfileRename)
       //chamar função para inserir na tabela indeximages
       if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
         const date_atualization = DateTime.now()
