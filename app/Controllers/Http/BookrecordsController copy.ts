@@ -44,6 +44,8 @@ export default class BookrecordsController {
       fin_entity_List
     } = request.qs()
 
+    console.log(params)
+
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
       (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -91,11 +93,18 @@ export default class BookrecordsController {
         .where("bookrecords.companies_id", authenticate.companies_id)
         //IF PARAMETER=0 THEN COME ALL
         .if(params.typebooks_id > 0, query => {
+          console.log("passei 55%%%%")
           query.andWhere("bookrecords.typebooks_id", params.typebooks_id)
         })
+        // .andWhere("bookrecords.typebooks_id", params.typebooks_id)
+
         .preload('indeximage', (queryIndex) => {
           queryIndex.where("companies_id", '=', authenticate.companies_id)
         })
+        // .preload('indeximage', (queryIndex) => {
+        //   queryIndex.where("typebooks_id", '=', params.typebooks_id)
+        //     .andWhere("companies_id", '=', authenticate.companies_id)
+        // })
         .preload('document', query => {
           query.preload('documenttype', query => {
             query.select('name')
@@ -112,10 +121,29 @@ export default class BookrecordsController {
         queryExecute.preload('typebooks', query => {
           query.select('name')
         })
+
+          // .preload('typebooks', query=>{
+          //   query.select('name')
+          // })
+
+          // .preload('document', query => {
+          //   query.where('typebooks_id', params.typebooks_id)
+          //     .andWhere("documents.companies_id", authenticate.companies_id)
+          //     .preload('documenttype', query => {
+          //       query.select('name')
+          //     })
+          //     .preload('documenttypebook', query => {
+          //       query.select('description')
+          //     })
+          //     .preload('entity', query=>{
+          //       query.select('description')
+          //     })
+          // })
           .whereRaw(query)
           .orderBy("book", "asc")
           .orderBy("cod", "asc")
           .orderBy("sheet", "asc")
+
     }
 
     //CODIGO*****************************************************
@@ -134,12 +162,6 @@ export default class BookrecordsController {
         queryExecute.where('book', '>=', bookstart)
     if (bookend != undefined)
       queryExecute.where('book', '<=', bookend)
-
-    //BOOK FOR DOCUMENTS IN BOOKS
-    if(book_number && document !='true')
-      queryExecute.where('book', book_number)
-
-
     //SHEET **********************************************
     if (sheetstart != undefined && sheetend == undefined)
       queryExecute.where('sheet', sheetstart)
@@ -148,10 +170,6 @@ export default class BookrecordsController {
         queryExecute.where('sheet', '>=', sheetstart)
     if (sheetend != undefined)
       queryExecute.where('sheet', '<=', sheetend)
-
-    //SHEET FOR DOCUMENTS IN BOOKS
-    if (sheet_number && document != 'true')
-      queryExecute.where('sheet', sheet_number)
 
     //side *************************************************
     if (side != undefined)
@@ -180,6 +198,7 @@ export default class BookrecordsController {
 
     //DOCUMENTOS***************************************************
     if (document == 'true') {
+
       if (params.typebooks_id == 0)
         queryExecute.preload('typebooks', query => {
           query.select('name')
@@ -221,8 +240,7 @@ export default class BookrecordsController {
         //Numero do livro
         if (book_number != undefined)
           query.where('book_number', book_number)
-
-        //Numero do folha
+        //Numero do livro
         if (sheet_number != undefined)
           query.where('sheet_number', sheet_number)
         //Mes
