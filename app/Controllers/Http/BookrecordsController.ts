@@ -46,7 +46,7 @@ export default class BookrecordsController {
       fin_entity_List
     } = request.qs()
 
-    console.log(created_atstart, "-",document_type_book_id)
+    console.log(created_atstart, "-",obs_document)
 
 
     let query = " 1=1 "
