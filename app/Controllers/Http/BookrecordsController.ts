@@ -46,7 +46,7 @@ export default class BookrecordsController {
       fin_entity_List
     } = request.qs()
 
-    console.log(created_atstart, "-",obs_document)
+    console.log("-", params.typebooks_id)
 
 
     let query = " 1=1 "
@@ -121,27 +121,32 @@ export default class BookrecordsController {
             })
         })
 
-        // .preload('typebooks', query=>{
-        //   query.select('name')
-        // })
+      if (params.typebooks_id == 0)
+        queryExecute.preload('typebooks', query => {
+          query.select('name')
+        })
 
-        // .preload('document', query => {
-        //   query.where('typebooks_id', params.typebooks_id)
-        //     .andWhere("documents.companies_id", authenticate.companies_id)
-        //     .preload('documenttype', query => {
-        //       query.select('name')
-        //     })
-        //     .preload('documenttypebook', query => {
-        //       query.select('description')
-        //     })
-        //     .preload('entity', query=>{
-        //       query.select('description')
-        //     })
-        // })
-        .whereRaw(query)
-        .orderBy("book", "asc")
-        .orderBy("cod", "asc")
-        .orderBy("sheet", "asc")
+          // .preload('typebooks', query=>{
+          //   query.select('name')
+          // })
+
+          // .preload('document', query => {
+          //   query.where('typebooks_id', params.typebooks_id)
+          //     .andWhere("documents.companies_id", authenticate.companies_id)
+          //     .preload('documenttype', query => {
+          //       query.select('name')
+          //     })
+          //     .preload('documenttypebook', query => {
+          //       query.select('description')
+          //     })
+          //     .preload('entity', query=>{
+          //       query.select('description')
+          //     })
+          // })
+          .whereRaw(query)
+          .orderBy("book", "asc")
+          .orderBy("cod", "asc")
+          .orderBy("sheet", "asc")
 
     }
 
