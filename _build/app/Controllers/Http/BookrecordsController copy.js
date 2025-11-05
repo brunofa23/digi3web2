@@ -20,6 +20,7 @@ class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List } = request.qs();
+        console.log(params);
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -59,6 +60,7 @@ class BookrecordsController {
             queryExecute = Bookrecord_1.default.query()
                 .where("bookrecords.companies_id", authenticate.companies_id)
                 .if(params.typebooks_id > 0, query => {
+                console.log("passei 55%%%%");
                 query.andWhere("bookrecords.typebooks_id", params.typebooks_id);
             })
                 .preload('indeximage', (queryIndex) => {
@@ -77,7 +79,6 @@ class BookrecordsController {
             });
             if (params.typebooks_id == 0)
                 queryExecute.preload('typebooks', query => {
-                    query.where('companies_id', authenticate.companies_id);
                     query.select('name');
                 })
                     .whereRaw(query)
@@ -97,16 +98,12 @@ class BookrecordsController {
             queryExecute.where('book', '>=', bookstart);
         if (bookend != undefined)
             queryExecute.where('book', '<=', bookend);
-        if (book_number && document != 'true')
-            queryExecute.where('book', book_number);
         if (sheetstart != undefined && sheetend == undefined)
             queryExecute.where('sheet', sheetstart);
         else if (sheetstart != undefined && sheetend != undefined)
             queryExecute.where('sheet', '>=', sheetstart);
         if (sheetend != undefined)
             queryExecute.where('sheet', '<=', sheetend);
-        if (sheet_number && document != 'true')
-            queryExecute.where('sheet', sheet_number);
         if (side != undefined)
             queryExecute.where('side', side);
         if (approximateterm != undefined)
@@ -1422,4 +1419,4 @@ class BookrecordsController {
     }
 }
 exports.default = BookrecordsController;
-//# sourceMappingURL=BookrecordsController.js.map
+//# sourceMappingURL=BookrecordsController%20copy.js.map
