@@ -110,8 +110,10 @@ export default class BookrecordsController {
 
       if (params.typebooks_id == 0)
         queryExecute.preload('typebooks', query => {
+          query.where('companies_id', authenticate.companies_id)
           query.select('name')
         })
+
           .whereRaw(query)
           .orderBy("book", "asc")
           .orderBy("cod", "asc")
@@ -180,9 +182,10 @@ export default class BookrecordsController {
 
     //DOCUMENTOS***************************************************
     if (document == 'true') {
+      console.log("opa opa opa...")
       if (params.typebooks_id == 0)
         queryExecute.preload('typebooks', query => {
-          query.select('name')
+                query.select('name')
         })
 
       queryExecute.whereHas('document', query => {
