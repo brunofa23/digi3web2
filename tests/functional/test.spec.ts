@@ -12,7 +12,7 @@ import { processImage } from 'App/Services/imageProcessing/processImage'
 
 test('test', async ({ client }) => {
 
-const originalFileName = "P1(11)F - Copia.jpg";
+const originalFileName = "P1(0)F - Copia.jpg";
 
 // ✅ Regex explicado abaixo
 const regexDocumentAndProt = /^P(\d+)\((\d+)\)(.*?)(?:\.[^.]+)?$/i;
@@ -20,9 +20,7 @@ const regexDocumentAndProt = /^P(\d+)\((\d+)\)(.*?)(?:\.[^.]+)?$/i;
 
 const teste = regexDocumentAndProt.test(originalFileName.toUpperCase())
 console.log("!!!!",teste)
-return
-
-
+//return
 const match = originalFileName.match(regexDocumentAndProt);
 
 if (match) {

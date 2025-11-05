@@ -182,7 +182,6 @@ export default class BookrecordsController {
 
     //DOCUMENTOS***************************************************
     if (document == 'true') {
-      console.log("opa opa opa...")
       if (params.typebooks_id == 0)
         queryExecute.preload('typebooks', query => {
                 query.select('name')

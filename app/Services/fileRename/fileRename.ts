@@ -269,7 +269,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
   const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
   //Format T123(123)livro.jpg
   const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
-  //Format P1(123).jpg para prot do Documents
+  //Format P1(123)obs.jpg para prot do Documents
   const regexDocumentAndProt = /^P(\d+)\((\d+)\)(.*?)(?:\.[^.]+)?$/i; ///^P\d+\(\d+\).*$/;
   //FORMATO L122F(1)F.jpg para Livro e folha e verifica ou insere registro no bookrecord
   const regexBookSheetSideInsertBookrecord = /^l(\d+)f\((\d+)\)([vf])(\d)?[^.]*\.(\w+)$/i;
@@ -477,15 +477,16 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
           bookRecord = await Bookrecord.create(objectInsert)
 
           //if prot exist then generate the document row
-          if (prot)
+          //if (prot)
             await Document.create({
               bookrecords_id: bookRecord.id,
               typebooks_id: bookRecord.typebooks_id,
               books_id: bookRecord.books_id,
               companies_id: bookRecord.companies_id,
-              prot,
+              prot:prot==0?null:prot,
               obs
             })
+
           seq = 1
 
         } catch (error) {
