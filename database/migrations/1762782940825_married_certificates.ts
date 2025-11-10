@@ -19,7 +19,7 @@ export default class extends BaseSchema {
       table.integer('witness2_person_id').unsigned().nullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
 
       table.integer('usr_id').unsigned().notNullable().references('users.id').onDelete('RESTRICT').onUpdate('RESTRICT')
-      table.integer('status_id').unsigned().nullable().references('status.id').onDelete('SET NULL').onUpdate('SET NULL')
+      table.integer('status_id').unsigned().nullable().references('statuses.id').onDelete('SET NULL').onUpdate('SET NULL')
 
       table.dateTime('dthr_schedule')
       table.dateTime('dthr_marriage')
