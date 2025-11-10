@@ -1,15 +1,32 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import {
+  BaseModel,
+  column,
+  belongsTo,
+  BelongsTo,
+} from '@ioc:Adonis/Lucid/Orm'
+
+import Company from 'App/Models/Company'
 
 export default class OrderCertificate extends BaseModel {
+  public static table = 'order_certificates'
+
   @column({ isPrimary: true })
   public id: number
 
   @column()
-  public typeCertificate: number | null
+  public companiesId: number
 
   @column()
-  public certificateId: number | null
+  public typeCertificate: number
+
+  @column()
+  public certificateId: number
+
+  @belongsTo(() => Company, {
+    foreignKey: 'companiesId',
+  })
+  public company: BelongsTo<typeof Company>
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

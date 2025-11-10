@@ -1,94 +1,112 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
-import Occupation from './Occupation'
+import {
+  BaseModel,
+  column,
+  belongsTo,
+  BelongsTo
+} from '@ioc:Adonis/Lucid/Orm'
+
+import Company from 'App/Models/Company'
+import Occupation from 'App/Models/Occupation'
 
 export default class Person extends BaseModel {
+  public static table = 'people'
+
   @column({ isPrimary: true })
   public id: number
 
+  @column()
+  public companiesId: number
+
   // === Dados pessoais ===
   @column()
-  public name: string | null
+  public name: string
 
   @column()
-  public nameMarried: string | null
+  public nameMarried: string
 
   @column()
-  public cpf: string | null
+  public cpf: string
 
   @column()
-  public gender: string | null
+  public gender: string
 
   @column()
   public deceased: boolean
 
   @column.date()
-  public dateBirth: DateTime | null
+  public dateBirth: DateTime
 
   @column()
-  public maritalStatus: string | null
+  public maritalStatus: string
 
   @column()
   public illiterate: boolean
 
-  // === Naturalidade / Nacionalidade / Ocupação ===
+  // Naturalidade / Nacionalidade / Profissão
   @column()
-  public placeBirth: string | null
+  public placeBirth: string
 
   @column()
-  public nationality: string | null
+  public nationality: string
 
   @column()
   public occupationId: number | null
+
+  // === Endereço ===
+  @column()
+  public zipCode: string
+
+  @column()
+  public address: string
+
+  @column()
+  public streetNumber: string
+
+  @column()
+  public streetComplement: string
+
+  @column()
+  public district: string
+
+  @column()
+  public city: string
+
+  @column()
+  public state: string
+
+  // === Documento ===
+  @column()
+  public documentType: string
+
+  @column()
+  public documentNumber: string
+
+  // === Contatos ===
+  @column()
+  public phone: string
+
+  @column()
+  public cellphone: string
+
+  @column()
+  public email: string
+
+  @column()
+  public inactive: boolean
+
+  // === Relacionamentos ===
+  @belongsTo(() => Company, {
+    foreignKey: 'companiesId',
+  })
+  public company: BelongsTo<typeof Company>
 
   @belongsTo(() => Occupation, {
     foreignKey: 'occupationId',
   })
   public occupation: BelongsTo<typeof Occupation>
 
-  // === Endereço ===
-  @column()
-  public zipCode: string | null
-
-  @column()
-  public address: string | null
-
-  @column()
-  public streetNumber: string | null
-
-  @column()
-  public streetComplement: string | null
-
-  @column()
-  public district: string | null
-
-  @column()
-  public city: string | null
-
-  @column()
-  public state: string | null
-
-  // === Documento ===
-  @column()
-  public documentType: string | null
-
-  @column()
-  public documentNumber: string | null
-
-  // === Contatos ===
-  @column()
-  public phone: string | null
-
-  @column()
-  public cellphone: string | null
-
-  @column()
-  public email: string | null
-
-  @column()
-  public inactive: boolean
-
-  // === Timestamps ===
+  // === Datas ===
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
