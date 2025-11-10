@@ -60,7 +60,14 @@ export default class MarriedCertificatesController {
       .where('companies_id', companiesId)
       .where('id', params.id)
       .preload('groom')
+      .preload('fatherGroom')
+      .preload('motherGroom')
       .preload('bride')
+      .preload('fatherBride')
+      .preload('motherBride')
+      .preload('witness1')
+      .preload('witness2')
+
       .preload('status')
       .first()
 
