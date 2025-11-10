@@ -144,6 +144,9 @@ Route.group(() => {
   // STATUS
   Route.resource("/statuses", 'StatusesController').apiOnly()
 
+  //PEOPLE
+  Route.resource('/people', 'PeopleController').apiOnly()
+
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
 
