@@ -8,13 +8,14 @@ export default class StatusesController {
    */
   public async index({auth}: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    return await Status.query().orderBy('id', 'asc')
+    return await Status.query().where('companies_id', authenticate.companies_id).orderBy('id', 'asc')
   }
 
   /**
    * Mostra um status pelo ID
    */
-  public async show({ params, response }: HttpContextContract) {
+  public async show({auth, params, response }: HttpContextContract) {
+    await auth.use('api').authenticate()
     const status = await Status.find(params.id)
 
     if (!status) {
@@ -27,7 +28,9 @@ export default class StatusesController {
   /**
    * Cria um novo status
    */
-  public async store({ request, response }: HttpContextContract) {
+  public async store({auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
     const validationSchema = schema.create({
       description: schema.string({ trim: true }, [
         rules.maxLength(255),
@@ -36,8 +39,7 @@ export default class StatusesController {
     })
 
     const payload = await request.validate({ schema: validationSchema })
-
-    const status = await Status.create(payload)
+    const status = await Status.create({...payload, companiesId:authenticate.companies_id})
 
     return response.created(status)
   }
@@ -45,7 +47,7 @@ export default class StatusesController {
   /**
    * Atualiza um status existente
    */
-  public async update({ params, request, response }: HttpContextContract) {
+  public async update({auth, params, request, response }: HttpContextContract) {
     const status = await Status.find(params.id)
 
     if (!status) {
@@ -70,15 +72,12 @@ export default class StatusesController {
   /**
    * Deleta um status
    */
-  public async destroy({ params, response }: HttpContextContract) {
-    const status = await Status.find(params.id)
-
-    if (!status) {
-      return response.notFound({ message: 'Status não encontrado' })
-    }
-
-    await status.delete()
-
-    return response.ok({ message: 'Status removido com sucesso' })
-  }
+  // public async destroy({auth, params, response }: HttpContextContract) {
+  //   const status = await Status.find(params.id)
+  //   if (!status) {
+  //     return response.notFound({ message: 'Status não encontrado' })
+  //   }
+  //   await status.delete()
+  //   return response.ok({ message: 'Status removido com sucesso' })
+  // }
 }

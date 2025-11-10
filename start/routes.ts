@@ -26,7 +26,6 @@ Route.group(() => {
   Route.post("/companies", 'CompaniesController.store')//.middleware('company_permission:post')
   Route.patch("/companies/:id", 'CompaniesController.update')//.middleware('company_permission:patch')
 
-
   //USERS
   Route.get("/users", "UsersController.index")
   Route.get("/users/:id", "UsersController.show")
@@ -38,15 +37,11 @@ Route.group(() => {
   //USERGROUPS
   Route.resource('/usergroups', "UsergroupsController").apiOnly()
 
-
   //GROUPXPERMISSIONS
   Route.resource("/groupxpermissions", "GroupxpermissionsController").apiOnly()
   Route.get("/permissiongroupxusergroup/:usergroup_id", "GroupxpermissionsController.PermissiongroupXUsergroup")
 
-
-
   //BOOKRECORDS
-  //Route.resource("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController').apiOnly()
   Route.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index')
   Route.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show')
   Route.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary')
@@ -109,7 +104,6 @@ Route.group(() => {
   Route.resource("events", "EventsController").apiOnly()
 
   //TOKENTOIMAGES
-  //Route.resource("tokentoimages", "TokenToImagesController").middleware('tokentoimages_permission')
   Route.post("/tokentoimages", "TokenToImagesController.store")//.middleware('tokentoimages_permission:post')
   Route.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
 
@@ -147,6 +141,9 @@ Route.group(() => {
   //ENTITIES
   Route.resource("/finentities", 'FinEntitiesController').apiOnly()
 
+  // STATUS
+  Route.resource("/statuses", 'StatusesController').apiOnly()
+
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
 
@@ -155,29 +152,9 @@ Route.group(() => {
     await auth.use('api').authenticate()
     return auth.use('api').user!
   })
+}).prefix('/api')//.middleware(['auth'])
 
 
-}).prefix('/api')
-
-//COMPANIES MIDDLEWARE
-// Route.group(() => {
-//   Route.resource("/companies", 'CompaniesController').apiOnly()
-// }).prefix('/api')//.middleware('level_permission:superuser')
-
-
-//**************************************************************** */
-Route.get('/api/test/middleware/level', ({ response }) => {
-  return response.json({ ok: true })
-}).middleware('level_permission:3')
-
-
-Route.group(() => {
-
-  Route.get('/test', ({ response }) => {
-    return response.json({ ok: true })
-  }).middleware('level_permission:4')
-
-}).prefix('/api/company/:company_id').middleware('company_permission')
 
 
 
