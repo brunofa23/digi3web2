@@ -116,4 +116,5 @@ export default class PeopleController {
     await person.delete()
     return response.ok({ message: 'Pessoa removida com sucesso' })
   }
+  
 }

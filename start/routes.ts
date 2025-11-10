@@ -147,6 +147,11 @@ Route.group(() => {
   //PEOPLE
   Route.resource('/people', 'PeopleController').apiOnly()
 
+  //MARRIED CERTIFICATES
+  Route.resource('/married-certificates', 'MarriedCertificatesController')
+  .apiOnly()
+  //.middleware('*', ['auth'])
+
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
 
