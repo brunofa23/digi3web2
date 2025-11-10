@@ -3,14 +3,12 @@ import { spawn } from 'child_process'
 import fs from 'fs'
 
 export function processImage(inputPath: string): Promise<string> {
-  return new Promise(async (resolve, reject) => {
+  return new Promise((resolve, reject) => {
     try {
       console.log("passo 1##")
 
-      // 🔹 Verifica se o arquivo de entrada existe (assíncrono)
-      try {
-        await fs.promises.access(inputPath, fs.constants.F_OK)
-      } catch {
+      // 🔹 Verifica se o arquivo de entrada existe
+      if (!fs.existsSync(inputPath)) {
         console.log("passo 1.1##")
         return reject(new Error(`Arquivo não encontrado: ${inputPath}`))
       }
@@ -19,11 +17,7 @@ export function processImage(inputPath: string): Promise<string> {
       console.log("passo 1.2##")
       const script = path.resolve(__dirname, './process_image.py')
       console.log("passo 1.2-2##", script)
-
-      // 🔹 Verifica se o script existe (assíncrono)
-      try {
-        await fs.promises.access(script, fs.constants.F_OK)
-      } catch {
+      if (!fs.existsSync(script)) {
         console.log("passo 1.3##")
         return reject(new Error(`Script Python não encontrado: ${script}`))
       }
