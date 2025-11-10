@@ -1,0 +1,31 @@
+id integer
+groom_person_id
+father_groom_person_id
+mother_groom_person_id
+bride_person_id
+fahter_bride_person_id
+mother_bride_person_id
+witness_person_id
+witness2_person_id
+
+usr_id
+status_id
+dthr_schedule
+dthr_marriage
+type string
+obs string
+church_name string
+church_city string
+marital_regime string
+prenup boolean
+registry_office_prenup string
+addres_registry_office_prenup string
+book_registry_office_prenup integer
+sheet_registry_office_prenup integer
+dthr_prenup date
+cerimony_location string
+other_cerimony_location string
+name_former_spouse string
+dthr_divorce_spouse date
+name_former_spouse2 string
+dthr_divorce_spouse2 date
