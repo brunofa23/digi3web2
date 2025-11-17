@@ -152,6 +152,11 @@ Route.group(() => {
   .apiOnly()
   //.middleware('*', ['auth'])
 
+  //ORDER CERTIFICATES
+  Route.resource('/order-certificates', 'OrderCertificatesController').apiOnly()
+
+
+
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
 

@@ -7,6 +7,7 @@ import {
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
+import MarriedCertificate from './MarriedCertificate'
 
 export default class OrderCertificate extends BaseModel {
   public static table = 'order_certificates'
@@ -27,6 +28,11 @@ export default class OrderCertificate extends BaseModel {
     foreignKey: 'companiesId',
   })
   public company: BelongsTo<typeof Company>
+
+  @belongsTo(() => MarriedCertificate, {
+    foreignKey: 'certificateId',
+  })
+  public marriedCertificate: BelongsTo<typeof MarriedCertificate>
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
