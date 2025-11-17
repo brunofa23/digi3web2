@@ -12,7 +12,7 @@ export default class MarriedCertificateValidator {
   public schema = schema.create({
     // === Noivo e pais ===
     groomPersonId: this.isCreate
-      ? schema.number([rules.unsigned()])
+      ? schema.number.optional([rules.unsigned()])
       : schema.number.optional([rules.unsigned()]),
 
     fatherGroomPersonId: schema.number.nullableAndOptional([rules.unsigned()]),
@@ -20,7 +20,7 @@ export default class MarriedCertificateValidator {
 
     // === Noiva e pais ===
     bridePersonId: this.isCreate
-      ? schema.number([rules.unsigned()])
+      ? schema.number.optional([rules.unsigned()])
       : schema.number.optional([rules.unsigned()]),
 
     // atenção: migration tem "fahter_bride_person_id"

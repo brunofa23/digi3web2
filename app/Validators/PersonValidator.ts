@@ -19,7 +19,7 @@ export default class PersonValidator {
     nameMarried: schema.string.optional({ trim: true }, [rules.maxLength(90)]),
 
     cpf: this.isCreate
-      ? schema.string({ trim: true }, [rules.regex(/^\d{11}$/)])
+      ? schema.string.optional({ trim: true }, [rules.regex(/^\d{11}$/)])
       : schema.string.optional({ trim: true }, [rules.regex(/^\d{11}$/)]),
 
     gender: schema.string.optional({ trim: true }, [rules.maxLength(1)]),
