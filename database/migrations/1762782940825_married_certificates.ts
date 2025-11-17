@@ -8,11 +8,11 @@ export default class extends BaseSchema {
       table.increments('id')
       table.integer('companies_id').notNullable().unsigned().references('id').inTable('companies').onUpdate('RESTRICT').onDelete('RESTRICT')
 
-      table.integer('groom_person_id').unsigned().notNullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
+      table.integer('groom_person_id').unsigned().nullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
       table.integer('father_groom_person_id').unsigned().nullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
       table.integer('mother_groom_person_id').unsigned().nullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
 
-      table.integer('bride_person_id').unsigned().notNullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
+      table.integer('bride_person_id').unsigned().nullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
       table.integer('fahter_bride_person_id').unsigned().nullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
       table.integer('mother_bride_person_id').unsigned().nullable().references('people.id').onDelete('RESTRICT').onUpdate('RESTRICT')
 
@@ -53,6 +53,7 @@ export default class extends BaseSchema {
       table.date('dthr_divorce_spouse2')
 
       table.boolean('inactive').defaultTo(false)
+      table.string('status_form',10).notNullable()
 
       // timestamps padrão
       table.timestamp('created_at', { useTz: true })

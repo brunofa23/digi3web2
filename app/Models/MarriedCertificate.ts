@@ -122,6 +122,9 @@ export default class MarriedCertificate extends BaseModel {
   @column()
   public inactive: boolean
 
+  @column()
+  public statusForm:string
+
   // === Relacionamentos ===
 
   @belongsTo(() => Company, { foreignKey: 'companiesId' })

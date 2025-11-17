@@ -8,7 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
       table.integer('companies_id').notNullable().unsigned().references('id').inTable('companies').onUpdate('RESTRICT').onDelete('RESTRICT')
       // === Dados pessoais ===
-      table.string('name', 90)
+      table.string('name', 90).notNullable()
       table.string('name_married', 90)
       table.string('cpf', 11).unique().index()
       table.string('gender', 1)

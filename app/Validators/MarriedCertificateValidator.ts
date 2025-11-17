@@ -69,6 +69,8 @@ export default class MarriedCertificateValidator {
 
     // === Status do registro
     inactive: schema.boolean.optional(),
+
+    statusForm:schema.enum(['draft', 'writing','finish']as const)
   })
 
   public messages = {
