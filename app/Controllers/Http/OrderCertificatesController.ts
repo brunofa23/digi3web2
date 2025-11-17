@@ -10,6 +10,9 @@ export default class OrderCertificatesController {
     const authenticate = await auth.use('api').authenticate()
 
     return await OrderCertificate.query()
+      .preload('book', query=>{
+        query.select('id', 'name')
+      })
       .preload('marriedCertificate', query=>{
         query.select('id','groomPersonId', 'bridePersonId')
         query.preload('groom',query=>{
@@ -52,6 +55,7 @@ export default class OrderCertificatesController {
       certificateId: schema.number([
         rules.unsigned(),
       ]),
+      bookId:schema.number()
     })
 
     const payload = await request.validate({ schema: validationSchema })
@@ -83,6 +87,7 @@ export default class OrderCertificatesController {
       certificateId: schema.number.optional([
         rules.unsigned(),
       ]),
+      bookId:schema.number()
     })
 
     const payload = await request.validate({ schema: validationSchema })
