@@ -8,17 +8,23 @@ const path_1 = __importDefault(require("path"));
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 function processImage(inputPath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         try {
             console.log("passo 1##");
-            if (!fs_1.default.existsSync(inputPath)) {
+            try {
+                await fs_1.default.promises.access(inputPath, fs_1.default.constants.F_OK);
+            }
+            catch {
                 console.log("passo 1.1##");
                 return reject(new Error(`Arquivo não encontrado: ${inputPath}`));
             }
             console.log("passo 1.2##");
             const script = path_1.default.resolve(__dirname, './process_image.py');
             console.log("passo 1.2-2##", script);
-            if (!fs_1.default.existsSync(script)) {
+            try {
+                await fs_1.default.promises.access(script, fs_1.default.constants.F_OK);
+            }
+            catch {
                 console.log("passo 1.3##");
                 return reject(new Error(`Script Python não encontrado: ${script}`));
             }
