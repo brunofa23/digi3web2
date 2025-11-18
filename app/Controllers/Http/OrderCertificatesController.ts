@@ -10,15 +10,15 @@ export default class OrderCertificatesController {
     const authenticate = await auth.use('api').authenticate()
 
     return await OrderCertificate.query()
-      .preload('book', query=>{
+      .preload('book', query => {
         query.select('id', 'name')
       })
-      .preload('marriedCertificate', query=>{
-        query.select('id','groomPersonId', 'bridePersonId')
-        query.preload('groom',query=>{
+      .preload('marriedCertificate', query => {
+        query.select('id', 'groomPersonId', 'bridePersonId')
+        query.preload('groom', query => {
           query.select('name')
         })
-        query.preload('bride', query=>{
+        query.preload('bride', query => {
           query.select('name')
         })
       })
@@ -30,17 +30,61 @@ export default class OrderCertificatesController {
   /**
    * Mostra um pedido de certidão pelo ID
    */
-  public async show({ auth, params, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+  public async show({ auth, params, request, response }: HttpContextContract) {
 
-    const orderCertificate = await OrderCertificate.find(params.id)
+    console.log("request:::", request.input('book_id'))
+
+    const authenticate = await auth.use('api').authenticate()
+    const book_id = request.input('book_id')
+    const query = OrderCertificate.query()
+      .where('id', params.id)
+      .andWhere('companies_id', authenticate.companies_id)
+      .preload('book', (query) => {
+        query.select('id', 'name')
+      })
+    if (book_id == 2) {
+      query.preload('marriedCertificate', (query) => {
+        //query.select('id', 'groomPersonId', 'bridePersonId')
+        query.preload('groom', (query) => {
+          query.select('*')
+        })
+        query.preload('motherGroom', (query) => {
+          query.select('*')
+        })
+        query.preload('fatherGroom', (query) => {
+          query.select('*')
+        })
+        query.preload('bride', (query) => {
+          query.select('*')
+        })
+        query.preload('motherBride', (query) => {
+          query.select('*')
+        })
+        query.preload('fatherBride', (query) => {
+          query.select('*')
+        })
+        query.preload('witness1', (query) => {
+          query.select('*')
+        })
+        query.preload('witness2', (query) => {
+          query.select('*')
+        })
+
+      })
+    }
+    //.first()
+
+    const orderCertificate = await query.first()
 
     if (!orderCertificate) {
-      return response.notFound({ message: 'Pedido de certidão não encontrado' })
+      return response.notFound({
+        message: 'Pedido de certidão não encontrado',
+      })
     }
 
     return orderCertificate
   }
+
 
   /**
    * Cria um novo pedido de certidão
@@ -55,7 +99,7 @@ export default class OrderCertificatesController {
       certificateId: schema.number([
         rules.unsigned(),
       ]),
-      bookId:schema.number()
+      bookId: schema.number()
     })
 
     const payload = await request.validate({ schema: validationSchema })
@@ -87,7 +131,7 @@ export default class OrderCertificatesController {
       certificateId: schema.number.optional([
         rules.unsigned(),
       ]),
-      bookId:schema.number()
+      bookId: schema.number()
     })
 
     const payload = await request.validate({ schema: validationSchema })
