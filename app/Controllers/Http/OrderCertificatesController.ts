@@ -33,6 +33,7 @@ export default class OrderCertificatesController {
   public async show({ auth, params, request, response }: HttpContextContract) {
 
     console.log("request:::", request.input('book_id'))
+    console.log("request param:::", params)
 
     const authenticate = await auth.use('api').authenticate()
     const book_id = request.input('book_id')
