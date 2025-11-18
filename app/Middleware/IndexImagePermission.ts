@@ -26,38 +26,7 @@ export default class IndexImagePermission {
         return
       }
 
-      //   if (guard === 'get' && authenticate.permission_level >= 0) {
-
-      //     await next()
-      //   }
-      //   else
-      //     if (guard === 'post' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
-      //       await next()
-      //     }
-      //     else
-      //       if (guard === 'patch' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
-      //         await next()
-      //       }
-      //       else
-      //         if (guard === 'destroy' && (authenticate.permission_level >= 5 || authenticate.superuser)) {
-      //           await next()
-      //         }
-      //         else
-      //           if (guard === 'uploads' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
-      //             await next()
-      //           }
-      //           else
-      //             if (guard === 'download' && (authenticate.permission_level >= 3 || authenticate.superuser || authenticate.access_image >= DateTime.local())) {
-      //               await next()
-      //             }
-      //             else
-      //               if (guard === 'uploadCapture' && (authenticate.permission_level >= 3 || authenticate.superuser)) {
-      //                 await next()
-      //               }
-      //               else {
-      //                 let errorValidation = await new validations('error_10')
-      //                 throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-      //               }
+      
 
     }
   }

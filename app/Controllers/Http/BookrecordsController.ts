@@ -361,7 +361,7 @@ export default class BookrecordsController {
   }
 
   public async store({ auth, request, response }: HttpContextContract) {
-    console.log("PASSEI AQUI STORE 5555")
+    
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(BookrecordValidator)
     const { document } = request.only(['document'])

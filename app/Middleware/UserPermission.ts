@@ -23,17 +23,7 @@ export default class UserPermission {
         await next()
         return
       }
-      // else if (guard === 'authorizeAccessImages') {
-      //   console.log("passei no passo 2 @@")
-      //   if (verifyPermission(authenticate.superuser, permissions, 30)) {
-      //     await next()
-      //     return
-      //   } else {
-      //     const errorValidation = await new validations('user_error_201')
-      //     throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-      //   }
-
-      // }
+     
       else {
         let errorValidation = await new validations('error_10')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
