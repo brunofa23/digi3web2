@@ -88,18 +88,29 @@ export default class MarriedCertificate extends BaseModel {
   })
   public statusId: number | null
 
-  // === Datas principais ===
+ // === Datas principais ===
   @column.dateTime({
-    columnName: 'dthr_schedule',
-    serializeAs: 'dthrSchedule',
-  })
-  public dthrSchedule: DateTime | null
+  columnName: 'dthr_schedule',
+  serializeAs: 'dthrSchedule',
+  serialize: (value: DateTime | null) => {
+    if (!value) return null
+    // Garante fuso de São Paulo e formata para datetime-local (sem timezone)
+    return value.setZone('America/Sao_Paulo').toFormat("yyyy-LL-dd'T'HH:mm")
+  },
+})
+public dthrSchedule: DateTime | null
+
 
   @column.dateTime({
     columnName: 'dthr_marriage',
     serializeAs: 'dthrMarriage',
+    serialize: (value: DateTime | null) => {
+      return value ? value.toISODate() : null   // "2025-11-20"
+      // ou: value.toFormat('yyyy-LL-dd')
+    },
   })
   public dthrMarriage: DateTime | null
+
 
   // === Tipo e observação ===
   @column()
@@ -209,7 +220,7 @@ export default class MarriedCertificate extends BaseModel {
   })
   public statusForm: string
 
-    // === Relacionamentos ===
+  // === Relacionamentos ===
   @belongsTo(() => Company, {
     foreignKey: 'companiesId', // propriedade do model
   })

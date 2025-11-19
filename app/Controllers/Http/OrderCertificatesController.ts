@@ -28,7 +28,7 @@ export default class OrderCertificatesController {
         // === Dados pessoais ===
         name: personData.name ?? '',
         nameMarried: personData.nameMarried ?? '',
-        cpf: personData.cpf ?? '',
+        cpf: personData.cpf?.trim() === '' ? null : personData.cpf,
         gender: personData.gender ?? '',
         deceased: personData.deceased ?? false,
 
@@ -156,14 +156,19 @@ export default class OrderCertificatesController {
           witness2PersonId: witness2?.id ?? null,
 
           // Usuário responsável (por enquanto fixo)
-          usrId: 17, // depois trocar pelo user autenticado
+          //usrId: 17, // depois trocar pelo user autenticado
 
           // Status
           statusId: marriedData.statusId ?? null,
 
           // Datas principais
-          dthrSchedule: marriedData.dthrSchedule ?? null,
-          dthrMarriage: marriedData.dthrMarriage ?? null,
+          dthrSchedule: marriedData.dthrSchedule && marriedData.dthrSchedule.trim() !== ''
+            ? DateTime.fromISO(marriedData.dthrSchedule, { zone: 'America/Sao_Paulo' })
+            : null,
+
+          dthrMarriage: marriedData.dthrMarriage ? DateTime.fromISO(marriedData.dthrMarriage)
+            : null,
+          //marriedData.dthrMarriage ?? null,
 
           // Tipo e observação
           type: marriedData.type ?? '',
