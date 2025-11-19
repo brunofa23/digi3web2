@@ -15,14 +15,20 @@ export default class Person extends BaseModel {
   @column({ isPrimary: true })
   public id: number
 
-  @column()
+  @column({
+    columnName: 'companies_id',
+    serializeAs: 'companiesId',
+  })
   public companiesId: number
 
   // === Dados pessoais ===
   @column()
   public name: string
 
-  @column()
+  @column({
+    columnName: 'name_married',
+    serializeAs: 'nameMarried',
+  })
   public nameMarried: string
 
   @column()
@@ -34,36 +40,60 @@ export default class Person extends BaseModel {
   @column()
   public deceased: boolean
 
-  @column.date()
+  @column.date({
+    columnName: 'date_birth',
+    serializeAs: 'dateBirth',
+  })
   public dateBirth: DateTime
 
-  @column()
+  @column({
+    columnName: 'marital_status',
+    serializeAs: 'maritalStatus',
+  })
   public maritalStatus: string
 
-  @column()
+  @column({
+    columnName: 'illiterate',
+    serializeAs: 'illiterate',
+  })
   public illiterate: boolean
 
-  // Naturalidade / Nacionalidade / Profissão
-  @column()
+  // === Naturalidade / Nacionalidade / Profissão ===
+  @column({
+    columnName: 'place_birth',
+    serializeAs: 'placeBirth',
+  })
   public placeBirth: string
 
   @column()
   public nationality: string
 
-  @column()
+  @column({
+    columnName: 'occupation_id',
+    serializeAs: 'occupationId',
+  })
   public occupationId: number | null
 
   // === Endereço ===
-  @column()
+  @column({
+    columnName: 'zip_code',
+    serializeAs: 'zipCode',
+  })
   public zipCode: string
 
   @column()
   public address: string
 
-  @column()
+  @column({
+    columnName: 'street_number',
+    serializeAs: 'streetNumber',
+  })
   public streetNumber: string
 
-  @column()
+  @column({
+    columnName: 'street_complement',
+    serializeAs: 'streetComplement',
+  })
   public streetComplement: string
 
   @column()
@@ -76,10 +106,16 @@ export default class Person extends BaseModel {
   public state: string
 
   // === Documento ===
-  @column()
+  @column({
+    columnName: 'document_type',
+    serializeAs: 'documentType',
+  })
   public documentType: string
 
-  @column()
+  @column({
+    columnName: 'document_number',
+    serializeAs: 'documentNumber',
+  })
   public documentNumber: string
 
   // === Contatos ===
@@ -97,19 +133,28 @@ export default class Person extends BaseModel {
 
   // === Relacionamentos ===
   @belongsTo(() => Company, {
-    foreignKey: 'companiesId',
+    foreignKey: 'companiesId', // propriedade do model
   })
   public company: BelongsTo<typeof Company>
 
   @belongsTo(() => Occupation, {
-    foreignKey: 'occupationId',
+    foreignKey: 'occupationId', // propriedade do model
   })
   public occupation: BelongsTo<typeof Occupation>
 
   // === Datas ===
-  @column.dateTime({ autoCreate: true })
+  @column.dateTime({
+    columnName: 'created_at',
+    serializeAs: 'createdAt',
+    autoCreate: true
+  })
   public createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  @column.dateTime({
+    columnName: 'updated_at',
+    serializeAs: 'updatedAt',
+    autoCreate: true,
+    autoUpdate: true
+  })
   public updatedAt: DateTime
 }

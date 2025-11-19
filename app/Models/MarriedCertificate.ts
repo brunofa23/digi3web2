@@ -17,49 +17,88 @@ export default class MarriedCertificate extends BaseModel {
   @column({ isPrimary: true })
   public id: number
 
-  @column()
+  @column({
+    columnName: 'companies_id',
+    serializeAs: 'companiesId',
+  })
   public companiesId: number
 
   // === Noivo e pais ===
-  @column()
+  @column({
+    columnName: 'groom_person_id',
+    serializeAs: 'groomPersonId',
+  })
   public groomPersonId: number
 
-  @column()
+  @column({
+    columnName: 'father_groom_person_id',
+    serializeAs: 'fatherGroomPersonId',
+  })
   public fatherGroomPersonId: number | null
 
-  @column()
+  @column({
+    columnName: 'mother_groom_person_id',
+    serializeAs: 'motherGroomPersonId',
+  })
   public motherGroomPersonId: number | null
 
   // === Noiva e pais ===
-  @column()
+  @column({
+    columnName: 'bride_person_id',
+    serializeAs: 'bridePersonId',
+  })
   public bridePersonId: number
 
-  @column()
-  public fahterBridePersonId: number | null   // atenção: migration tem erro de digitação "fahter"
+  @column({
+    columnName: 'fahter_bride_person_id', // migration escrita errada
+    serializeAs: 'fatherBridePersonId',    // correto no JSON
+  })
+  public fahterBridePersonId: number | null
 
-  @column()
+  @column({
+    columnName: 'mother_bride_person_id',
+    serializeAs: 'motherBridePersonId',
+  })
   public motherBridePersonId: number | null
 
   // === Testemunhas ===
-  @column()
+  @column({
+    columnName: 'witness_person_id',
+    serializeAs: 'witnessPersonId',
+  })
   public witnessPersonId: number | null
 
-  @column()
+  @column({
+    columnName: 'witness2_person_id',
+    serializeAs: 'witness2PersonId',
+  })
   public witness2PersonId: number | null
 
   // === Usuário responsável ===
-  @column()
+  @column({
+    columnName: 'usr_id',
+    serializeAs: 'usrId',
+  })
   public usrId: number
 
   // === Status ===
-  @column()
+  @column({
+    columnName: 'status_id',
+    serializeAs: 'statusId',
+  })
   public statusId: number | null
 
   // === Datas principais ===
-  @column.dateTime()
+  @column.dateTime({
+    columnName: 'dthr_schedule',
+    serializeAs: 'dthrSchedule',
+  })
   public dthrSchedule: DateTime | null
 
-  @column.dateTime()
+  @column.dateTime({
+    columnName: 'dthr_marriage',
+    serializeAs: 'dthrMarriage',
+  })
   public dthrMarriage: DateTime | null
 
   // === Tipo e observação ===
@@ -70,100 +109,177 @@ export default class MarriedCertificate extends BaseModel {
   public obs: string
 
   // === Igreja ===
-  @column()
+  @column({
+    columnName: 'church_name',
+    serializeAs: 'churchName',
+  })
   public churchName: string
 
-  @column()
+  @column({
+    columnName: 'church_city',
+    serializeAs: 'churchCity',
+  })
   public churchCity: string
 
   // === Regime de bens ===
-  @column()
+  @column({
+    columnName: 'marital_regime',
+    serializeAs: 'maritalRegime',
+  })
   public maritalRegime: string
 
   // === Pacto antenupcial ===
   @column()
   public prenup: boolean
 
-  @column()
+  @column({
+    columnName: 'registry_office_prenup',
+    serializeAs: 'registryOfficePrenup',
+  })
   public registryOfficePrenup: string
 
-  @column()
+  @column({
+    columnName: 'addres_registry_office_prenup',
+    serializeAs: 'addresRegistryOfficePrenup',
+  })
   public addresRegistryOfficePrenup: string
 
-  @column()
+  @column({
+    columnName: 'book_registry_office_prenup',
+    serializeAs: 'bookRegistryOfficePrenup',
+  })
   public bookRegistryOfficePrenup: number | null
 
-  @column()
+  @column({
+    columnName: 'sheet_registry_office_prenup',
+    serializeAs: 'sheetRegistryOfficePrenup',
+  })
   public sheetRegistryOfficePrenup: number | null
 
-  @column.date()
+  @column.date({
+    columnName: 'dthr_prenup',
+    serializeAs: 'dthrPrenup',
+  })
   public dthrPrenup: DateTime | null
 
   // === Local da cerimônia ===
-  @column()
+  @column({
+    columnName: 'cerimony_location',
+    serializeAs: 'cerimonyLocation',
+  })
   public cerimonyLocation: string
 
-  @column()
+  @column({
+    columnName: 'other_cerimony_location',
+    serializeAs: 'otherCerimonyLocation',
+  })
   public otherCerimonyLocation: string
 
   // === Ex-cônjuges ===
-  @column()
+  @column({
+    columnName: 'name_former_spouse',
+    serializeAs: 'nameFormerSpouse',
+  })
   public nameFormerSpouse: string
 
-  @column.date()
+  @column.date({
+    columnName: 'dthr_divorce_spouse',
+    serializeAs: 'dthrDivorceSpouse',
+  })
   public dthrDivorceSpouse: DateTime | null
 
-  @column()
+  @column({
+    columnName: 'name_former_spouse2',
+    serializeAs: 'nameFormerSpouse2',
+  })
   public nameFormerSpouse2: string
 
-  @column.date()
+  @column.date({
+    columnName: 'dthr_divorce_spouse2',
+    serializeAs: 'dthrDivorceSpouse2',
+  })
   public dthrDivorceSpouse2: DateTime | null
 
   @column()
   public inactive: boolean
 
-  @column()
-  public statusForm:string
+  @column({
+    columnName: 'status_form',
+    serializeAs: 'statusForm',
+  })
+  public statusForm: string
 
-  // === Relacionamentos ===
-
-  @belongsTo(() => Company, { foreignKey: 'companiesId' })
+    // === Relacionamentos ===
+  @belongsTo(() => Company, {
+    foreignKey: 'companiesId', // propriedade do model
+  })
   public company: BelongsTo<typeof Company>
 
-  @belongsTo(() => User, { foreignKey: 'usrId' })
+  @belongsTo(() => User, {
+    foreignKey: 'usrId',
+  })
   public user: BelongsTo<typeof User>
 
-  @belongsTo(() => Status, { foreignKey: 'statusId' })
+  @belongsTo(() => Status, {
+    foreignKey: 'statusId',
+  })
   public status: BelongsTo<typeof Status>
 
-  @belongsTo(() => Person, { foreignKey: 'groomPersonId' })
+  @belongsTo(() => Person, {
+    foreignKey: 'groomPersonId',
+  })
   public groom: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, { foreignKey: 'fatherGroomPersonId' })
+  @belongsTo(() => Person, {
+    foreignKey: 'fatherGroomPersonId',
+  })
   public fatherGroom: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, { foreignKey: 'motherGroomPersonId' })
+  @belongsTo(() => Person, {
+    foreignKey: 'motherGroomPersonId',
+  })
   public motherGroom: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, { foreignKey: 'bridePersonId' })
+  @belongsTo(() => Person, {
+    foreignKey: 'bridePersonId',
+  })
   public bride: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, { foreignKey: 'fahterBridePersonId' })
+  @belongsTo(() => Person, {
+    // atenção: aqui o NOME DA PROPRIEDADE tem o mesmo erro de digitação do banco
+    foreignKey: 'fahterBridePersonId',
+  })
   public fatherBride: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, { foreignKey: 'motherBridePersonId' })
+  @belongsTo(() => Person, {
+    foreignKey: 'motherBridePersonId',
+  })
   public motherBride: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, { foreignKey: 'witnessPersonId' })
+  @belongsTo(() => Person, {
+    foreignKey: 'witnessPersonId',
+  })
   public witness1: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, { foreignKey: 'witness2PersonId' })
+  @belongsTo(() => Person, {
+    foreignKey: 'witness2PersonId',
+  })
   public witness2: BelongsTo<typeof Person>
 
+
   // === Timestamps ===
-  @column.dateTime({ autoCreate: true })
+  @column.dateTime({
+    columnName: 'created_at',
+    serializeAs: 'createdAt',
+    autoCreate: true,
+  })
   public createdAt: DateTime
 
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  @column.dateTime({
+    columnName: 'updated_at',
+    serializeAs: 'updatedAt',
+    autoCreate: true,
+    autoUpdate: true,
+  })
   public updatedAt: DateTime
 }

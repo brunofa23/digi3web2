@@ -1,185 +1,140 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import type { TransactionClientContract } from '@ioc:Adonis/Lucid/Database'
-import OrderCertificate from 'App/Models/OrderCertificate'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import Database from '@ioc:Adonis/Lucid/Database'
+import { DateTime } from 'luxon'
+
+import OrderCertificate from 'App/Models/OrderCertificate'
 import Person from 'App/Models/Person'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
-export default class OrderCertificatesController {
 
+export default class OrderCertificatesController {
   //********************************* */
-  // 🔹 Função separada só pra tratar o formulário de casamento
+  // 🔹 Helper para salvar/atualizar Person com TODOS os campos do model
+  private async upsertPerson(
+    personData: any | null | undefined,
+    companiesId: number,
+    trx: TransactionClientContract
+  ): Promise<Person | null> {
+    if (!personData) {
+      return null
+    }
+
+    return await Person.updateOrCreate(
+      { id: personData.id },
+      {
+        companiesId,
+
+        // === Dados pessoais ===
+        name: personData.name ?? '',
+        nameMarried: personData.nameMarried ?? '',
+        cpf: personData.cpf ?? '',
+        gender: personData.gender ?? '',
+        deceased: personData.deceased ?? false,
+
+        dateBirth: personData.dateBirth
+          ? DateTime.fromISO(personData.dateBirth.toString())
+          : null,
+
+        maritalStatus: personData.maritalStatus ?? '',
+        illiterate: personData.illiterate ?? false,
+
+        // === Naturalidade / Nacionalidade / Profissão ===
+        placeBirth: personData.placeBirth ?? '',
+        nationality: personData.nationality ?? '',
+        occupationId: personData.occupationId ?? null,
+
+        // === Endereço ===
+        zipCode: personData.zipCode ?? '',
+        address: personData.address ?? '',
+        streetNumber: personData.streetNumber ?? '',
+        streetComplement: personData.streetComplement ?? '',
+        district: personData.district ?? '',
+        city: personData.city ?? '',
+        state: personData.state ?? '',
+
+        // === Documento ===
+        documentType: personData.documentType ?? '',
+        documentNumber: personData.documentNumber ?? '',
+
+        // === Contatos ===
+        phone: personData.phone ?? '',
+        cellphone: personData.cellphone ?? '',
+        email: personData.email ?? '',
+
+        // Controle
+        inactive: personData.inactive ?? false,
+      },
+      { client: trx }
+    )
+  }
+
+  // 🔹 Salva o formulário de casamento (pessoas + married_certificates)
   private async saveMarriage(
     marriedData: any,
     companiesId: number,
     trx: TransactionClientContract
   ) {
     try {
-      // 🔹 Noivo
-      const groom = await Person.updateOrCreate(
-        { id: marriedData.groom?.id },
-        {
-          companiesId,
-          name: marriedData.groom?.name,
-          cpf: marriedData.groom?.cpf,
-          gender: marriedData.groom?.gender,
-          zipCode: marriedData.groom?.zipCode,
-          address: marriedData.groom?.address,
-          city: marriedData.groom?.city,
-          state: marriedData.groom?.state,
-          phone: marriedData.groom?.phone,
-          cellphone: marriedData.groom?.cellphone,
-          email: marriedData.groom?.email,
-        },
-        { client: trx }
-      )
+      // 🔹 Noivo (obrigatório)
+      const groom = await this.upsertPerson(marriedData.groom, companiesId, trx)
+      if (!groom) {
+        throw new Error('Groom (noivo) é obrigatório')
+      }
 
       // 🔹 Pai do noivo (opcional)
-      const fatherGroom = marriedData.fatherGroom
-        ? await Person.updateOrCreate(
-          { id: marriedData.fatherGroom?.id },
-          {
-            companiesId,
-            name: marriedData.fatherGroom?.name,
-            cpf: marriedData.fatherGroom?.cpf,
-            gender: marriedData.fatherGroom?.gender,
-            zipCode: marriedData.fatherGroom?.zipCode,
-            address: marriedData.fatherGroom?.address,
-            city: marriedData.fatherGroom?.city,
-            state: marriedData.fatherGroom?.state,
-            phone: marriedData.fatherGroom?.phone,
-            cellphone: marriedData.fatherGroom?.cellphone,
-            email: marriedData.fatherGroom?.email,
-          },
-          { client: trx }
-        )
-        : null
-
-      // 🔹 Mãe do noivo (opcional)
-      const motherGroom = marriedData.motherGroom
-        ? await Person.updateOrCreate(
-          { id: marriedData.motherGroom?.id },
-          {
-            companiesId,
-            name: marriedData.motherGroom?.name,
-            cpf: marriedData.motherGroom?.cpf,
-            gender: marriedData.motherGroom?.gender,
-            zipCode: marriedData.motherGroom?.zipCode,
-            address: marriedData.motherGroom?.address,
-            city: marriedData.motherGroom?.city,
-            state: marriedData.motherGroom?.state,
-            phone: marriedData.motherGroom?.phone,
-            cellphone: marriedData.motherGroom?.cellphone,
-            email: marriedData.motherGroom?.email,
-          },
-          { client: trx }
-        )
-        : null
-
-      // 🔹 Noiva
-      const bride = await Person.updateOrCreate(
-        { id: marriedData.bride?.id },
-        {
-          companiesId,
-          name: marriedData.bride?.name,
-          cpf: marriedData.bride?.cpf,
-          gender: marriedData.bride?.gender,
-          zipCode: marriedData.bride?.zipCode,
-          address: marriedData.bride?.address,
-          city: marriedData.bride?.city,
-          state: marriedData.bride?.state,
-          phone: marriedData.bride?.phone,
-          cellphone: marriedData.bride?.cellphone,
-          email: marriedData.bride?.email,
-        },
-        { client: trx }
+      const fatherGroom = await this.upsertPerson(
+        marriedData.fatherGroom,
+        companiesId,
+        trx
       )
 
+      // 🔹 Mãe do noivo (opcional)
+      const motherGroom = await this.upsertPerson(
+        marriedData.motherGroom,
+        companiesId,
+        trx
+      )
+
+      // 🔹 Noiva (obrigatória)
+      const bride = await this.upsertPerson(
+        marriedData.bride,
+        companiesId,
+        trx
+      )
+      if (!bride) {
+        throw new Error('Bride (noiva) é obrigatória')
+      }
+
       // 🔹 Pai da noiva (opcional)
-      const fatherBride = marriedData.fatherBride
-        ? await Person.updateOrCreate(
-          { id: marriedData.fatherBride?.id },
-          {
-            companiesId,
-            name: marriedData.fatherBride?.name,
-            cpf: marriedData.fatherBride?.cpf,
-            gender: marriedData.fatherBride?.gender,
-            zipCode: marriedData.fatherBride?.zipCode,
-            address: marriedData.fatherBride?.address,
-            city: marriedData.fatherBride?.city,
-            state: marriedData.fatherBride?.state,
-            phone: marriedData.fatherBride?.phone,
-            cellphone: marriedData.fatherBride?.cellphone,
-            email: marriedData.fatherBride?.email,
-          },
-          { client: trx }
-        )
-        : null
+      const fatherBride = await this.upsertPerson(
+        marriedData.fatherBride,
+        companiesId,
+        trx
+      )
 
       // 🔹 Mãe da noiva (opcional)
-      const motherBride = marriedData.motherBride
-        ? await Person.updateOrCreate(
-          { id: marriedData.motherBride?.id },
-          {
-            companiesId,
-            name: marriedData.motherBride?.name,
-            cpf: marriedData.motherBride?.cpf,
-            gender: marriedData.motherBride?.gender,
-            zipCode: marriedData.motherBride?.zipCode,
-            address: marriedData.motherBride?.address,
-            city: marriedData.motherBride?.city,
-            state: marriedData.motherBride?.state,
-            phone: marriedData.motherBride?.phone,
-            cellphone: marriedData.motherBride?.cellphone,
-            email: marriedData.motherBride?.email,
-          },
-          { client: trx }
-        )
-        : null
+      const motherBride = await this.upsertPerson(
+        marriedData.motherBride,
+        companiesId,
+        trx
+      )
 
       // 🔹 Testemunha 1 (opcional)
-      const witness1 = marriedData.witness1
-        ? await Person.updateOrCreate(
-          { id: marriedData.witness1?.id },
-          {
-            companiesId,
-            name: marriedData.witness1?.name,
-            cpf: marriedData.witness1?.cpf,
-            gender: marriedData.witness1?.gender,
-            zipCode: marriedData.witness1?.zipCode,
-            address: marriedData.witness1?.address,
-            city: marriedData.witness1?.city,
-            state: marriedData.witness1?.state,
-            phone: marriedData.witness1?.phone,
-            cellphone: marriedData.witness1?.cellphone,
-            email: marriedData.witness1?.email,
-          },
-          { client: trx }
-        )
-        : null
+      const witness1 = await this.upsertPerson(
+        marriedData.witness1,
+        companiesId,
+        trx
+      )
 
       // 🔹 Testemunha 2 (opcional)
-      const witness2 = marriedData.witness2
-        ? await Person.updateOrCreate(
-          { id: marriedData.witness2?.id },
-          {
-            companiesId,
-            name: marriedData.witness2?.name,
-            cpf: marriedData.witness2?.cpf,
-            gender: marriedData.witness2?.gender,
-            zipCode: marriedData.witness2?.zipCode,
-            address: marriedData.witness2?.address,
-            city: marriedData.witness2?.city,
-            state: marriedData.witness2?.state,
-            phone: marriedData.witness2?.phone,
-            cellphone: marriedData.witness2?.cellphone,
-            email: marriedData.witness2?.email,
-          },
-          { client: trx }
-        )
-        : null
+      const witness2 = await this.upsertPerson(
+        marriedData.witness2,
+        companiesId,
+        trx
+      )
 
-      // 🔹 Salva a certidão de casamento com TODOS os campos do model
+      // 🔹 Salva a certidão de casamento com TODOS os campos do model MarriedCertificate
       await MarriedCertificate.updateOrCreate(
         { id: marriedData.id },
         {
@@ -200,8 +155,8 @@ export default class OrderCertificatesController {
           witnessPersonId: witness1?.id ?? null,
           witness2PersonId: witness2?.id ?? null,
 
-          // Usuário responsável (por enquanto usa o que vier no payload, depois podemos trocar pelo user logado)
-          usrId: 17,//marriedData.usrId ?? 0, // se tiver restrição NOT NULL, depois passamos o user autenticado via parâmetro
+          // Usuário responsável (por enquanto fixo)
+          usrId: 17, // depois trocar pelo user autenticado
 
           // Status
           statusId: marriedData.statusId ?? null,
@@ -251,9 +206,6 @@ export default class OrderCertificatesController {
     }
   }
 
-
-
-
   /**
    * Lista todos os pedidos de certidão da empresa do usuário
    */
@@ -261,19 +213,18 @@ export default class OrderCertificatesController {
     const authenticate = await auth.use('api').authenticate()
 
     return await OrderCertificate.query()
-      .preload('book', query => {
+      .preload('book', (query) => {
         query.select('id', 'name')
       })
-      .preload('marriedCertificate', query => {
+      .preload('marriedCertificate', (query) => {
         query.select('id', 'groomPersonId', 'bridePersonId')
-        query.preload('groom', query => {
+        query.preload('groom', (query) => {
           query.select('name')
         })
-        query.preload('bride', query => {
+        query.preload('bride', (query) => {
           query.select('name')
         })
       })
-
       .where('companies_id', authenticate.companies_id)
       .orderBy('id', 'asc')
   }
@@ -282,21 +233,21 @@ export default class OrderCertificatesController {
    * Mostra um pedido de certidão pelo ID
    */
   public async show({ auth, params, request, response }: HttpContextContract) {
-
-    console.log("request:::", request.input('book_id'))
-    console.log("request param:::", params)
+    console.log('request:::', request.input('book_id'))
+    console.log('request param:::', params)
 
     const authenticate = await auth.use('api').authenticate()
     const book_id = request.input('book_id')
+
     const query = OrderCertificate.query()
       .where('id', params.id)
       .andWhere('companies_id', authenticate.companies_id)
       .preload('book', (query) => {
         query.select('id', 'name')
       })
+
     if (book_id == 2) {
       query.preload('marriedCertificate', (query) => {
-        //query.select('id', 'groomPersonId', 'bridePersonId')
         query.preload('groom', (query) => {
           query.select('*')
         })
@@ -321,10 +272,8 @@ export default class OrderCertificatesController {
         query.preload('witness2', (query) => {
           query.select('*')
         })
-
       })
     }
-    //.first()
 
     const orderCertificate = await query.first()
 
@@ -337,7 +286,6 @@ export default class OrderCertificatesController {
     return orderCertificate
   }
 
-
   /**
    * Cria um novo pedido de certidão
    */
@@ -345,13 +293,9 @@ export default class OrderCertificatesController {
     const authenticate = await auth.use('api').authenticate()
 
     const validationSchema = schema.create({
-      typeCertificate: schema.number([
-        rules.unsigned(),
-      ]),
-      certificateId: schema.number([
-        rules.unsigned(),
-      ]),
-      bookId: schema.number()
+      typeCertificate: schema.number([rules.unsigned()]),
+      certificateId: schema.number([rules.unsigned()]),
+      bookId: schema.number(),
     })
 
     const payload = await request.validate({ schema: validationSchema })
@@ -378,12 +322,14 @@ export default class OrderCertificatesController {
     const validationSchema = schema.create({
       certificateId: schema.number.optional([rules.unsigned()]),
       book: schema.object().members({
-        id: schema.number([rules.unsigned()])
-      })
+        id: schema.number([rules.unsigned()]),
+      }),
     })
 
-    const payload = await request.validate({ schema: validationSchema })
+    const payload: any = await request.validate({ schema: validationSchema })
     const body = request.body()
+
+    console.log(body)
 
     try {
       await Database.transaction(async (trx) => {
@@ -409,22 +355,27 @@ export default class OrderCertificatesController {
 
         // 🔹 Se for casamento, salva o form completo
         if (payload.bookId === 2 && body.marriedCertificate) {
-          await this.saveMarriage(body.marriedCertificate, authenticate.companies_id, trx)
+          await this.saveMarriage(
+            body.marriedCertificate,
+            authenticate.companies_id,
+            trx
+          )
         }
       })
 
-      // 👉 Após commit, pode carregar relações se quiser:
+      // 👉 Após commit, recarrega relações
       await orderCertificate.load('book')
       await orderCertificate.load('marriedCertificate')
 
       return orderCertificate
-
-    } catch (error) {
+    } catch (error: any) {
       console.error(error)
-      return response.internalServerError({ message: 'Erro ao atualizar pedido de certidão', error: error.message })
+      return response.internalServerError({
+        message: 'Erro ao atualizar pedido de certidão',
+        error: error.message,
+      })
     }
   }
-
 
   /**
    * Deleta um pedido de certidão
