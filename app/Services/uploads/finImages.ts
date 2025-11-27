@@ -11,7 +11,7 @@ import { DateTime } from 'luxon';
 import fs from 'fs/promises'
 
 async function uploadFinImage(companies_id: number, fin_account_id: number, request) {
-  
+
   const fileInput = request;
   // Pegando o arquivo corretamente
   const image = fileInput.file('fileInput', {
@@ -72,8 +72,5 @@ async function uploadFinImage(companies_id: number, fin_account_id: number, requ
 
   return result;
 }
-
-
-
 
 export { uploadFinImage }

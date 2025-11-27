@@ -4,7 +4,7 @@ import FinAccount from 'App/Models/FinAccount'
 import FinAccountStoreValidator from 'App/Validators/FinAccountStoreValidator'
 import FinAccountUpdateValidator from 'App/Validators/FinAccountUpdateValidator'
 import { currencyConverter } from "App/Services/util"
-import { uploadFinImage } from 'App/Services/uploadFinImage/finImages'
+import { uploadFinImage } from 'App/Services/uploads/finImages'
 import { DateTime } from 'luxon'
 import { schema } from '@ioc:Adonis/Core/Validator'
 
@@ -247,7 +247,7 @@ export default class FinAccountsController {
     body.amount = await currencyConverter(body.amount)
     body.limit_amount = await currencyConverter(body.limit_amount)
 
-    
+
     //const { conciliation, ...body1 } = body
     try {
       // Realizando o update

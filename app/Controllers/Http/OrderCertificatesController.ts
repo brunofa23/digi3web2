@@ -208,6 +208,8 @@ export default class OrderCertificatesController {
         { client: trx }
       )
 
+      //CHAMAR UPLOAD DAS IMAGENS
+
       // ⬇⬇⬇ ESSENCIAL: retornar o ID para ser usado no orderCertificate.certificateId
       return marriedCertificate.id
     } catch (error) {
@@ -340,6 +342,9 @@ export default class OrderCertificatesController {
           )
           certificateId = marriageId
           console.log('PPPPPPPPPPPPP>>', certificateId)
+          //FAZER UPLOAD DAS IMAGENS
+
+          
         }
 
         const oc = new OrderCertificate()
