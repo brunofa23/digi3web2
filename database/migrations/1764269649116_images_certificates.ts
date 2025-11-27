@@ -25,34 +25,41 @@ export default class extends BaseSchema {
         .onUpdate('RESTRICT')
         .onDelete('RESTRICT')
 
-      table.integer('certificate_id').notNullable()
+      // 🔹 Uma FK por tipo de certificado (todas opcionais)
+      table
+        .integer('married_certificate_id')
+        .unsigned()
+        .references('id')
+        .inTable('married_certificates')
+        .onUpdate('RESTRICT')
+        .onDelete('RESTRICT')
+        .nullable()
+
+      // table
+      //   .integer('born_certificate_id')
+      //   .unsigned()
+      //   .references('id')
+      //   .inTable('born_certificates')
+      //   .onUpdate('RESTRICT')
+      //   .onDelete('RESTRICT')
+      //   .nullable()
+
+      // Se quiser manter o antigo:
+      // table.integer('certificate_id').notNullable()
+
       table.integer('seq').notNullable()
 
       table.string('ext', 5).nullable()
       table.string('file_name', 200).nullable()
-
-      // ✅ aqui faltava o "()"
       table.string('description', 50).nullable()
-
       table.string('path', 200).nullable()
 
       table.timestamp('created_at', { useTz: true })
       table.timestamp('updated_at', { useTz: true })
 
-      // ✅ índice composto (mais útil pra buscas por essas 3 juntas)
-      table.index(['companies_id', 'book_id', 'certificate_id'], 'idx_imgcert_comp_book_cert')
-
-      // (opcional) índices individuais, se você filtra por uma só coluna às vezes
-      // table.index(['companies_id'], 'idx_imgcert_comp')
-      // table.index(['book_id'], 'idx_imgcert_book')
-      // table.index(['certificate_id'], 'idx_imgcert_cert')
-
-      // (bem recomendado) garantir que não repita a mesma seq dentro do mesmo certificado
-      table.unique(
-        ['companies_id', 'book_id', 'certificate_id', 'seq'],
-        'uq_imgcert_comp_book_cert_seq'
-      )
+      table.index(['companies_id', 'book_id'], 'idx_imgcert_comp_book')
     })
+
   }
 
   public async down() {
