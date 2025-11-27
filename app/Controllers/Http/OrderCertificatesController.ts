@@ -73,8 +73,9 @@ export default class OrderCertificatesController {
   private async saveMarriage(
     marriedData: any,
     companiesId: number,
+    usrId: number | null,
     trx: TransactionClientContract
-  ) {
+  ): Promise<number> {
     try {
       // 🔹 Noivo (obrigatório)
       const groom = await this.upsertPerson(marriedData.groom, companiesId, trx)
@@ -134,12 +135,13 @@ export default class OrderCertificatesController {
         trx
       )
 
-      // 🔹 Salva a certidão de casamento com TODOS os campos do model MarriedCertificate
-      await MarriedCertificate.updateOrCreate(
-        { id: marriedData.id },
+      // 🔹 Salva ou atualiza a certidão de casamento
+      const marriedCertificate = await MarriedCertificate.updateOrCreate(
+        { id: marriedData.id }, // se vier id, faz update; se não vier, cria
         {
           // contexto
           companiesId,
+          usrId,
 
           // Noivo e pais
           groomPersonId: groom.id,
@@ -155,20 +157,21 @@ export default class OrderCertificatesController {
           witnessPersonId: witness1?.id ?? null,
           witness2PersonId: witness2?.id ?? null,
 
-          // Usuário responsável (por enquanto fixo)
-          //usrId: 17, // depois trocar pelo user autenticado
-
           // Status
           statusId: marriedData.statusId ?? null,
 
           // Datas principais
-          dthrSchedule: marriedData.dthrSchedule && marriedData.dthrSchedule.trim() !== ''
-            ? DateTime.fromISO(marriedData.dthrSchedule, { zone: 'America/Sao_Paulo' })
-            : null,
+          dthrSchedule:
+            marriedData.dthrSchedule &&
+              marriedData.dthrSchedule.trim() !== ''
+              ? DateTime.fromISO(marriedData.dthrSchedule, {
+                zone: 'America/Sao_Paulo',
+              })
+              : null,
 
-          dthrMarriage: marriedData.dthrMarriage ? DateTime.fromISO(marriedData.dthrMarriage)
+          dthrMarriage: marriedData.dthrMarriage
+            ? DateTime.fromISO(marriedData.dthrMarriage)
             : null,
-          //marriedData.dthrMarriage ?? null,
 
           // Tipo e observação
           type: marriedData.type ?? '',
@@ -205,11 +208,16 @@ export default class OrderCertificatesController {
         },
         { client: trx }
       )
+
+      // ⬇⬇⬇ ESSENCIAL: retornar o ID para ser usado no orderCertificate.certificateId
+      return marriedCertificate.id
     } catch (error) {
       console.error('ERRO AO SALVAR MARRIAGE:', error)
-      throw error // mantém rollback da transaction
+      // mantém rollback da transaction no nível superior
+      throw error
     }
   }
+
 
   /**
    * Lista todos os pedidos de certidão da empresa do usuário
@@ -292,26 +300,83 @@ export default class OrderCertificatesController {
   }
 
   /**
-   * Cria um novo pedido de certidão
-   */
+  * Cria um novo pedido de certidão
+  */
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
+    const body = request.body()
+    //console.log(body)
     const validationSchema = schema.create({
-      typeCertificate: schema.number([rules.unsigned()]),
-      certificateId: schema.number([rules.unsigned()]),
-      bookId: schema.number(),
+      //typeCertificate: schema.number([rules.unsigned()]),
+      // Pode vir no payload, mas para casamento vamos sobrescrever
+      //certificateId: schema.number.optional([rules.unsigned()]),
+      // Aceita tanto bookId direto quanto um objeto book.id (igual no update)
+      bookId: schema.number.optional([rules.unsigned()]),
+      book: schema.object.optional().members({
+        id: schema.number([rules.unsigned()]),
+      }),
     })
 
-    const payload = await request.validate({ schema: validationSchema })
+    console.log("PASSO 1", authenticate.id)
+    const payload: any = await request.validate({ schema: validationSchema })
+    console.log("PASSO 2", payload)
 
-    const orderCertificate = await OrderCertificate.create({
-      ...payload,
-      companiesId: authenticate.companies_id,
-    })
+    // Normaliza book.id -> bookId
+    if (payload.book?.id) {
+      payload.bookId = payload.book.id
+    }
+    delete payload.book
 
-    return response.created(orderCertificate)
+    if (!payload.bookId) {
+      return response.badRequest({
+        message: 'bookId é obrigatório',
+      })
+    }
+
+    try {
+      const orderCertificate = await Database.transaction(async (trx) => {
+        let certificateId //= payload.certificateId
+        // 🔹 Se for casamento (livro 2), salva primeiro o marriedCertificate
+        if (payload.bookId === 2 && body.marriedCertificate) {
+          // IMPORTANTE: ajuste a função saveMarriage para retornar o ID do registro
+          const marriageId = await this.saveMarriage(
+            body.marriedCertificate,
+            authenticate.companies_id,
+            authenticate.id,
+            trx
+          )
+          certificateId = marriageId
+          console.log("PPPPPPPPPPPPP>>", certificateId)
+        }
+
+        const oc = new OrderCertificate()
+        oc.useTransaction(trx)
+
+        oc.merge({
+          typeCertificate: payload.typeCertificate,
+          bookId: payload.bookId,
+          companiesId: authenticate.companies_id,
+          certificateId: certificateId,
+        })
+
+        await oc.save()
+
+        return oc
+      })
+
+      await orderCertificate.load('book')
+      await orderCertificate.load('marriedCertificate')
+
+      return response.created(orderCertificate)
+    } catch (error: any) {
+      console.error(error)
+      return response.internalServerError({
+        message: 'Erro ao criar pedido de certidão',
+        error: error.message,
+      })
+    }
   }
+
 
   /**
    * Atualiza um pedido de certidão existente
@@ -363,6 +428,7 @@ export default class OrderCertificatesController {
           await this.saveMarriage(
             body.marriedCertificate,
             authenticate.companies_id,
+            authenticate.id,
             trx
           )
         }
