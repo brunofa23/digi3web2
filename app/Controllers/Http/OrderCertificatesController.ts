@@ -73,7 +73,7 @@ export default class OrderCertificatesController {
   private async saveMarriage(
     marriedData: any,
     companiesId: number,
-    usrId: number | null,
+    usrId: number | null, // ✅ modificação: aceita null
     trx: TransactionClientContract
   ): Promise<number> {
     try {
@@ -141,7 +141,7 @@ export default class OrderCertificatesController {
         {
           // contexto
           companiesId,
-          usrId,
+          usrId: usrId ?? null, // ✅ modificação: garante null
 
           // Noivo e pais
           groomPersonId: groom.id,
@@ -162,11 +162,10 @@ export default class OrderCertificatesController {
 
           // Datas principais
           dthrSchedule:
-            marriedData.dthrSchedule &&
-              marriedData.dthrSchedule.trim() !== ''
+            marriedData.dthrSchedule && marriedData.dthrSchedule.trim() !== ''
               ? DateTime.fromISO(marriedData.dthrSchedule, {
-                zone: 'America/Sao_Paulo',
-              })
+                  zone: 'America/Sao_Paulo',
+                })
               : null,
 
           dthrMarriage: marriedData.dthrMarriage
@@ -217,7 +216,6 @@ export default class OrderCertificatesController {
       throw error
     }
   }
-
 
   /**
    * Lista todos os pedidos de certidão da empresa do usuário
@@ -300,26 +298,22 @@ export default class OrderCertificatesController {
   }
 
   /**
-  * Cria um novo pedido de certidão
-  */
+   * Cria um novo pedido de certidão
+   */
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const body = request.body()
-    //console.log(body)
+
     const validationSchema = schema.create({
-      //typeCertificate: schema.number([rules.unsigned()]),
-      // Pode vir no payload, mas para casamento vamos sobrescrever
-      //certificateId: schema.number.optional([rules.unsigned()]),
-      // Aceita tanto bookId direto quanto um objeto book.id (igual no update)
       bookId: schema.number.optional([rules.unsigned()]),
       book: schema.object.optional().members({
         id: schema.number([rules.unsigned()]),
       }),
     })
 
-    console.log("PASSO 1", authenticate.id)
+    console.log('PASSO 1', authenticate.id)
     const payload: any = await request.validate({ schema: validationSchema })
-    console.log("PASSO 2", payload)
+    console.log('PASSO 2', payload)
 
     // Normaliza book.id -> bookId
     if (payload.book?.id) {
@@ -335,18 +329,17 @@ export default class OrderCertificatesController {
 
     try {
       const orderCertificate = await Database.transaction(async (trx) => {
-        let certificateId //= payload.certificateId
+        let certificateId
         // 🔹 Se for casamento (livro 2), salva primeiro o marriedCertificate
         if (payload.bookId === 2 && body.marriedCertificate) {
-          // IMPORTANTE: ajuste a função saveMarriage para retornar o ID do registro
           const marriageId = await this.saveMarriage(
             body.marriedCertificate,
             authenticate.companies_id,
-            authenticate.id,
+            authenticate.id, // (continua igual; agora a função aceita null se você passar)
             trx
           )
           certificateId = marriageId
-          console.log("PPPPPPPPPPPPP>>", certificateId)
+          console.log('PPPPPPPPPPPPP>>', certificateId)
         }
 
         const oc = new OrderCertificate()
@@ -376,7 +369,6 @@ export default class OrderCertificatesController {
       })
     }
   }
-
 
   /**
    * Atualiza um pedido de certidão existente
@@ -428,7 +420,7 @@ export default class OrderCertificatesController {
           await this.saveMarriage(
             body.marriedCertificate,
             authenticate.companies_id,
-            authenticate.id,
+            authenticate.id, // (continua igual; agora a função aceita null se você passar)
             trx
           )
         }
