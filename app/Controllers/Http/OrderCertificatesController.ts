@@ -209,6 +209,7 @@ export default class OrderCertificatesController {
       )
 
       //CHAMAR UPLOAD DAS IMAGENS
+      
 
       // ⬇⬇⬇ ESSENCIAL: retornar o ID para ser usado no orderCertificate.certificateId
       return marriedCertificate.id
@@ -344,7 +345,7 @@ export default class OrderCertificatesController {
           console.log('PPPPPPPPPPPPP>>', certificateId)
           //FAZER UPLOAD DAS IMAGENS
 
-          
+
         }
 
         const oc = new OrderCertificate()
