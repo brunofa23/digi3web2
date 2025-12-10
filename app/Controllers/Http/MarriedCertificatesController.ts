@@ -1,6 +1,8 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
 import MarriedCertificateValidator from 'App/Validators/MarriedCertificateValidator'
+import { uploadImage } from 'App/Services/uploads/uploadImages'
+
 
 export default class MarriedCertificatesController {
   /**
@@ -88,9 +90,45 @@ export default class MarriedCertificatesController {
 
     const item = await MarriedCertificate.create({
       ...payload,
-      companiesId,            // sempre da sessão
-      usrId: (user as any).id // responsável é o usuário autenticado
+      companiesId,
+      usrId: (user as any).id,
     })
+
+    // Mapeamento: campo do form -> descrição (ou tipo)
+    const fileFields: { field: string; description: string }[] = [
+      { field: 'DocumentGroom', description: 'DocNoivo' },
+      { field: 'DocumentBride', description: 'DocNoiva' },
+      { field: 'BirthCertificateGroom', description: 'CertidaoNoivo' },
+      { field: 'BirthCertificateBride', description: 'CertidaoNoiva' },
+      { field: 'ProofResidenceGroom', description: 'ResidenciaNoivo' },
+      { field: 'ProofResidenceBride', description: 'ResidenciaNoiva' },
+      { field: 'MarriageCertificateGroom', description: 'CertidaoCasamentoNoivo' },
+      { field: 'MarriageCertificateBride', description: 'CertidaoCasamentoNoiva' },
+      { field: 'DocumentWitness1', description: 'DocTestemunha1' },
+      { field: 'DocumentWitness2', description: 'DocTestemunha2' },
+    ]
+
+    // Opções de validação dos arquivos
+    const fileOptions = {
+      size: '8mb',
+      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+    } as const
+
+    // Faz upload de cada campo que vier no form
+    for (const cfg of fileFields) {
+      const file = request.file(cfg.field, fileOptions)
+
+      if (!file) {
+        continue // Campo não enviado, ignora
+      }
+
+      await uploadImage({
+        companiesId,
+        marriedCertificateId: item.id,
+        file,
+        description: cfg.description,
+      })
+    }
 
     return response.created(item)
   }
