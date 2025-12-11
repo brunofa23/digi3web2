@@ -83,6 +83,7 @@ async function uploadImage({
     married_certificate_id: marriedCertificateId,
     ext: file.extname,
     file_name: clientName,
+    description: description,
     seq: newSeq,
     path: `${company.foldername}.CERTIFICATES`,
   })
@@ -97,7 +98,7 @@ async function uploadImage({
     console.error(`Erro ao excluir o arquivo local: ${err.message}`)
   }
 
-  console.log('PASSO 4 UPLOAD')
+  console.log('PASSO 4 UPLOAD - UPLOAD COM SUCESSO')
   return result
 }
 

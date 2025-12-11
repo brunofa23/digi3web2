@@ -7,6 +7,7 @@ import { DateTime } from 'luxon'
 import OrderCertificate from 'App/Models/OrderCertificate'
 import Person from 'App/Models/Person'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
+import { uploadImage } from 'App/Services/uploads/uploadImages'
 
 export default class OrderCertificatesController {
   //********************************* */
@@ -164,8 +165,8 @@ export default class OrderCertificatesController {
           dthrSchedule:
             marriedData.dthrSchedule && marriedData.dthrSchedule.trim() !== ''
               ? DateTime.fromISO(marriedData.dthrSchedule, {
-                  zone: 'America/Sao_Paulo',
-                })
+                zone: 'America/Sao_Paulo',
+              })
               : null,
 
           dthrMarriage: marriedData.dthrMarriage
@@ -209,7 +210,7 @@ export default class OrderCertificatesController {
       )
 
       //CHAMAR UPLOAD DAS IMAGENS
-      
+
 
       // ⬇⬇⬇ ESSENCIAL: retornar o ID para ser usado no orderCertificate.certificateId
       return marriedCertificate.id
@@ -303,59 +304,53 @@ export default class OrderCertificatesController {
   /**
    * Cria um novo pedido de certidão
    */
+  /**
+ * Cria um novo pedido de certidão
+ */
+  /**
+   * Cria um novo pedido de certidão
+   */
   public async store({ auth, request, response }: HttpContextContract) {
-    const authenticate = await auth.use('api').authenticate()
+    const user = await auth.use('api').authenticate()
     const body = request.body()
 
+    // 1️⃣ Validação simples
     const validationSchema = schema.create({
-      bookId: schema.number.optional([rules.unsigned()]),
-      book: schema.object.optional().members({
-        id: schema.number([rules.unsigned()]),
-      }),
+      certificateId: schema.number.optional([rules.unsigned()]),
+      bookId: schema.number([rules.unsigned()]), // campo principal obrigatório
     })
 
-    console.log('PASSO 1', authenticate.id)
+    // 2️⃣ Valida o payload
     const payload: any = await request.validate({ schema: validationSchema })
-    console.log('PASSO 2', payload)
-
-    // Normaliza book.id -> bookId
-    if (payload.book?.id) {
-      payload.bookId = payload.book.id
-    }
-    delete payload.book
-
-    if (!payload.bookId) {
-      return response.badRequest({
-        message: 'bookId é obrigatório',
-      })
-    }
 
     try {
       const orderCertificate = await Database.transaction(async (trx) => {
-        let certificateId
-        // 🔹 Se for casamento (livro 2), salva primeiro o marriedCertificate
+        let certificateId = payload.certificateId ?? null
+
+        // 3️⃣ Se for CASAMENTO (livro 2), salva marriedCertificate primeiro
         if (payload.bookId === 2 && body.marriedCertificate) {
-          const marriageId = await this.saveMarriage(
-            body.marriedCertificate,
-            authenticate.companies_id,
-            authenticate.id, // (continua igual; agora a função aceita null se você passar)
+          const parsedMarriage =
+            typeof body.marriedCertificate === 'string'
+              ? JSON.parse(body.marriedCertificate)
+              : body.marriedCertificate
+
+          certificateId = await this.saveMarriage(
+            parsedMarriage,
+            user.companies_id,
+            user.id,
             trx
           )
-          certificateId = marriageId
-          console.log('PPPPPPPPPPPPP>>', certificateId)
-          //FAZER UPLOAD DAS IMAGENS
-
-
         }
 
+        // 4️⃣ Cria o pedido principal
         const oc = new OrderCertificate()
         oc.useTransaction(trx)
 
         oc.merge({
-          typeCertificate: payload.typeCertificate,
+          certificateId,
           bookId: payload.bookId,
-          companiesId: authenticate.companies_id,
-          certificateId: certificateId,
+          companiesId: user.companies_id,
+          typeCertificate: payload.typeCertificate,
         })
 
         await oc.save()
@@ -363,12 +358,49 @@ export default class OrderCertificatesController {
         return oc
       })
 
+      // 5️⃣ Após o commit, faz upload dos arquivos (se houver e se for casamento)
+      if (orderCertificate.bookId === 2 && orderCertificate.certificateId) {
+        const companiesId = user.companies_id
+
+        const fileFields: { field: string; description: string }[] = [
+          { field: 'DocumentGroom', description: 'DocNoivo' },
+          { field: 'DocumentBride', description: 'DocNoiva' },
+          { field: 'BirthCertificateGroom', description: 'CertidaoNoivo' },
+          { field: 'BirthCertificateBride', description: 'CertidaoNoiva' },
+          { field: 'ProofResidenceGroom', description: 'ResidenciaNoivo' },
+          { field: 'ProofResidenceBride', description: 'ResidenciaNoiva' },
+          { field: 'MarriageCertificateGroom', description: 'CertidaoCasamentoNoivo' },
+          { field: 'MarriageCertificateBride', description: 'CertidaoCasamentoNoiva' },
+          { field: 'DocumentWitness1', description: 'DocTestemunha1' },
+          { field: 'DocumentWitness2', description: 'DocTestemunha2' },
+        ]
+
+        const fileOptions = {
+          size: '8mb',
+          extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+        } as const
+
+        for (const cfg of fileFields) {
+          const file = request.file(cfg.field, fileOptions)
+
+          if (!file) continue
+
+          await uploadImage({
+            companiesId,
+            marriedCertificateId: orderCertificate.certificateId, // id do MarriedCertificate
+            file,
+            description: cfg.description,
+          })
+        }
+      }
+
+      // 6️⃣ Recarrega relações após upload
       await orderCertificate.load('book')
       await orderCertificate.load('marriedCertificate')
 
       return response.created(orderCertificate)
     } catch (error: any) {
-      console.error(error)
+      console.error('❌ ERRO STORE:', error)
       return response.internalServerError({
         message: 'Erro ao criar pedido de certidão',
         error: error.message,
@@ -376,75 +408,125 @@ export default class OrderCertificatesController {
     }
   }
 
+
+
+  /**
+   * Atualiza um pedido de certidão existente
+   */
   /**
    * Atualiza um pedido de certidão existente
    */
   public async update({ auth, params, request, response }: HttpContextContract) {
-    const authenticate = await auth.use('api').authenticate()
+    console.log('🔥🔥🔥 ENTROU NO UPDATE')
+
+    const user = await auth.use('api').authenticate()
 
     const orderCertificate = await OrderCertificate.find(params.id)
+    console.log('🔍 Registro encontrado:', orderCertificate ? 'SIM' : 'NÃO')
+
     if (!orderCertificate) {
-      return response.notFound({ message: 'Pedido de certidão não encontrado' })
+      return response.notFound({ message: 'Pedido não encontrado' })
     }
 
+    const body = request.body()
+    console.log('📥 BODY RAW:', body)
+
+    // 1️⃣ Validação do payload
     const validationSchema = schema.create({
       certificateId: schema.number.optional([rules.unsigned()]),
-      book: schema.object().members({
-        id: schema.number([rules.unsigned()]),
-      }),
+      bookId: schema.number([rules.unsigned()]),
     })
 
-    const payload: any = await request.validate({ schema: validationSchema })
-    const body = request.body()
+    const payload = await request.validate({ schema: validationSchema })
 
-    console.log(body)
+    console.log('📦 PAYLOAD VALIDADO:', payload)
 
     try {
       await Database.transaction(async (trx) => {
-        // 🔹 Põe o orderCertificate dentro da mesma transaction
+        console.log('🔧 INICIOU TRANSACTION')
+
         orderCertificate.useTransaction(trx)
 
-        // 🔹 Normaliza campo book.id → bookId
-        if (payload.book?.id) {
-          payload.bookId = payload.book.id
-        }
-
-        // 🔹 Remove o objeto book (não existe campo 'book' no model)
-        delete payload.book
-
-        // 🔹 Salva os dados do pedido
+        // 2️⃣ Atualiza dados principais
         orderCertificate.merge({
           certificateId: payload.certificateId,
           bookId: payload.bookId,
-          companiesId: authenticate.companies_id,
+          companiesId: user.companies_id,
         })
 
+        console.log('📝 CAMPOS APÓS MERGE:', orderCertificate.toJSON())
         await orderCertificate.save()
 
-        // 🔹 Se for casamento, salva o form completo
+        // 3️⃣ Atualiza marriedCertificate (se livro 2)
         if (payload.bookId === 2 && body.marriedCertificate) {
+          const parsedMarriage =
+            typeof body.marriedCertificate === 'string'
+              ? JSON.parse(body.marriedCertificate)
+              : body.marriedCertificate
+
           await this.saveMarriage(
-            body.marriedCertificate,
-            authenticate.companies_id,
-            authenticate.id, // (continua igual; agora a função aceita null se você passar)
+            parsedMarriage,
+            user.companies_id,
+            user.id,
             trx
           )
         }
+
+        console.log('💾 SALVOU')
       })
 
-      // 👉 Após commit, recarrega relações
+      // 4️⃣ Após o commit, faz upload de arquivos novos (se enviados)
+      if (orderCertificate.bookId === 2 && orderCertificate.certificateId) {
+        const companiesId = user.companies_id
+
+        const fileFields: { field: string; description: string }[] = [
+          { field: 'DocumentGroom', description: 'DocNoivo' },
+          { field: 'DocumentBride', description: 'DocNoiva' },
+          { field: 'BirthCertificateGroom', description: 'CertidaoNoivo' },
+          { field: 'BirthCertificateBride', description: 'CertidaoNoiva' },
+          { field: 'ProofResidenceGroom', description: 'ResidenciaNoivo' },
+          { field: 'ProofResidenceBride', description: 'ResidenciaNoiva' },
+          { field: 'MarriageCertificateGroom', description: 'CertidaoCasamentoNoivo' },
+          { field: 'MarriageCertificateBride', description: 'CertidaoCasamentoNoiva' },
+          { field: 'DocumentWitness1', description: 'DocTestemunha1' },
+          { field: 'DocumentWitness2', description: 'DocTestemunha2' },
+        ]
+
+        const fileOptions = {
+          size: '8mb',
+          extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+        } as const
+
+        for (const cfg of fileFields) {
+          const file = request.file(cfg.field, fileOptions)
+
+          // no UPDATE: se não mandou esse campo, mantém arquivos antigos
+          if (!file) continue
+
+          await uploadImage({
+            companiesId,
+            marriedCertificateId: orderCertificate.certificateId,
+            file,
+            description: cfg.description,
+          })
+        }
+      }
+
+      // 5️⃣ Recarrega relações
       await orderCertificate.load('book')
       await orderCertificate.load('marriedCertificate')
 
       return orderCertificate
     } catch (error: any) {
-      console.error(error)
+      console.error('❌ ERRO UPDATE:', error)
       return response.internalServerError({
         message: 'Erro ao atualizar pedido de certidão',
         error: error.message,
       })
     }
   }
+
+
 
   /**
    * Deleta um pedido de certidão

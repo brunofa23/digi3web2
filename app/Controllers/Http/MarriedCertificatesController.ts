@@ -134,7 +134,34 @@ export default class MarriedCertificatesController {
   }
 
   /** PATCH/PUT /married-certificates/:id */
+  // public async update({ params, request, auth, response }: HttpContextContract) {
+  //   await auth.use('api').authenticate()
+  //   const user = auth.user!
+  //   const companiesId = (user as any).companiesId ?? (user as any).companies_id
+
+  //   const item = await MarriedCertificate.query()
+  //     .where('companies_id', companiesId)
+  //     .where('id', params.id)
+  //     .first()
+
+  //   if (!item) {
+  //     return response.notFound({ message: 'Registro não encontrado' })
+  //   }
+
+  //   const payload = await request.validate(MarriedCertificateValidator)
+
+  //   // companiesId e usrId NÃO vêm do body
+  //   item.merge({
+  //     ...payload,
+  //     // opcional: atualizar usuário responsável em updates
+  //     // usrId: (user as any).id,
+  //   })
+  //   await item.save()
+
+  //   return item
+  // }
   public async update({ params, request, auth, response }: HttpContextContract) {
+    console.log("CHEGUEI AQUI BOOK ERRO 12121")
     await auth.use('api').authenticate()
     const user = auth.user!
     const companiesId = (user as any).companiesId ?? (user as any).companies_id
@@ -150,16 +177,53 @@ export default class MarriedCertificatesController {
 
     const payload = await request.validate(MarriedCertificateValidator)
 
-    // companiesId e usrId NÃO vêm do body
+    // Atualiza apenas os campos “normais”
     item.merge({
       ...payload,
-      // opcional: atualizar usuário responsável em updates
+      // se quiser registrar quem fez o update, pode usar:
       // usrId: (user as any).id,
     })
     await item.save()
 
+    // --- MESMA LÓGICA DO STORE PARA OS ARQUIVOS ---
+
+    const fileFields: { field: string; description: string }[] = [
+      { field: 'DocumentGroom', description: 'DocNoivo' },
+      { field: 'DocumentBride', description: 'DocNoiva' },
+      { field: 'BirthCertificateGroom', description: 'CertidaoNoivo' },
+      { field: 'BirthCertificateBride', description: 'CertidaoNoiva' },
+      { field: 'ProofResidenceGroom', description: 'ResidenciaNoivo' },
+      { field: 'ProofResidenceBride', description: 'ResidenciaNoiva' },
+      { field: 'MarriageCertificateGroom', description: 'CertidaoCasamentoNoivo' },
+      { field: 'MarriageCertificateBride', description: 'CertidaoCasamentoNoiva' },
+      { field: 'DocumentWitness1', description: 'DocTestemunha1' },
+      { field: 'DocumentWitness2', description: 'DocTestemunha2' },
+    ]
+
+    const fileOptions = {
+      size: '8mb',
+      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+    } as const
+
+    // Para cada campo de arquivo, se vier no form, faz upload
+    for (const cfg of fileFields) {
+      const file = request.file(cfg.field, fileOptions)
+
+      if (!file) {
+        continue // não enviou esse campo no update -> mantém arquivos antigos
+      }
+
+      await uploadImage({
+        companiesId,
+        marriedCertificateId: item.id,
+        file,
+        description: cfg.description,
+      })
+    }
+
     return item
   }
+
 
   /** DELETE /married-certificates/:id */
   public async destroy({ params, auth, response }: HttpContextContract) {

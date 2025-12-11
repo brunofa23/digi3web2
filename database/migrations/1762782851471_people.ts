@@ -3,14 +3,14 @@ import BaseSchema from '@ioc:Adonis/Lucid/Schema'
 export default class extends BaseSchema {
   protected tableName = 'people'
 
-  public async up () {
+  public async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table.integer('companies_id').notNullable().unsigned().references('id').inTable('companies').onUpdate('RESTRICT').onDelete('RESTRICT')
       // === Dados pessoais ===
       table.string('name', 90).notNullable()
       table.string('name_married', 90)
-      table.string('cpf', 11).unique().index()
+      table.string('cpf', 11).index()
       table.string('gender', 1)
       table.boolean('deceased').defaultTo(false)
       table.date('date_birth') // troque para dateTime se precisar de hora
@@ -51,7 +51,7 @@ export default class extends BaseSchema {
     })
   }
 
-  public async down () {
+  public async down() {
     this.schema.dropTable(this.tableName)
   }
 }
