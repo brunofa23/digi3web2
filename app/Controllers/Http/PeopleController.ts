@@ -18,6 +18,7 @@ export default class PeopleController {
     const page = Number(request.input('page', 1))
     const perPage = Math.min(Number(request.input('perPage', 10)), 100)
 
+    // query string (q, cpf, email, inactive)
     const q = request.input('q') as string | undefined
     const cpf = request.input('cpf') as string | undefined
     const email = request.input('email') as string | undefined
@@ -34,8 +35,17 @@ export default class PeopleController {
           .orWhere('email', 'like', `%${q}%`)
       })
     }
-    if (cpf) query.where('cpf', 'like', `%${cpf}%`)
-    if (email) query.where('email', 'like', `%${email}%`)
+
+    // 🔹 Busca por CPF exato (já sem máscara vindo do frontend)
+    if (cpf) {
+      console.log("pesquisa por cpf")
+      query.where('cpf', cpf)
+
+    }
+
+    if (email) {
+      query.where('email', 'like', `%${email}%`)
+    }
 
     if (typeof inactive !== 'undefined') {
       const inactiveBool =
@@ -43,9 +53,16 @@ export default class PeopleController {
       query.where('inactive', inactiveBool)
     }
 
-    // .preload('occupation') // se precisar
+    if(cpf){
+      return query.first()
+    }
+
+
+    console.log(query.toQuery())
+
     return await query.paginate(page, perPage)
   }
+
 
   /** GET /people/:id */
   public async show({ params, auth, response }: HttpContextContract) {
@@ -116,5 +133,5 @@ export default class PeopleController {
     await person.delete()
     return response.ok({ message: 'Pessoa removida com sucesso' })
   }
-  
+
 }
