@@ -2,11 +2,11 @@ import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
 export default class MarriedCertificateValidator {
-  constructor(protected ctx: HttpContextContract) {}
+  constructor(protected ctx?: HttpContextContract) {}
 
   // POST = create (required) | PUT/PATCH = update (optional)
   private get isCreate() {
-    return this.ctx.request.method().toUpperCase() === 'POST'
+    return this.ctx?.request.method().toUpperCase() === 'POST'
   }
 
   public schema = schema.create({

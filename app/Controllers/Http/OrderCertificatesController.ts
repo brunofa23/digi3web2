@@ -3,6 +3,9 @@ import type { TransactionClientContract } from '@ioc:Adonis/Lucid/Database'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import Database from '@ioc:Adonis/Lucid/Database'
 import { DateTime } from 'luxon'
+import { validator, schema } from '@ioc:Adonis/Core/Validator'
+
+import MarriedCertificateValidator from 'App/Validators/MarriedCertificateValidator'
 
 import OrderCertificate from 'App/Models/OrderCertificate'
 import Person from 'App/Models/Person'
@@ -17,9 +20,11 @@ export default class OrderCertificatesController {
     companiesId: number,
     trx: TransactionClientContract
   ): Promise<Person | null> {
-    if (!personData) {
+    if (!personData || (!personData.companiesId && !personData.name && !personData.cpf)) {
       return null
     }
+
+    console.log("PASSEI AQUI CREATE PERSON", personData)
 
     return await Person.updateOrCreate(
       { id: personData.id },
@@ -329,11 +334,43 @@ export default class OrderCertificatesController {
 
         // 3️⃣ Se for CASAMENTO (livro 2), salva marriedCertificate primeiro
         if (payload.bookId === 2 && body.marriedCertificate) {
-          const parsedMarriage =
-            typeof body.marriedCertificate === 'string'
-              ? JSON.parse(body.marriedCertificate)
-              : body.marriedCertificate
+          let parsedMarriage: any
 
+          try {
+            parsedMarriage =
+              typeof body.marriedCertificate === 'string'
+                ? JSON.parse(body.marriedCertificate)
+                : body.marriedCertificate
+          } catch {
+            return response.badRequest({
+              message: 'marriedCertificate inválido (JSON malformado)',
+            })
+          }
+
+          // ✅ VALIDAÇÃO SIMPLES E CORRETA (Adonis v5)
+          await validator.validate({
+            schema: schema.create({
+              groom: schema.object().members({
+                name: schema.string({ trim: true }),
+                cpf: schema.string({ trim: true }),
+              }),
+              bride: schema.object().members({
+                name: schema.string({ trim: true }),
+                cpf: schema.string({ trim: true }),
+              }),
+            }),
+            data: parsedMarriage,
+            messages: {
+              'groom.required': 'O noivo é obrigatório',
+              'groom.name.required': 'Nome do noivo é obrigatório',
+              'groom.cpf.required': 'CPF do noivo é obrigatório',
+              'bride.required': 'A noiva é obrigatória',
+              'bride.name.required': 'Nome da noiva é obrigatório',
+              'bride.cpf.required': 'CPF da noiva é obrigatório',
+            },
+          })
+
+          // ✅ só chega aqui se passou
           certificateId = await this.saveMarriage(
             parsedMarriage,
             user.companies_id,
@@ -341,6 +378,8 @@ export default class OrderCertificatesController {
             trx
           )
         }
+
+
 
         // 4️⃣ Cria o pedido principal
         const oc = new OrderCertificate()
@@ -400,12 +439,18 @@ export default class OrderCertificatesController {
 
       return response.created(orderCertificate)
     } catch (error: any) {
+      if (error.code === 'E_VALIDATION_FAILURE') {
+        return response.status(422).send({
+          errors: error.messages.errors,
+        })
+      }
+
       console.error('❌ ERRO STORE:', error)
       return response.internalServerError({
         message: 'Erro ao criar pedido de certidão',
-        error: error.message,
       })
     }
+
   }
 
 
