@@ -2,20 +2,50 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Documenttype from 'App/Models/Documenttype'
 import DocumenttypeValidator from 'App/Validators/DocumenttypeValidator'
 import BadRequest from 'App/Exceptions/BadRequestException'
+import { schema } from '@ioc:Adonis/Core/Validator'
+
 export default class DocumentTypesController {
 
-  public async index({ auth, response }: HttpContextContract) {
+  // public async index({ auth, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate()
+
+  //   try {
+  //     const documentType = await Documenttype.query()
+  //       .where('companies_id', authenticate.companies_id)
+  //       .orderBy('name')
+  //     return response.status(200).send(documentType)
+  //   } catch (error) {
+  //     throw new BadRequest('Bad Request', 401, 'erro')
+  //   }
+
+  // }
+
+  public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
+    // ✅ valida querystring
+    const querySchema = schema.create({
+      local: schema.enum.optional(['certificate', 'document'] as const),
+    })
+
+    const { local } = await request.validate({ schema: querySchema })
+
     try {
-      const documentType = await Documenttype.query()
+      const q = Documenttype.query()
         .where('companies_id', authenticate.companies_id)
-        .orderBy('name')
-      return response.status(200).send(documentType)
+
+      // ✅ aplica filtro se vier
+      if (local) {
+        q.andWhere('local', local) // ajuste o nome da coluna conforme seu banco
+        // se sua coluna chama local_type, por ex:
+        // q.andWhere('local_type', local)
+      }
+
+      const documentType = await q.orderBy('name')
+      return response.ok(documentType)
     } catch (error) {
       throw new BadRequest('Bad Request', 401, 'erro')
     }
-
   }
 
 

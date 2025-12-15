@@ -14,6 +14,8 @@ export default class DocumenttypeValidator {
       rules.maxLength(255),
     ]),
 
+    local: schema.enum.optional(['certificate', 'document'] as const),
+
     status: schema.boolean.optional(),
   })
 

@@ -9,6 +9,7 @@ export default class Documenttype extends BaseModel {
       'companies_id',
       'name',
       'description',
+      'local',
       'status',
     ]
   }
@@ -25,6 +26,9 @@ export default class Documenttype extends BaseModel {
 
   @column()
   public description:string
+
+  @column()
+  public local:string
 
   @column()
   public status:boolean
