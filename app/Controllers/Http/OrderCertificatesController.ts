@@ -1,15 +1,16 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import type { TransactionClientContract } from '@ioc:Adonis/Lucid/Database'
-import { schema, rules } from '@ioc:Adonis/Core/Validator'
+import { schema, rules, validator } from '@ioc:Adonis/Core/Validator'
 import Database from '@ioc:Adonis/Lucid/Database'
 import { DateTime } from 'luxon'
-import { validator, schema } from '@ioc:Adonis/Core/Validator'
 
-import MarriedCertificateValidator from 'App/Validators/MarriedCertificateValidator'
+// (não estava sendo usado aqui, mantive fora pra não dar “unused import”)
+// import MarriedCertificateValidator from 'App/Validators/MarriedCertificateValidator'
 
 import OrderCertificate from 'App/Models/OrderCertificate'
 import Person from 'App/Models/Person'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
+import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
 export default class OrderCertificatesController {
@@ -24,7 +25,7 @@ export default class OrderCertificatesController {
       return null
     }
 
-    console.log("PASSEI AQUI CREATE PERSON", personData)
+    //console.log('PASSEI AQUI CREATE PERSON', personData)
 
     return await Person.updateOrCreate(
       { id: personData.id },
@@ -38,9 +39,7 @@ export default class OrderCertificatesController {
         gender: personData.gender ?? '',
         deceased: personData.deceased ?? false,
 
-        dateBirth: personData.dateBirth
-          ? DateTime.fromISO(personData.dateBirth.toString())
-          : null,
+        dateBirth: personData.dateBirth ? DateTime.fromISO(personData.dateBirth.toString()) : null,
 
         maritalStatus: personData.maritalStatus ?? '',
         illiterate: personData.illiterate ?? false,
@@ -79,75 +78,43 @@ export default class OrderCertificatesController {
   private async saveMarriage(
     marriedData: any,
     companiesId: number,
-    usrId: number | null, // ✅ modificação: aceita null
+    usrId: number | null,
     trx: TransactionClientContract
   ): Promise<number> {
     try {
       // 🔹 Noivo (obrigatório)
       const groom = await this.upsertPerson(marriedData.groom, companiesId, trx)
-      if (!groom) {
-        throw new Error('Groom (noivo) é obrigatório')
-      }
+      if (!groom) throw new Error('Groom (noivo) é obrigatório')
 
       // 🔹 Pai do noivo (opcional)
-      const fatherGroom = await this.upsertPerson(
-        marriedData.fatherGroom,
-        companiesId,
-        trx
-      )
+      const fatherGroom = await this.upsertPerson(marriedData.fatherGroom, companiesId, trx)
 
       // 🔹 Mãe do noivo (opcional)
-      const motherGroom = await this.upsertPerson(
-        marriedData.motherGroom,
-        companiesId,
-        trx
-      )
+      const motherGroom = await this.upsertPerson(marriedData.motherGroom, companiesId, trx)
 
       // 🔹 Noiva (obrigatória)
-      const bride = await this.upsertPerson(
-        marriedData.bride,
-        companiesId,
-        trx
-      )
-      if (!bride) {
-        throw new Error('Bride (noiva) é obrigatória')
-      }
+      const bride = await this.upsertPerson(marriedData.bride, companiesId, trx)
+      if (!bride) throw new Error('Bride (noiva) é obrigatória')
 
       // 🔹 Pai da noiva (opcional)
-      const fatherBride = await this.upsertPerson(
-        marriedData.fatherBride,
-        companiesId,
-        trx
-      )
+      const fatherBride = await this.upsertPerson(marriedData.fatherBride, companiesId, trx)
 
       // 🔹 Mãe da noiva (opcional)
-      const motherBride = await this.upsertPerson(
-        marriedData.motherBride,
-        companiesId,
-        trx
-      )
+      const motherBride = await this.upsertPerson(marriedData.motherBride, companiesId, trx)
 
       // 🔹 Testemunha 1 (opcional)
-      const witness1 = await this.upsertPerson(
-        marriedData.witness1,
-        companiesId,
-        trx
-      )
+      const witness1 = await this.upsertPerson(marriedData.witness1, companiesId, trx)
 
       // 🔹 Testemunha 2 (opcional)
-      const witness2 = await this.upsertPerson(
-        marriedData.witness2,
-        companiesId,
-        trx
-      )
+      const witness2 = await this.upsertPerson(marriedData.witness2, companiesId, trx)
 
       // 🔹 Salva ou atualiza a certidão de casamento
       const marriedCertificate = await MarriedCertificate.updateOrCreate(
-        { id: marriedData.id }, // se vier id, faz update; se não vier, cria
+        { id: marriedData.id },
         {
           // contexto
           companiesId,
-          usrId: usrId ?? null, // ✅ modificação: garante null
+          usrId: usrId ?? null,
 
           // Noivo e pais
           groomPersonId: groom.id,
@@ -156,7 +123,7 @@ export default class OrderCertificatesController {
 
           // Noiva e pais
           bridePersonId: bride.id,
-          fahterBridePersonId: fatherBride?.id ?? null, // (nome da coluna com typo mesmo)
+          fahterBridePersonId: fatherBride?.id ?? null, // typo na coluna
           motherBridePersonId: motherBride?.id ?? null,
 
           // Testemunhas
@@ -169,14 +136,10 @@ export default class OrderCertificatesController {
           // Datas principais
           dthrSchedule:
             marriedData.dthrSchedule && marriedData.dthrSchedule.trim() !== ''
-              ? DateTime.fromISO(marriedData.dthrSchedule, {
-                zone: 'America/Sao_Paulo',
-              })
+              ? DateTime.fromISO(marriedData.dthrSchedule, { zone: 'America/Sao_Paulo' })
               : null,
 
-          dthrMarriage: marriedData.dthrMarriage
-            ? DateTime.fromISO(marriedData.dthrMarriage)
-            : null,
+          dthrMarriage: marriedData.dthrMarriage ? DateTime.fromISO(marriedData.dthrMarriage) : null,
 
           // Tipo e observação
           type: marriedData.type ?? '',
@@ -214,17 +177,71 @@ export default class OrderCertificatesController {
         { client: trx }
       )
 
-      //CHAMAR UPLOAD DAS IMAGENS
-
-
-      // ⬇⬇⬇ ESSENCIAL: retornar o ID para ser usado no orderCertificate.certificateId
       return marriedCertificate.id
     } catch (error) {
       console.error('ERRO AO SALVAR MARRIAGE:', error)
-      // mantém rollback da transaction no nível superior
       throw error
     }
   }
+
+  // 🔹 Salva o formulário de 2ª via (pessoas + secondcopy_certificates)
+  private async saveSecondcopy(
+    secondData: any,
+    companiesId: number,
+    usrId: number | null,
+    trx: TransactionClientContract
+  ): Promise<number> {
+    try {
+      /**
+       * ✅ FRONT está enviando applicant/registered1 como null
+       * e preenchendo applicantPerson/registered1Person.
+       * Então aqui fazemos fallback automático.
+       */
+      const applicantData = secondData?.applicant ?? secondData?.applicantPerson
+      const registered1Data = secondData?.registered1 ?? secondData?.registered1Person
+      const registered2Data = secondData?.registered2 ?? secondData?.registered2Person
+
+      // 🔹 Requerente (obrigatório)
+      const applicant = await this.upsertPerson(applicantData, companiesId, trx)
+      if (!applicant) throw new Error('Applicant (requerente) é obrigatório')
+
+      // 🔹 Registrado 1 (obrigatório)
+      const registered1 = await this.upsertPerson(registered1Data, companiesId, trx)
+      if (!registered1) throw new Error('Registered1 (registrado 1) é obrigatório')
+
+      // 🔹 Registrado 2 (opcional)
+      const registered2 = await this.upsertPerson(registered2Data, companiesId, trx)
+
+      // 🔹 Salva/atualiza secondcopy
+      const secondcopy = await SecondcopyCertificate.updateOrCreate(
+        { id: secondData?.id },
+        {
+          companiesId,
+          documenttypeId: secondData?.documenttypeId ?? null,
+          paymentMethod: secondData?.paymentMethod ?? null,
+
+          applicant: applicant.id,
+          registered1: registered1.id,
+
+          book1: secondData?.book1 ?? null,
+          sheet1: secondData?.sheet1 ?? null,
+          city1: secondData?.city1 ?? null,
+
+          registered2: registered2?.id ?? null,
+          book2: secondData?.book2 ?? null,
+          sheet2: secondData?.sheet2 ?? null,
+          city2: secondData?.city2 ?? null,
+        },
+        { client: trx }
+      )
+
+      return secondcopy.id
+    } catch (error) {
+      console.error('ERRO AO SALVAR SECONDCOPY:', error)
+      throw error
+    }
+  }
+
 
   /**
    * Lista todos os pedidos de certidão da empresa do usuário
@@ -238,12 +255,14 @@ export default class OrderCertificatesController {
       })
       .preload('marriedCertificate', (query) => {
         query.select('id', 'groomPersonId', 'bridePersonId')
-        query.preload('groom', (query) => {
-          query.select('name')
-        })
-        query.preload('bride', (query) => {
-          query.select('name')
-        })
+        query.preload('groom', (q) => q.select('name'))
+        query.preload('bride', (q) => q.select('name'))
+      })
+      .preload('secondcopyCertificate', (q) => {
+        q.select('id', 'applicant', 'registered1', 'registered2')
+        q.preload('applicantPerson', (p) => p.select('name'))
+        q.preload('registered1Person', (p) => p.select('name'))
+        q.preload('registered2Person', (p) => p.select('name'))
       })
       .where('companies_id', authenticate.companies_id)
       .orderBy('id', 'asc')
@@ -253,54 +272,40 @@ export default class OrderCertificatesController {
    * Mostra um pedido de certidão pelo ID
    */
   public async show({ auth, params, request, response }: HttpContextContract) {
-    console.log('request:::', request.input('book_id'))
-    console.log('request param:::', params)
-
     const authenticate = await auth.use('api').authenticate()
     const book_id = request.input('book_id')
 
     const query = OrderCertificate.query()
       .where('id', params.id)
       .andWhere('companies_id', authenticate.companies_id)
-      .preload('book', (query) => {
-        query.select('id', 'name')
-      })
+      .preload('book', (q) => q.select('id', 'name'))
 
     if (book_id == 2) {
-      query.preload('marriedCertificate', (query) => {
-        query.preload('groom', (query) => {
-          query.select('*')
-        })
-        query.preload('motherGroom', (query) => {
-          query.select('*')
-        })
-        query.preload('fatherGroom', (query) => {
-          query.select('*')
-        })
-        query.preload('bride', (query) => {
-          query.select('*')
-        })
-        query.preload('motherBride', (query) => {
-          query.select('*')
-        })
-        query.preload('fatherBride', (query) => {
-          query.select('*')
-        })
-        query.preload('witness1', (query) => {
-          query.select('*')
-        })
-        query.preload('witness2', (query) => {
-          query.select('*')
-        })
+      query.preload('marriedCertificate', (q) => {
+        q.preload('groom', (qq) => qq.select('*'))
+        q.preload('motherGroom', (qq) => qq.select('*'))
+        q.preload('fatherGroom', (qq) => qq.select('*'))
+        q.preload('bride', (qq) => qq.select('*'))
+        q.preload('motherBride', (qq) => qq.select('*'))
+        q.preload('fatherBride', (qq) => qq.select('*'))
+        q.preload('witness1', (qq) => qq.select('*'))
+        q.preload('witness2', (qq) => qq.select('*'))
+      })
+    }
+
+    if (book_id == 21) {
+      query.preload('secondcopyCertificate', (q) => {
+        q.preload('applicantPerson', (p) => p.select('*'))
+        q.preload('registered1Person', (p) => p.select('*'))
+        q.preload('registered2Person', (p) => p.select('*'))
+        q.preload('documenttype', (d) => d.select('*'))
       })
     }
 
     const orderCertificate = await query.first()
 
     if (!orderCertificate) {
-      return response.notFound({
-        message: 'Pedido de certidão não encontrado',
-      })
+      return response.notFound({ message: 'Pedido de certidão não encontrado' })
     }
 
     return orderCertificate
@@ -309,30 +314,29 @@ export default class OrderCertificatesController {
   /**
    * Cria um novo pedido de certidão
    */
-  /**
- * Cria um novo pedido de certidão
- */
-  /**
-   * Cria um novo pedido de certidão
-   */
   public async store({ auth, request, response }: HttpContextContract) {
+
     const user = await auth.use('api').authenticate()
     const body = request.body()
 
     // 1️⃣ Validação simples
     const validationSchema = schema.create({
       certificateId: schema.number.optional([rules.unsigned()]),
-      bookId: schema.number([rules.unsigned()]), // campo principal obrigatório
+      bookId: schema.number([rules.unsigned()]),
+      // se você usa typeCertificate aqui, descomente:
+      // typeCertificate: schema.number.optional([rules.unsigned()]),
     })
 
-    // 2️⃣ Valida o payload
     const payload: any = await request.validate({ schema: validationSchema })
 
     try {
       const orderCertificate = await Database.transaction(async (trx) => {
         let certificateId = payload.certificateId ?? null
 
-        // 3️⃣ Se for CASAMENTO (livro 2), salva marriedCertificate primeiro
+        // console.log("PASSEI AQUI......PASSO 0", body.marriedCertificate)
+        // console.log("PASSEI AQUI......PASSO 1", body.secondcopyCertificate)
+
+        // ✅ CASAMENTO (livro 2)
         if (payload.bookId === 2 && body.marriedCertificate) {
           let parsedMarriage: any
 
@@ -347,7 +351,6 @@ export default class OrderCertificatesController {
             })
           }
 
-          // ✅ VALIDAÇÃO SIMPLES E CORRETA (Adonis v5)
           await validator.validate({
             schema: schema.create({
               groom: schema.object().members({
@@ -370,16 +373,50 @@ export default class OrderCertificatesController {
             },
           })
 
-          // ✅ só chega aqui se passou
-          certificateId = await this.saveMarriage(
-            parsedMarriage,
-            user.companies_id,
-            user.id,
-            trx
-          )
+          certificateId = await this.saveMarriage(parsedMarriage, user.companies_id, user.id, trx)
         }
 
+        // ✅ SEGUNDA VIA (livro 21)
+        if (payload.bookId === 21 && body.secondcopyCertificate) {
+          let parsedSecond: any
+          console.log("PASSEI AQUI......PASSO 1")
+          try {
+            parsedSecond =
+              typeof body.secondcopyCertificate === 'string'
+                ? JSON.parse(body.secondcopyCertificate)
+                : body.secondcopyCertificate
+          } catch {
+            return response.badRequest({
+              message: 'secondcopyCertificate inválido (JSON malformado)',
+            })
+          }
 
+          console.log("PASSEI AQUI......PASSO 2")
+          const teste = await validator.validate({
+            schema: schema.create({
+              applicant: schema.object().members({
+                name: schema.string({ trim: true }),
+                cpf: schema.string({ trim: true }),
+              }),
+              registered1: schema.object().members({
+                name: schema.string({ trim: true }),
+                cpf: schema.string({ trim: true }),
+              }),
+            }),
+            data: parsedSecond,
+            messages: {
+              'applicant.required': 'O requerente é obrigatório',
+              'applicant.name.required': 'Nome do requerente é obrigatório',
+              'applicant.cpf.required': 'CPF do requerente é obrigatório',
+              'registered1.required': 'O registrado 1 é obrigatório',
+              'registered1.name.required': 'Nome do registrado 1 é obrigatório',
+              'registered1.cpf.required': 'CPF do registrado 1 é obrigatório',
+            },
+          })
+
+          console.log("PASSEI AQUI......PASSO 3", teste)
+          certificateId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
+        }
 
         // 4️⃣ Cria o pedido principal
         const oc = new OrderCertificate()
@@ -389,11 +426,10 @@ export default class OrderCertificatesController {
           certificateId,
           bookId: payload.bookId,
           companiesId: user.companies_id,
-          typeCertificate: payload.typeCertificate,
+          typeCertificate: payload.typeCertificate, // se não existir no payload, pode remover
         })
 
         await oc.save()
-
         return oc
       })
 
@@ -421,12 +457,11 @@ export default class OrderCertificatesController {
 
         for (const cfg of fileFields) {
           const file = request.file(cfg.field, fileOptions)
-
           if (!file) continue
 
           await uploadImage({
             companiesId,
-            marriedCertificateId: orderCertificate.certificateId, // id do MarriedCertificate
+            marriedCertificateId: orderCertificate.certificateId,
             file,
             description: cfg.description,
           })
@@ -435,92 +470,74 @@ export default class OrderCertificatesController {
 
       // 6️⃣ Recarrega relações após upload
       await orderCertificate.load('book')
-      await orderCertificate.load('marriedCertificate')
+      if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
+      if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
 
       return response.created(orderCertificate)
     } catch (error: any) {
       if (error.code === 'E_VALIDATION_FAILURE') {
-        return response.status(422).send({
-          errors: error.messages.errors,
-        })
+        return response.status(422).send({ errors: error.messages.errors })
       }
 
       console.error('❌ ERRO STORE:', error)
-      return response.internalServerError({
-        message: 'Erro ao criar pedido de certidão',
-      })
+      return response.internalServerError({ message: 'Erro ao criar pedido de certidão' })
     }
-
   }
 
-
-
-  /**
-   * Atualiza um pedido de certidão existente
-   */
   /**
    * Atualiza um pedido de certidão existente
    */
   public async update({ auth, params, request, response }: HttpContextContract) {
-    console.log('🔥🔥🔥 ENTROU NO UPDATE')
-
     const user = await auth.use('api').authenticate()
 
     const orderCertificate = await OrderCertificate.find(params.id)
-    console.log('🔍 Registro encontrado:', orderCertificate ? 'SIM' : 'NÃO')
-
     if (!orderCertificate) {
       return response.notFound({ message: 'Pedido não encontrado' })
     }
 
     const body = request.body()
-    console.log('📥 BODY RAW:', body)
 
-    // 1️⃣ Validação do payload
     const validationSchema = schema.create({
       certificateId: schema.number.optional([rules.unsigned()]),
       bookId: schema.number([rules.unsigned()]),
     })
 
-    const payload = await request.validate({ schema: validationSchema })
-
-    console.log('📦 PAYLOAD VALIDADO:', payload)
+    const payload: any = await request.validate({ schema: validationSchema })
 
     try {
       await Database.transaction(async (trx) => {
-        console.log('🔧 INICIOU TRANSACTION')
-
         orderCertificate.useTransaction(trx)
 
-        // 2️⃣ Atualiza dados principais
         orderCertificate.merge({
           certificateId: payload.certificateId,
           bookId: payload.bookId,
           companiesId: user.companies_id,
         })
 
-        console.log('📝 CAMPOS APÓS MERGE:', orderCertificate.toJSON())
         await orderCertificate.save()
 
-        // 3️⃣ Atualiza marriedCertificate (se livro 2)
+        // ✅ Atualiza CASAMENTO
         if (payload.bookId === 2 && body.marriedCertificate) {
           const parsedMarriage =
             typeof body.marriedCertificate === 'string'
               ? JSON.parse(body.marriedCertificate)
               : body.marriedCertificate
 
-          await this.saveMarriage(
-            parsedMarriage,
-            user.companies_id,
-            user.id,
-            trx
-          )
+          await this.saveMarriage(parsedMarriage, user.companies_id, user.id, trx)
         }
 
-        console.log('💾 SALVOU')
+        // ✅ Atualiza 2ª via
+        if (payload.bookId === 21 && body.secondcopyCertificate) {
+          const parsedSecond =
+            typeof body.secondcopyCertificate === 'string'
+              ? JSON.parse(body.secondcopyCertificate)
+              : body.secondcopyCertificate
+
+          await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
+        }
       })
 
-      // 4️⃣ Após o commit, faz upload de arquivos novos (se enviados)
+      // Upload no update (só casamento)
       if (orderCertificate.bookId === 2 && orderCertificate.certificateId) {
         const companiesId = user.companies_id
 
@@ -544,8 +561,6 @@ export default class OrderCertificatesController {
 
         for (const cfg of fileFields) {
           const file = request.file(cfg.field, fileOptions)
-
-          // no UPDATE: se não mandou esse campo, mantém arquivos antigos
           if (!file) continue
 
           await uploadImage({
@@ -557,9 +572,10 @@ export default class OrderCertificatesController {
         }
       }
 
-      // 5️⃣ Recarrega relações
+      // Recarrega relações
       await orderCertificate.load('book')
-      await orderCertificate.load('marriedCertificate')
+      if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
+      if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
 
       return orderCertificate
     } catch (error: any) {
@@ -570,21 +586,4 @@ export default class OrderCertificatesController {
       })
     }
   }
-
-
-
-  /**
-   * Deleta um pedido de certidão
-   */
-  // public async destroy({ auth, params, response }: HttpContextContract) {
-  //   await auth.use('api').authenticate()
-  //
-  //   const orderCertificate = await OrderCertificate.find(params.id)
-  //   if (!orderCertificate) {
-  //     return response.notFound({ message: 'Pedido de certidão não encontrado' })
-  //   }
-  //
-  //   await orderCertificate.delete()
-  //   return response.ok({ message: 'Pedido de certidão removido com sucesso' })
-  // }
 }

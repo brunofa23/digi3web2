@@ -8,6 +8,7 @@ import {
 
 import Company from 'App/Models/Company'
 import MarriedCertificate from './MarriedCertificate'
+import SecondcopyCertificate from './SecondcopyCertificate'
 import Book from './Book'
 
 export default class OrderCertificate extends BaseModel {
@@ -42,6 +43,10 @@ export default class OrderCertificate extends BaseModel {
     foreignKey: 'bookId',
   })
   public book: BelongsTo<typeof Book>
+
+  @belongsTo(() => SecondcopyCertificate, { foreignKey: 'certificateId' })
+  public secondcopyCertificate: BelongsTo<typeof SecondcopyCertificate>
+
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
