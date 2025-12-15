@@ -17,10 +17,10 @@ export default class SecondcopyCertificate extends BaseModel {
   @column({ isPrimary: true })
   public id: number
 
-  @column({ columnName: 'companies_id' })
+  @column({ columnName: 'companies_id', serializeAs:'companiesId' })
   public companiesId: number
 
-  @column({ columnName: 'documenttype_id' })
+  @column({ columnName: 'documenttype_id' , serializeAs:'documenttypeId'})
   public documenttypeId: number | null
 
   @column({ columnName: 'payment_method', serializeAs: 'paymentMethod' })
