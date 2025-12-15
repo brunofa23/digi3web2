@@ -23,7 +23,7 @@ export default class SecondcopyCertificate extends BaseModel {
   @column({ columnName: 'documenttype_id' })
   public documenttypeId: number | null
 
-  @column()
+  @column({ columnName: 'payment_method', serializeAs: 'paymentMethod' })
   public paymentMethod: string | null
 
   @column()

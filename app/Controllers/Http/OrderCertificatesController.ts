@@ -320,7 +320,8 @@ export default class OrderCertificatesController {
         query.preload('bride', (q) => q.select('name'))
       })
       .preload('secondcopyCertificate', (q) => {
-        q.select('id', 'applicant', 'registered1', 'registered2')
+        //q.select('id', 'applicant', 'registered1', 'registered2', 'payment_method')
+        q.select('*')
         q.preload('applicantPerson', (p) => p.select('name'))
         q.preload('registered1Person', (p) => p.select('name'))
         q.preload('registered2Person', (p) => p.select('name'))
@@ -454,8 +455,8 @@ export default class OrderCertificatesController {
 
           finalCertificateId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
 
-          console.log('UPDATED secondcopy id:', parsedSecond.id)
-          console.log('ORDER certificateId:', orderCertificate.certificateId)
+          // console.log('UPDATED secondcopy id:', parsedSecond.id)
+          // console.log('ORDER certificateId:', orderCertificate.certificateId)
 
         }
 
