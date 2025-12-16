@@ -74,6 +74,13 @@ export default class Person extends BaseModel {
   })
   public occupationId: number | null
 
+  //NAMES OF PARENTS
+  @column()
+  public mother: string
+
+  @column()
+  public father: string
+
   // === Endereço ===
   @column({
     columnName: 'zip_code',

@@ -127,6 +127,9 @@ export default class OrderCertificatesController {
       cellphone: personData.cellphone ?? '',
       email: personData.email ?? '',
 
+      mother: personData.mother ??'',
+      father: personData.father ??'',
+
       inactive: personData.inactive ?? false,
     })
 

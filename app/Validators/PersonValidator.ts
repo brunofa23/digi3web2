@@ -30,6 +30,11 @@ export default class PersonValidator {
     maritalStatus: schema.string.optional({ trim: true }, [rules.maxLength(15)]),
     illiterate: schema.boolean.optional(),
 
+    //names of parents
+    mother:schema.string.optional({ trim: true }, [rules.maxLength(100)]),
+    father:schema.string.optional({ trim: true }, [rules.maxLength(100)]),
+
+
     // Naturalidade / Nacionalidade / Profissão
     placeBirth: schema.string.optional({ trim: true }, [rules.maxLength(100)]),
     nationality: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
