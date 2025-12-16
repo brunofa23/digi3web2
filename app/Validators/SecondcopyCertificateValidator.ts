@@ -38,6 +38,13 @@ export default class SecondcopyCertificateValidator {
     city2: schema.string.optional({ trim: true }, [
       rules.maxLength(255),
     ]),
+
+    obs: schema.string.optional({ trim: true }, [
+      rules.maxLength(255),
+    ]),
+
+    inactive: schema.boolean.optional()
+
   })
 
   public messages: CustomMessages = {

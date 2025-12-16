@@ -53,6 +53,12 @@ export default class SecondcopyCertificate extends BaseModel {
   @column()
   public city2: string | null
 
+  @column()
+  public obs:string | null
+
+  @column()
+  public inactive: boolean
+
   // -----------------------
   // Relationships
   // -----------------------

@@ -296,6 +296,9 @@ export default class OrderCertificatesController {
         book2: secondData?.book2 ?? null,
         sheet2: secondData?.sheet2 ?? null,
         city2: secondData?.city2 ?? null,
+
+        obs:secondData?.obs ?? null,
+        inactive: secondData?.inactive ??null
       })
 
       await secondcopy.save()
