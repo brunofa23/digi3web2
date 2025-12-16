@@ -38,9 +38,7 @@ export default class PeopleController {
 
     // 🔹 Busca por CPF exato (já sem máscara vindo do frontend)
     if (cpf) {
-      console.log("pesquisa por cpf")
       query.where('cpf', cpf)
-
     }
 
     if (email) {
@@ -56,9 +54,6 @@ export default class PeopleController {
     if(cpf){
       return query.first()
     }
-
-
-    console.log(query.toQuery())
 
     return await query.paginate(page, perPage)
   }

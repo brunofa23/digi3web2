@@ -5,43 +5,35 @@ import fs from 'fs'
 export function processImage(inputPath: string): Promise<string> {
   return new Promise(async (resolve, reject) => {
     try {
-      console.log("passo 1##")
 
       // 🔹 Verifica se o arquivo de entrada existe (assíncrono)
       try {
         await fs.promises.access(inputPath, fs.constants.F_OK)
       } catch {
-        console.log("passo 1.1##")
         return reject(new Error(`Arquivo não encontrado: ${inputPath}`))
       }
 
       // 🔹 Caminho do script Python
-      console.log("passo 1.2##")
       const script = path.resolve(__dirname, './process_image.py')
-      console.log("passo 1.2-2##", script)
 
       // 🔹 Verifica se o script existe (assíncrono)
       try {
         await fs.promises.access(script, fs.constants.F_OK)
       } catch {
-        console.log("passo 1.3##")
         return reject(new Error(`Script Python não encontrado: ${script}`))
       }
 
-      console.log("passo 2##")
 
       // 🔹 Gera automaticamente o nome do novo arquivo com "c" no final
       const { dir, name, ext } = path.parse(inputPath)
       const outputPath = path.join(dir, `${name}c${ext}`)
 
-      console.log("passo 3##")
 
       // 🔹 Executa o script Python
       const proc = spawn('python3', [script, inputPath, outputPath], {
         stdio: ['ignore', 'pipe', 'pipe']
       })
 
-      console.log("passo 4##")
 
       let out = ''
       let err = ''
@@ -57,7 +49,7 @@ export function processImage(inputPath: string): Promise<string> {
       // 🔹 Ao encerrar
       proc.on('close', (code) => {
         if (code === 0) {
-          console.log("Processamento concluído com sucesso.")
+
           return resolve(out.trim() || outputPath)
         }
         reject(new Error(err || `process_image.py saiu com código ${code}`))

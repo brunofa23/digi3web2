@@ -5,37 +5,27 @@ import fs from 'fs'
 export function processImage(inputPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
-      console.log("passo 1##")
 
       // 🔹 Verifica se o arquivo de entrada existe
       if (!fs.existsSync(inputPath)) {
-        console.log("passo 1.1##")
         return reject(new Error(`Arquivo não encontrado: ${inputPath}`))
       }
 
       // 🔹 Caminho do script Python
-      console.log("passo 1.2##")
       const script = path.resolve(__dirname, './process_image.py')
-      console.log("passo 1.2-2##", script)
       if (!fs.existsSync(script)) {
-        console.log("passo 1.3##")
         return reject(new Error(`Script Python não encontrado: ${script}`))
       }
 
-      console.log("passo 2##")
 
       // 🔹 Gera automaticamente o nome do novo arquivo com "c" no final
       const { dir, name, ext } = path.parse(inputPath)
       const outputPath = path.join(dir, `${name}c${ext}`)
 
-      console.log("passo 3##")
-
       // 🔹 Executa o script Python
       const proc = spawn('python3', [script, inputPath, outputPath], {
         stdio: ['ignore', 'pipe', 'pipe']
       })
-
-      console.log("passo 4##")
 
       let out = ''
       let err = ''

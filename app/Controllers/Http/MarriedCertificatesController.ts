@@ -161,7 +161,6 @@ export default class MarriedCertificatesController {
   //   return item
   // }
   public async update({ params, request, auth, response }: HttpContextContract) {
-    console.log("CHEGUEI AQUI BOOK ERRO 12121")
     await auth.use('api').authenticate()
     const user = auth.user!
     const companiesId = (user as any).companiesId ?? (user as any).companies_id

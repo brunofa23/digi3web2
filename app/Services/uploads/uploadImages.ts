@@ -25,7 +25,6 @@ async function uploadImage({
   file,
   description,
 }: UploadImageParams) {
-  console.log('PASSO 1 UPLOAD')
 
   if (!file || !file.isValid) {
     console.log('Arquivo inválido ou inexistente, ignorando.')
@@ -56,14 +55,14 @@ async function uploadImage({
     clientName = `${baseName}_${timestamp}.${file.extname}`
   }
 
-  console.log('PASSO 2 UPLOAD')
+
 
   const company = await Company.findOrFail(companiesId)
   const uploadPath = Application.tmpPath(`/certificatesUploads/Client_${company.id}`)
 
   await file.move(uploadPath, { name: clientName })
 
-  console.log('PASSO 3 UPLOAD')
+
 
   let parentFolder = await sendSearchFile(`${company.foldername}.CERTIFICATES`, company.cloud)
 
@@ -97,8 +96,6 @@ async function uploadImage({
   } catch (err: any) {
     console.error(`Erro ao excluir o arquivo local: ${err.message}`)
   }
-
-  console.log('PASSO 4 UPLOAD - UPLOAD COM SUCESSO')
   return result
 }
 

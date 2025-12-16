@@ -5,8 +5,6 @@ import { uploadImage } from 'App/Services/uploads/uploadImages'
 export default class ImageCertificatesController {
 
   public async store({auth, request, response }: HttpContextContract) {
-    console.log("CONTROLLER UPLOAD")
-
     const authenticate = await auth.use('api').authenticate()
     try {
       const companiesId = authenticate.companies_id
@@ -20,9 +18,6 @@ export default class ImageCertificatesController {
       const marriedCertificateId = marriedCertificateIdInput
         ? Number(marriedCertificateIdInput)
         : null
-
-        console.log("marriedCertificateId", marriedCertificateId)
-
 
       const result = await uploadImage(companiesId, marriedCertificateId, request)
 
