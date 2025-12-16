@@ -16,6 +16,8 @@ export default class EmolumentValidator {
       rules.range(0, 99999999.99),
     ]),
 
+    inactive:schema.boolean.optional(),
+
     code: schema.string.optional({ trim: true }, [rules.maxLength(10)]),
     type: schema.string({ trim: true }, [rules.maxLength(50)]),
   })

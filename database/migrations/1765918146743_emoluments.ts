@@ -12,6 +12,7 @@ export default class extends BaseSchema {
       table.decimal('price',10,2).nullable()
       table.string('code',10).nullable()
       table.string('type',50).notNullable()
+      table.boolean('inactive').defaultTo(false)
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */

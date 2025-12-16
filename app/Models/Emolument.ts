@@ -37,6 +37,9 @@ export default class Emolument extends BaseModel {
   @column()
   public type: string
 
+  @column()
+  public inactive:boolean
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 

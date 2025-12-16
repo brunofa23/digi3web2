@@ -58,6 +58,7 @@ export default class EmolumentsController {
       price: payload.price !== undefined ? payload.price.toFixed(2) : null,
       code: payload.code ?? null,
       type: payload.type,
+      inactive: payload.inactive;
     })
 
     return response.created(item)
