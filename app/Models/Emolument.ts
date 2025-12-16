@@ -1,6 +1,13 @@
 // app/Models/Emolument.ts
 import { DateTime } from 'luxon'
-import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm'
+import {
+  BaseModel,
+  column,
+  belongsTo,
+  BelongsTo,
+} from '@ioc:Adonis/Lucid/Orm'
+
+import Company from 'App/Models/Company'
 
 export default class Emolument extends BaseModel {
   public static table = 'emoluments'
@@ -8,14 +15,19 @@ export default class Emolument extends BaseModel {
   @column({ isPrimary: true })
   public id: number
 
+  @column({ columnName: 'companies_id' })
+  public companiesId: number
+
+  @belongsTo(() => Company, { foreignKey: 'companiesId' })
+  public company: BelongsTo<typeof Company>
+
   @column()
   public name: string
 
   @column()
   public description: string | null
 
-  // decimal(10,2) normalmente vem como string em alguns drivers (ex: MySQL),
-  // então deixo como string | null para evitar perda de precisão.
+  // decimal(10,2) pode vir como string (ex: MySQL). Mantendo como string evita perda de precisão.
   @column()
   public price: string | null
 

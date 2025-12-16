@@ -3,21 +3,20 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
 import Emolument from 'App/Models/Emolument'
 import EmolumentValidator from 'App/Validators/EmolumentValidator'
-import EmolumentUpdateValidator from 'App/Validators/EmolumentUpdateValidator'
+import EmolumentUpdateValidator from 'App/Validators/EmolumentValidator'
 
 export default class EmolumentsController {
-  /**
-   * GET /emoluments
-   * query:
-   *  - q, type, page, perPage
-   */
-  public async index({ request, response }: HttpContextContract) {
+  public async index({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
     const page = Number(request.input('page', 1))
     const perPage = Number(request.input('perPage', 20))
     const q = String(request.input('q', '')).trim()
     const type = String(request.input('type', '')).trim()
 
-    const query = Emolument.query().orderBy('name', 'asc')
+    const query = Emolument.query()
+      .where('companies_id', authenticate.companies_id)
+      .orderBy('name', 'asc')
 
     if (type) query.where('type', type)
 
@@ -35,21 +34,25 @@ export default class EmolumentsController {
     return response.ok(data)
   }
 
-  /**
-   * GET /emoluments/:id
-   */
-  public async show({ params, response }: HttpContextContract) {
-    const item = await Emolument.findOrFail(params.id)
+  public async show({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const item = await Emolument.query()
+      .where('companies_id', authenticate.companies_id)
+      .where('id', params.id)
+      .firstOrFail()
+
     return response.ok(item)
   }
 
-  /**
-   * POST /emoluments
-   */
-  public async store({ request, response }: HttpContextContract) {
+  public async store({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    // valida payload, mas não confia no companiesId do client
     const payload = await request.validate(EmolumentValidator)
 
     const item = await Emolument.create({
+      companiesId: authenticate.companies_id, // força empresa da sessão
       name: payload.name,
       description: payload.description ?? null,
       price: payload.price !== undefined ? payload.price.toFixed(2) : null,
@@ -60,29 +63,37 @@ export default class EmolumentsController {
     return response.created(item)
   }
 
-  /**
-   * PUT/PATCH /emoluments/:id
-   */
-  public async update({ params, request, response }: HttpContextContract) {
+  public async update({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
     const payload = await request.validate(EmolumentUpdateValidator)
 
-    const item = await Emolument.findOrFail(params.id)
+    const item = await Emolument.query()
+      .where('companies_id', authenticate.companies_id)
+      .where('id', params.id)
+      .firstOrFail()
 
-    if (payload.name !== undefined) item.name = payload.name
-    if (payload.description !== undefined) item.description = payload.description ?? null
-    if (payload.price !== undefined) item.price = payload.price.toFixed(2)
-    if (payload.code !== undefined) item.code = payload.code ?? null
-    if (payload.type !== undefined) item.type = payload.type
+    // nunca permitir trocar companies_id pelo payload
+    const data = {
+      ...payload,
+      companiesId: undefined,
+      price: payload.price !== undefined ? payload.price.toFixed(2) : undefined,
+    }
 
+    item.merge(data)
     await item.save()
+
     return response.ok(item)
   }
 
-  /**
-   * DELETE /emoluments/:id
-   */
-  public async destroy({ params, response }: HttpContextContract) {
-    const item = await Emolument.findOrFail(params.id)
+  public async destroy({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const item = await Emolument.query()
+      .where('companies_id', authenticate.companies_id)
+      .where('id', params.id)
+      .firstOrFail()
+
     await item.delete()
     return response.noContent()
   }
