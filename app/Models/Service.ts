@@ -5,9 +5,12 @@ import {
   column,
   belongsTo,
   BelongsTo,
+  manyToMany,
+  ManyToMany,
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
+import Emolument from 'App/Models/Emolument'
 
 export default class Service extends BaseModel {
   public static table = 'services'
@@ -33,8 +36,15 @@ export default class Service extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true, columnName: 'updated_at' })
   public updatedAt: DateTime
 
-  @belongsTo(() => Company, {
-    foreignKey: 'companiesId',
-  })
+  @belongsTo(() => Company, { foreignKey: 'companiesId' })
   public company: BelongsTo<typeof Company>
+
+  @manyToMany(() => Emolument, {
+    pivotTable: 'emolument_service',
+    pivotForeignKey: 'service_id',
+    pivotRelatedForeignKey: 'emolument_id',
+    pivotColumns: ['companies_id'],
+    pivotTimestamps: true,
+  })
+  public emoluments: ManyToMany<typeof Emolument>
 }

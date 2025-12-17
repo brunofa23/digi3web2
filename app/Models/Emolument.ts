@@ -5,9 +5,12 @@ import {
   column,
   belongsTo,
   BelongsTo,
+  manyToMany,
+  ManyToMany,
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
+import Service from 'App/Models/Service'
 
 export default class Emolument extends BaseModel {
   public static table = 'emoluments'
@@ -27,7 +30,6 @@ export default class Emolument extends BaseModel {
   @column()
   public description: string | null
 
-  // decimal(10,2) pode vir como string (ex: MySQL). Mantendo como string evita perda de precisão.
   @column()
   public price: string | null
 
@@ -38,11 +40,20 @@ export default class Emolument extends BaseModel {
   public type: string
 
   @column()
-  public inactive:boolean
+  public inactive: boolean
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime
+
+  @manyToMany(() => Service, {
+    pivotTable: 'emolument_service',
+    pivotForeignKey: 'emolument_id',
+    pivotRelatedForeignKey: 'service_id',
+    pivotColumns: ['companies_id'],
+    pivotTimestamps: true,
+  })
+  public services: ManyToMany<typeof Service>
 }
