@@ -2,7 +2,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Service from 'App/Models/Service'
 import ServiceValidator from 'App/Validators/ServiceValidator'
-import { BadRequest } from 'App/Exceptions/BadRequest'
+import BadRequestException from 'App/Exceptions/BadRequestException'
 
 export default class ServicesController {
   public async index({ auth, request, response }: HttpContextContract) {
@@ -24,7 +24,7 @@ export default class ServicesController {
       const items = await query
       return response.status(200).send(items)
     } catch (error) {
-      throw new BadRequest('Bad Request', 400, 'erro ao listar serviços')
+      throw new BadRequestException('Bad Request', 400, 'erro ao listar serviços')
     }
   }
 
@@ -39,7 +39,7 @@ export default class ServicesController {
 
       return response.status(200).send(item)
     } catch (error) {
-      throw new BadRequest('Bad Request', 404, 'serviço não encontrado')
+      throw new BadRequestException('Bad Request', 404, 'serviço não encontrado')
     }
   }
 
@@ -56,7 +56,7 @@ export default class ServicesController {
 
       return response.status(201).send(item)
     } catch (error) {
-      throw new BadRequest('Bad Request', 400, 'erro ao criar serviço')
+      throw new BadRequestException('Bad Request', 400, 'erro ao criar serviço')
     }
   }
 
@@ -79,7 +79,7 @@ export default class ServicesController {
       await item.save()
       return response.status(200).send(item)
     } catch (error) {
-      throw new BadRequest('Bad Request', 400, 'erro ao atualizar serviço')
+      throw new BadRequestException('Bad Request', 400, 'erro ao atualizar serviço')
     }
   }
 
@@ -95,7 +95,7 @@ export default class ServicesController {
       await item.delete()
       return response.status(200).send({ message: 'Serviço removido com sucesso' })
     } catch (error) {
-      throw new BadRequest('Bad Request', 400, 'erro ao remover serviço')
+      throw new BadRequestException('Bad Request', 400, 'erro ao remover serviço')
     }
   }
 }

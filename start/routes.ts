@@ -163,6 +163,9 @@ Route.group(() => {
   //IMAGE CERTIFICATES
   Route.post('/imagecertificates/uploads', 'ImageCertificatesController.store')
 
+  //SERVICES
+  Route.resource('/services', 'ServicesController').apiOnly()
+
 
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
