@@ -165,6 +165,7 @@ Route.group(() => {
 
   //SERVICES
   Route.resource('/services', 'ServicesController').apiOnly()
+  Route.put('/services/:id/emoluments', 'ServicesController.syncEmoluments')//.middleware('auth:api')
 
 
   //CONFIG

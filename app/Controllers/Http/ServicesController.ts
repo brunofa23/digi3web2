@@ -1,6 +1,7 @@
 // app/Controllers/Http/ServicesController.ts
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Service from 'App/Models/Service'
+import Emolument from 'App/Models/Emolument'
 import ServiceValidator from 'App/Validators/ServiceValidator'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 
@@ -98,4 +99,45 @@ export default class ServicesController {
       throw new BadRequestException('Bad Request', 400, 'erro ao remover serviço')
     }
   }
+
+
+  public async syncEmoluments({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const companiesId = authenticate.companies_id
+
+    const emolumentIds: number[] = request.input('emolumentIds', [])
+
+    // 1) garante que o service é da empresa
+    const service = await Service.query()
+      .where('id', params.id) // service_id vem da rota
+      .where('companies_id', companiesId)
+      .firstOrFail()
+
+    // 2) garante que todos emoluments pertencem à mesma empresa
+    const valid = await Emolument.query()
+      .where('companies_id', companiesId)
+      .whereIn('id', emolumentIds)
+      .select('id')
+
+    const validIds = valid.map((e) => e.id)
+
+    if (validIds.length !== emolumentIds.length) {
+      return response.unprocessableEntity({
+        message: 'Existem emoluments inválidos para esta empresa.',
+      })
+    }
+
+    // 3) salva na pivô (estado final)
+    const payload = validIds.reduce<Record<number, any>>((acc, id) => {
+      acc[id] = { companies_id: companiesId } // preenche pivot
+      return acc
+    }, {})
+
+    await service.related('emoluments').sync(payload)
+    return response.ok({ message: 'Emoluments vinculados ao service com sucesso.' })
+  }
+
+
+
+
 }
