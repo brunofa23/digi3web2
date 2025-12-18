@@ -3,7 +3,7 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
 import Receipt from 'App/Models/Receipt'
 import ReceiptValidator from 'App/Validators/ReceiptValidator'
-import { BadRequestException } from '@adonisjs/core/build/standalone'
+import BadRequestException from 'App/Exceptions/BadRequestException'
 
 type ReceiptItemPayload = {
   emolumentId: number
