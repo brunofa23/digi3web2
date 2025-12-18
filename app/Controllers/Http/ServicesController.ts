@@ -36,6 +36,7 @@ export default class ServicesController {
       const item = await Service.query()
         .where('companies_id', authenticate.companies_id)
         .where('id', params.id)
+        .preload('emoluments')
         .firstOrFail()
 
       return response.status(200).send(item)
