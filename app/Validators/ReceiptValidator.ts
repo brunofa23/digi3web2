@@ -56,6 +56,14 @@ export default class ReceiptValidator {
     habilitationProccess: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
 
     status: schema.string.optional({ trim: true }, [rules.maxLength(15)]),
+
+    items: schema.array.optional().members(
+      schema.object().members({
+        emolumentId: schema.number([rules.exists({ table: 'emoluments', column: 'id' })]),
+        qtde: schema.number.optional(),
+        amount: schema.number.optional(),
+      })
+    ),
   })
 
   public messages = {

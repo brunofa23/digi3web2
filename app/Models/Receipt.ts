@@ -5,6 +5,7 @@ import {
   column,
   belongsTo,
   BelongsTo,
+  hasMany, HasMany
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
@@ -12,6 +13,7 @@ import OrderCertificate from 'App/Models/OrderCertificate'
 import Service from 'App/Models/Service'
 import User from 'App/Models/User'
 import Typebook from 'App/Models/Typebook'
+import ReceiptItem from './ReceiptItem'
 
 export default class Receipt extends BaseModel {
   public static table = 'receipts'
@@ -99,4 +101,7 @@ export default class Receipt extends BaseModel {
 
   @belongsTo(() => Typebook, { foreignKey: 'typebookId' })
   public typebook: BelongsTo<typeof Typebook>
+
+  @hasMany(() => ReceiptItem, { foreignKey: 'receiptId' })
+  public items: HasMany<typeof ReceiptItem>
 }
