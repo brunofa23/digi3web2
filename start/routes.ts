@@ -77,7 +77,7 @@ Route.group(() => {
   Route.resource("documenttypebooks", "DocumentTypeBooksController").apiOnly()
 
   //EMOLUMENTS
-  Route.resource('emoluments', 'EmolumentsController').apiOnly()
+  Route.resource('/emoluments', 'EmolumentsController').apiOnly()
 
 
   //INDEXIMAGES

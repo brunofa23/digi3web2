@@ -1,6 +1,6 @@
 // app/Controllers/Http/EmolumentsController.ts
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
-
+import { currencyConverter } from "App/Services/util"
 import Emolument from 'App/Models/Emolument'
 import EmolumentValidator from 'App/Validators/EmolumentValidator'
 import EmolumentUpdateValidator from 'App/Validators/EmolumentValidator'
@@ -55,7 +55,7 @@ export default class EmolumentsController {
       companiesId: authenticate.companies_id, // força empresa da sessão
       name: payload.name,
       description: payload.description ?? null,
-      price: payload.price !== undefined ? payload.price.toFixed(2) : null,
+      price:await currencyConverter(payload.price),// !== undefined ? payload.price.toFixed(2) : null,
       code: payload.code ?? null,
       type: payload.type,
       inactive: payload.inactive;
@@ -67,18 +67,20 @@ export default class EmolumentsController {
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
+
     const payload = await request.validate(EmolumentUpdateValidator)
 
     const item = await Emolument.query()
-      .where('companies_id', authenticate.companies_id)
-      .where('id', params.id)
-      .firstOrFail()
+    .where('companies_id', authenticate.companies_id)
+    .where('id', params.id)
+    .firstOrFail()
 
     // nunca permitir trocar companies_id pelo payload
     const data = {
       ...payload,
       companiesId: undefined,
-      price: payload.price !== undefined ? payload.price.toFixed(2) : undefined,
+      price: await currencyConverter(payload.price)
+      //price: payload.price !== undefined ? payload.price.toFixed(2) : undefined,
     }
 
     item.merge(data)

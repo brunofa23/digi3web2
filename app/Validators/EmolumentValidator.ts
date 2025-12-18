@@ -12,9 +12,7 @@ export default class EmolumentValidator {
     description: schema.string.optional({ trim: true }),
 
     // decimal(10,2)
-    price: schema.number.optional([
-      rules.range(0, 99999999.99),
-    ]),
+    price: schema.string.optional(),
 
     inactive:schema.boolean.optional(),
 

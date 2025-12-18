@@ -133,6 +133,8 @@ export default class ServicesController {
       return acc
     }, {})
 
+    console.log(payload)
+
     await service.related('emoluments').sync(payload)
     return response.ok({ message: 'Emoluments vinculados ao service com sucesso.' })
   }
