@@ -16,11 +16,6 @@ export default class ReceiptValidator {
       rules.exists({ table: 'services', column: 'id' }),
     ]),
 
-    userId: schema.number([
-      rules.unsigned(),
-      rules.exists({ table: 'users', column: 'id' }),
-    ]),
-
     // Dados opcionais
     applicant: schema.string.optional({ trim: true }, [rules.maxLength(90)]),
     cpfApplicant: schema.string.optional({ trim: true }, [

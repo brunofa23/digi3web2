@@ -153,7 +153,7 @@ Route.group(() => {
 
   //MARRIED CERTIFICATES
   Route.resource('/married-certificates', 'MarriedCertificatesController')
-  .apiOnly()
+    .apiOnly()
   //.middleware('*', ['auth'])
 
   //ORDER CERTIFICATES
@@ -167,6 +167,8 @@ Route.group(() => {
   Route.resource('/services', 'ServicesController').apiOnly()
   Route.put('/services/:id/emoluments', 'ServicesController.syncEmoluments')//.middleware('auth:api')
 
+  //RECEIPTS
+  Route.resource('/receipts', 'ReceiptsController').apiOnly()
 
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
