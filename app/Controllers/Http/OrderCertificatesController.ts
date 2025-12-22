@@ -316,25 +316,32 @@ export default class OrderCertificatesController {
   // =====================================================
 
   public async index({ auth }: HttpContextContract) {
-    const authenticate = await auth.use('api').authenticate()
+  const authenticate = await auth.use('api').authenticate()
 
-    return await OrderCertificate.query()
-      .preload('book', (query) => query.select('id', 'name'))
-      .preload('marriedCertificate', (query) => {
-        query.select('id', 'groomPersonId', 'bridePersonId')
-        query.preload('groom', (q) => q.select('name', 'cpf'))
-        query.preload('bride', (q) => q.select('name','cpf'))
-      })
-      .preload('secondcopyCertificate', (q) => {
-        //q.select('id', 'applicant', 'registered1', 'registered2', 'payment_method')
-        q.select('*')
-        q.preload('applicantPerson', (p) => p.select('name','cpf'))
-        q.preload('registered1Person', (p) => p.select('name','cpf'))
-        q.preload('registered2Person', (p) => p.select('name','cpf'))
-      })
-      .where('companies_id', authenticate.companies_id)
-      .orderBy('id', 'asc')
-  }
+  return await OrderCertificate.query()
+    .preload('book', (query) => query.select('id', 'name'))
+    .preload('marriedCertificate', (query) => {
+      query.select('id', 'groomPersonId', 'bridePersonId')
+      query.preload('groom', (q) => q.select('name', 'cpf'))
+      query.preload('bride', (q) => q.select('name', 'cpf'))
+    })
+    .preload('secondcopyCertificate', (q) => {
+      q.select('*')
+      q.preload('applicantPerson', (p) => p.select('name', 'cpf'))
+      q.preload('registered1Person', (p) => p.select('name', 'cpf'))
+      q.preload('registered2Person', (p) => p.select('name', 'cpf'))
+    })
+
+    // ✅ preload receipt (somente id)
+    // ⚠️ inclua também a FK (order_certificate_id) pra relação funcionar corretamente
+    .preload('receipt', (q) => {
+      q.select(['id', 'order_certificate_id'])
+    })
+
+    .where('companies_id', authenticate.companies_id)
+    .orderBy('id', 'asc')
+}
+
 
   public async show({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
