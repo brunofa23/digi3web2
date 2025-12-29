@@ -371,15 +371,30 @@ async function sendUploadFiles(parent, folderPath, fileName, cloud_number: numbe
   return response
 }
 
-async function sendCreateFolder(folderName, cloud_number: number, parentId = undefined,) {
+// async function sendCreateFolder(folderName, cloud_number: number, parentId = undefined,) {
+//   const auth = await authorize(cloud_number)
+//   const id = createFolder(auth, folderName.trim(), parentId)
+//   return id
+// }
+
+async function sendCreateFolder(folderName, cloud_number: number, parentId = undefined) {
   const auth = await authorize(cloud_number)
-  const id = createFolder(auth, folderName.trim(), parentId)
+
+  // 1) tenta achar algo com esse nome (mantendo o mesmo search que você já usa)
+  const found = await searchFile(auth, folderName.trim(), parentId)
+
+  // Se achou, retorna o id do primeiro resultado
+  if (Array.isArray(found) && found.length > 0 && found[0]?.id) {
+    return found[0].id
+  }
+
+  // 2) se não achou, cria e retorna o id (mesmo comportamento anterior)
+  const id = await createFolder(auth, folderName.trim(), parentId)
   return id
 }
 
+
 async function sendSearchFile(fileName, cloud_number: number, parentId = undefined) {
-
-
   const auth = await authorize(cloud_number)
   return searchFile(auth, fileName, parentId)
 }
