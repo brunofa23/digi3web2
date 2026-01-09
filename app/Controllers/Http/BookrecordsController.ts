@@ -138,7 +138,7 @@ export default class BookrecordsController {
       queryExecute.where('book', '<=', bookend)
 
     //BOOK FOR DOCUMENTS IN BOOKS
-    if(book_number && document !='true')
+    if (book_number && document != 'true')
       queryExecute.where('book', book_number)
 
 
@@ -184,7 +184,7 @@ export default class BookrecordsController {
     if (document == 'true') {
       if (params.typebooks_id == 0)
         queryExecute.preload('typebooks', query => {
-                query.select('name')
+          query.select('name')
         })
 
       queryExecute.whereHas('document', query => {
@@ -361,7 +361,7 @@ export default class BookrecordsController {
   }
 
   public async store({ auth, request, response }: HttpContextContract) {
-    
+
     const authenticate = await auth.use('api').authenticate()
     const body = await request.validate(BookrecordValidator)
     const { document } = request.only(['document'])
@@ -1481,8 +1481,7 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
-    const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs()
-
+    const { book, bookStart, bookEnd, countSheetNotExists, side, indexBook } = request.qs()
     try {
       const query = Database
         .from('bookrecords')
@@ -1519,6 +1518,10 @@ export default class BookrecordsController {
         if (bookEnd > 0)
           query.andWhere('book', '<=', bookEnd)
       }
+      if (indexBook > 0)
+        query.andWhere('indexbook', indexBook)
+      else if (indexBook == 0)
+        query.andWhereNull('indexbook')
 
       query.groupBy('book', 'indexbook')
       query.orderBy('bookrecords.book')
