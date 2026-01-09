@@ -54,6 +54,7 @@ Route_1.default.group(() => {
     Route_1.default.resource("documentconfig", "DocumentconfigsController");
     Route_1.default.resource("documenttypes", "DocumentTypesController").apiOnly();
     Route_1.default.resource("documenttypebooks", "DocumentTypeBooksController").apiOnly();
+    Route_1.default.resource('/emoluments', 'EmolumentsController').apiOnly();
     Route_1.default.get("/indeximages", "IndeximagesController.index");
     Route_1.default.get("/indeximages/:id", "IndeximagesController.show");
     Route_1.default.delete("/indeximages/:typebooks_id/:bookrecords_id/:file_name", "IndeximagesController.destroy");
@@ -87,17 +88,18 @@ Route_1.default.group(() => {
     Route_1.default.post('/finimages/downloadfinimage', 'FinImagesController.downloadfinimage').as('downloadfinimage');
     Route_1.default.resource("/finpaymentmethods", 'FinPaymentMethodsController').apiOnly();
     Route_1.default.resource("/finentities", 'FinEntitiesController').apiOnly();
+    Route_1.default.resource("/statuses", 'StatusesController').apiOnly();
+    Route_1.default.resource('/people', 'PeopleController').apiOnly();
+    Route_1.default.resource('/married-certificates', 'MarriedCertificatesController')
+        .apiOnly();
+    Route_1.default.resource('/order-certificates', 'OrderCertificatesController').apiOnly();
+    Route_1.default.post('/imagecertificates/uploads', 'ImageCertificatesController.store');
+    Route_1.default.resource('/services', 'ServicesController').apiOnly();
+    Route_1.default.put('/services/:id/emoluments', 'ServicesController.syncEmoluments');
+    Route_1.default.resource('/receipts', 'ReceiptsController').apiOnly();
     Route_1.default.get('dashboard', async ({ auth }) => {
         await auth.use('api').authenticate();
         return auth.use('api').user;
     });
 }).prefix('/api');
-Route_1.default.get('/api/test/middleware/level', ({ response }) => {
-    return response.json({ ok: true });
-}).middleware('level_permission:3');
-Route_1.default.group(() => {
-    Route_1.default.get('/test', ({ response }) => {
-        return response.json({ ok: true });
-    }).middleware('level_permission:4');
-}).prefix('/api/company/:company_id').middleware('company_permission');
 //# sourceMappingURL=routes.js.map

@@ -19,7 +19,7 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document } = request.qs();
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List } = request.qs();
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -58,25 +58,32 @@ class BookrecordsController {
         else {
             queryExecute = Bookrecord_1.default.query()
                 .where("bookrecords.companies_id", authenticate.companies_id)
-                .andWhere("bookrecords.typebooks_id", params.typebooks_id)
+                .if(params.typebooks_id > 0, query => {
+                query.andWhere("bookrecords.typebooks_id", params.typebooks_id);
+            })
                 .preload('indeximage', (queryIndex) => {
-                queryIndex.where("typebooks_id", '=', params.typebooks_id)
-                    .andWhere("companies_id", '=', authenticate.companies_id);
+                queryIndex.where("companies_id", '=', authenticate.companies_id);
             })
                 .preload('document', query => {
-                query.where('typebooks_id', params.typebooks_id)
-                    .andWhere("documents.companies_id", authenticate.companies_id)
-                    .preload('documenttype', query => {
+                query.preload('documenttype', query => {
                     query.select('name');
                 })
                     .preload('documenttypebook', query => {
                     query.select('description');
+                })
+                    .preload('entity', query => {
+                    query.select('description');
                 });
-            })
-                .whereRaw(query)
-                .orderBy("book", "asc")
-                .orderBy("cod", "asc")
-                .orderBy("sheet", "asc");
+            });
+            if (params.typebooks_id == 0)
+                queryExecute.preload('typebooks', query => {
+                    query.where('companies_id', authenticate.companies_id);
+                    query.select('name');
+                })
+                    .whereRaw(query)
+                    .orderBy("book", "asc")
+                    .orderBy("cod", "asc")
+                    .orderBy("sheet", "asc");
         }
         if (codstart != undefined && codend == undefined)
             queryExecute.where('cod', codstart);
@@ -90,12 +97,16 @@ class BookrecordsController {
             queryExecute.where('book', '>=', bookstart);
         if (bookend != undefined)
             queryExecute.where('book', '<=', bookend);
+        if (book_number && document != 'true')
+            queryExecute.where('book', book_number);
         if (sheetstart != undefined && sheetend == undefined)
             queryExecute.where('sheet', sheetstart);
         else if (sheetstart != undefined && sheetend != undefined)
             queryExecute.where('sheet', '>=', sheetstart);
         if (sheetend != undefined)
             queryExecute.where('sheet', '<=', sheetend);
+        if (sheet_number && document != 'true')
+            queryExecute.where('sheet', sheet_number);
         if (side != undefined)
             queryExecute.where('side', side);
         if (approximateterm != undefined)
@@ -112,6 +123,10 @@ class BookrecordsController {
             if (!sheetzero || (sheetzero == 'false'))
                 queryExecute.where('sheet', '>', 0);
         if (document == 'true') {
+            if (params.typebooks_id == 0)
+                queryExecute.preload('typebooks', query => {
+                    query.select('name');
+                });
             queryExecute.whereHas('document', query => {
                 if (created_atstart != undefined) {
                     query.where('created_at', '>=', created_atstart);
@@ -143,6 +158,18 @@ class BookrecordsController {
                     query.where('yeardoc', yeardoc);
                 if (obs_document != undefined)
                     query.where('obs', 'like', `%${obs_document}%`);
+                query.if(fin_entity_List, q => {
+                    const ids = String(fin_entity_List)
+                        .split(',')
+                        .map((id) => Number(id.trim()))
+                        .filter((id) => !isNaN(id));
+                    if (ids.length > 1) {
+                        q.whereIn('fin_entities_id', ids);
+                    }
+                    else if (ids.length === 1) {
+                        q.where('fin_entities_id', ids[0]);
+                    }
+                });
             });
         }
         data = await queryExecute.paginate(page, limit);
@@ -1136,7 +1163,7 @@ class BookrecordsController {
     async bookSummary({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const typebooks_id = params.typebooks_id;
-        const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs();
+        const { book, bookStart, bookEnd, countSheetNotExists, side, indexBook } = request.qs();
         try {
             const query = Database_1.default
                 .from('bookrecords')
@@ -1174,6 +1201,10 @@ class BookrecordsController {
                 if (bookEnd > 0)
                     query.andWhere('book', '<=', bookEnd);
             }
+            if (indexBook > 0)
+                query.andWhere('indexbook', indexBook);
+            else if (indexBook == 0)
+                query.andWhereNull('indexbook');
             query.groupBy('book', 'indexbook');
             query.orderBy('bookrecords.book');
             const bookSummaryPayload = await query;
