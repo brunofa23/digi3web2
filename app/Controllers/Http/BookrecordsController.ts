@@ -18,10 +18,13 @@ export default class BookrecordsController {
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
+
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
       indexbook,
+      indexbookend,
       year,
       letter,
       sheetstart, sheetend,
@@ -166,8 +169,14 @@ export default class BookrecordsController {
       queryExecute.where('obs', obs)
 
     //Index **************************************
-    if (indexbook != undefined)
+    const hasStart = indexbook !== undefined && indexbook !== null && indexbook !== ''
+    const hasEnd = indexbookend !== undefined && indexbookend !== null && indexbookend !== ''
+    if (hasStart && !hasEnd) {
       queryExecute.where('indexbook', indexbook)
+    } else if (hasStart && hasEnd) {
+      queryExecute.whereBetween('indexbook', [indexbook, indexbookend])
+    }
+
     //year ***********************************************
     if (year != undefined)
       queryExecute.where('year', year)
@@ -1482,6 +1491,7 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = params.typebooks_id
     const { book, bookStart, bookEnd, countSheetNotExists, side, indexBook } = request.qs()
+
     try {
       const query = Database
         .from('bookrecords')
