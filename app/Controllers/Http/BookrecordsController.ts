@@ -716,6 +716,7 @@ export default class BookrecordsController {
   //gera ou substitui um livro
   public async generateOrUpdateBookrecords({ auth, request, params, response }: HttpContextContract) {
 
+    console.log("passei aqui........111111")
     const authenticate = await auth.use('api').authenticate()
     let {
       generateBooks_id,
@@ -932,7 +933,7 @@ export default class BookrecordsController {
         side: schema.string.optional(),
         model_book: schema.string.optional(),
         books_id: schema.number(),
-        indexbook: schema.string.optional(),
+        indexbook: schema.number.optional(),
         year: schema.number.optional(),
         approximate_term: schema.number.optional(),
         obs: schema.string.optional(),
