@@ -1562,6 +1562,7 @@ export default class BookrecordsController {
         const maxSheet = Math.max(0, ...sheetCount.map(item => item.sheet));
 
         // Verificar tipo de validação (P para apenas folhas, F/V para folhas com sides)
+        console.log('COUNT SHEETS:', countSheetNotExists)
         if (countSheetNotExists === 'P') {
           const completeSheetList = generateSequence(1, maxSheet);
           const currentSheetSet = new Set(sheetCount.map(item => item.sheet));
