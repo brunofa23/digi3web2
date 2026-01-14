@@ -8,7 +8,7 @@ const FinAccount_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/F
 const FinAccountStoreValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/FinAccountStoreValidator"));
 const FinAccountUpdateValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/FinAccountUpdateValidator"));
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
-const finImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploadFinImage/finImages");
+const finImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/finImages");
 const luxon_1 = require("luxon");
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 function toUTCISO(dateStr) {
@@ -189,7 +189,6 @@ class FinAccountsController {
         body.date_conciliation = body.date_conciliation ? luxon_1.DateTime.fromISO(body.date_conciliation, { zone: 'utc' }).startOf('day').toFormat("yyyy-MM-dd HH:mm") : null;
         body.amount = await (0, util_1.currencyConverter)(body.amount);
         body.limit_amount = await (0, util_1.currencyConverter)(body.limit_amount);
-        console.log(body);
         try {
             const finAccount = await FinAccount_1.default
                 .query()
