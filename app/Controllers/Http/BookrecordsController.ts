@@ -918,512 +918,512 @@ export default class BookrecordsController {
   }
 
 
-public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
-  const authenticate = await auth.use('api').authenticate();
+  public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate();
 
-  // ✅ detectar se o campo veio no request (mesmo se for 0)
-  const rawIndexbook: any = request.input('indexbook');
-  const indexbookWasSent = rawIndexbook !== undefined;
-  const forceIndexbookNull = indexbookWasSent && (rawIndexbook === 0 || rawIndexbook === '0');
+    // ✅ detectar se o campo veio no request (mesmo se for 0)
+    const rawIndexbook: any = request.input('indexbook');
+    const indexbookWasSent = rawIndexbook !== undefined;
+    const forceIndexbookNull = indexbookWasSent && (rawIndexbook === 0 || rawIndexbook === '0');
 
-  const body = await request.validate({
-    schema: schema.create({
-      renumerate_cod: schema.boolean.optional(),
-      is_create: schema.boolean.optional(),
-      by_sheet: schema.string.optional(),
-      start_cod: schema.number(),
-      end_cod: schema.number(),
-      book: schema.number.optional(),
-      book_replace: schema.number.optional(),
-      sheet: schema.number.optional(),
-      side: schema.string.optional(),
-      model_book: schema.string.optional(),
-      books_id: schema.number(),
-      indexbook: schema.number.optional(),
-      year: schema.number.optional(),
-      approximate_term: schema.number.optional(),
-      obs: schema.string.optional(),
-    }),
-  });
-
-  if (body.start_cod > body.end_cod) {
-    throw new BadRequestException("erro: codigo inicial maior que o final");
-  }
-
-  // --- FLUXO DE SUBSTITUIÇÃO SIMPLES ---
-  if (body.book_replace && body.book_replace > 0) {
-    const updatedCount = await Bookrecord.query()
-      .where("companies_id", authenticate.companies_id)
-      .andWhere("typebooks_id", params.typebooks_id)
-      .where("books_id", body.books_id)
-      .andWhere("book", body.book)
-      .update({ book: body.book_replace });
-
-    return response.status(200).send({
-      message: `Bookrecords atualizados para ${body.book_replace}!`,
-      updatedCount,
+    const body = await request.validate({
+      schema: schema.create({
+        renumerate_cod: schema.boolean.optional(),
+        is_create: schema.boolean.optional(),
+        by_sheet: schema.string.optional(),
+        start_cod: schema.number(),
+        end_cod: schema.number(),
+        book: schema.number.optional(),
+        book_replace: schema.number.optional(),
+        sheet: schema.number.optional(),
+        side: schema.string.optional(),
+        model_book: schema.string.optional(),
+        books_id: schema.number(),
+        indexbook: schema.number.optional(),
+        year: schema.number.optional(),
+        approximate_term: schema.number.optional(),
+        obs: schema.string.optional(),
+      }),
     });
-  }
 
-  // shouldApplyModel => só quando usuário passou sheet ou side ou model_book
-  const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
-  // mantido como no código original
-  const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
-
-  // 🔹 Normalização pedida: se vier 0 ou "0", transformar em null (para year/approx/obs como você já tinha)
-  const zeroToNull = (v: any) => (v === 0 || v === "0" ? null : v);
-
-  // ✅ indexbook: se veio 0 no request, vamos tratar como NULL no banco
-  const bodyIndexbook = forceIndexbookNull ? null : body.indexbook;
-
-  const bodyYear = zeroToNull(body.year);
-  const bodyApprox = zeroToNull(body.approximate_term);
-  const bodyObs = zeroToNull(body.obs);
-
-  // ✅ REGRA NOVA: se is_create=true, NUNCA levar id no generatedArray (para forçar INSERT)
-  const getGeneratedId = (baseRecord: any) => (body.is_create ? undefined : baseRecord?.id);
-
-  function modelBookNext(model_book: string | undefined, side: string | null, sheet: number | null) {
-    if (!model_book) return { side, sheet: (sheet ?? 0) + 1 };
-
-    switch (model_book) {
-      case "C": return { side: null, sheet: 0 };
-      case "F": return { side: "F", sheet: (sheet ?? 0) + 1 };
-      case "V": return { side: "V", sheet: (sheet ?? 0) + 1 };
-      case "FV": return { side: side === "F" ? "V" : "F", sheet: (sheet ?? 0) + 1 };
-      case "FVFV":
-        if (side === "F") return { side: "V", sheet };
-        return { side: "F", sheet: (sheet ?? 0) + 1 };
-      case "F-IMPAR": return { side: "F", sheet: (sheet ?? 0) + 2 };
-      case "V-PAR": return { side: "V", sheet: (sheet ?? 0) + 2 };
-      default: return { side, sheet: (sheet ?? 0) + 1 };
-    }
-  }
-
-  try {
-    const query = Bookrecord.query()
-      .andWhere("companies_id", authenticate.companies_id)
-      .andWhere("typebooks_id", params.typebooks_id)
-      .where("books_id", body.books_id)
-      .andWhere("book", body.book);
-
-    if (body.by_sheet == "S") {
-      query.andWhere("sheet", ">=", body.start_cod).andWhere("sheet", "<=", body.end_cod);
-    } else {
-      query.andWhere("cod", ">=", body.start_cod).andWhere("cod", "<=", body.end_cod);
+    if (body.start_cod > body.end_cod) {
+      throw new BadRequestException("erro: codigo inicial maior que o final");
     }
 
-    const result = await query;
+    // --- FLUXO DE SUBSTITUIÇÃO SIMPLES ---
+    if (body.book_replace && body.book_replace > 0) {
+      const updatedCount = await Bookrecord.query()
+        .where("companies_id", authenticate.companies_id)
+        .andWhere("typebooks_id", params.typebooks_id)
+        .where("books_id", body.books_id)
+        .andWhere("book", body.book)
+        .update({ book: body.book_replace });
 
-    // =======================
-    // RENUMERAÇÃO PURA DE COD
-    // =======================
-    if (body.renumerate_cod) {
-      const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+      return response.status(200).send({
+        message: `Bookrecords atualizados para ${body.book_replace}!`,
+        updatedCount,
+      });
+    }
 
-      const ordered = (result ?? []).slice().sort((a: any, b: any) => {
-        if (body.by_sheet == "S") {
+    // shouldApplyModel => só quando usuário passou sheet ou side ou model_book
+    const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
+    // mantido como no código original
+    const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
+
+    // 🔹 Normalização pedida: se vier 0 ou "0", transformar em null (para year/approx/obs como você já tinha)
+    const zeroToNull = (v: any) => (v === 0 || v === "0" ? null : v);
+
+    // ✅ indexbook: se veio 0 no request, vamos tratar como NULL no banco
+    const bodyIndexbook = forceIndexbookNull ? null : body.indexbook;
+
+    const bodyYear = zeroToNull(body.year);
+    const bodyApprox = zeroToNull(body.approximate_term);
+    const bodyObs = zeroToNull(body.obs);
+
+    // ✅ REGRA NOVA: se is_create=true, NUNCA levar id no generatedArray (para forçar INSERT)
+    const getGeneratedId = (baseRecord: any) => (body.is_create ? undefined : baseRecord?.id);
+
+    function modelBookNext(model_book: string | undefined, side: string | null, sheet: number | null) {
+      if (!model_book) return { side, sheet: (sheet ?? 0) + 1 };
+
+      switch (model_book) {
+        case "C": return { side: null, sheet: 0 };
+        case "F": return { side: "F", sheet: (sheet ?? 0) + 1 };
+        case "V": return { side: "V", sheet: (sheet ?? 0) + 1 };
+        case "FV": return { side: side === "F" ? "V" : "F", sheet: (sheet ?? 0) + 1 };
+        case "FVFV":
+          if (side === "F") return { side: "V", sheet };
+          return { side: "F", sheet: (sheet ?? 0) + 1 };
+        case "F-IMPAR": return { side: "F", sheet: (sheet ?? 0) + 2 };
+        case "V-PAR": return { side: "V", sheet: (sheet ?? 0) + 2 };
+        default: return { side, sheet: (sheet ?? 0) + 1 };
+      }
+    }
+
+    try {
+      const query = Bookrecord.query()
+        .andWhere("companies_id", authenticate.companies_id)
+        .andWhere("typebooks_id", params.typebooks_id)
+        .where("books_id", body.books_id)
+        .andWhere("book", body.book);
+
+      if (body.by_sheet == "S") {
+        query.andWhere("sheet", ">=", body.start_cod).andWhere("sheet", "<=", body.end_cod);
+      } else {
+        query.andWhere("cod", ">=", body.start_cod).andWhere("cod", "<=", body.end_cod);
+      }
+
+      const result = await query;
+
+      // =======================
+      // RENUMERAÇÃO PURA DE COD
+      // =======================
+      if (body.renumerate_cod) {
+        const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+
+        const ordered = (result ?? []).slice().sort((a: any, b: any) => {
+          if (body.by_sheet == "S") {
+            const as = a?.sheet ?? 0;
+            const bs = b?.sheet ?? 0;
+            if (as !== bs) return as - bs;
+            const sa = sideRank(a?.side);
+            const sb = sideRank(b?.side);
+            if (sa !== sb) return sa - sb;
+            return (a?.id ?? 0) - (b?.id ?? 0);
+          } else {
+            const ac = a?.cod ?? 0;
+            const bc = b?.cod ?? 0;
+            if (ac !== bc) return ac - bc;
+            return (a?.id ?? 0) - (b?.id ?? 0);
+          }
+        });
+
+        let newCod = (body.sheet ?? body.start_cod);
+
+        const trx = await Database.transaction();
+        try {
+          for (const rec of ordered) {
+            const updatePayload: Record<string, any> = { cod: newCod++ };
+
+            // ✅ se indexbook=0 foi enviado, update NULL junto
+            if (indexbookWasSent) {
+              updatePayload.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+            }
+
+            await Bookrecord.query({ client: trx })
+              .where("id", rec.id)
+              .update(updatePayload);
+          }
+          await trx.commit();
+
+          return response.status(200).send({
+            message: "Cod renumerado com sucesso (sem alterar outros campos).",
+            updatedCount: ordered.length,
+            start_from: body.sheet ?? body.start_cod,
+            last_cod: newCod - 1,
+          });
+        } catch (err) {
+          await trx.rollback();
+          throw err;
+        }
+      }
+
+      // helper: sobrescreve só se bodyValue !== undefined && !== null && !== ""
+      function overwriteIfValid<T>(bodyValue: T | null | undefined, dbValue: T | undefined): T | undefined {
+        return bodyValue !== undefined && bodyValue !== null && bodyValue !== "" ? (bodyValue as T) : dbValue;
+      }
+
+      const generatedArray: any[] = [];
+
+      let sequenceSheet = body.sheet ?? body.start_cod;
+      const defaultSideForModel = (() => {
+        switch (body.model_book) {
+          case "F":
+          case "F-IMPAR": return "F";
+          case "V":
+          case "V-PAR": return "V";
+          case "FV":
+          case "FVFV": return "F";
+          default: return body.side ?? null;
+        }
+      })();
+      let sequenceSide = body.side ?? defaultSideForModel;
+
+      const sortRecords = (arr: any[]) =>
+        (arr ?? []).slice().sort((a: any, b: any) => {
           const as = a?.sheet ?? 0;
           const bs = b?.sheet ?? 0;
           if (as !== bs) return as - bs;
-          const sa = sideRank(a?.side);
-          const sb = sideRank(b?.side);
-          if (sa !== sb) return sa - sb;
           return (a?.id ?? 0) - (b?.id ?? 0);
+        });
+
+      // ---- GERAÇÃO ----
+      if (body.by_sheet == "S") {
+        if (body.is_create) {
+          for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
+            let recordsForSheet = result.filter((r) => r.sheet === sheetNum);
+            recordsForSheet = sortRecords(recordsForSheet);
+
+            const minSlots = body.model_book === "FVFV" ? 2 : 1;
+            const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
+
+            for (let slot = 0; slot < slotsToProcess; slot++) {
+              const baseRecord = recordsForSheet[slot] ?? null;
+
+              if (!shouldApplyModel) {
+                const assignedSide = baseRecord?.side ?? null;
+                const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
+
+                generatedArray.push({
+                  id: getGeneratedId(baseRecord),
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: baseRecord?.cod ?? sheetNum,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                });
+              } else {
+                const assignedSide = sequenceSide ?? defaultSideForModel;
+                const assignedSheetOut = sequenceSheet;
+
+                generatedArray.push({
+                  id: getGeneratedId(baseRecord),
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: baseRecord?.cod ?? sheetNum,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                });
+
+                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                sequenceSide = next.side;
+                sequenceSheet = next.sheet ?? sequenceSheet;
+              }
+            }
+          }
         } else {
-          const ac = a?.cod ?? 0;
-          const bc = b?.cod ?? 0;
-          if (ac !== bc) return ac - bc;
-          return (a?.id ?? 0) - (b?.id ?? 0);
+          const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
+            .filter((s) => s !== undefined && s !== null)
+            .sort((a, b) => a - b);
+
+          for (const sheetVal of distinctSheets) {
+            let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
+            recordsForSheet = sortRecords(recordsForSheet);
+
+            for (const baseRecord of recordsForSheet) {
+              if (!shouldApplyModel) {
+                const assignedSide = baseRecord?.side ?? null;
+                const assignedSheetOut = baseRecord?.sheet ?? sheetVal;
+
+                generatedArray.push({
+                  id: getGeneratedId(baseRecord),
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: baseRecord?.cod ?? sheetVal,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                });
+              } else {
+                const assignedSide = sequenceSide ?? defaultSideForModel;
+                const assignedSheetOut = sequenceSheet;
+
+                generatedArray.push({
+                  id: getGeneratedId(baseRecord),
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: baseRecord?.cod ?? sheetVal,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                });
+
+                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                sequenceSide = next.side;
+                sequenceSheet = next.sheet ?? sequenceSheet;
+              }
+            }
+          }
         }
-      });
+      } else {
+        // by cod
+        if (body.is_create) {
+          for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
+            let recordsForCod = result.filter((r) => r.cod === cod);
+            recordsForCod = sortRecords(recordsForCod);
 
-      let newCod = (body.sheet ?? body.start_cod);
+            const slotsToProcess = Math.max(recordsForCod.length, 1);
+            for (let slot = 0; slot < slotsToProcess; slot++) {
+              const baseRecord = recordsForCod[slot] ?? null;
 
+              if (!shouldApplyModel) {
+                const assignedSide = baseRecord?.side ?? null;
+                const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
+
+                generatedArray.push({
+                  id: getGeneratedId(baseRecord),
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: cod,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                });
+              } else {
+                const assignedSide = sequenceSide ?? defaultSideForModel;
+                const assignedSheetOut = sequenceSheet;
+
+                generatedArray.push({
+                  id: getGeneratedId(baseRecord),
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: cod,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                });
+
+                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                sequenceSide = next.side;
+                sequenceSheet = next.sheet ?? sequenceSheet;
+              }
+            }
+          }
+        } else {
+          const distinctCods = Array.from(new Set(result.map((r) => r.cod)))
+            .filter((c) => c !== undefined && c !== null)
+            .sort((a, b) => a - b);
+
+          for (const codVal of distinctCods) {
+            let recordsForCod = result.filter((r) => r.cod === codVal);
+            recordsForCod = sortRecords(recordsForCod);
+
+            for (const baseRecord of recordsForCod) {
+              if (!shouldApplyModel) {
+                const assignedSide = baseRecord?.side ?? null;
+                const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
+
+                generatedArray.push({
+                  id: getGeneratedId(baseRecord),
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: codVal,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                });
+              } else {
+                const assignedSide = sequenceSide ?? defaultSideForModel;
+                const assignedSheetOut = sequenceSheet;
+
+                generatedArray.push({
+                  id: getGeneratedId(baseRecord),
+                  typebooks_id: params.typebooks_id,
+                  books_id: baseRecord?.books_id ?? body.books_id,
+                  companies_id: authenticate.companies_id,
+                  cod: codVal,
+                  book: baseRecord?.book ?? body.book,
+                  sheet: assignedSheetOut,
+                  side: assignedSide,
+                  approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                  indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                  year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                });
+
+                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                sequenceSide = next.side;
+                sequenceSheet = next.sheet ?? sequenceSheet;
+              }
+            }
+          }
+        }
+      }
+
+      // ---- RENUMERAÇÃO DE COD ----
+      if (shouldRenumerate) {
+        let newCod = body.sheet ?? body.start_cod;
+        const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+
+        generatedArray.sort((a, b) => {
+          if (a.sheet !== b.sheet) return a.sheet - b.sheet;
+          const sa = sideRank(a.side); const sb = sideRank(b.side);
+          if (sa !== sb) return sa - sb;
+          return (a.id ?? 0) - (b.id ?? 0);
+        });
+
+        for (const rec of generatedArray) {
+          rec.cod = newCod++;
+        }
+      }
+
+      // ---- RENUMERAÇÃO DE approximate_term ----
+      if (body.approximate_term !== undefined) {
+        let newApprox = (bodyApprox as number | null) ?? null;
+        if (newApprox !== null) {
+          for (const rec of generatedArray) {
+            rec.approximate_term = newApprox++;
+          }
+        } else {
+          for (const rec of generatedArray) {
+            rec.approximate_term = null;
+          }
+        }
+      }
+
+      // --- UPDATE/INSERT NO BANCO ---
       const trx = await Database.transaction();
       try {
-        for (const rec of ordered) {
-          const updatePayload: Record<string, any> = { cod: newCod++ };
+        for (const record of generatedArray) {
+          if (record.id) {
+            // UPDATE
+            const updateData: Record<string, any> = {};
 
-          // ✅ se indexbook=0 foi enviado, update NULL junto
-          if (indexbookWasSent) {
-            updatePayload.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+            if (shouldApplyModel) {
+              updateData.sheet = record.sheet;
+              updateData.side = record.side;
+            }
+
+            if (shouldRenumerate) {
+              updateData.cod = record.cod;
+            }
+
+            if (body.approximate_term !== undefined) updateData.approximate_term = bodyApprox;
+
+            // ✅ REGRA: se indexbook foi enviado e veio 0 => update NULL
+            if (indexbookWasSent) {
+              updateData.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+            }
+
+            if (body.year !== undefined) updateData.year = bodyYear;
+            if (body.obs !== undefined) updateData.obs = bodyObs;
+
+            const finalUpdateData = Object.fromEntries(
+              Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== "")
+            );
+
+            if (Object.keys(finalUpdateData).length > 0) {
+              await Bookrecord.query({ client: trx })
+                .where("id", record.id)
+                .update(finalUpdateData);
+            }
+          } else if (body.is_create) {
+            // INSERT
+            const createPayload: Record<string, any> = {
+              typebooks_id: params.typebooks_id,
+              books_id: record.books_id,
+              companies_id: authenticate.companies_id,
+              cod: record.cod,
+              book: record.book,
+              sheet: record.sheet,
+              side: record.side,
+            };
+
+            if (body.approximate_term !== undefined) createPayload.approximate_term = bodyApprox;
+
+            // ✅ coerência no insert: se veio 0 => null
+            if (indexbookWasSent) {
+              createPayload.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+            }
+
+            if (body.year !== undefined) createPayload.year = bodyYear;
+            if (body.obs !== undefined) createPayload.obs = bodyObs;
+
+            await Bookrecord.create(createPayload, { client: trx });
           }
-
-          await Bookrecord.query({ client: trx })
-            .where("id", rec.id)
-            .update(updatePayload);
         }
         await trx.commit();
-
-        return response.status(200).send({
-          message: "Cod renumerado com sucesso (sem alterar outros campos).",
-          updatedCount: ordered.length,
-          start_from: body.sheet ?? body.start_cod,
-          last_cod: newCod - 1,
-        });
       } catch (err) {
         await trx.rollback();
         throw err;
       }
-    }
 
-    // helper: sobrescreve só se bodyValue !== undefined && !== null && !== ""
-    function overwriteIfValid<T>(bodyValue: T | null | undefined, dbValue: T | undefined): T | undefined {
-      return bodyValue !== undefined && bodyValue !== null && bodyValue !== "" ? (bodyValue as T) : dbValue;
-    }
-
-    const generatedArray: any[] = [];
-
-    let sequenceSheet = body.sheet ?? body.start_cod;
-    const defaultSideForModel = (() => {
-      switch (body.model_book) {
-        case "F":
-        case "F-IMPAR": return "F";
-        case "V":
-        case "V-PAR": return "V";
-        case "FV":
-        case "FVFV": return "F";
-        default: return body.side ?? null;
-      }
-    })();
-    let sequenceSide = body.side ?? defaultSideForModel;
-
-    const sortRecords = (arr: any[]) =>
-      (arr ?? []).slice().sort((a: any, b: any) => {
-        const as = a?.sheet ?? 0;
-        const bs = b?.sheet ?? 0;
-        if (as !== bs) return as - bs;
-        return (a?.id ?? 0) - (b?.id ?? 0);
+      return response.status(200).send({
+        message: "Bookrecords atualizados/criados com sucesso!",
+        data: generatedArray,
       });
-
-    // ---- GERAÇÃO ----
-    if (body.by_sheet == "S") {
-      if (body.is_create) {
-        for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
-          let recordsForSheet = result.filter((r) => r.sheet === sheetNum);
-          recordsForSheet = sortRecords(recordsForSheet);
-
-          const minSlots = body.model_book === "FVFV" ? 2 : 1;
-          const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
-
-          for (let slot = 0; slot < slotsToProcess; slot++) {
-            const baseRecord = recordsForSheet[slot] ?? null;
-
-            if (!shouldApplyModel) {
-              const assignedSide = baseRecord?.side ?? null;
-              const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
-
-              generatedArray.push({
-                id: getGeneratedId(baseRecord),
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: baseRecord?.cod ?? sheetNum,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(bodyYear, baseRecord?.year),
-                obs: overwriteIfValid(bodyObs, baseRecord?.obs),
-              });
-            } else {
-              const assignedSide = sequenceSide ?? defaultSideForModel;
-              const assignedSheetOut = sequenceSheet;
-
-              generatedArray.push({
-                id: getGeneratedId(baseRecord),
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: baseRecord?.cod ?? sheetNum,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(bodyYear, baseRecord?.year),
-                obs: overwriteIfValid(bodyObs, baseRecord?.obs),
-              });
-
-              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-              sequenceSide = next.side;
-              sequenceSheet = next.sheet ?? sequenceSheet;
-            }
-          }
-        }
-      } else {
-        const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
-          .filter((s) => s !== undefined && s !== null)
-          .sort((a, b) => a - b);
-
-        for (const sheetVal of distinctSheets) {
-          let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
-          recordsForSheet = sortRecords(recordsForSheet);
-
-          for (const baseRecord of recordsForSheet) {
-            if (!shouldApplyModel) {
-              const assignedSide = baseRecord?.side ?? null;
-              const assignedSheetOut = baseRecord?.sheet ?? sheetVal;
-
-              generatedArray.push({
-                id: getGeneratedId(baseRecord),
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: baseRecord?.cod ?? sheetVal,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(bodyYear, baseRecord?.year),
-                obs: overwriteIfValid(bodyObs, baseRecord?.obs),
-              });
-            } else {
-              const assignedSide = sequenceSide ?? defaultSideForModel;
-              const assignedSheetOut = sequenceSheet;
-
-              generatedArray.push({
-                id: getGeneratedId(baseRecord),
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: baseRecord?.cod ?? sheetVal,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(bodyYear, baseRecord?.year),
-                obs: overwriteIfValid(bodyObs, baseRecord?.obs),
-              });
-
-              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-              sequenceSide = next.side;
-              sequenceSheet = next.sheet ?? sequenceSheet;
-            }
-          }
-        }
-      }
-    } else {
-      // by cod
-      if (body.is_create) {
-        for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
-          let recordsForCod = result.filter((r) => r.cod === cod);
-          recordsForCod = sortRecords(recordsForCod);
-
-          const slotsToProcess = Math.max(recordsForCod.length, 1);
-          for (let slot = 0; slot < slotsToProcess; slot++) {
-            const baseRecord = recordsForCod[slot] ?? null;
-
-            if (!shouldApplyModel) {
-              const assignedSide = baseRecord?.side ?? null;
-              const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
-
-              generatedArray.push({
-                id: getGeneratedId(baseRecord),
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: cod,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(bodyYear, baseRecord?.year),
-                obs: overwriteIfValid(bodyObs, baseRecord?.obs),
-              });
-            } else {
-              const assignedSide = sequenceSide ?? defaultSideForModel;
-              const assignedSheetOut = sequenceSheet;
-
-              generatedArray.push({
-                id: getGeneratedId(baseRecord),
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: cod,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(bodyYear, baseRecord?.year),
-                obs: overwriteIfValid(bodyObs, baseRecord?.obs),
-              });
-
-              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-              sequenceSide = next.side;
-              sequenceSheet = next.sheet ?? sequenceSheet;
-            }
-          }
-        }
-      } else {
-        const distinctCods = Array.from(new Set(result.map((r) => r.cod)))
-          .filter((c) => c !== undefined && c !== null)
-          .sort((a, b) => a - b);
-
-        for (const codVal of distinctCods) {
-          let recordsForCod = result.filter((r) => r.cod === codVal);
-          recordsForCod = sortRecords(recordsForCod);
-
-          for (const baseRecord of recordsForCod) {
-            if (!shouldApplyModel) {
-              const assignedSide = baseRecord?.side ?? null;
-              const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
-
-              generatedArray.push({
-                id: getGeneratedId(baseRecord),
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: codVal,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(bodyYear, baseRecord?.year),
-                obs: overwriteIfValid(bodyObs, baseRecord?.obs),
-              });
-            } else {
-              const assignedSide = sequenceSide ?? defaultSideForModel;
-              const assignedSheetOut = sequenceSheet;
-
-              generatedArray.push({
-                id: getGeneratedId(baseRecord),
-                typebooks_id: params.typebooks_id,
-                books_id: baseRecord?.books_id ?? body.books_id,
-                companies_id: authenticate.companies_id,
-                cod: codVal,
-                book: baseRecord?.book ?? body.book,
-                sheet: assignedSheetOut,
-                side: assignedSide,
-                approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
-                indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
-                year: overwriteIfValid(bodyYear, baseRecord?.year),
-                obs: overwriteIfValid(bodyObs, baseRecord?.obs),
-              });
-
-              const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
-              sequenceSide = next.side;
-              sequenceSheet = next.sheet ?? sequenceSheet;
-            }
-          }
-        }
-      }
+    } catch (error) {
+      console.error(error);
+      throw new BadRequestException("Bad Request", 402, error);
     }
-
-    // ---- RENUMERAÇÃO DE COD ----
-    if (shouldRenumerate) {
-      let newCod = body.sheet ?? body.start_cod;
-      const sideRank = (s: string | null | undefined) => (s === "F" ? 0 : s === "V" ? 1 : 2);
-
-      generatedArray.sort((a, b) => {
-        if (a.sheet !== b.sheet) return a.sheet - b.sheet;
-        const sa = sideRank(a.side); const sb = sideRank(b.side);
-        if (sa !== sb) return sa - sb;
-        return (a.id ?? 0) - (b.id ?? 0);
-      });
-
-      for (const rec of generatedArray) {
-        rec.cod = newCod++;
-      }
-    }
-
-    // ---- RENUMERAÇÃO DE approximate_term ----
-    if (body.approximate_term !== undefined) {
-      let newApprox = (bodyApprox as number | null) ?? null;
-      if (newApprox !== null) {
-        for (const rec of generatedArray) {
-          rec.approximate_term = newApprox++;
-        }
-      } else {
-        for (const rec of generatedArray) {
-          rec.approximate_term = null;
-        }
-      }
-    }
-
-    // --- UPDATE/INSERT NO BANCO ---
-    const trx = await Database.transaction();
-    try {
-      for (const record of generatedArray) {
-        if (record.id) {
-          // UPDATE
-          const updateData: Record<string, any> = {};
-
-          if (shouldApplyModel) {
-            updateData.sheet = record.sheet;
-            updateData.side = record.side;
-          }
-
-          if (shouldRenumerate) {
-            updateData.cod = record.cod;
-          }
-
-          if (body.approximate_term !== undefined) updateData.approximate_term = bodyApprox;
-
-          // ✅ REGRA: se indexbook foi enviado e veio 0 => update NULL
-          if (indexbookWasSent) {
-            updateData.indexbook = forceIndexbookNull ? null : bodyIndexbook;
-          }
-
-          if (body.year !== undefined) updateData.year = bodyYear;
-          if (body.obs !== undefined) updateData.obs = bodyObs;
-
-          const finalUpdateData = Object.fromEntries(
-            Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== "")
-          );
-
-          if (Object.keys(finalUpdateData).length > 0) {
-            await Bookrecord.query({ client: trx })
-              .where("id", record.id)
-              .update(finalUpdateData);
-          }
-        } else if (body.is_create) {
-          // INSERT
-          const createPayload: Record<string, any> = {
-            typebooks_id: params.typebooks_id,
-            books_id: record.books_id,
-            companies_id: authenticate.companies_id,
-            cod: record.cod,
-            book: record.book,
-            sheet: record.sheet,
-            side: record.side,
-          };
-
-          if (body.approximate_term !== undefined) createPayload.approximate_term = bodyApprox;
-
-          // ✅ coerência no insert: se veio 0 => null
-          if (indexbookWasSent) {
-            createPayload.indexbook = forceIndexbookNull ? null : bodyIndexbook;
-          }
-
-          if (body.year !== undefined) createPayload.year = bodyYear;
-          if (body.obs !== undefined) createPayload.obs = bodyObs;
-
-          await Bookrecord.create(createPayload, { client: trx });
-        }
-      }
-      await trx.commit();
-    } catch (err) {
-      await trx.rollback();
-      throw err;
-    }
-
-    return response.status(200).send({
-      message: "Bookrecords atualizados/criados com sucesso!",
-      data: generatedArray,
-    });
-  } catch (error) {
-    console.error(error);
-    throw new BadRequestException("Bad Request", 402, error);
   }
-}
 
 
 
@@ -1512,6 +1512,175 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
   }
 
 
+  // public async bookSummary({ auth, params, request, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate()
+  //   const typebooks_id = Number(params.typebooks_id)
+
+  //   // qs() vem como string -> normaliza tudo aqui
+  //   const qs = request.qs()
+  //   const book = Number(qs.book || 0)
+  //   const bookStart = Number(qs.bookStart || 0)
+  //   const bookEnd = Number(qs.bookEnd || 0)
+  //   const countSheetNotExists = qs.countSheetNotExists // mantém string (P, F, V, FV, I, PA etc)
+  //   const side = qs.side
+  //   const indexBook = qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
+  //     ? Number(qs.indexBook)
+  //     : undefined
+
+  //   try {
+  //     const query = Database
+  //       .from('bookrecords')
+  //       .select('book', 'indexbook')
+  //       .min('cod as initialCod')
+  //       .max('cod as finalCod')
+  //       .min('sheet as initialSheet')
+  //       .max('sheet as finalSheet')
+  //       .count('* as totalRows')
+  //       .select(
+  //         Database.raw(`
+  //         (
+  //           select CONCAT(CAST(MIN(sheet) AS CHAR), side)
+  //           from bookrecords bkr
+  //           where bkr.companies_id = bookrecords.companies_id
+  //             and bkr.typebooks_id = bookrecords.typebooks_id
+  //             and bkr.book = bookrecords.book
+  //             and side = 'V'
+  //             and sheet = 1
+  //           group by side, book, typebooks_id, companies_id
+  //         ) as sheetInicial
+  //       `)
+  //       )
+  //       .select(
+  //         Database.raw(`
+  //         (
+  //           SELECT COUNT(*)
+  //           FROM indeximages
+  //           INNER JOIN bookrecords bkr ON
+  //             (indeximages.bookrecords_id = bkr.id AND
+  //              indeximages.companies_id = bkr.companies_id AND
+  //              indeximages.typebooks_id = bkr.typebooks_id)
+  //           WHERE bkr.companies_id = bookrecords.companies_id
+  //             AND bkr.typebooks_id = bookrecords.typebooks_id
+  //             AND bkr.book = bookrecords.book
+  //             AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
+  //             AND indeximages.companies_id = ${authenticate.companies_id}
+  //             AND indeximages.typebooks_id = ${typebooks_id}
+  //           GROUP BY bkr.book, bkr.indexbook
+  //         ) as totalFiles
+  //       `)
+  //       )
+  //       .where('companies_id', authenticate.companies_id)
+  //       .andWhere('typebooks_id', typebooks_id)
+
+  //     if (book > 0) {
+  //       query.andWhere('book', book)
+  //     } else if (bookStart > 0 || bookEnd > 0) {
+  //       if (bookStart > 0) query.andWhere('book', '>=', bookStart)
+  //       if (bookEnd > 0) query.andWhere('book', '<=', bookEnd)
+  //     }
+
+  //     // indexBook pode ser:
+  //     //  - >0 : filtra indexbook
+  //     //  - 0  : filtra NULL
+  //     //  - undefined : não filtra
+  //     if (typeof indexBook === 'number' && indexBook > 0) query.andWhere('indexbook', indexBook)
+  //     else if (indexBook === 0) query.andWhereNull('indexbook')
+
+  //     query.groupBy('book', 'indexbook')
+  //     query.orderBy('bookrecords.book')
+
+  //     const bookSummaryPayload = await query
+
+  //     //**************************************** */
+  //     // FUNÇÃO PARA CONTAR AS FOLHAS FALTANTES
+  //     // ✅ CORREÇÃO: agora respeita o mesmo agrupamento do summary (book + indexbook)
+  //     async function verifySide(bookNum: number, indexbookGroup: number | null): Promise<string> {
+  //       const generateSequence = (start: number, end: number): number[] =>
+  //         Array.from({ length: end - start + 1 }, (_, i) => start + i)
+
+  //       const findMissingItems = (
+  //         completeList: any[],
+  //         currentList: any[],
+  //         keyFn: (item: any) => string
+  //       ): any[] => {
+  //         const currentSet = new Set(currentList.map(keyFn))
+  //         return completeList.filter(item => !currentSet.has(keyFn(item)))
+  //       }
+
+  //       const sheetWithSideQuery = Bookrecord.query()
+  //         .where('companies_id', authenticate.companies_id)
+  //         .andWhere('typebooks_id', typebooks_id)
+  //         .andWhere('book', bookNum)
+
+  //       // ✅ aqui é o ponto principal do bug: filtrar o mesmo indexbook do agrupamento
+  //       if (indexbookGroup === null) sheetWithSideQuery.andWhereNull('indexbook')
+  //       else sheetWithSideQuery.andWhere('indexbook', indexbookGroup)
+
+  //       const sheetWithSide = await sheetWithSideQuery
+
+  //       const sheetCount = sheetWithSide.map(item => ({ sheet: item.sheet, side: item.side }))
+  //       const maxSheet = Math.max(0, ...sheetCount.map(item => item.sheet))
+
+  //       if (!maxSheet) return ''
+
+  //       // P = apenas número da folha (ignora frente/verso)
+  //       if (countSheetNotExists === 'P') {
+  //         const completeSheetList = generateSequence(1, maxSheet)
+  //         const currentSheetSet = new Set(sheetCount.map(item => item.sheet))
+  //         const missingSheets = completeSheetList.filter(s => !currentSheetSet.has(s))
+  //         return missingSheets.join(', ')
+  //       }
+
+  //       // F/V ou ambos
+  //       const sides =
+  //         countSheetNotExists === 'V'
+  //           ? ['V']
+  //           : countSheetNotExists === 'F'
+  //             ? ['F']
+  //             : ['F', 'V']
+
+  //       const completeList = generateSequence(1, maxSheet).flatMap(sheet =>
+  //         sides.map(side => ({ sheet, side }))
+  //       )
+
+  //       const missingItems = findMissingItems(
+  //         completeList,
+  //         sheetCount,
+  //         item => `${item.sheet}-${item.side}`
+  //       )
+
+  //       if (countSheetNotExists === 'I') {
+  //         const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === 'F')
+  //         return oddItens.map(item => `${item.sheet}${item.side}`).join(', ')
+  //       }
+
+  //       if (countSheetNotExists === 'PA') {
+  //         const pairItens = missingItems.filter(item => item.sheet % 2 === 0 && item.side === 'V')
+  //         return pairItens.map(item => `${item.sheet}${item.side}`).join(', ')
+  //       }
+
+  //       return missingItems.map(item => `${item.sheet}${item.side}`).join(', ')
+  //     }
+  //     //************************************************************ */
+
+  //     // ✅ monta retorno com o campo "side" preenchido corretamente por (book+indexbook)
+  //     if (countSheetNotExists) {
+  //       const bookSumaryList: any[] = []
+  //       for (const item of bookSummaryPayload as any[]) {
+  //         const idx = item.indexbook === null || item.indexbook === undefined ? null : Number(item.indexbook)
+  //         item.side = await verifySide(Number(item.book), idx)
+  //         bookSumaryList.push(item)
+  //       }
+  //       return response.status(200).send(bookSumaryList)
+  //     }
+
+  //     return response.status(200).send(bookSummaryPayload)
+  //   } catch (error) {
+  //     return error
+  //   }
+
+  // }
+
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = Number(params.typebooks_id)
@@ -1522,10 +1691,11 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
     const bookStart = Number(qs.bookStart || 0)
     const bookEnd = Number(qs.bookEnd || 0)
     const countSheetNotExists = qs.countSheetNotExists // mantém string (P, F, V, FV, I, PA etc)
-    const side = qs.side
-    const indexBook = qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
-      ? Number(qs.indexBook)
-      : undefined
+
+    const indexBook =
+      qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
+        ? Number(qs.indexBook)
+        : undefined
 
     try {
       const query = Database
@@ -1536,20 +1706,26 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
         .min('sheet as initialSheet')
         .max('sheet as finalSheet')
         .count('* as totalRows')
+
+        // ✅ sheetInicial agora respeita o agrupamento (book + indexbook)
+        // - se existir 1V nesse grupo, retorna "1V"
+        // - se não existir, retorna NULL (e o grupo continua aparecendo)
         .select(
           Database.raw(`
           (
-            select CONCAT(CAST(MIN(sheet) AS CHAR), side)
-            from bookrecords bkr
-            where bkr.companies_id = bookrecords.companies_id
-              and bkr.typebooks_id = bookrecords.typebooks_id
-              and bkr.book = bookrecords.book
-              and side = 'V'
-              and sheet = 1
-            group by side, book, typebooks_id, companies_id
+            SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+            FROM bookrecords bkr
+            WHERE bkr.companies_id = bookrecords.companies_id
+              AND bkr.typebooks_id = bookrecords.typebooks_id
+              AND bkr.book = bookrecords.book
+              AND bkr.side = 'V'
+              AND bkr.sheet = 1
+              AND (IFNULL(bkr.indexbook, 999999) = IFNULL(bookrecords.indexbook, 999999))
+            LIMIT 1
           ) as sheetInicial
         `)
         )
+
         .select(
           Database.raw(`
           (
@@ -1586,6 +1762,8 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
       if (typeof indexBook === 'number' && indexBook > 0) query.andWhere('indexbook', indexBook)
       else if (indexBook === 0) query.andWhereNull('indexbook')
 
+      // ❌ IMPORTANTE: não tem EXISTS aqui
+      // (para continuar trazendo mesmo sem 1V)
       query.groupBy('book', 'indexbook')
       query.orderBy('bookrecords.book')
 
@@ -1593,7 +1771,7 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
 
       //**************************************** */
       // FUNÇÃO PARA CONTAR AS FOLHAS FALTANTES
-      // ✅ CORREÇÃO: agora respeita o mesmo agrupamento do summary (book + indexbook)
+      // ✅ respeita o mesmo agrupamento do summary (book + indexbook)
       async function verifySide(bookNum: number, indexbookGroup: number | null): Promise<string> {
         const generateSequence = (start: number, end: number): number[] =>
           Array.from({ length: end - start + 1 }, (_, i) => start + i)
@@ -1612,7 +1790,7 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
           .andWhere('typebooks_id', typebooks_id)
           .andWhere('book', bookNum)
 
-        // ✅ aqui é o ponto principal do bug: filtrar o mesmo indexbook do agrupamento
+        // ✅ filtra o mesmo indexbook do agrupamento
         if (indexbookGroup === null) sheetWithSideQuery.andWhereNull('indexbook')
         else sheetWithSideQuery.andWhere('indexbook', indexbookGroup)
 
@@ -1678,8 +1856,9 @@ public async generateOrUpdateBookrecords2({ auth, params, request, response }: H
     } catch (error) {
       return error
     }
-
   }
+
+
 
 
   public async sheetWithSide({ auth, params, response }: HttpContextContract) {
