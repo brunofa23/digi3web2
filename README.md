@@ -223,7 +223,7 @@ L389(1).jpg = Importa pelo Livro e Código
 ## GERAR CÓDIGO DOCKER PRONTO (basta rodar esse código e o docker volta ao normal)
 docker volume create mysql8-digi3-data
 docker run -d \
-  --name mysql8-digi3 \
+  --name digi3Web \
   -p 3309:3306 \
   -e MYSQL_ROOT_PASSWORD='Cartorio@12345' \
   -e MYSQL_DATABASE='digi3Web' \
