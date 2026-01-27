@@ -34,6 +34,9 @@ export default class Receipt extends BaseModel {
   public userId: number
 
   @column()
+  public free: boolean | false
+
+  @column()
   public applicant?: string | null
 
   @column()
