@@ -28,6 +28,9 @@ export default class Service extends BaseModel {
   public description?: string | null
 
   @column()
+  public free:boolean
+
+  @column()
   public inactive: boolean
 
   @column.dateTime({ autoCreate: true, columnName: 'created_at' })

@@ -15,6 +15,8 @@ export default class ServiceValidator {
       rules.maxLength(255),
     ]),
 
+    free: schema.boolean.optional(),
+
     inactive: schema.boolean.optional(),
   })
 

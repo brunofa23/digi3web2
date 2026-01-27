@@ -17,6 +17,7 @@ export default class ReceiptValidator {
     ]),
 
     // Dados opcionais
+    free:schema.boolean.optional(),
     applicant: schema.string.optional({ trim: true }, [rules.maxLength(90)]),
     cpfApplicant: schema.string.optional({ trim: true }, [
       rules.maxLength(11),
