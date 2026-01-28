@@ -343,9 +343,8 @@ export default class OrderCertificatesController {
     const receiptId = request.input('receiptId') || null
     //employee_verification
     const employeeVerificationId = request.input('employeeVerificationId') || null
-
-
-
+    // emolument code (para filtrar por código de emolumento)
+    const emolumentCode = request.input('emolumentCode') || null
 
     const query = OrderCertificate.query()
       .preload('book', (query) => query.select('id', 'name'))
@@ -433,6 +432,19 @@ export default class OrderCertificatesController {
         })
       })
     }
+
+    // ✅ Filtro por código de EMOLUMENT (via receipt_items -> emoluments)
+    if (emolumentCode) {
+      query.whereHas('receipt', (r) => {
+        r.whereHas('items', (it) => {
+          it.whereHas('emolument', (e) => {
+            e.where('code', emolumentCode)
+            e.where('companiesId', authenticate.companies_id)
+          })
+        })
+      })
+    }
+
     // ***********************************************************
     // 🔍 Filtro por CPF em marriedCertificate -> groom ou bride
     //     OU em secondcopyCertificate (applicant/registered1/registered2)
