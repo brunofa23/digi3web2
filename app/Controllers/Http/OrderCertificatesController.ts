@@ -320,11 +320,32 @@ export default class OrderCertificatesController {
 
     const dateStartOrderCertificate = request.input('dateStartOrderCertificate')
     const dateEndtOrderCertificate = request.input('dateEndOrderCertificate')
-
     // pega cpf (se vier) e tira máscara
     const cpf = request.input('cpf')
       ? String(request.input('cpf')).replace(/\D/g, '')
       : null
+
+    //RECEIPT***************************************************
+    //FILTER FOR DATE RECEIPT
+    const dateStartReceipt = request.input('dateStartReceipt') || null
+    const dateEndReceipt = request.input('dateEndReceipt') || null
+    //dateProtocol
+    const dateStartProtocol = request.input('dateStartProtocol') || null
+    const dateEndProtocol = request.input('dateEndProtocol') || null
+    //dateStamp
+    const dateStartStamp = request.input('dateStartStamp') || null
+    const dateEndStamp = request.input('dateEndStamp') || null
+    //datePrevision
+    const dateStartPrevision = request.input('dateStartPrevision') || null
+    const dateEndPrevision = request.input('dateEndPrevision') || null
+
+    //filter for receipt_id
+    const receiptId = request.input('receiptId') || null
+    //employee_verification
+    const employeeVerificationId = request.input('employeeVerificationId') || null
+
+
+
 
     const query = OrderCertificate.query()
       .preload('book', (query) => query.select('id', 'name'))
@@ -344,15 +365,76 @@ export default class OrderCertificatesController {
       })
       .where('companies_id', authenticate.companies_id)
 
-
     if (dateStartOrderCertificate)
       query.andWhere('created_at', '>=', dateStartOrderCertificate)
     if (dateEndtOrderCertificate) {
       query.andWhere('created_at', '<=', dateEndtOrderCertificate) // (provavelmente aqui era <=)
     }
+    // RECEIPT***************************************************
+    //RECEIPT ID
+    if (receiptId) {
+      query.whereHas('receipt', (r) => {
+        r.where('id', receiptId)
+      })
+    }
+    // 🔍 Filtro por data do RECEIPT (created_at da tabela receipts)
+    if (dateStartReceipt || dateEndReceipt) {
+      query.whereHas('receipt', (r) => {
+        if (dateStartReceipt) {
+          r.where('created_at', '>=', dateStartReceipt)
+        }
+        if (dateEndReceipt) {
+          r.where('created_at', '<=', dateEndReceipt)
+        }
+      })
+    }
+    // 🔍 Filtro por data do PROTOCOL
+    if (dateStartProtocol || dateEndProtocol) {
+      query.whereHas('receipt', (r) => {
+        if (dateStartProtocol) {
+          r.where('date_protocol', '>=', dateStartProtocol)
+        }
+        if (dateEndProtocol) {
+          r.where('date_protocol', '<=', dateEndProtocol)
+        }
+      })
+    }
 
+    // 🔍 Filtro por data de SELO
+    if (dateStartStamp || dateEndStamp) {
+      query.whereHas('receipt', (r) => {
+        if (dateStartStamp) {
+          r.where('date_stamp', '>=', dateStartStamp)
+        }
+        if (dateEndStamp) {
+          r.where('date_stamp', '<=', dateEndStamp)
+        }
+      })
+    }
+    // 🔍 Filtro por data de PREVISION
+    if (dateStartPrevision || dateEndPrevision) {
+      query.whereHas('receipt', (r) => {
+        if (dateStartPrevision) {
+          r.where('date_prevision', '>=', dateStartPrevision)
+        }
+        if (dateEndPrevision) {
+          r.where('date_prevision', '<=', dateEndPrevision)
+        }
+      })
+    }
+
+    // ✅ Filtro por employee_verification_id na pivot employee_verification_x_receipts
+    if (employeeVerificationId) {
+      query.whereHas('receipt', (r) => {
+        r.whereHas('employeeVerificationXReceipts', (evxr) => {
+          evxr
+            .where('employeeVerificationId', employeeVerificationId) // mapeia pra employee_verification_id
+            .where('companiesId', authenticate.companies_id) // garante mesma empresa
+        })
+      })
+    }
+    // ***********************************************************
     // 🔍 Filtro por CPF em marriedCertificate -> groom ou bride
-    // 🔍 Filtro por CPF em marriedCertificate (groom/bride)
     //     OU em secondcopyCertificate (applicant/registered1/registered2)
     if (cpf) {
       query.where((q) => {

@@ -14,6 +14,8 @@ import Service from 'App/Models/Service'
 import User from 'App/Models/User'
 import Typebook from 'App/Models/Typebook'
 import ReceiptItem from './ReceiptItem'
+import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
+
 
 export default class Receipt extends BaseModel {
   public static table = 'receipts'
@@ -110,4 +112,7 @@ export default class Receipt extends BaseModel {
 
   @hasMany(() => ReceiptItem, { foreignKey: 'receiptId' })
   public items: HasMany<typeof ReceiptItem>
+
+  @hasMany(() => EmployeeVerificationXReceipt, { foreignKey: 'receiptId' })
+  public employeeVerificationXReceipts: HasMany<typeof EmployeeVerificationXReceipt>
 }
