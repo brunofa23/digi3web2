@@ -3,7 +3,9 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
 import Receipt from 'App/Models/Receipt'
 import ReceiptValidator from 'App/Validators/ReceiptValidator'
+import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
 import BadRequestException from 'App/Exceptions/BadRequestException'
+import { DateTime } from 'luxon'
 
 type ReceiptItemPayload = {
   emolumentId: number
@@ -147,6 +149,18 @@ export default class ReceiptsController {
           { client: trx }
         )
       }
+
+      // ✅ NOVO: cria um registro padrão em employee_verification_x_receipts
+      await EmployeeVerificationXReceipt.create(
+        {
+          receiptId: receipt.id,
+          companiesId: authenticate.companies_id,
+          employeeVerificationId: 1,       // conferência padrão
+          userId: authenticate.id,
+          date: DateTime.local(),          // agora
+        },
+        { client: trx }
+      )
 
       await trx.commit()
 
