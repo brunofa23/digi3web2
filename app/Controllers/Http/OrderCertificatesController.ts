@@ -127,8 +127,8 @@ export default class OrderCertificatesController {
       cellphone: personData.cellphone ?? '',
       email: personData.email ?? '',
 
-      mother: personData.mother ??'',
-      father: personData.father ??'',
+      mother: personData.mother ?? '',
+      father: personData.father ?? '',
 
       inactive: personData.inactive ?? false,
     })
@@ -297,8 +297,8 @@ export default class OrderCertificatesController {
         sheet2: secondData?.sheet2 ?? null,
         city2: secondData?.city2 ?? null,
 
-        obs:secondData?.obs ?? null,
-        inactive: secondData?.inactive ??null
+        obs: secondData?.obs ?? null,
+        inactive: secondData?.inactive ?? null
       })
 
       await secondcopy.save()
@@ -315,32 +315,88 @@ export default class OrderCertificatesController {
   // Index / Show
   // =====================================================
 
-  public async index({ auth }: HttpContextContract) {
-  const authenticate = await auth.use('api').authenticate()
+  public async index({ auth, request }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
 
-  return await OrderCertificate.query()
-    .preload('book', (query) => query.select('id', 'name'))
-    .preload('marriedCertificate', (query) => {
-      query.select('id', 'groomPersonId', 'bridePersonId')
-      query.preload('groom', (q) => q.select('name', 'cpf'))
-      query.preload('bride', (q) => q.select('name', 'cpf'))
-    })
-    .preload('secondcopyCertificate', (q) => {
-      q.select('*')
-      q.preload('applicantPerson', (p) => p.select('name', 'cpf'))
-      q.preload('registered1Person', (p) => p.select('name', 'cpf'))
-      q.preload('registered2Person', (p) => p.select('name', 'cpf'))
-    })
+    const dateStartOrderCertificate = request.input('dateStartOrderCertificate')
+    const dateEndtOrderCertificate = request.input('dateEndOrderCertificate')
 
-    // ✅ preload receipt (somente id)
-    // ⚠️ inclua também a FK (order_certificate_id) pra relação funcionar corretamente
-    .preload('receipt', (q) => {
-      q.select(['id', 'order_certificate_id'])
-    })
+    // pega cpf (se vier) e tira máscara
+    const cpf = request.input('cpf')
+      ? String(request.input('cpf')).replace(/\D/g, '')
+      : null
 
-    .where('companies_id', authenticate.companies_id)
-    .orderBy('id', 'asc')
-}
+    const query = OrderCertificate.query()
+      .preload('book', (query) => query.select('id', 'name'))
+      .preload('marriedCertificate', (query) => {
+        query.select('id', 'groomPersonId', 'bridePersonId')
+        query.preload('groom', (q) => q.select('name', 'cpf'))
+        query.preload('bride', (q) => q.select('name', 'cpf'))
+      })
+      .preload('secondcopyCertificate', (q) => {
+        q.select('*')
+        q.preload('applicantPerson', (p) => p.select('name', 'cpf'))
+        q.preload('registered1Person', (p) => p.select('name', 'cpf'))
+        q.preload('registered2Person', (p) => p.select('name', 'cpf'))
+      })
+      .preload('receipt', (q) => {
+        q.select(['id', 'order_certificate_id'])
+      })
+      .where('companies_id', authenticate.companies_id)
+
+
+    if (dateStartOrderCertificate)
+      query.andWhere('created_at', '>=', dateStartOrderCertificate)
+    if (dateEndtOrderCertificate) {
+      query.andWhere('created_at', '<=', dateEndtOrderCertificate) // (provavelmente aqui era <=)
+    }
+
+    // 🔍 Filtro por CPF em marriedCertificate -> groom ou bride
+    // 🔍 Filtro por CPF em marriedCertificate (groom/bride)
+    //     OU em secondcopyCertificate (applicant/registered1/registered2)
+    if (cpf) {
+      query.where((q) => {
+        // --- marriedCertificate: groom ou bride ---
+        q.whereHas('marriedCertificate', (mc) => {
+          mc
+            .whereHas('groom', (g) => {
+              g.where('cpf', cpf)
+              // g.where('cpf', 'like', `%${cpf}%`)
+            })
+            .orWhereHas('bride', (b) => {
+              b.where('cpf', cpf)
+              // b.where('cpf', 'like', `%${cpf}%`)
+            })
+        })
+
+        // --- secondcopyCertificate: applicant / registered1 / registered2 ---
+        q.orWhereHas('secondcopyCertificate', (sc) => {
+          sc
+            .whereHas('applicantPerson', (p) => {
+              p.where('cpf', cpf)
+              // p.where('cpf', 'like', `%${cpf}%`)
+            })
+            .orWhereHas('registered1Person', (p) => {
+              p.where('cpf', cpf)
+              // p.where('cpf', 'like', `%${cpf}%`)
+            })
+            .orWhereHas('registered2Person', (p) => {
+              p.where('cpf', cpf)
+              // p.where('cpf', 'like', `%${cpf}%`)
+            })
+        })
+      })
+    }
+
+
+
+
+    console.log(query.toQuery())
+    const orderCertificate = await query.orderBy('id', 'asc')
+    return orderCertificate
+
+
+  }
 
 
   public async show({ auth, params, request, response }: HttpContextContract) {

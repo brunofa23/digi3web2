@@ -57,7 +57,8 @@ export default class ReceiptValidator {
     securitySheet: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
     habilitationProccess: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
 
-    status: schema.string.optional({ trim: true }, [rules.maxLength(15)]),
+
+    status: schema.string.optional({ trim: true }, [rules.maxLength(15)]),//['PROTOCOL', 'STAMP', 'CANCELED']
 
     items: schema.array.optional().members(
       schema.object().members({
