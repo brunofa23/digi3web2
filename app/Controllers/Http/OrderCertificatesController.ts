@@ -481,15 +481,8 @@ export default class OrderCertificatesController {
         })
       })
     }
-
-
-
-
-    console.log(query.toQuery())
     const orderCertificate = await query.orderBy('id', 'asc')
     return orderCertificate
-
-
   }
 
 
