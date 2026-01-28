@@ -19,7 +19,7 @@ const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document } = request.qs();
+        const { codstart, codend, bookstart, bookend, approximateterm, indexbook, indexbookend, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List } = request.qs();
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
             (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
@@ -58,25 +58,32 @@ class BookrecordsController {
         else {
             queryExecute = Bookrecord_1.default.query()
                 .where("bookrecords.companies_id", authenticate.companies_id)
-                .andWhere("bookrecords.typebooks_id", params.typebooks_id)
+                .if(params.typebooks_id > 0, query => {
+                query.andWhere("bookrecords.typebooks_id", params.typebooks_id);
+            })
                 .preload('indeximage', (queryIndex) => {
-                queryIndex.where("typebooks_id", '=', params.typebooks_id)
-                    .andWhere("companies_id", '=', authenticate.companies_id);
+                queryIndex.where("companies_id", '=', authenticate.companies_id);
             })
                 .preload('document', query => {
-                query.where('typebooks_id', params.typebooks_id)
-                    .andWhere("documents.companies_id", authenticate.companies_id)
-                    .preload('documenttype', query => {
+                query.preload('documenttype', query => {
                     query.select('name');
                 })
                     .preload('documenttypebook', query => {
                     query.select('description');
+                })
+                    .preload('entity', query => {
+                    query.select('description');
                 });
-            })
-                .whereRaw(query)
-                .orderBy("book", "asc")
-                .orderBy("cod", "asc")
-                .orderBy("sheet", "asc");
+            });
+            if (params.typebooks_id == 0)
+                queryExecute.preload('typebooks', query => {
+                    query.where('companies_id', authenticate.companies_id);
+                    query.select('name');
+                })
+                    .whereRaw(query)
+                    .orderBy("book", "asc")
+                    .orderBy("cod", "asc")
+                    .orderBy("sheet", "asc");
         }
         if (codstart != undefined && codend == undefined)
             queryExecute.where('cod', codstart);
@@ -90,20 +97,32 @@ class BookrecordsController {
             queryExecute.where('book', '>=', bookstart);
         if (bookend != undefined)
             queryExecute.where('book', '<=', bookend);
+        if (book_number && document != 'true')
+            queryExecute.where('book', book_number);
         if (sheetstart != undefined && sheetend == undefined)
             queryExecute.where('sheet', sheetstart);
         else if (sheetstart != undefined && sheetend != undefined)
             queryExecute.where('sheet', '>=', sheetstart);
         if (sheetend != undefined)
             queryExecute.where('sheet', '<=', sheetend);
+        if (sheet_number && document != 'true')
+            queryExecute.where('sheet', sheet_number);
         if (side != undefined)
             queryExecute.where('side', side);
         if (approximateterm != undefined)
             queryExecute.where('approximate_term', approximateterm);
         if (obs != undefined)
             queryExecute.where('obs', obs);
-        if (indexbook != undefined)
+        const hasStart = indexbook !== undefined && indexbook !== null && indexbook !== '';
+        const hasEnd = indexbookend !== undefined && indexbookend !== null && indexbookend !== '';
+        if (indexbook == 0)
+            queryExecute.andWhereNull('indexbook');
+        else if (hasStart && !hasEnd) {
             queryExecute.where('indexbook', indexbook);
+        }
+        else if (hasStart && hasEnd) {
+            queryExecute.whereBetween('indexbook', [indexbook, indexbookend]);
+        }
         if (year != undefined)
             queryExecute.where('year', year);
         if (letter != undefined)
@@ -112,6 +131,10 @@ class BookrecordsController {
             if (!sheetzero || (sheetzero == 'false'))
                 queryExecute.where('sheet', '>', 0);
         if (document == 'true') {
+            if (params.typebooks_id == 0)
+                queryExecute.preload('typebooks', query => {
+                    query.select('name');
+                });
             queryExecute.whereHas('document', query => {
                 if (created_atstart != undefined) {
                     query.where('created_at', '>=', created_atstart);
@@ -143,6 +166,18 @@ class BookrecordsController {
                     query.where('yeardoc', yeardoc);
                 if (obs_document != undefined)
                     query.where('obs', 'like', `%${obs_document}%`);
+                query.if(fin_entity_List, q => {
+                    const ids = String(fin_entity_List)
+                        .split(',')
+                        .map((id) => Number(id.trim()))
+                        .filter((id) => !isNaN(id));
+                    if (ids.length > 1) {
+                        q.whereIn('fin_entities_id', ids);
+                    }
+                    else if (ids.length === 1) {
+                        q.where('fin_entities_id', ids[0]);
+                    }
+                });
             });
         }
         data = await queryExecute.paginate(page, limit);
@@ -475,6 +510,7 @@ class BookrecordsController {
         return response.status(201).send({ "Mensage": "Sucess!" });
     }
     async generateOrUpdateBookrecords({ auth, request, params, response }) {
+        console.log("passei aqui........111111");
         const authenticate = await auth.use('api').authenticate();
         let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateSheetStart, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear, } = request.requestData;
         const _startCode = generateStartCode;
@@ -632,6 +668,9 @@ class BookrecordsController {
     }
     async generateOrUpdateBookrecords2({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        const rawIndexbook = request.input('indexbook');
+        const indexbookWasSent = rawIndexbook !== undefined;
+        const forceIndexbookNull = indexbookWasSent && (rawIndexbook === 0 || rawIndexbook === '0');
         const body = await request.validate({
             schema: Validator_1.schema.create({
                 renumerate_cod: Validator_1.schema.boolean.optional(),
@@ -645,7 +684,7 @@ class BookrecordsController {
                 side: Validator_1.schema.string.optional(),
                 model_book: Validator_1.schema.string.optional(),
                 books_id: Validator_1.schema.number(),
-                indexbook: Validator_1.schema.string.optional(),
+                indexbook: Validator_1.schema.number.optional(),
                 year: Validator_1.schema.number.optional(),
                 approximate_term: Validator_1.schema.number.optional(),
                 obs: Validator_1.schema.string.optional(),
@@ -669,10 +708,11 @@ class BookrecordsController {
         const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
         const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
         const zeroToNull = (v) => (v === 0 || v === "0" ? null : v);
-        const bodyIndexbook = zeroToNull(body.indexbook);
+        const bodyIndexbook = forceIndexbookNull ? null : body.indexbook;
         const bodyYear = zeroToNull(body.year);
         const bodyApprox = zeroToNull(body.approximate_term);
         const bodyObs = zeroToNull(body.obs);
+        const getGeneratedId = (baseRecord) => (body.is_create ? undefined : baseRecord?.id);
         function modelBookNext(model_book, side, sheet) {
             if (!model_book)
                 return { side, sheet: (sheet ?? 0) + 1 };
@@ -729,9 +769,13 @@ class BookrecordsController {
                 const trx = await Database_1.default.transaction();
                 try {
                     for (const rec of ordered) {
+                        const updatePayload = { cod: newCod++ };
+                        if (indexbookWasSent) {
+                            updatePayload.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+                        }
                         await Bookrecord_1.default.query({ client: trx })
                             .where("id", rec.id)
-                            .update({ cod: newCod++ });
+                            .update(updatePayload);
                     }
                     await trx.commit();
                     return response.status(200).send({
@@ -783,7 +827,7 @@ class BookrecordsController {
                                 const assignedSide = baseRecord?.side ?? null;
                                 const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
                                 generatedArray.push({
-                                    id: baseRecord?.id,
+                                    id: getGeneratedId(baseRecord),
                                     typebooks_id: params.typebooks_id,
                                     books_id: baseRecord?.books_id ?? body.books_id,
                                     companies_id: authenticate.companies_id,
@@ -801,7 +845,7 @@ class BookrecordsController {
                                 const assignedSide = sequenceSide ?? defaultSideForModel;
                                 const assignedSheetOut = sequenceSheet;
                                 generatedArray.push({
-                                    id: baseRecord?.id,
+                                    id: getGeneratedId(baseRecord),
                                     typebooks_id: params.typebooks_id,
                                     books_id: baseRecord?.books_id ?? body.books_id,
                                     companies_id: authenticate.companies_id,
@@ -833,7 +877,7 @@ class BookrecordsController {
                                 const assignedSide = baseRecord?.side ?? null;
                                 const assignedSheetOut = baseRecord?.sheet ?? sheetVal;
                                 generatedArray.push({
-                                    id: baseRecord?.id,
+                                    id: getGeneratedId(baseRecord),
                                     typebooks_id: params.typebooks_id,
                                     books_id: baseRecord?.books_id ?? body.books_id,
                                     companies_id: authenticate.companies_id,
@@ -851,7 +895,7 @@ class BookrecordsController {
                                 const assignedSide = sequenceSide ?? defaultSideForModel;
                                 const assignedSheetOut = sequenceSheet;
                                 generatedArray.push({
-                                    id: baseRecord?.id,
+                                    id: getGeneratedId(baseRecord),
                                     typebooks_id: params.typebooks_id,
                                     books_id: baseRecord?.books_id ?? body.books_id,
                                     companies_id: authenticate.companies_id,
@@ -884,7 +928,7 @@ class BookrecordsController {
                                 const assignedSide = baseRecord?.side ?? null;
                                 const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
                                 generatedArray.push({
-                                    id: baseRecord?.id,
+                                    id: getGeneratedId(baseRecord),
                                     typebooks_id: params.typebooks_id,
                                     books_id: baseRecord?.books_id ?? body.books_id,
                                     companies_id: authenticate.companies_id,
@@ -902,7 +946,7 @@ class BookrecordsController {
                                 const assignedSide = sequenceSide ?? defaultSideForModel;
                                 const assignedSheetOut = sequenceSheet;
                                 generatedArray.push({
-                                    id: baseRecord?.id,
+                                    id: getGeneratedId(baseRecord),
                                     typebooks_id: params.typebooks_id,
                                     books_id: baseRecord?.books_id ?? body.books_id,
                                     companies_id: authenticate.companies_id,
@@ -934,7 +978,7 @@ class BookrecordsController {
                                 const assignedSide = baseRecord?.side ?? null;
                                 const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
                                 generatedArray.push({
-                                    id: baseRecord?.id,
+                                    id: getGeneratedId(baseRecord),
                                     typebooks_id: params.typebooks_id,
                                     books_id: baseRecord?.books_id ?? body.books_id,
                                     companies_id: authenticate.companies_id,
@@ -952,7 +996,7 @@ class BookrecordsController {
                                 const assignedSide = sequenceSide ?? defaultSideForModel;
                                 const assignedSheetOut = sequenceSheet;
                                 generatedArray.push({
-                                    id: baseRecord?.id,
+                                    id: getGeneratedId(baseRecord),
                                     typebooks_id: params.typebooks_id,
                                     books_id: baseRecord?.books_id ?? body.books_id,
                                     companies_id: authenticate.companies_id,
@@ -1016,8 +1060,9 @@ class BookrecordsController {
                         }
                         if (body.approximate_term !== undefined)
                             updateData.approximate_term = bodyApprox;
-                        if (body.indexbook !== undefined)
-                            updateData.indexbook = bodyIndexbook;
+                        if (indexbookWasSent) {
+                            updateData.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+                        }
                         if (body.year !== undefined)
                             updateData.year = bodyYear;
                         if (body.obs !== undefined)
@@ -1041,8 +1086,9 @@ class BookrecordsController {
                         };
                         if (body.approximate_term !== undefined)
                             createPayload.approximate_term = bodyApprox;
-                        if (body.indexbook !== undefined)
-                            createPayload.indexbook = bodyIndexbook;
+                        if (indexbookWasSent) {
+                            createPayload.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+                        }
                         if (body.year !== undefined)
                             createPayload.year = bodyYear;
                         if (body.obs !== undefined)
@@ -1135,34 +1181,55 @@ class BookrecordsController {
     }
     async bookSummary({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const typebooks_id = params.typebooks_id;
-        const { book, bookStart, bookEnd, countSheetNotExists, side } = request.qs();
+        const typebooks_id = Number(params.typebooks_id);
+        const qs = request.qs();
+        const book = Number(qs.book || 0);
+        const bookStart = Number(qs.bookStart || 0);
+        const bookEnd = Number(qs.bookEnd || 0);
+        const countSheetNotExists = qs.countSheetNotExists;
+        const indexBook = qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
+            ? Number(qs.indexBook)
+            : undefined;
         try {
             const query = Database_1.default
                 .from('bookrecords')
-                .select('book', 'indexbook')
+                .select('book', 'indexbook', 'year')
                 .min('cod as initialCod')
                 .max('cod as finalCod')
                 .min('sheet as initialSheet')
                 .max('sheet as finalSheet')
                 .count('* as totalRows')
-                .select(Database_1.default.raw(`(select CONCAT(CAST(MIN(sheet) AS CHAR), side)  from bookrecords bkr where bkr.companies_id = bookrecords.companies_id and bkr.typebooks_id = bookrecords.typebooks_id and bkr.book=bookrecords.book and side = 'V' and sheet=1 group by side, book, typebooks_id, companies_id )as sheetInicial`))
                 .select(Database_1.default.raw(`
-        (SELECT COUNT(*)
-         FROM indeximages
-         INNER JOIN bookrecords bkr ON
-           (indeximages.bookrecords_id = bkr.id AND
-           indeximages.companies_id = bkr.companies_id AND
-           indeximages.typebooks_id = bkr.typebooks_id)
-         WHERE bkr.companies_id = bookrecords.companies_id
-           AND bkr.typebooks_id = bookrecords.typebooks_id
-           AND bkr.book = bookrecords.book
-           AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
-           AND indeximages.companies_id = ${authenticate.companies_id}
-           AND indeximages.typebooks_id = ${typebooks_id}
-           GROUP BY bkr.book, bkr.indexbook
-             ) as totalFiles
-      `))
+          (
+            SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+            FROM bookrecords bkr
+            WHERE bkr.companies_id = bookrecords.companies_id
+              AND bkr.typebooks_id = bookrecords.typebooks_id
+              AND bkr.book = bookrecords.book
+              AND bkr.year = bookrecords.year
+              AND bkr.side = 'V'
+              AND bkr.sheet = 1
+              AND (IFNULL(bkr.indexbook, 999999) = IFNULL(bookrecords.indexbook, 999999))
+            LIMIT 1
+          ) as sheetInicial
+        `))
+                .select(Database_1.default.raw(`
+          (
+            SELECT COUNT(*)
+            FROM indeximages
+            INNER JOIN bookrecords bkr ON
+              indeximages.bookrecords_id = bkr.id
+              AND indeximages.companies_id = bkr.companies_id
+              AND indeximages.typebooks_id = bkr.typebooks_id
+            WHERE bkr.companies_id = bookrecords.companies_id
+              AND bkr.typebooks_id = bookrecords.typebooks_id
+              AND bkr.book = bookrecords.book
+              AND bkr.year = bookrecords.year
+              AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
+              AND indeximages.companies_id = ${authenticate.companies_id}
+              AND indeximages.typebooks_id = ${typebooks_id}
+          ) as totalFiles
+        `))
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('typebooks_id', typebooks_id);
             if (book > 0) {
@@ -1174,46 +1241,72 @@ class BookrecordsController {
                 if (bookEnd > 0)
                     query.andWhere('book', '<=', bookEnd);
             }
-            query.groupBy('book', 'indexbook');
+            if (typeof indexBook === 'number' && indexBook > 0)
+                query.andWhere('indexbook', indexBook);
+            else if (indexBook === 0)
+                query.andWhereNull('indexbook');
+            query.groupBy('book', 'indexbook', 'year');
             query.orderBy('bookrecords.book');
             const bookSummaryPayload = await query;
-            async function verifySide(book = 0) {
+            async function verifySide(bookNum, indexbookGroup, yearGroup) {
                 const generateSequence = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
                 const findMissingItems = (completeList, currentList, keyFn) => {
                     const currentSet = new Set(currentList.map(keyFn));
                     return completeList.filter(item => !currentSet.has(keyFn(item)));
                 };
-                const sheetWithSide = await Bookrecord_1.default.query()
+                const sheetWithSideQuery = Bookrecord_1.default.query()
                     .where('companies_id', authenticate.companies_id)
                     .andWhere('typebooks_id', typebooks_id)
-                    .andWhere('book', book);
+                    .andWhere('book', bookNum);
+                if (indexbookGroup === null)
+                    sheetWithSideQuery.andWhereNull('indexbook');
+                else
+                    sheetWithSideQuery.andWhere('indexbook', indexbookGroup);
+                if (yearGroup === null) {
+                    sheetWithSideQuery.whereNull('year');
+                }
+                else {
+                    sheetWithSideQuery.andWhere('year', yearGroup);
+                }
+                const sheetWithSide = await sheetWithSideQuery;
                 const sheetCount = sheetWithSide.map(item => ({ sheet: item.sheet, side: item.side }));
                 const maxSheet = Math.max(0, ...sheetCount.map(item => item.sheet));
+                if (!maxSheet)
+                    return '';
                 if (countSheetNotExists === 'P') {
                     const completeSheetList = generateSequence(1, maxSheet);
                     const currentSheetSet = new Set(sheetCount.map(item => item.sheet));
-                    const missingSheets = completeSheetList.filter(sheet => !currentSheetSet.has(sheet));
+                    const missingSheets = completeSheetList.filter(s => !currentSheetSet.has(s));
                     return missingSheets.join(', ');
                 }
-                const sides = countSheetNotExists === 'V' ? ['V'] : countSheetNotExists === 'F' ? ['F'] : ['F', 'V'];
+                const sides = countSheetNotExists === 'V'
+                    ? ['V']
+                    : countSheetNotExists === 'F'
+                        ? ['F']
+                        : ['F', 'V'];
                 const completeList = generateSequence(1, maxSheet).flatMap(sheet => sides.map(side => ({ sheet, side })));
                 const missingItems = findMissingItems(completeList, sheetCount, item => `${item.sheet}-${item.side}`);
-                if (countSheetNotExists === "I") {
-                    const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === "F");
+                if (countSheetNotExists === 'I') {
+                    const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === 'F');
                     return oddItens.map(item => `${item.sheet}${item.side}`).join(', ');
                 }
-                if (countSheetNotExists === "PA") {
-                    const pairItens = missingItems.filter(item => item.sheet % 2 == 0 && item.side === "V");
+                if (countSheetNotExists === 'PA') {
+                    const pairItens = missingItems.filter(item => item.sheet % 2 === 0 && item.side === 'V');
                     return pairItens.map(item => `${item.sheet}${item.side}`).join(', ');
                 }
                 return missingItems.map(item => `${item.sheet}${item.side}`).join(', ');
             }
-            const bookSumaryList = [];
             if (countSheetNotExists) {
+                const bookSumaryList = [];
                 for (const item of bookSummaryPayload) {
-                    item.side = await verifySide(item.book);
+                    const idx = item.indexbook === null || item.indexbook === undefined
+                        ? null
+                        : Number(item.indexbook);
+                    const yearGroup = item.year === null || item.year === undefined ? null : Number(item.year);
+                    item.side = await verifySide(Number(item.book), idx, yearGroup);
                     bookSumaryList.push(item);
                 }
+                return response.status(200).send(bookSumaryList);
             }
             return response.status(200).send(bookSummaryPayload);
         }
