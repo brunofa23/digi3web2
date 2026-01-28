@@ -174,7 +174,6 @@ export default class ReceiptsController {
         .where('companies_id', authenticate.companies_id)
         .where('id', params.id)
         .firstOrFail()
-
       const payload = await request.validate(ReceiptValidator)
       const { items, ...receiptData } = payload as any
 

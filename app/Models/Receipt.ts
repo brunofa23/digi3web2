@@ -70,6 +70,9 @@ export default class Receipt extends BaseModel {
   public datePrevision?: DateTime | null
 
   @column.date()
+  public dateProtocol?: DateTime | null
+
+  @column.date()
   public dateStamp?: DateTime | null
 
   @column.dateTime()
