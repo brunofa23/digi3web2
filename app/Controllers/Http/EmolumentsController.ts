@@ -10,7 +10,7 @@ export default class EmolumentsController {
     const authenticate = await auth.use('api').authenticate()
 
     const page = Number(request.input('page', 1))
-    const perPage = Number(request.input('perPage', 20))
+    const perPage = Number(request.input('perPage', 500))
     const q = String(request.input('q', '')).trim()
     const type = String(request.input('type', '')).trim()
 
