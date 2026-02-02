@@ -174,6 +174,9 @@ export default class IndeximagesController {
             book: dataImages.book,
             sheet: dataImages.sheet,
             indexbook: dataImages.indexBook,
+            approximate_term: dataImages.approximateTerm,
+            letter: dataImages.letter
+
           })
 
           dataImages.id = book.id
@@ -187,7 +190,9 @@ export default class IndeximagesController {
               book: dataImages.book,
               sheet: dataImages.sheet,
               side: dataImages.side,
-              indexbook: dataImages.indexBook
+              indexbook: dataImages.indexBook,
+              approximate_term: dataImages.approximateTerm,
+              letter: dataImages.letter
             })
             dataImages.id = book.id
           }
