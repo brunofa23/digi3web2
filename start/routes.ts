@@ -176,6 +176,11 @@ Route.group(() => {
   //RECEIPTS
   Route.resource('/receipts', 'ReceiptsController').apiOnly()
 
+
+  //TRIBUTATION
+  Route.resource('tributations', 'TributationsController').apiOnly()
+
+
   //CONFIG
   //Route.post("/config", "ConfigsController.storeEncryption")
 
