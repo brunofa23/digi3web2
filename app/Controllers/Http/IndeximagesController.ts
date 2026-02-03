@@ -155,6 +155,10 @@ export default class IndeximagesController {
         query.andWhere('sheet', dataImages.sheet)
       if (dataImages.indexBook)
         query.andWhere('indexbook', dataImages.indexBook)
+      if (dataImages.approximateTerm) {
+        query.andWhere('approximate_term', dataImages.approximateTerm)
+      }
+
       const bookRecord = await query.first()
 
       if (!bookRecord || dataImages.sheet == 0) {
@@ -237,7 +241,6 @@ export default class IndeximagesController {
             obs: dataImages.obs
           }, trx)
           dataImages.id = bookRecord.id
-
           await trx.commit()
         } catch (error) {
           await trx.rollback()
@@ -250,6 +253,7 @@ export default class IndeximagesController {
     // console.time('teste')
     const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
     // console.timeEnd('teste')
+    console.log("UPLOAD PASSO 9")
     return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   }
