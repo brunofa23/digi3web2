@@ -155,7 +155,15 @@ Route.group(() => {
   Route.resource("/statuses", 'StatusesController').apiOnly()
 
   // STAMP
-  Route.resource("/stamps", 'StampsController').apiOnly()
+  //Route.resource("/stamps", 'StampsController').apiOnly()
+  Route.get('/stamps', 'StampsController.index').middleware('stampPermission:index')
+  Route.get('/stamps/:id', 'StampsController.show').middleware('stampPermission:show')
+
+  Route.post('/stamps', 'StampsController.store').middleware('stampPermission:create')
+  Route.put('/stamps/:id', 'StampsController.update').middleware('stampPermission:update')
+  Route.patch('/stamps/:id', 'StampsController.update').middleware('stampPermission:update')
+  Route.delete('/stamps/:id', 'StampsController.destroy').middleware('stampPermission:delete')
+  //***************************************************************************** */
 
   //PEOPLE
   Route.resource('/people', 'PeopleController').apiOnly()
@@ -181,7 +189,15 @@ Route.group(() => {
 
 
   //TRIBUTATION
-  Route.resource('tributations', 'TributationsController').apiOnly()
+  //Route.resource('tributations', 'TributationsController').apiOnly()
+  Route.get('/tributations', 'TributationsController.index').middleware('tributationPermission:index')
+  Route.get('/tributations/:id', 'TributationsController.show').middleware('tributationPermission:show')
+
+  Route.post('/tributations', 'TributationsController.store').middleware('tributationPermission:create')
+  Route.put('/tributations/:id', 'TributationsController.update').middleware('tributationPermission:update')
+  Route.patch('/tributations/:id', 'TributationsController.update').middleware('tributationPermission:update')
+  Route.delete('/tributations/:id', 'TributationsController.destroy').middleware('tributationPermission:delete')
+  //****************************************************************************************************************** */
 
 
   //CONFIG
