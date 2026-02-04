@@ -1,32 +1,38 @@
 // app/Controllers/Http/StampsController.ts
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Stamp from 'App/Models/Stamp'
-import StampStoreValidator from 'App/Validators/StampStoreValidator'
-import StampUpdateValidator from 'App/Validators/StampUpdateValidator'
+import StampValidator from 'App/Validators/StampValidator'
+
 
 export default class StampsController {
   /**
    * GET /stamps
-   * Query params opcionais: page, perPage, companies_id
+   * Lista os stamps da empresa autenticada, com paginação
+   * Query params opcionais: page, perPage
    */
-  public async index({ request }: HttpContextContract) {
-    const { page = 1, perPage = 20, companies_id } = request.qs()
+  public async index({ auth, request }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
 
-    const query = Stamp.query()
+    const { page = 1, perPage = 20 } = request.qs()
 
-    if (companies_id) {
-      query.where('companies_id', companies_id)
-    }
+    const stamps = await Stamp.query()
+      .where('companies_id', authenticate.companies_id)
+      .orderBy('id', 'asc')
+      .paginate(page, perPage)
 
-    const stamps = await query.paginate(page, perPage)
     return stamps
   }
 
   /**
    * GET /stamps/:id
    */
-  public async show({ params, response }: HttpContextContract) {
-    const stamp = await Stamp.find(params.id)
+  public async show({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const stamp = await Stamp.query()
+      .where('companies_id', authenticate.companies_id)
+      .where('id', params.id)
+      .first()
 
     if (!stamp) {
       return response.notFound({ message: 'Stamp não encontrado' })
@@ -38,10 +44,15 @@ export default class StampsController {
   /**
    * POST /stamps
    */
-  public async store({ request, response }: HttpContextContract) {
-    const data = await request.validate(StampStoreValidator)
+  public async store({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
 
-    const stamp = await Stamp.create(data)
+    const data = await request.validate(StampValidator)
+
+    const stamp = await Stamp.create({
+      ...data,
+      companies_id: authenticate.companies_id,
+    })
 
     return response.created(stamp)
   }
@@ -49,14 +60,19 @@ export default class StampsController {
   /**
    * PUT/PATCH /stamps/:id
    */
-  public async update({ params, request, response }: HttpContextContract) {
-    const stamp = await Stamp.find(params.id)
+  public async update({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const stamp = await Stamp.query()
+      .where('companies_id', authenticate.companies_id)
+      .where('id', params.id)
+      .first()
 
     if (!stamp) {
       return response.notFound({ message: 'Stamp não encontrado' })
     }
 
-    const data = await request.validate(StampUpdateValidator)
+    const data = await request.validate(StampValidator)
 
     stamp.merge(data)
     await stamp.save()
@@ -67,8 +83,13 @@ export default class StampsController {
   /**
    * DELETE /stamps/:id
    */
-  public async destroy({ params, response }: HttpContextContract) {
-    const stamp = await Stamp.find(params.id)
+  public async destroy({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const stamp = await Stamp.query()
+      .where('companies_id', authenticate.companies_id)
+      .where('id', params.id)
+      .first()
 
     if (!stamp) {
       return response.notFound({ message: 'Stamp não encontrado' })

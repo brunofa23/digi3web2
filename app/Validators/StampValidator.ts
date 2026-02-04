@@ -11,10 +11,10 @@ export default class StampValidator {
    */
   public schema = this.ctx.request.method() === 'POST'
     ? schema.create({
-        companies_id: schema.number([
-          rules.unsigned(),
-          rules.exists({ table: 'companies', column: 'id' }),
-        ]),
+        // companies_id: schema.number([
+        //   rules.unsigned(),
+        //   rules.exists({ table: 'companies', column: 'id' }),
+        // ]),
 
         serial: schema.string({ trim: true }, [
           rules.maxLength(5),

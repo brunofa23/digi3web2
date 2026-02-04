@@ -154,6 +154,9 @@ Route.group(() => {
   // STATUS
   Route.resource("/statuses", 'StatusesController').apiOnly()
 
+  // STAMP
+  Route.resource("/stamps", 'StampsController').apiOnly()
+
   //PEOPLE
   Route.resource('/people', 'PeopleController').apiOnly()
 
