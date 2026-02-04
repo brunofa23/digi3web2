@@ -5,7 +5,8 @@ import {
   column,
   belongsTo,
   BelongsTo,
-  hasMany, HasMany
+  hasMany,
+  HasMany,
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
@@ -15,7 +16,7 @@ import User from 'App/Models/User'
 import Typebook from 'App/Models/Typebook'
 import ReceiptItem from './ReceiptItem'
 import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
-
+import Tributation from 'App/Models/Tributation' // 🔹 IMPORT NOVO
 
 export default class Receipt extends BaseModel {
   public static table = 'receipts'
@@ -34,6 +35,10 @@ export default class Receipt extends BaseModel {
 
   @column()
   public userId: number
+
+  // 🔹 NOVO CAMPO FK
+  @column()
+  public tributationId?: number | null
 
   @column()
   public free: boolean | false
@@ -80,6 +85,10 @@ export default class Receipt extends BaseModel {
   @column.dateTime()
   public dateMarriage?: DateTime | null
 
+  // 🔹 NOVO CAMPO STRING
+  @column()
+  public stamps?: string | null
+
   @column()
   public securitySheet?: string | null
 
@@ -109,6 +118,10 @@ export default class Receipt extends BaseModel {
 
   @belongsTo(() => Typebook, { foreignKey: 'typebookId' })
   public typebook: BelongsTo<typeof Typebook>
+
+  // 🔹 NOVA RELAÇÃO
+  @belongsTo(() => Tributation, { foreignKey: 'tributationId' })
+  public tributation: BelongsTo<typeof Tributation>
 
   @hasMany(() => ReceiptItem, { foreignKey: 'receiptId' })
   public items: HasMany<typeof ReceiptItem>

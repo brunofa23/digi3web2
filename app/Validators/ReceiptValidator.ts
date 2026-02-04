@@ -17,7 +17,7 @@ export default class ReceiptValidator {
     ]),
 
     // Dados opcionais
-    free:schema.boolean.optional(),
+    free: schema.boolean.optional(),
     applicant: schema.string.optional({ trim: true }, [rules.maxLength(90)]),
     cpfApplicant: schema.string.optional({ trim: true }, [
       rules.maxLength(11),
@@ -57,8 +57,15 @@ export default class ReceiptValidator {
     securitySheet: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
     habilitationProccess: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
 
+    // 🔹 NOVOS CAMPOS
+    stamps: schema.string.optional({ trim: true }, [rules.maxLength(255)]),
 
-    status: schema.string.optional({ trim: true }, [rules.maxLength(15)]),//['PROTOCOL', 'STAMP', 'CANCELED']
+    tributationId: schema.number.optional([
+      rules.unsigned(),
+      rules.exists({ table: 'tributations', column: 'id' }),
+    ]),
+
+    status: schema.string.optional({ trim: true }, [rules.maxLength(15)]), // ['PROTOCOL', 'STAMP', 'CANCELED']
 
     items: schema.array.optional().members(
       schema.object().members({
