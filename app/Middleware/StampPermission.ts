@@ -33,14 +33,12 @@ export default class StampPermission {
     }
 
     // 🔒 CREATE/UPDATE/DELETE: exigem permissão específica
-    console.log(permissions)
+
     const hasPermission = verifyPermission(
       authenticate.superuser,
       permissions,
       STAMP_MAINTENANCE_PERMISSION_ID
     )
-
-    console.log(">>L>", hasPermission)
 
     if (!hasPermission) {
       return response.unauthorized({

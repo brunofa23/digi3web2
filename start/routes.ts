@@ -156,6 +156,8 @@ Route.group(() => {
 
   // STAMP
   //Route.resource("/stamps", 'StampsController').apiOnly()
+  //Route.get('/stamps/next', 'StampsController.next')
+  Route.get('/stamps/sequence/:quantity', 'StampsController.sequence')
   Route.get('/stamps', 'StampsController.index').middleware('stampPermission:index')
   Route.get('/stamps/:id', 'StampsController.show').middleware('stampPermission:show')
 

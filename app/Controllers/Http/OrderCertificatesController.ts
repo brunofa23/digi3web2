@@ -360,7 +360,7 @@ export default class OrderCertificatesController {
         q.preload('registered2Person', (p) => p.select('name', 'cpf'))
       })
       .preload('receipt', (q) => {
-        q.select(['id', 'order_certificate_id'])
+        q.select(['id', 'order_certificate_id','date_stamp'])
       })
       .where('companies_id', authenticate.companies_id)
 
