@@ -4,8 +4,6 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import UserValidator from 'App/Validators/UserValidator'
 import { DateTime } from 'luxon'
-//import { accesscontextmanager } from 'googleapis/build/src/apis/accesscontextmanager'
-
 
 export default class UsersController {
 
