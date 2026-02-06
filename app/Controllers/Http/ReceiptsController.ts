@@ -179,135 +179,35 @@ export default class ReceiptsController {
   //   }
   // }
   public async store({ auth, request, response }: HttpContextContract) {
-  const authenticate = await auth.use('api').authenticate()
-  const trx = await Database.transaction()
+    const authenticate = await auth.use('api').authenticate()
+    const trx = await Database.transaction()
 
-  try {
-    const payload = await request.validate(ReceiptValidator)
+    try {
+      const payload = await request.validate(ReceiptValidator)
 
-    // separa items do restante
-    const { items = [], ...receiptData } = payload as any
+      // separa items do restante
+      const { items = [], ...receiptData } = payload as any
 
-    // ✅ REGRA STATUS x DATESTAMP (apenas se não for CANCELADO)
-    if (receiptData.status !== 'CANCELADO') {
-      if (receiptData.dateStamp) {
-        receiptData.status = 'SELADO'
-      } else {
-        receiptData.status = 'PROTOCOLADO'
+      // ✅ REGRA STATUS x DATESTAMP (apenas se não for CANCELADO)
+      if (receiptData.status !== 'CANCELADO') {
+        if (receiptData.dateStamp) {
+          receiptData.status = 'SELADO'
+        } else {
+          receiptData.status = 'PROTOCOLADO'
+        }
       }
-    }
 
-    // cria receipt na transação
-    const receipt = await Receipt.create(
-      {
-        ...receiptData,
-        companiesId: authenticate.companies_id,
-        userId: authenticate.id,
-      },
-      { client: trx }
-    )
-
-    // valida itens contra pivot (companies + service)
-    await this.validateEmolumentsInPivot({
-      trx,
-      companiesId: authenticate.companies_id,
-      serviceId: receipt.serviceId,
-      items: items as ReceiptItemPayload[],
-    })
-
-    // cria receipt_items
-    if (items.length) {
-      await receipt.related('items').createMany(
-        (items as ReceiptItemPayload[]).map((it) => ({
+      // cria receipt na transação
+      const receipt = await Receipt.create(
+        {
+          ...receiptData,
           companiesId: authenticate.companies_id,
-          receiptId: receipt.id,
-          serviceId: receipt.serviceId,
-          emolumentId: it.emolumentId,
-          qtde: it.qtde ?? 1,
-          amount: it.amount ?? 0,
-        })),
+          userId: authenticate.id,
+        },
         { client: trx }
       )
-    }
 
-    // ✅ mantém criação padrão de employee_verification_x_receipts
-    await EmployeeVerificationXReceipt.create(
-      {
-        receiptId: receipt.id,
-        companiesId: authenticate.companies_id,
-        employeeVerificationId: 1, // conferência padrão
-        userId: authenticate.id,
-        date: DateTime.local(), // agora
-      },
-      { client: trx }
-    )
-
-    await trx.commit()
-
-    // retorna com preloads
-    await receipt.refresh()
-    await receipt.load('service')
-    await receipt.load('orderCertificate')
-    await receipt.load('user')
-    await receipt.load('typebook')
-    await receipt.load('items', (q) => q.preload('emolument').orderBy('id', 'asc'))
-
-    return response.status(201).send(receipt)
-  } catch (error) {
-    await trx.rollback()
-    throw error
-  }
-}
-
-  public async update({ auth, request, params, response }: HttpContextContract) {
-  const authenticate = await auth.use('api').authenticate()
-  const trx = await Database.transaction()
-
-  try {
-    const receipt = await Receipt.query({ client: trx })
-      .where('companies_id', authenticate.companies_id)
-      .where('id', params.id)
-      .firstOrFail()
-
-    // ✅ SE JÁ ESTIVER CANCELADO, NÃO PERMITE UPDATE
-    if (receipt.status === 'CANCELADO') {
-      await trx.rollback()
-      return response.status(400).send({
-        message: 'Recibo cancelado não pode ser alterado.',
-      })
-    }
-
-    const payload = await request.validate(ReceiptValidator)
-    const { items, ...receiptData } = payload as any
-
-    // ✅ REGRA STATUS x DATESTAMP
-    //
-    // Se o payload estiver setando CANCELADO, deixamos como CANCELADO
-    // (para permitir o cancelamento).
-    // Caso contrário, aplicamos a regra dateStamp -> SELADO/PROTOCOLADO.
-    if (receiptData.status !== 'CANCELADO') {
-      if (receiptData.dateStamp) {
-        receiptData.status = 'SELADO'
-      } else {
-        receiptData.status = 'PROTOCOLADO'
-      }
-    }
-
-    receipt.merge({
-      ...receiptData,
-      companiesId: authenticate.companies_id,
-      userId: authenticate.id,
-    })
-
-   
-    await receipt.save()
-
-    /**
-     * Se o front mandar "items", vamos substituir tudo (delete + createMany).
-     * Se NÃO mandar "items", mantém como está.
-     */
-    if (items) {
-      // valida itens contra pivot (companies + service ATUAL do receipt após merge)
+      // valida itens contra pivot (companies + service)
       await this.validateEmolumentsInPivot({
         trx,
         companiesId: authenticate.companies_id,
@@ -315,11 +215,8 @@ export default class ReceiptsController {
         items: items as ReceiptItemPayload[],
       })
 
-      // apaga itens antigos
-      await receipt.related('items').query({ client: trx }).delete()
-
-      // recria itens
-      if ((items as ReceiptItemPayload[]).length) {
+      // cria receipt_items
+      if (items.length) {
         await receipt.related('items').createMany(
           (items as ReceiptItemPayload[]).map((it) => ({
             companiesId: authenticate.companies_id,
@@ -332,24 +229,127 @@ export default class ReceiptsController {
           { client: trx }
         )
       }
+
+      // ✅ mantém criação padrão de employee_verification_x_receipts
+      await EmployeeVerificationXReceipt.create(
+        {
+          receiptId: receipt.id,
+          companiesId: authenticate.companies_id,
+          employeeVerificationId: 1, // conferência padrão
+          userId: authenticate.id,
+          date: DateTime.local(), // agora
+        },
+        { client: trx }
+      )
+
+      await trx.commit()
+
+      // retorna com preloads
+      await receipt.refresh()
+      await receipt.load('service')
+      await receipt.load('orderCertificate')
+      await receipt.load('user')
+      await receipt.load('typebook')
+      await receipt.load('items', (q) => q.preload('emolument').orderBy('id', 'asc'))
+
+      return response.status(201).send(receipt)
+    } catch (error) {
+      await trx.rollback()
+      throw error
     }
-
-    await trx.commit()
-
-    // retorna com preloads
-    await receipt.refresh()
-    await receipt.load('service')
-    await receipt.load('orderCertificate')
-    await receipt.load('user')
-    await receipt.load('typebook')
-    await receipt.load('items', (q) => q.preload('emolument').orderBy('id', 'asc'))
-
-    return response.status(200).send(receipt)
-  } catch (error) {
-    await trx.rollback()
-    throw error
   }
-}
+
+  public async update({ auth, request, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const trx = await Database.transaction()
+
+    try {
+      const receipt = await Receipt.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('id', params.id)
+        .firstOrFail()
+
+      // ✅ SE JÁ ESTIVER CANCELADO, NÃO PERMITE UPDATE
+      if (receipt.status === 'CANCELADO') {
+        await trx.rollback()
+        return response.status(400).send({
+          message: 'Recibo cancelado não pode ser alterado.',
+        })
+      }
+
+      const payload = await request.validate(ReceiptValidator)
+      const { items, ...receiptData } = payload as any
+
+      // ✅ REGRA STATUS x DATESTAMP
+      //
+      // Se o payload estiver setando CANCELADO, deixamos como CANCELADO
+      // (para permitir o cancelamento).
+      // Caso contrário, aplicamos a regra dateStamp -> SELADO/PROTOCOLADO.
+      if (receiptData.status !== 'CANCELADO') {
+        if (receiptData.dateStamp) {
+          receiptData.status = 'SELADO'
+        } else {
+          receiptData.status = 'PROTOCOLADO'
+        }
+      }
+
+      receipt.merge({
+        ...receiptData,
+        companiesId: authenticate.companies_id,
+        userId: authenticate.id,
+      })
+
+
+      await receipt.save()
+
+      /**
+       * Se o front mandar "items", vamos substituir tudo (delete + createMany).
+       * Se NÃO mandar "items", mantém como está.
+       */
+      if (items) {
+        // valida itens contra pivot (companies + service ATUAL do receipt após merge)
+        await this.validateEmolumentsInPivot({
+          trx,
+          companiesId: authenticate.companies_id,
+          serviceId: receipt.serviceId,
+          items: items as ReceiptItemPayload[],
+        })
+
+        // apaga itens antigos
+        await receipt.related('items').query({ client: trx }).delete()
+
+        // recria itens
+        if ((items as ReceiptItemPayload[]).length) {
+          await receipt.related('items').createMany(
+            (items as ReceiptItemPayload[]).map((it) => ({
+              companiesId: authenticate.companies_id,
+              receiptId: receipt.id,
+              serviceId: receipt.serviceId,
+              emolumentId: it.emolumentId,
+              qtde: it.qtde ?? 1,
+              amount: it.amount ?? 0,
+            })),
+            { client: trx }
+          )
+        }
+      }
+
+      await trx.commit()
+
+      // retorna com preloads
+      await receipt.refresh()
+      await receipt.load('service')
+      await receipt.load('orderCertificate')
+      await receipt.load('user')
+      await receipt.load('typebook')
+      await receipt.load('items', (q) => q.preload('emolument').orderBy('id', 'asc'))
+
+      return response.status(200).send(receipt)
+    } catch (error) {
+      await trx.rollback()
+      throw error
+    }
+  }
 
 
   public async destroy({ auth, params, response }: HttpContextContract) {
