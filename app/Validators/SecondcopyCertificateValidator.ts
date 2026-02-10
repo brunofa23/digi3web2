@@ -2,7 +2,7 @@ import { schema, rules, CustomMessages } from '@ioc:Adonis/Core/Validator'
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 
 export default class SecondcopyCertificateValidator {
-  constructor(protected ctx: HttpContextContract) {}
+  constructor(protected ctx: HttpContextContract) { }
 
   public schema = schema.create({
     documenttypeId: schema.number.optional([
@@ -23,8 +23,16 @@ export default class SecondcopyCertificateValidator {
       rules.unsigned(),
       rules.exists({ table: 'people', column: 'id' }),
     ]),
+
+    typebookId: schema.number.optional([
+      rules.unsigned(),
+      rules.exists({ table: 'typebooks', column: 'id' }),
+    ]),
+
     book1: schema.number.optional([rules.unsigned()]),
     sheet1: schema.number.optional([rules.unsigned()]),
+    term1: schema.string.optional({ trim: true }, [
+      rules.maxLength(10)]),
     city1: schema.string.optional({ trim: true }, [
       rules.maxLength(255),
     ]),

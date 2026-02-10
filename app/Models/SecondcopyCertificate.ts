@@ -10,6 +10,7 @@ import {
 import Company from 'App/Models/Company'
 import Documenttype from 'App/Models/Documenttype'
 import Person from 'App/Models/Person'
+import Typebook from './Typebook'
 
 export default class SecondcopyCertificate extends BaseModel {
   public static table = 'secondcopy_certificates'
@@ -17,10 +18,10 @@ export default class SecondcopyCertificate extends BaseModel {
   @column({ isPrimary: true })
   public id: number
 
-  @column({ columnName: 'companies_id', serializeAs:'companiesId' })
+  @column({ columnName: 'companies_id', serializeAs: 'companiesId' })
   public companiesId: number
 
-  @column({ columnName: 'documenttype_id' , serializeAs:'documenttypeId'})
+  @column({ columnName: 'documenttype_id', serializeAs: 'documenttypeId' })
   public documenttypeId: number | null
 
   @column({ columnName: 'payment_method', serializeAs: 'paymentMethod' })
@@ -33,10 +34,16 @@ export default class SecondcopyCertificate extends BaseModel {
   public registered1: number | null
 
   @column()
+  public typebookId?: number | null
+
+  @column()
   public book1: number | null
 
   @column()
   public sheet1: number | null
+
+  @column()
+  public term1?: string | null
 
   @column()
   public city1: string | null
@@ -54,7 +61,7 @@ export default class SecondcopyCertificate extends BaseModel {
   public city2: string | null
 
   @column()
-  public obs:string | null
+  public obs: string | null
 
   @column()
   public inactive: boolean
@@ -77,6 +84,9 @@ export default class SecondcopyCertificate extends BaseModel {
 
   @belongsTo(() => Person, { foreignKey: 'registered2' })
   public registered2Person: BelongsTo<typeof Person>
+
+  @belongsTo(() => Typebook, { foreignKey: 'typebookId' })
+  public typebook: BelongsTo<typeof Typebook>
 
   // -----------------------
   // Timestamps
