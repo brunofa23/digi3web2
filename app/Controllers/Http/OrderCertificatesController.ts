@@ -291,6 +291,7 @@ export default class OrderCertificatesController {
         book1: secondData?.book1 ?? null,
         sheet1: secondData?.sheet1 ?? null,
         city1: secondData?.city1 ?? null,
+        term1:secondData?.term1 ?? null,
 
         registered2: registered2Id ?? null,
         book2: secondData?.book2 ?? null,
