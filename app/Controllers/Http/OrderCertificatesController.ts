@@ -279,7 +279,6 @@ export default class OrderCertificatesController {
       }
 
       secondcopy.useTransaction(trx)
-
       secondcopy.merge({
         companiesId,
         documenttypeId: secondData?.documenttypeId ?? null,
@@ -288,6 +287,7 @@ export default class OrderCertificatesController {
         applicant: applicantId,
         registered1: registered1Id,
 
+        typebookId:secondData.typebookId??null,
         book1: secondData?.book1 ?? null,
         sheet1: secondData?.sheet1 ?? null,
         city1: secondData?.city1 ?? null,
@@ -300,6 +300,8 @@ export default class OrderCertificatesController {
         obs: secondData?.obs ?? null,
         inactive: secondData?.inactive ?? null
       })
+
+      console.log("@@@@@@@@@@@@@@@@@@", secondcopy)
 
       await secondcopy.save()
 
@@ -697,6 +699,8 @@ export default class OrderCertificatesController {
 
     const body = request.body()
 
+    //console.log("!!!!!!!!!!!!!!!!!!!!!!!!",body)
+
     const bookId = this.toNumber(body.bookId ?? body.book_id)
     const certificateIdFromBody = this.toNumber(body.certificateId ?? body.certificate_id)
     const typeCertificate = this.toNumber(body.typeCertificate ?? body.type_certificate)
@@ -731,9 +735,12 @@ export default class OrderCertificatesController {
         // ✅ Atualiza 2ª via
         if (bookId === 21 && (body.secondcopyCertificate || body.secondCopyCertificate || body.secondcopyCertificate)) {
           const rawSecond = body.secondcopyCertificate ?? body.secondcopyCertificate ?? body.secondCopyCertificate
+
+
           const parsedSecond = this.parseJsonFieldOrFail(response, rawSecond, 'secondcopyCertificate')
           if (!parsedSecond) return
 
+          console.log("###############################",parsedSecond)
           // ✅ regra: o ID da secondcopy que deve ser atualizado é o certificateId do pedido (se existir)
           // ou o certificateId vindo do body; se não existir, usa parsedSecond.id
           const secondcopyId =
@@ -748,8 +755,9 @@ export default class OrderCertificatesController {
           }
 
           parsedSecond.id = secondcopyId
-
           const savedSecondcopyId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
+
+          console.log("!!!!!!!!!!!",savedSecondcopyId)
 
           // ✅ garante vínculo no pedido (se estiver vazio)
           if (!orderCertificate.certificateId) {
@@ -801,7 +809,7 @@ export default class OrderCertificatesController {
 
 
       const check = await SecondcopyCertificate.find(orderCertificate.certificateId)
-      console.log('CHECK SECOND COPY AFTER UPDATE:', check?.toJSON())
+      //console.log('CHECK SECOND COPY AFTER UPDATE:', check?.toJSON())
 
 
 
