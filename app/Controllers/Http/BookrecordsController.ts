@@ -18,6 +18,9 @@ export default class BookrecordsController {
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
+    console.log("PASSO 1...")
+
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -1689,35 +1692,35 @@ export default class BookrecordsController {
   //   }
   // }
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
-  const authenticate = await auth.use('api').authenticate()
-  const typebooks_id = Number(params.typebooks_id)
+    const authenticate = await auth.use('api').authenticate()
+    const typebooks_id = Number(params.typebooks_id)
 
-  // qs() vem como string -> normaliza tudo aqui
-  const qs = request.qs()
-  const book = Number(qs.book || 0)
-  const bookStart = Number(qs.bookStart || 0)
-  const bookEnd = Number(qs.bookEnd || 0)
-  const countSheetNotExists = qs.countSheetNotExists // mantém string (P, F, V, FV, I, PA etc)
+    // qs() vem como string -> normaliza tudo aqui
+    const qs = request.qs()
+    const book = Number(qs.book || 0)
+    const bookStart = Number(qs.bookStart || 0)
+    const bookEnd = Number(qs.bookEnd || 0)
+    const countSheetNotExists = qs.countSheetNotExists // mantém string (P, F, V, FV, I, PA etc)
 
-  const indexBook =
-    qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
-      ? Number(qs.indexBook)
-      : undefined
+    const indexBook =
+      qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
+        ? Number(qs.indexBook)
+        : undefined
 
-  try {
-    const query = Database
-      .from('bookrecords')
-      // ⬇⬇⬇ incluímos year no select básico
-      .select('book', 'indexbook', 'year')
-      .min('cod as initialCod')
-      .max('cod as finalCod')
-      .min('sheet as initialSheet')
-      .max('sheet as finalSheet')
-      .count('* as totalRows')
+    try {
+      const query = Database
+        .from('bookrecords')
+        // ⬇⬇⬇ incluímos year no select básico
+        .select('book', 'indexbook', 'year')
+        .min('cod as initialCod')
+        .max('cod as finalCod')
+        .min('sheet as initialSheet')
+        .max('sheet as finalSheet')
+        .count('* as totalRows')
 
-      // ✅ sheetInicial agora respeita o agrupamento (book + indexbook + year)
-      .select(
-        Database.raw(`
+        // ✅ sheetInicial agora respeita o agrupamento (book + indexbook + year)
+        .select(
+          Database.raw(`
           (
             SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
             FROM bookrecords bkr
@@ -1731,11 +1734,11 @@ export default class BookrecordsController {
             LIMIT 1
           ) as sheetInicial
         `)
-      )
+        )
 
-      // ✅ totalFiles também considera year no vínculo com o agrupamento
-      .select(
-        Database.raw(`
+        // ✅ totalFiles também considera year no vínculo com o agrupamento
+        .select(
+          Database.raw(`
           (
             SELECT COUNT(*)
             FROM indeximages
@@ -1752,138 +1755,138 @@ export default class BookrecordsController {
               AND indeximages.typebooks_id = ${typebooks_id}
           ) as totalFiles
         `)
-      )
-      .where('companies_id', authenticate.companies_id)
-      .andWhere('typebooks_id', typebooks_id)
-
-    if (book > 0) {
-      query.andWhere('book', book)
-    } else if (bookStart > 0 || bookEnd > 0) {
-      if (bookStart > 0) query.andWhere('book', '>=', bookStart)
-      if (bookEnd > 0) query.andWhere('book', '<=', bookEnd)
-    }
-
-    // indexBook pode ser:
-    //  - >0 : filtra indexbook
-    //  - 0  : filtra NULL
-    //  - undefined : não filtra
-    if (typeof indexBook === 'number' && indexBook > 0) query.andWhere('indexbook', indexBook)
-    else if (indexBook === 0) query.andWhereNull('indexbook')
-
-    // ❌ IMPORTANTE: não tem EXISTS aqui
-    // (para continuar trazendo mesmo sem 1V)
-    // ⬇⬇⬇ agrupando também por year
-    query.groupBy('book', 'indexbook', 'year')
-    query.orderBy('bookrecords.book')
-
-    const bookSummaryPayload = await query
-
-    //**************************************** */
-    // FUNÇÃO PARA CONTAR AS FOLHAS FALTANTES
-    // ✅ respeita o mesmo agrupamento do summary (book + indexbook + year)
-    async function verifySide(
-      bookNum: number,
-      indexbookGroup: number | null,
-      yearGroup: number | null
-    ): Promise<string> {
-      const generateSequence = (start: number, end: number): number[] =>
-        Array.from({ length: end - start + 1 }, (_, i) => start + i)
-
-      const findMissingItems = (
-        completeList: any[],
-        currentList: any[],
-        keyFn: (item: any) => string
-      ): any[] => {
-        const currentSet = new Set(currentList.map(keyFn))
-        return completeList.filter(item => !currentSet.has(keyFn(item)))
-      }
-
-      const sheetWithSideQuery = Bookrecord.query()
+        )
         .where('companies_id', authenticate.companies_id)
         .andWhere('typebooks_id', typebooks_id)
-        .andWhere('book', bookNum)
 
-      // ✅ filtra o mesmo indexbook do agrupamento
-      if (indexbookGroup === null) sheetWithSideQuery.andWhereNull('indexbook')
-      else sheetWithSideQuery.andWhere('indexbook', indexbookGroup)
-
-      // ✅ filtra também o ano do agrupamento
-      if (yearGroup === null) {
-        sheetWithSideQuery.whereNull('year')
-      } else {
-        sheetWithSideQuery.andWhere('year', yearGroup)
+      if (book > 0) {
+        query.andWhere('book', book)
+      } else if (bookStart > 0 || bookEnd > 0) {
+        if (bookStart > 0) query.andWhere('book', '>=', bookStart)
+        if (bookEnd > 0) query.andWhere('book', '<=', bookEnd)
       }
 
-      const sheetWithSide = await sheetWithSideQuery
+      // indexBook pode ser:
+      //  - >0 : filtra indexbook
+      //  - 0  : filtra NULL
+      //  - undefined : não filtra
+      if (typeof indexBook === 'number' && indexBook > 0) query.andWhere('indexbook', indexBook)
+      else if (indexBook === 0) query.andWhereNull('indexbook')
 
-      const sheetCount = sheetWithSide.map(item => ({ sheet: item.sheet, side: item.side }))
-      const maxSheet = Math.max(0, ...sheetCount.map(item => item.sheet))
+      // ❌ IMPORTANTE: não tem EXISTS aqui
+      // (para continuar trazendo mesmo sem 1V)
+      // ⬇⬇⬇ agrupando também por year
+      query.groupBy('book', 'indexbook', 'year')
+      query.orderBy('bookrecords.book')
 
-      if (!maxSheet) return ''
+      const bookSummaryPayload = await query
 
-      // P = apenas número da folha (ignora frente/verso)
-      if (countSheetNotExists === 'P') {
-        const completeSheetList = generateSequence(1, maxSheet)
-        const currentSheetSet = new Set(sheetCount.map(item => item.sheet))
-        const missingSheets = completeSheetList.filter(s => !currentSheetSet.has(s))
-        return missingSheets.join(', ')
+      //**************************************** */
+      // FUNÇÃO PARA CONTAR AS FOLHAS FALTANTES
+      // ✅ respeita o mesmo agrupamento do summary (book + indexbook + year)
+      async function verifySide(
+        bookNum: number,
+        indexbookGroup: number | null,
+        yearGroup: number | null
+      ): Promise<string> {
+        const generateSequence = (start: number, end: number): number[] =>
+          Array.from({ length: end - start + 1 }, (_, i) => start + i)
+
+        const findMissingItems = (
+          completeList: any[],
+          currentList: any[],
+          keyFn: (item: any) => string
+        ): any[] => {
+          const currentSet = new Set(currentList.map(keyFn))
+          return completeList.filter(item => !currentSet.has(keyFn(item)))
+        }
+
+        const sheetWithSideQuery = Bookrecord.query()
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('typebooks_id', typebooks_id)
+          .andWhere('book', bookNum)
+
+        // ✅ filtra o mesmo indexbook do agrupamento
+        if (indexbookGroup === null) sheetWithSideQuery.andWhereNull('indexbook')
+        else sheetWithSideQuery.andWhere('indexbook', indexbookGroup)
+
+        // ✅ filtra também o ano do agrupamento
+        if (yearGroup === null) {
+          sheetWithSideQuery.whereNull('year')
+        } else {
+          sheetWithSideQuery.andWhere('year', yearGroup)
+        }
+
+        const sheetWithSide = await sheetWithSideQuery
+
+        const sheetCount = sheetWithSide.map(item => ({ sheet: item.sheet, side: item.side }))
+        const maxSheet = Math.max(0, ...sheetCount.map(item => item.sheet))
+
+        if (!maxSheet) return ''
+
+        // P = apenas número da folha (ignora frente/verso)
+        if (countSheetNotExists === 'P') {
+          const completeSheetList = generateSequence(1, maxSheet)
+          const currentSheetSet = new Set(sheetCount.map(item => item.sheet))
+          const missingSheets = completeSheetList.filter(s => !currentSheetSet.has(s))
+          return missingSheets.join(', ')
+        }
+
+        // F/V ou ambos
+        const sides =
+          countSheetNotExists === 'V'
+            ? ['V']
+            : countSheetNotExists === 'F'
+              ? ['F']
+              : ['F', 'V']
+
+        const completeList = generateSequence(1, maxSheet).flatMap(sheet =>
+          sides.map(side => ({ sheet, side }))
+        )
+
+        const missingItems = findMissingItems(
+          completeList,
+          sheetCount,
+          item => `${item.sheet}-${item.side}`
+        )
+
+        if (countSheetNotExists === 'I') {
+          const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === 'F')
+          return oddItens.map(item => `${item.sheet}${item.side}`).join(', ')
+        }
+
+        if (countSheetNotExists === 'PA') {
+          const pairItens = missingItems.filter(item => item.sheet % 2 === 0 && item.side === 'V')
+          return pairItens.map(item => `${item.sheet}${item.side}`).join(', ')
+        }
+
+        return missingItems.map(item => `${item.sheet}${item.side}`).join(', ')
+      }
+      //************************************************************ */
+
+      // ✅ monta retorno com o campo "side" preenchido corretamente por (book+indexbook+year)
+      if (countSheetNotExists) {
+        const bookSumaryList: any[] = []
+        for (const item of bookSummaryPayload as any[]) {
+          const idx =
+            item.indexbook === null || item.indexbook === undefined
+              ? null
+              : Number(item.indexbook)
+
+          const yearGroup =
+            item.year === null || item.year === undefined ? null : Number(item.year)
+
+          item.side = await verifySide(Number(item.book), idx, yearGroup)
+          bookSumaryList.push(item)
+        }
+        return response.status(200).send(bookSumaryList)
       }
 
-      // F/V ou ambos
-      const sides =
-        countSheetNotExists === 'V'
-          ? ['V']
-          : countSheetNotExists === 'F'
-            ? ['F']
-            : ['F', 'V']
-
-      const completeList = generateSequence(1, maxSheet).flatMap(sheet =>
-        sides.map(side => ({ sheet, side }))
-      )
-
-      const missingItems = findMissingItems(
-        completeList,
-        sheetCount,
-        item => `${item.sheet}-${item.side}`
-      )
-
-      if (countSheetNotExists === 'I') {
-        const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === 'F')
-        return oddItens.map(item => `${item.sheet}${item.side}`).join(', ')
-      }
-
-      if (countSheetNotExists === 'PA') {
-        const pairItens = missingItems.filter(item => item.sheet % 2 === 0 && item.side === 'V')
-        return pairItens.map(item => `${item.sheet}${item.side}`).join(', ')
-      }
-
-      return missingItems.map(item => `${item.sheet}${item.side}`).join(', ')
+      return response.status(200).send(bookSummaryPayload)
+    } catch (error) {
+      return error
     }
-    //************************************************************ */
-
-    // ✅ monta retorno com o campo "side" preenchido corretamente por (book+indexbook+year)
-    if (countSheetNotExists) {
-      const bookSumaryList: any[] = []
-      for (const item of bookSummaryPayload as any[]) {
-        const idx =
-          item.indexbook === null || item.indexbook === undefined
-            ? null
-            : Number(item.indexbook)
-
-        const yearGroup =
-          item.year === null || item.year === undefined ? null : Number(item.year)
-
-        item.side = await verifySide(Number(item.book), idx, yearGroup)
-        bookSumaryList.push(item)
-      }
-      return response.status(200).send(bookSumaryList)
-    }
-
-    return response.status(200).send(bookSummaryPayload)
-  } catch (error) {
-    return error
   }
-}
 
 
 
