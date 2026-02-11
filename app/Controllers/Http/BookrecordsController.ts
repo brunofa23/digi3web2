@@ -17,11 +17,7 @@ export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
-    console.log("PASSO 1...")
-
-
-    const { codstart, codend,
+        const { codstart, codend,
       bookstart, bookend,
       approximateterm,
       indexbook,

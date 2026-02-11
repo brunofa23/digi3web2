@@ -3,13 +3,14 @@ import {
   BaseModel,
   column,
   belongsTo,
-  BelongsTo
+  BelongsTo,
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
 import User from 'App/Models/User'
 import Status from 'App/Models/Status'
 import Person from 'App/Models/Person'
+import Typebook from 'App/Models/Typebook' // ✅ ajuste o nome/caminho conforme seu projeto
 
 export default class MarriedCertificate extends BaseModel {
   public static table = 'married_certificates'
@@ -51,7 +52,7 @@ export default class MarriedCertificate extends BaseModel {
 
   @column({
     columnName: 'fahter_bride_person_id', // migration escrita errada
-    serializeAs: 'fatherBridePersonId',    // correto no JSON
+    serializeAs: 'fatherBridePersonId', // correto no JSON
   })
   public fahterBridePersonId: number | null
 
@@ -88,29 +89,23 @@ export default class MarriedCertificate extends BaseModel {
   })
   public statusId: number | null
 
- // === Datas principais ===
+  // === Datas principais ===
   @column.dateTime({
-  columnName: 'dthr_schedule',
-  serializeAs: 'dthrSchedule',
-  serialize: (value: DateTime | null) => {
-    if (!value) return null
-    // Garante fuso de São Paulo e formata para datetime-local (sem timezone)
-    return value.setZone('America/Sao_Paulo').toFormat("yyyy-LL-dd'T'HH:mm")
-  },
-})
-public dthrSchedule: DateTime | null
-
+    columnName: 'dthr_schedule',
+    serializeAs: 'dthrSchedule',
+    serialize: (value: DateTime | null) => {
+      if (!value) return null
+      return value.setZone('America/Sao_Paulo').toFormat("yyyy-LL-dd'T'HH:mm")
+    },
+  })
+  public dthrSchedule: DateTime | null
 
   @column.dateTime({
     columnName: 'dthr_marriage',
     serializeAs: 'dthrMarriage',
-    serialize: (value: DateTime | null) => {
-      return value ? value.toISODate() : null   // "2025-11-20"
-      // ou: value.toFormat('yyyy-LL-dd')
-    },
+    serialize: (value: DateTime | null) => (value ? value.toISODate() : null),
   })
   public dthrMarriage: DateTime | null
-
 
   // === Tipo e observação ===
   @column()
@@ -211,6 +206,55 @@ public dthrSchedule: DateTime | null
   })
   public dthrDivorceSpouse2: DateTime | null
 
+  // ✅ NOVOS CAMPOS (livro/folha/termo) + relacionamentos
+  @column({
+    columnName: 'typebook_id',
+    serializeAs: 'typebookId',
+  })
+  public typebookId: number | null
+
+  @column({
+    columnName: 'book1',
+    serializeAs: 'book1',
+  })
+  public book1: number | null
+
+  @column({
+    columnName: 'sheet1',
+    serializeAs: 'sheet1',
+  })
+  public sheet1: number | null
+
+  @column({
+    columnName: 'term1',
+    serializeAs: 'term1',
+  })
+  public term1: string | null
+
+  @column({
+    columnName: 'typebook_id2',
+    serializeAs: 'typebookId2',
+  })
+  public typebookId2: number | null
+
+  @column({
+    columnName: 'book2',
+    serializeAs: 'book2',
+  })
+  public book2: number | null
+
+  @column({
+    columnName: 'sheet2',
+    serializeAs: 'sheet2',
+  })
+  public sheet2: number | null
+
+  @column({
+    columnName: 'term2',
+    serializeAs: 'term2',
+  })
+  public term2: string | null
+
   @column()
   public inactive: boolean
 
@@ -222,7 +266,7 @@ public dthrSchedule: DateTime | null
 
   // === Relacionamentos ===
   @belongsTo(() => Company, {
-    foreignKey: 'companiesId', // propriedade do model
+    foreignKey: 'companiesId',
   })
   public company: BelongsTo<typeof Company>
 
@@ -236,24 +280,16 @@ public dthrSchedule: DateTime | null
   })
   public status: BelongsTo<typeof Status>
 
-  @belongsTo(() => Person, {
-    foreignKey: 'groomPersonId',
-  })
+  @belongsTo(() => Person, { foreignKey: 'groomPersonId' })
   public groom: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, {
-    foreignKey: 'fatherGroomPersonId',
-  })
+  @belongsTo(() => Person, { foreignKey: 'fatherGroomPersonId' })
   public fatherGroom: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, {
-    foreignKey: 'motherGroomPersonId',
-  })
+  @belongsTo(() => Person, { foreignKey: 'motherGroomPersonId' })
   public motherGroom: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, {
-    foreignKey: 'bridePersonId',
-  })
+  @belongsTo(() => Person, { foreignKey: 'bridePersonId' })
   public bride: BelongsTo<typeof Person>
 
   @belongsTo(() => Person, {
@@ -262,21 +298,25 @@ public dthrSchedule: DateTime | null
   })
   public fatherBride: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, {
-    foreignKey: 'motherBridePersonId',
-  })
+  @belongsTo(() => Person, { foreignKey: 'motherBridePersonId' })
   public motherBride: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, {
-    foreignKey: 'witnessPersonId',
-  })
+  @belongsTo(() => Person, { foreignKey: 'witnessPersonId' })
   public witness1: BelongsTo<typeof Person>
 
-  @belongsTo(() => Person, {
-    foreignKey: 'witness2PersonId',
-  })
+  @belongsTo(() => Person, { foreignKey: 'witness2PersonId' })
   public witness2: BelongsTo<typeof Person>
 
+  // ✅ NOVOS RELACIONAMENTOS COM TYPEBOOKS
+  @belongsTo(() => Typebook, {
+    foreignKey: 'typebookId',
+  })
+  public typebook1: BelongsTo<typeof Typebook>
+
+  @belongsTo(() => Typebook, {
+    foreignKey: 'typebookId2',
+  })
+  public typebook2: BelongsTo<typeof Typebook>
 
   // === Timestamps ===
   @column.dateTime({
