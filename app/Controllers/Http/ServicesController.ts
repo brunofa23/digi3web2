@@ -8,7 +8,6 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 export default class ServicesController {
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-
     try {
       const query = Service.query()
         .where('companies_id', authenticate.companies_id)
@@ -134,7 +133,7 @@ export default class ServicesController {
       return acc
     }, {})
 
-    
+
     await service.related('emoluments').sync(payload)
     return response.ok({ message: 'Emoluments vinculados ao service com sucesso.' })
   }

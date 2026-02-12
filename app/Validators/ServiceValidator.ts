@@ -8,7 +8,7 @@ export default class ServiceValidator {
     // companiesId: schema.number([rules.unsigned()]),
 
     name: schema.string({ trim: true }, [
-      rules.maxLength(50),
+      rules.maxLength(150),
     ]),
 
     description: schema.string.optional({ trim: true }, [
