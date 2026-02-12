@@ -306,7 +306,11 @@ async function sendUploadFiles(parent, folderPath, fileName, cloud_number) {
 exports.sendUploadFiles = sendUploadFiles;
 async function sendCreateFolder(folderName, cloud_number, parentId = undefined) {
     const auth = await authorize(cloud_number);
-    const id = createFolder(auth, folderName.trim(), parentId);
+    const found = await searchFile(auth, folderName.trim(), parentId);
+    if (Array.isArray(found) && found.length > 0 && found[0]?.id) {
+        return found[0].id;
+    }
+    const id = await createFolder(auth, folderName.trim(), parentId);
     return id;
 }
 exports.sendCreateFolder = sendCreateFolder;

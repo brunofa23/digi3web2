@@ -6,14 +6,22 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Documenttype_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Documenttype"));
 const DocumenttypeValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/DocumenttypeValidator"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 class DocumentTypesController {
-    async index({ auth, response }) {
+    async index({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        const querySchema = Validator_1.schema.create({
+            local: Validator_1.schema.enum.optional(['certificate', 'document']),
+        });
+        const { local } = await request.validate({ schema: querySchema });
         try {
-            const documentType = await Documenttype_1.default.query()
-                .where('companies_id', authenticate.companies_id)
-                .orderBy('name');
-            return response.status(200).send(documentType);
+            const q = Documenttype_1.default.query()
+                .where('companies_id', authenticate.companies_id);
+            if (local) {
+                q.andWhere('local', local);
+            }
+            const documentType = await q.orderBy('name');
+            return response.ok(documentType);
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 401, 'erro');

@@ -7,25 +7,31 @@ const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 class CompanyPermission {
     async handle({ auth }, next, customGuards) {
-        const authenticate = await auth.use('api').authenticate();
+        const user = await auth.use('api').authenticate();
+        let allowed = false;
         for (const guard of customGuards) {
-            if (guard === 'get' && authenticate.permission_level >= 0) {
-                await next();
+            if (guard === 'get' && user.permission_level >= 0) {
+                allowed = true;
+                break;
             }
-            else if (guard === 'post' && authenticate.superuser) {
-                await next();
+            if (guard === 'post' && user.superuser) {
+                allowed = true;
+                break;
             }
-            else if (guard === 'patch' && authenticate.superuser) {
-                await next();
+            if (guard === 'patch' && user.superuser) {
+                allowed = true;
+                break;
             }
-            else if (guard === 'destroy' && authenticate.superuser) {
-                await next();
-            }
-            else {
-                let errorValidation = await new validations_1.default('error_10');
-                throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+            if (guard === 'destroy' && user.superuser) {
+                allowed = true;
+                break;
             }
         }
+        if (!allowed) {
+            let errorValidation = await new validations_1.default('error_10');
+            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        }
+        await next();
     }
 }
 exports.default = CompanyPermission;

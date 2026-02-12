@@ -17,6 +17,7 @@ const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Bookrecord_1 = __importDefault(require("./Bookrecord"));
 const Documenttype_1 = __importDefault(require("./Documenttype"));
 const DocumentTypeBook_1 = __importDefault(require("./DocumentTypeBook"));
+const Entity_1 = __importDefault(require("./Entity"));
 class Document extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -99,6 +100,12 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], Document.prototype, "documenttypebook", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => Entity_1.default, {
+        foreignKey: 'fin_entities_id',
+    }),
+    __metadata("design:type", Object)
+], Document.prototype, "entity", void 0);
 __decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)

@@ -12,6 +12,7 @@ const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Comp
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
+const sharp_1 = __importDefault(require("sharp"));
 const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
@@ -102,19 +103,22 @@ class IndeximagesController {
         });
         const { dataImages } = request['requestBody'];
         const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData'];
-        console.log("passo 4>>");
+        const landscape = !!(dataImages?.landscape === true ||
+            dataImages?.landscape === 'true' ||
+            dataImages?.landscape === 1 ||
+            dataImages?.landscape === '1');
         if (indexImagesInitial == 'true') {
             const listFilesImages = images.map((image) => {
                 const imageName = image.clientName;
                 return imageName;
             });
-            const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages);
+            const listFiles = await FileRename.indeximagesinitial('', authenticate.companies_id, company?.cloud, listFilesImages);
             for (const item of listFiles.bookRecord) {
                 try {
                     await Bookrecord_1.default.create(item);
                 }
                 catch (error) {
-                    console.log("ERRO BOOKRECORD::", error);
+                    console.log('ERRO BOOKRECORD::', error);
                 }
             }
         }
@@ -129,23 +133,31 @@ class IndeximagesController {
                 query.andWhere('sheet', dataImages.sheet);
             if (dataImages.indexBook)
                 query.andWhere('indexbook', dataImages.indexBook);
+            if (dataImages.approximateTerm) {
+                query.andWhere('approximate_term', dataImages.approximateTerm);
+            }
             const bookRecord = await query.first();
             if (!bookRecord || dataImages.sheet == 0) {
-                const books_id = await Typebook_1.default.query().where('id', params.typebooks_id)
-                    .andWhere('companies_id', authenticate.companies_id).first();
+                const books_id = await Typebook_1.default.query()
+                    .where('id', params.typebooks_id)
+                    .andWhere('companies_id', authenticate.companies_id)
+                    .first();
                 const codBookrecord = await Bookrecord_1.default.query()
                     .where('typebooks_id', params.typebooks_id)
                     .andWhere('companies_id', authenticate.companies_id)
-                    .max('cod as max_cod').firstOrFail();
+                    .max('cod as max_cod')
+                    .firstOrFail();
                 if (dataImages.sheet == 0 && books_id) {
                     const book = await Bookrecord_1.default.create({
                         typebooks_id: params.typebooks_id,
                         companies_id: authenticate.companies_id,
-                        cod: (codBookrecord?.$extras.max_cod + 1),
+                        cod: codBookrecord?.$extras.max_cod + 1,
                         books_id: books_id.books_id,
                         book: dataImages.book,
                         sheet: dataImages.sheet,
                         indexbook: dataImages.indexBook,
+                        approximate_term: dataImages.approximateTerm,
+                        letter: dataImages.letter,
                     });
                     dataImages.id = book.id;
                 }
@@ -153,12 +165,14 @@ class IndeximagesController {
                     const book = await Bookrecord_1.default.create({
                         typebooks_id: params.typebooks_id,
                         companies_id: authenticate.companies_id,
-                        cod: (codBookrecord?.$extras.max_cod + 1),
+                        cod: codBookrecord?.$extras.max_cod + 1,
                         books_id: books_id.books_id,
                         book: dataImages.book,
                         sheet: dataImages.sheet,
                         side: dataImages.side,
-                        indexbook: dataImages.indexBook
+                        indexbook: dataImages.indexBook,
+                        approximate_term: dataImages.approximateTerm,
+                        letter: dataImages.letter,
                     });
                     dataImages.id = book.id;
                 }
@@ -168,7 +182,8 @@ class IndeximagesController {
             const verifyExistBookrecord = await Bookrecord_1.default.query()
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('cod', dataImages.cod)
-                .andWhere('typebooks_id', params.typebooks_id).first();
+                .andWhere('typebooks_id', params.typebooks_id)
+                .first();
             if (verifyExistBookrecord) {
                 dataImages.id = verifyExistBookrecord.id;
             }
@@ -181,7 +196,7 @@ class IndeximagesController {
                         cod: dataImages.cod,
                         book: dataImages.book,
                         side: dataImages.side,
-                        books_id: 13
+                        books_id: 13,
                     }, trx);
                     const document = await Document_1.default.create({
                         bookrecords_id: bookRecord.id,
@@ -190,12 +205,13 @@ class IndeximagesController {
                         companies_id: authenticate.companies_id,
                         prot: dataImages.prot,
                         documenttype_id: dataImages.documenttype_id,
+                        document_type_book_id: dataImages.document_type_book_id,
                         book_name: dataImages.book_name,
                         book_number: dataImages.book_number,
                         sheet_number: dataImages.sheet_number,
                         free: dataImages.free ? 1 : 0,
                         averb_anot: dataImages.averb_anot ? 1 : 0,
-                        obs: dataImages.obs
+                        obs: dataImages.obs,
                     }, trx);
                     dataImages.id = bookRecord.id;
                     await trx.commit();
@@ -206,8 +222,33 @@ class IndeximagesController {
                 }
             }
         }
+        if (landscape) {
+            for (const image of images) {
+                const ext = (image.extname || '').toLowerCase();
+                if (!['jpg', 'jpeg', 'png', 'jfif'].includes(ext))
+                    continue;
+                if (!image.tmpPath)
+                    continue;
+                try {
+                    const inputPath = image.tmpPath;
+                    const tempOutputPath = `${inputPath}_landscape`;
+                    const imgSharp = (0, sharp_1.default)(inputPath);
+                    const metadata = await imgSharp.metadata();
+                    if (metadata.width && metadata.height && metadata.height > metadata.width) {
+                        await imgSharp.rotate(-90).toFile(tempOutputPath);
+                        await fs.promises.rename(tempOutputPath, inputPath);
+                    }
+                    else {
+                        console.log(`Imagem ${image.clientName} já está em paisagem ou sem metadados de dimensão.`);
+                    }
+                }
+                catch (err) {
+                    console.error('Erro ao rotacionar imagem para paisagem:', err);
+                }
+            }
+        }
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
-        return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" });
+        return response.status(201).send({ files, message: 'Arquivo Salvo com sucesso!!!' });
     }
     async uploadCapture({ auth, request, params }) {
         const authenticate = await auth.use('api').authenticate();

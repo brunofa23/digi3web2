@@ -8,28 +8,26 @@ const path_1 = __importDefault(require("path"));
 const child_process_1 = require("child_process");
 const fs_1 = __importDefault(require("fs"));
 function processImage(inputPath) {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
         try {
-            console.log("passo 1##");
-            if (!fs_1.default.existsSync(inputPath)) {
-                console.log("passo 1.1##");
+            try {
+                await fs_1.default.promises.access(inputPath, fs_1.default.constants.F_OK);
+            }
+            catch {
                 return reject(new Error(`Arquivo não encontrado: ${inputPath}`));
             }
-            console.log("passo 1.2##");
             const script = path_1.default.resolve(__dirname, './process_image.py');
-            console.log("passo 1.2-2##", script);
-            if (!fs_1.default.existsSync(script)) {
-                console.log("passo 1.3##");
+            try {
+                await fs_1.default.promises.access(script, fs_1.default.constants.F_OK);
+            }
+            catch {
                 return reject(new Error(`Script Python não encontrado: ${script}`));
             }
-            console.log("passo 2##");
             const { dir, name, ext } = path_1.default.parse(inputPath);
             const outputPath = path_1.default.join(dir, `${name}c${ext}`);
-            console.log("passo 3##");
             const proc = (0, child_process_1.spawn)('python3', [script, inputPath, outputPath], {
                 stdio: ['ignore', 'pipe', 'pipe']
             });
-            console.log("passo 4##");
             let out = '';
             let err = '';
             proc.stdout.on('data', (d) => (out += d.toString()));
@@ -39,7 +37,6 @@ function processImage(inputPath) {
             });
             proc.on('close', (code) => {
                 if (code === 0) {
-                    console.log("Processamento concluído com sucesso.");
                     return resolve(out.trim() || outputPath);
                 }
                 reject(new Error(err || `process_image.py saiu com código ${code}`));

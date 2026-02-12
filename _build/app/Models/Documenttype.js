@@ -18,6 +18,7 @@ class Documenttype extends Orm_1.BaseModel {
             'companies_id',
             'name',
             'description',
+            'local',
             'status',
         ];
     }
@@ -38,6 +39,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Documenttype.prototype, "description", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], Documenttype.prototype, "local", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)

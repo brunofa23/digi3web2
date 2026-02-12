@@ -85,8 +85,9 @@ class TypebooksController {
             if (typebookPayload.isDocument) {
                 if (typebookPayload.isDocument == "true")
                     queryData.where('books_id', 13);
-                if (typebookPayload.isDocument == "false")
+                if (typebookPayload.isDocument == "false") {
                     queryData.whereNotIn('books_id', [13]);
+                }
             }
             queryData.orderBy('name');
             data = await queryData;

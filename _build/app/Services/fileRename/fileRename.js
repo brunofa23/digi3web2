@@ -13,8 +13,10 @@ const ErrorlogImage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Model
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const pino_std_serializers_1 = require("pino-std-serializers");
 const luxon_1 = require("luxon");
+const fs_1 = require("fs");
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const PdfOptimizer_1 = __importDefault(require("../imageProcessing/PdfOptimizer"));
+const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const fs = require('fs');
 const path = require('path');
 function sleep(ms) {
@@ -37,49 +39,63 @@ async function deleteImage(folderPath) {
 }
 async function downloadImage(fileName, typebook_id, company_id, cloud_number) {
     const directoryParent = await Typebook_1.default.query()
-        .where('id', '=', typebook_id)
-        .andWhere('companies_id', '=', company_id).first();
-    const parent = await (0, googledrive_1.sendSearchFile)(directoryParent?.path, cloud_number);
+        .where('id', typebook_id)
+        .andWhere('companies_id', company_id)
+        .first();
+    if (!directoryParent) {
+        throw new Error(`Typebook ${typebook_id} não encontrado para empresa ${company_id}`);
+    }
+    const parent = await (0, googledrive_1.sendSearchFile)(directoryParent.path, cloud_number);
+    if (!parent?.length) {
+        throw new Error(`Pasta ${directoryParent.path} não encontrada na nuvem`);
+    }
     const extension = path.extname(fileName);
     const fileId = await (0, googledrive_1.sendSearchFile)(fileName, cloud_number, parent[0].id);
+    if (!fileId?.length) {
+        throw new Error(`Arquivo ${fileName} não encontrado na pasta ${directoryParent.path}`);
+    }
     const download = await (0, googledrive_1.sendDownloadFile)(fileId[0].id, extension, cloud_number);
     return download;
 }
 exports.downloadImage = downloadImage;
+async function ensureDriveFolder(path, cloud_number, companies_id) {
+    const found = await (0, googledrive_1.sendSearchFile)(path, cloud_number);
+    if (found && found[0]?.id)
+        return found[0].id;
+    const company = await Company_1.default.findByOrFail('id', companies_id);
+    const roots = await (0, googledrive_1.sendSearchFile)(company.foldername, cloud_number);
+    const parentCompanyId = roots?.[0]?.id;
+    if (!parentCompanyId) {
+        throw new BadRequestException_1.default('company root folder not found in Google Drive', 404);
+    }
+    const created = await (0, googledrive_1.sendCreateFolder)(path, cloud_number, parentCompanyId);
+    const createdId = created?.id ?? created?.[0]?.id;
+    if (!createdId) {
+        throw new BadRequestException_1.default('failed to create folder on Google Drive', 500);
+    }
+    return createdId;
+}
 async function transformFilesNameToId(images, params, companies_id, cloud_number, capture = false, dataImages = {}) {
-    const _companies_id = companies_id;
-    let result = [];
-    const uploadsBasePath = Application_1.default.tmpPath('uploads');
-    const folderPath = Application_1.default.tmpPath(`/uploads/Client_${companies_id}`);
     try {
-        if (!fs.existsSync(uploadsBasePath)) {
-            fs.mkdirSync(uploadsBasePath);
-        }
-        if (!fs.existsSync(folderPath)) {
-            fs.mkdirSync(folderPath);
-        }
+        const uploadsBasePath = Application_1.default.tmpPath('uploads');
+        const folderPath = Application_1.default.tmpPath(`/uploads/Client_${companies_id}`);
+        await fs_1.promises.mkdir(uploadsBasePath, { recursive: true });
+        await fs_1.promises.mkdir(folderPath, { recursive: true });
     }
     catch (error) {
         throw new BadRequestException_1.default('could not create client directory', 409, error);
     }
     const directoryParent = await Typebook_1.default.query()
-        .where('id', '=', params.typebooks_id)
-        .andWhere('companies_id', '=', companies_id).first();
-    if (!directoryParent || directoryParent == undefined)
+        .where('id', params.typebooks_id)
+        .andWhere('companies_id', companies_id)
+        .first();
+    if (!directoryParent)
         throw new BadRequestException_1.default('undefined book', 409);
-    let parent = await (0, googledrive_1.sendSearchFile)(directoryParent?.path, cloud_number);
-    if (parent.length == 0) {
-        const company = await Company_1.default.findByOrFail('id', _companies_id);
-        const idFolderCompany = await (0, googledrive_1.sendSearchFile)(company.foldername, cloud_number);
-        await (0, googledrive_1.sendCreateFolder)(directoryParent?.path, cloud_number, idFolderCompany[0].id);
-        await sleep(2000);
-    }
-    await sleep(1000);
-    const idParent = await (0, googledrive_1.sendSearchFile)(directoryParent?.path, cloud_number);
+    const parentId = await ensureDriveFolder(directoryParent.path, cloud_number, companies_id);
     if (capture) {
         const _fileRename = await fileRename(images, params.typebooks_id, companies_id);
         try {
-            await pushImageToGoogle(images, folderPath, _fileRename, idParent[0].id, cloud_number, true);
+            await pushImageToGoogle(images, Application_1.default.tmpPath(`/uploads/Client_${companies_id}`), _fileRename, parentId, cloud_number, true);
             return images;
         }
         catch (error) {
@@ -87,28 +103,23 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
             return error;
         }
     }
-    let cont = 0;
-    let _fileRename;
-    for (let image of images) {
-        cont++;
-        if (cont >= 6) {
-            await sleep(4000);
-            cont = 0;
-        }
-        if (!image) {
-            console.log("não é imagem");
-        }
+    const result = [];
+    for (const image of images) {
+        if (!image)
+            continue;
         if (!image.isValid) {
             console.log("Error", image.errors);
+            continue;
         }
-        _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
+        const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
         try {
-            if (image && image.isValid) {
-                result.push(await pushImageToGoogle(image, folderPath, _fileRename, idParent[0].id, cloud_number));
-            }
+            const r = await pushImageToGoogle(image, Application_1.default.tmpPath(`/uploads/Client_${companies_id}`), _fileRename, parentId, cloud_number);
+            result.push(r);
         }
         catch (error) {
             await new BadRequestException_1.default(error + 'pushImageToGoogle', 409);
+        }
+        finally {
         }
     }
     return result;
@@ -136,7 +147,6 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
             });
         }
         else {
-            console.log(">>>>", image.type);
             const newPath = path.join(folderPath, objfileRename.file_name);
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
             if (image.subtype.toLowerCase() === 'pdf') {
@@ -172,7 +182,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     const regexBookAndCod = /^L\d+\(\d+\).*$/;
     const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
     const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
-    const regexDocumentAndProt = /^P\d+\(\d+\).*$/;
+    const regexDocumentAndProt = /^P(\d+)\((\d+)\)(.*?)(?:\.[^.]+)?$/i;
     const regexBookSheetSideInsertBookrecord = /^l(\d+)f\((\d+)\)([vf])(\d)?[^.]*\.(\w+)$/i;
     const regexBookCoverInsertBookrecord = /^L([1-9]\d*)C\(([1-9]\d*)\)([a-zA-Z]*)\.(.+)$/i;
     const query = Bookrecord_1.default.query()
@@ -292,16 +302,20 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             break;
         }
         case regexDocumentAndProt.test(originalFileName.toUpperCase()): {
-            const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
-            objFileName = {
-                book: arrayFileName[0],
-                prot: arrayFileName[1],
-                ext: `.${arrayFileName[3]}`
-            };
+            const match = originalFileName.match(regexDocumentAndProt);
+            if (match) {
+                objFileName = {
+                    book: match[1],
+                    prot: match[2],
+                    obs: match[3]?.trim() || null,
+                    ext: path.extname(originalFileName).toLowerCase(),
+                };
+            }
             query.andWhere('book', objFileName.book);
             query.whereHas('document', q => {
                 q.where('documents.prot', objFileName.prot);
             });
+            isCreateBookrecord = true;
             break;
         }
         default: {
@@ -337,7 +351,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                         .andWhere('companies_id', companies_id)
                         .max('cod as max_cod');
                     const bookRecordFind = await query2.first();
-                    const { ext, ...objFileNameWithoutExt } = objFileName;
+                    const { ext, prot, obs, ...objFileNameWithoutExt } = objFileName;
                     const objectInsert = {
                         books_id: book.books_id,
                         typebooks_id: typebooks_id,
@@ -346,6 +360,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                         ...objFileNameWithoutExt
                     };
                     bookRecord = await Bookrecord_1.default.create(objectInsert);
+                    await Document_1.default.create({
+                        bookrecords_id: bookRecord.id,
+                        typebooks_id: bookRecord.typebooks_id,
+                        books_id: bookRecord.books_id,
+                        companies_id: bookRecord.companies_id,
+                        prot: prot == 0 ? null : prot,
+                        obs
+                    });
                     seq = 1;
                 }
                 catch (error) {

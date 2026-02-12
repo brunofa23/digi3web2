@@ -12,6 +12,7 @@ class DocumenttypeValidator {
             description: Validator_1.schema.string.optional({}, [
                 Validator_1.rules.maxLength(255),
             ]),
+            local: Validator_1.schema.enum.optional(['certificate', 'document']),
             status: Validator_1.schema.boolean.optional(),
         });
         this.messages = {
