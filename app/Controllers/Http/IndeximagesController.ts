@@ -256,19 +256,49 @@ export default class IndeximagesController {
   //   return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
 
   // }
+
   public async uploads({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
 
+    // Arquivos sempre vêm por multipart
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
     })
 
-    const { dataImages } = request['requestBody']
-    const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData']
+    /**
+     * ✅ PADRÃO NOVO:
+     * - dataImages vem em multipart como string JSON em request.input('dataImages')
+     * ✅ COMPATIBILIDADE:
+     * - se ainda vier do legado (request['requestBody']), ainda aceita
+     */
+    let dataImagesRaw: any = request.input('dataImages')
 
-    // 🔹 Lê o flag de paisagem que veio do front (pode ser true/false, "true"/"false")
+    // fallback legado (caso Vue antigo ainda mande via interceptor custom)
+    if (!dataImagesRaw) {
+      dataImagesRaw = request?.['requestBody']?.dataImages
+    }
+
+    let dataImages: any = {}
+    if (dataImagesRaw) {
+      try {
+        dataImages = typeof dataImagesRaw === 'string' ? JSON.parse(dataImagesRaw) : dataImagesRaw
+      } catch (err) {
+        // se não for JSON, não quebra
+        dataImages = dataImagesRaw
+      }
+    }
+
+    /**
+     * ✅ Flags padronizadas: via querystring (mantém teu padrão atual)
+     * Ex: ?updateImage=true
+     */
+    const indexImagesInitial = request.input('indexImagesInitial') === 'true'
+    const updateImage = request.input('updateImage') === 'true'
+    const updateImageDocument = request.input('updateImageDocument') === 'true'
+
+    // 🔹 Flag de paisagem (pode vir boolean/number/string dentro de dataImages)
     const landscape = !!(
       dataImages?.landscape === true ||
       dataImages?.landscape === 'true' ||
@@ -276,19 +306,16 @@ export default class IndeximagesController {
       dataImages?.landscape === '1'
     )
 
-    //console.log("LANDSCAPE:", landscape)
-    //Através do nome da imagem é recriado o registro no bookrecord
-    if (indexImagesInitial == 'true') {
-      const listFilesImages = images.map((image) => {
-        const imageName = image.clientName
-        return imageName
-      })
+    // Através do nome da imagem é recriado o registro no bookrecord
+    if (indexImagesInitial) {
+      const listFilesImages = images.map((image) => image.clientName)
       const listFiles = await FileRename.indeximagesinitial(
         '',
         authenticate.companies_id,
         company?.cloud,
         listFilesImages
       )
+
       for (const item of listFiles.bookRecord) {
         try {
           await Bookrecord.create(item)
@@ -298,16 +325,24 @@ export default class IndeximagesController {
       }
     }
 
-    //ATUALIZAÇÃO DE LIVROS
+    // ATUALIZAÇÃO DE LIVROS
     if (updateImage) {
+      // ✅ evita 500 do ".where expects value to be defined"
+      if (dataImages?.book === undefined || dataImages?.book === null || dataImages?.book === '') {
+        return response.status(422).send({ message: 'Campo "book" é obrigatório em dataImages.' })
+      }
+
       const query = Bookrecord.query()
         .where('typebooks_id', params.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
         .andWhere('book', dataImages.book)
 
       if (dataImages.side) query.andWhere('side', dataImages.side)
-      if (dataImages.sheet) query.andWhere('sheet', dataImages.sheet)
+      if (dataImages.sheet !== undefined && dataImages.sheet !== null && dataImages.sheet !== '')
+        query.andWhere('sheet', dataImages.sheet)
+
       if (dataImages.indexBook) query.andWhere('indexbook', dataImages.indexBook)
+
       if (dataImages.approximateTerm) {
         query.andWhere('approximate_term', dataImages.approximateTerm)
       }
@@ -357,16 +392,21 @@ export default class IndeximagesController {
         }
       }
     } else if (updateImageDocument) {
-      //ATUALIZAÇÃO DE DOCUMENTOS
+      // ATUALIZAÇÃO DE DOCUMENTOS
 
-      //SEMPRE CRIAR UM NOVO REGISTRO
+      // ✅ evita 500 se cod vier vazio
+      if (dataImages?.cod === undefined || dataImages?.cod === null || dataImages?.cod === '') {
+        return response.status(422).send({ message: 'Campo "cod" é obrigatório em dataImages.' })
+      }
+
+      // SEMPRE CRIAR UM NOVO REGISTRO
       const verifyExistBookrecord = await Bookrecord.query()
         .where('companies_id', authenticate.companies_id)
         .andWhere('cod', dataImages.cod)
         .andWhere('typebooks_id', params.typebooks_id)
         .first()
 
-      //SE EXISTIR CODIGO E LIVRO DE DOCUMENTO INCLUI IMAGEM NO MESMO REGISTRO
+      // SE EXISTIR CODIGO E LIVRO DE DOCUMENTO INCLUI IMAGEM NO MESMO REGISTRO
       if (verifyExistBookrecord) {
         dataImages.id = verifyExistBookrecord.id
       } else {
@@ -384,7 +424,7 @@ export default class IndeximagesController {
             trx
           )
 
-          const document = await Document.create(
+          await Document.create(
             {
               bookrecords_id: bookRecord.id,
               books_id: 13,
@@ -412,15 +452,11 @@ export default class IndeximagesController {
       }
     }
 
-    // 🔹 AQUI ENTRA O TRATAMENTO DE PAISAGEM COM SHARP
+    // 🔹 TRATAMENTO DE PAISAGEM COM SHARP
     if (landscape) {
-      //console.log('✅ Opção Foto em Paisagem ativada — processando imagens com sharp...')
       for (const image of images) {
-        // só processa imagens (ignora pdf, etc.)
         const ext = (image.extname || '').toLowerCase()
         if (!['jpg', 'jpeg', 'png', 'jfif'].includes(ext)) continue
-
-        // `tmpPath` é o caminho temporário onde Adonis guarda o arquivo
         if (!image.tmpPath) continue
 
         try {
@@ -430,21 +466,9 @@ export default class IndeximagesController {
           const imgSharp = sharp(inputPath)
           const metadata = await imgSharp.metadata()
 
-          // Se estiver mais "alta" que "larga", gira 90° pra deitar
           if (metadata.width && metadata.height && metadata.height > metadata.width) {
             await imgSharp.rotate(-90).toFile(tempOutputPath)
-
-            // substitui o arquivo original pelo rotacionado
             await fs.promises.rename(tempOutputPath, inputPath)
-
-            // console.log(
-            //   `Imagem ${image.clientName} rotacionada para paisagem. (${metadata.width}x${metadata.height})`
-            // )
-          } else {
-            // já está deitada ou sem metadados confiáveis
-            console.log(
-              `Imagem ${image.clientName} já está em paisagem ou sem metadados de dimensão.`
-            )
           }
         } catch (err) {
           console.error('Erro ao rotacionar imagem para paisagem:', err)
@@ -452,7 +476,6 @@ export default class IndeximagesController {
       }
     }
 
-    // console.time('teste')
     const files = await FileRename.transformFilesNameToId(
       images,
       params,
@@ -462,9 +485,10 @@ export default class IndeximagesController {
       dataImages
     )
 
-    //console.log('UPLOAD PASSO 9')
     return response.status(201).send({ files, message: 'Arquivo Salvo com sucesso!!!' })
   }
+
+
 
 
   public async uploadCapture({ auth, request, params }) {
