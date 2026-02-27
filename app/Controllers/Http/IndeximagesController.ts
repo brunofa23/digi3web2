@@ -258,6 +258,7 @@ export default class IndeximagesController {
   // }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
+    console.log("passo 1....")
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
 
@@ -424,6 +425,12 @@ export default class IndeximagesController {
             trx
           )
 
+          const normalizeIntOrNull = (value: any) => {
+            if (value === undefined || value === null || value === '') return null
+            return Number(value)
+          }
+
+
           await Document.create(
             {
               bookrecords_id: bookRecord.id,
@@ -431,8 +438,8 @@ export default class IndeximagesController {
               typebooks_id: params.typebooks_id,
               companies_id: authenticate.companies_id,
               prot: dataImages.prot,
-              documenttype_id: dataImages.documenttype_id,
-              document_type_book_id: dataImages.document_type_book_id,
+              documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
+              document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
               book_name: dataImages.book_name,
               book_number: dataImages.book_number,
               sheet_number: dataImages.sheet_number,
