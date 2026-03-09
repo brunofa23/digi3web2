@@ -501,9 +501,6 @@ export default class BookrecordsController {
   }
 
 
-
-
-
   public async destroy({ auth, params, response }: HttpContextContract) {
     const { companies_id } = await auth.use('api').authenticate()
     try {
