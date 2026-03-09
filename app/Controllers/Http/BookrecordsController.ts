@@ -17,7 +17,7 @@ export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-        const { codstart, codend,
+    const { codstart, codend,
       bookstart, bookend,
       approximateterm,
       indexbook,
@@ -1514,7 +1514,6 @@ export default class BookrecordsController {
   // public async bookSummary({ auth, params, request, response }: HttpContextContract) {
   //   const authenticate = await auth.use('api').authenticate()
   //   const typebooks_id = Number(params.typebooks_id)
-
   //   // qs() vem como string -> normaliza tudo aqui
   //   const qs = request.qs()
   //   const book = Number(qs.book || 0)
@@ -1527,19 +1526,27 @@ export default class BookrecordsController {
   //       ? Number(qs.indexBook)
   //       : undefined
 
+  //   console.log("passei qui bookSummary;;;;;;;;;;;;;;;;",
+  //     "typebookid:", typebooks_id,
+  //     "book", book,
+  //     "bookStart", bookStart,
+  //     "bookEnd", bookEnd,
+  //     "countSheetNotExists", countSheetNotExists,
+  //     "indexbook", indexBook
+  //   )
+
   //   try {
   //     const query = Database
   //       .from('bookrecords')
-  //       .select('book', 'indexbook')
+  //       // ⬇⬇⬇ incluímos year no select básico
+  //       .select('book', 'indexbook', 'year')
   //       .min('cod as initialCod')
   //       .max('cod as finalCod')
   //       .min('sheet as initialSheet')
   //       .max('sheet as finalSheet')
   //       .count('* as totalRows')
 
-  //       // ✅ sheetInicial agora respeita o agrupamento (book + indexbook)
-  //       // - se existir 1V nesse grupo, retorna "1V"
-  //       // - se não existir, retorna NULL (e o grupo continua aparecendo)
+  //       // ✅ sheetInicial agora respeita o agrupamento (book + indexbook + year)
   //       .select(
   //         Database.raw(`
   //         (
@@ -1548,6 +1555,7 @@ export default class BookrecordsController {
   //           WHERE bkr.companies_id = bookrecords.companies_id
   //             AND bkr.typebooks_id = bookrecords.typebooks_id
   //             AND bkr.book = bookrecords.book
+  //             AND bkr.year = bookrecords.year
   //             AND bkr.side = 'V'
   //             AND bkr.sheet = 1
   //             AND (IFNULL(bkr.indexbook, 999999) = IFNULL(bookrecords.indexbook, 999999))
@@ -1556,22 +1564,23 @@ export default class BookrecordsController {
   //       `)
   //       )
 
+  //       // ✅ totalFiles também considera year no vínculo com o agrupamento
   //       .select(
   //         Database.raw(`
   //         (
   //           SELECT COUNT(*)
   //           FROM indeximages
   //           INNER JOIN bookrecords bkr ON
-  //             (indeximages.bookrecords_id = bkr.id AND
-  //              indeximages.companies_id = bkr.companies_id AND
-  //              indeximages.typebooks_id = bkr.typebooks_id)
+  //             indeximages.bookrecords_id = bkr.id
+  //             AND indeximages.companies_id = bkr.companies_id
+  //             AND indeximages.typebooks_id = bkr.typebooks_id
   //           WHERE bkr.companies_id = bookrecords.companies_id
   //             AND bkr.typebooks_id = bookrecords.typebooks_id
   //             AND bkr.book = bookrecords.book
+  //             AND bkr.year = bookrecords.year
   //             AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
   //             AND indeximages.companies_id = ${authenticate.companies_id}
   //             AND indeximages.typebooks_id = ${typebooks_id}
-  //           GROUP BY bkr.book, bkr.indexbook
   //         ) as totalFiles
   //       `)
   //       )
@@ -1594,15 +1603,20 @@ export default class BookrecordsController {
 
   //     // ❌ IMPORTANTE: não tem EXISTS aqui
   //     // (para continuar trazendo mesmo sem 1V)
-  //     query.groupBy('book', 'indexbook')
+  //     // ⬇⬇⬇ agrupando também por year
+  //     query.groupBy('book', 'indexbook', 'year')
   //     query.orderBy('bookrecords.book')
 
   //     const bookSummaryPayload = await query
 
   //     //**************************************** */
   //     // FUNÇÃO PARA CONTAR AS FOLHAS FALTANTES
-  //     // ✅ respeita o mesmo agrupamento do summary (book + indexbook)
-  //     async function verifySide(bookNum: number, indexbookGroup: number | null): Promise<string> {
+  //     // ✅ respeita o mesmo agrupamento do summary (book + indexbook + year)
+  //     async function verifySide(
+  //       bookNum: number,
+  //       indexbookGroup: number | null,
+  //       yearGroup: number | null
+  //     ): Promise<string> {
   //       const generateSequence = (start: number, end: number): number[] =>
   //         Array.from({ length: end - start + 1 }, (_, i) => start + i)
 
@@ -1623,6 +1637,13 @@ export default class BookrecordsController {
   //       // ✅ filtra o mesmo indexbook do agrupamento
   //       if (indexbookGroup === null) sheetWithSideQuery.andWhereNull('indexbook')
   //       else sheetWithSideQuery.andWhere('indexbook', indexbookGroup)
+
+  //       // ✅ filtra também o ano do agrupamento
+  //       if (yearGroup === null) {
+  //         sheetWithSideQuery.whereNull('year')
+  //       } else {
+  //         sheetWithSideQuery.andWhere('year', yearGroup)
+  //       }
 
   //       const sheetWithSide = await sheetWithSideQuery
 
@@ -1671,16 +1692,25 @@ export default class BookrecordsController {
   //     }
   //     //************************************************************ */
 
-  //     // ✅ monta retorno com o campo "side" preenchido corretamente por (book+indexbook)
+  //     // ✅ monta retorno com o campo "side" preenchido corretamente por (book+indexbook+year)
   //     if (countSheetNotExists) {
   //       const bookSumaryList: any[] = []
   //       for (const item of bookSummaryPayload as any[]) {
-  //         const idx = item.indexbook === null || item.indexbook === undefined ? null : Number(item.indexbook)
-  //         item.side = await verifySide(Number(item.book), idx)
+  //         const idx =
+  //           item.indexbook === null || item.indexbook === undefined
+  //             ? null
+  //             : Number(item.indexbook)
+
+  //         const yearGroup =
+  //           item.year === null || item.year === undefined ? null : Number(item.year)
+
+  //         item.side = await verifySide(Number(item.book), idx, yearGroup)
   //         bookSumaryList.push(item)
   //       }
   //       return response.status(200).send(bookSumaryList)
   //     }
+
+  //     console.log("PASSO 1111>>", bookSummaryPayload)
 
   //     return response.status(200).send(bookSummaryPayload)
   //   } catch (error) {
@@ -1690,7 +1720,6 @@ export default class BookrecordsController {
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = Number(params.typebooks_id)
-
     // qs() vem como string -> normaliza tudo aqui
     const qs = request.qs()
     const book = Number(qs.book || 0)
@@ -1706,7 +1735,6 @@ export default class BookrecordsController {
     try {
       const query = Database
         .from('bookrecords')
-        // ⬇⬇⬇ incluímos year no select básico
         .select('book', 'indexbook', 'year')
         .min('cod as initialCod')
         .max('cod as finalCod')
@@ -1714,20 +1742,55 @@ export default class BookrecordsController {
         .max('sheet as finalSheet')
         .count('* as totalRows')
 
-        // ✅ sheetInicial agora respeita o agrupamento (book + indexbook + year)
+        // ✅ sheetInicial:
+        // 1) tenta book + indexbook + year
+        // 2) se não achar, tenta book + indexbook
+        // 3) se não achar, tenta somente book
         .select(
           Database.raw(`
-          (
-            SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
-            FROM bookrecords bkr
-            WHERE bkr.companies_id = bookrecords.companies_id
-              AND bkr.typebooks_id = bookrecords.typebooks_id
-              AND bkr.book = bookrecords.book
-              AND bkr.year = bookrecords.year
-              AND bkr.side = 'V'
-              AND bkr.sheet = 1
-              AND (IFNULL(bkr.indexbook, 999999) = IFNULL(bookrecords.indexbook, 999999))
-            LIMIT 1
+          COALESCE(
+            (
+              SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+              FROM bookrecords bkr
+              WHERE bkr.companies_id = bookrecords.companies_id
+                AND bkr.typebooks_id = bookrecords.typebooks_id
+                AND bkr.book = bookrecords.book
+                AND (
+                  (bkr.indexbook = bookrecords.indexbook)
+                  OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+                )
+                AND (
+                  (bkr.year = bookrecords.year)
+                  OR (bkr.year IS NULL AND bookrecords.year IS NULL)
+                )
+                AND bkr.sheet = 1
+                AND bkr.side = 'V'
+              LIMIT 1
+            ),
+            (
+              SELECT CONCAT(CAST(bkr2.sheet AS CHAR), bkr2.side)
+              FROM bookrecords bkr2
+              WHERE bkr2.companies_id = bookrecords.companies_id
+                AND bkr2.typebooks_id = bookrecords.typebooks_id
+                AND bkr2.book = bookrecords.book
+                AND (
+                  (bkr2.indexbook = bookrecords.indexbook)
+                  OR (bkr2.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+                )
+                AND bkr2.sheet = 1
+                AND bkr2.side = 'V'
+              LIMIT 1
+            ),
+            (
+              SELECT CONCAT(CAST(bkr3.sheet AS CHAR), bkr3.side)
+              FROM bookrecords bkr3
+              WHERE bkr3.companies_id = bookrecords.companies_id
+                AND bkr3.typebooks_id = bookrecords.typebooks_id
+                AND bkr3.book = bookrecords.book
+                AND bkr3.sheet = 1
+                AND bkr3.side = 'V'
+              LIMIT 1
+            )
           ) as sheetInicial
         `)
         )
@@ -1745,8 +1808,14 @@ export default class BookrecordsController {
             WHERE bkr.companies_id = bookrecords.companies_id
               AND bkr.typebooks_id = bookrecords.typebooks_id
               AND bkr.book = bookrecords.book
-              AND bkr.year = bookrecords.year
-              AND (IFNULL(bkr.indexbook,999999) = IFNULL(bookrecords.indexbook,999999))
+              AND (
+                (bkr.year = bookrecords.year)
+                OR (bkr.year IS NULL AND bookrecords.year IS NULL)
+              )
+              AND (
+                (bkr.indexbook = bookrecords.indexbook)
+                OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+              )
               AND indeximages.companies_id = ${authenticate.companies_id}
               AND indeximages.typebooks_id = ${typebooks_id}
           ) as totalFiles
@@ -1769,8 +1838,6 @@ export default class BookrecordsController {
       if (typeof indexBook === 'number' && indexBook > 0) query.andWhere('indexbook', indexBook)
       else if (indexBook === 0) query.andWhereNull('indexbook')
 
-      // ❌ IMPORTANTE: não tem EXISTS aqui
-      // (para continuar trazendo mesmo sem 1V)
       // ⬇⬇⬇ agrupando também por year
       query.groupBy('book', 'indexbook', 'year')
       query.orderBy('bookrecords.book')
