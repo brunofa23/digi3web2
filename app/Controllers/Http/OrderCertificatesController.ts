@@ -287,11 +287,11 @@ export default class OrderCertificatesController {
         applicant: applicantId,
         registered1: registered1Id,
 
-        typebookId:secondData.typebookId??null,
+        typebookId: secondData.typebookId ?? null,
         book1: secondData?.book1 ?? null,
         sheet1: secondData?.sheet1 ?? null,
         city1: secondData?.city1 ?? null,
-        term1:secondData?.term1 ?? null,
+        term1: secondData?.term1 ?? null,
 
         registered2: registered2Id ?? null,
         book2: secondData?.book2 ?? null,
@@ -319,6 +319,7 @@ export default class OrderCertificatesController {
   // =====================================================
 
   public async index({ auth, request }: HttpContextContract) {
+    console.log("STEP 55555")
     const authenticate = await auth.use('api').authenticate()
 
     const dateStartOrderCertificate = request.input('dateStartOrderCertificate')
@@ -349,6 +350,9 @@ export default class OrderCertificatesController {
     // emolument code (para filtrar por código de emolumento)
     const emolumentCode = request.input('emolumentCode') || null
 
+
+
+
     const query = OrderCertificate.query()
       .preload('book', (query) => query.select('id', 'name'))
       .preload('marriedCertificate', (query) => {
@@ -363,7 +367,8 @@ export default class OrderCertificatesController {
         q.preload('registered2Person', (p) => p.select('name', 'cpf'))
       })
       .preload('receipt', (q) => {
-        q.select(['id', 'order_certificate_id','date_stamp'])
+        //q.select(['id', 'order_certificate_id', 'date_stamp', 'date_protocol', 'date_stamp', 'free'])
+        q.select('*')
       })
       .where('companies_id', authenticate.companies_id)
 
@@ -741,7 +746,7 @@ export default class OrderCertificatesController {
           const parsedSecond = this.parseJsonFieldOrFail(response, rawSecond, 'secondcopyCertificate')
           if (!parsedSecond) return
 
-          console.log("###############################",parsedSecond)
+          console.log("###############################", parsedSecond)
           // ✅ regra: o ID da secondcopy que deve ser atualizado é o certificateId do pedido (se existir)
           // ou o certificateId vindo do body; se não existir, usa parsedSecond.id
           const secondcopyId =
@@ -758,7 +763,7 @@ export default class OrderCertificatesController {
           parsedSecond.id = secondcopyId
           const savedSecondcopyId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
 
-          console.log("!!!!!!!!!!!",savedSecondcopyId)
+          console.log("!!!!!!!!!!!", savedSecondcopyId)
 
           // ✅ garante vínculo no pedido (se estiver vazio)
           if (!orderCertificate.certificateId) {
