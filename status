@@ -3,23 +3,15 @@
 "date_prevision": null,
 "date_protocol": "2026-02-13",
 "date_stamp": null,
-
 "service_id": 40,
 "user_id": 50,
 "tributation_id": null,
 "free": 0,
-"registered1": "vandir antonio cunha",
-"cpf_registered1": "48583901600",
-"registered2": "vandir antonio cunha",
-"cpf_registered2": "48583901600",
-"typebook_id": 36,
-"book": 13,
-"sheet": 13,
-"side": "F",
 "stamps": null,
 "date_marriage": null,
 "security_sheet": null,
 "habilitation_proccess": null,
 "status": "PROTOCOLADO",
-"created_at": "2026-02-13T17:24:46.000-03:00",
-"updated_at": "2026-02-13T17:24:46.000-03:00"
+
+
+

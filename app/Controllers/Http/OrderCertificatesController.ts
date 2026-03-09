@@ -368,7 +368,27 @@ export default class OrderCertificatesController {
       })
       .preload('receipt', (q) => {
         //q.select(['id', 'order_certificate_id', 'date_stamp', 'date_protocol', 'date_stamp', 'free'])
-        q.select('*')
+        q.select(['id',
+          'order_certificate_id',
+          'date_prevision',
+          'date_protocol',
+          'date_stamp',
+          'service_id',
+          'user_id',
+          'tributation_id',
+          'free',
+          'stamps',
+          'date_marriage',
+          'security_sheet',
+          'habilitation_proccess',
+          'status',
+        ])
+        q.preload('tributation',(q)=>{
+          q.select(['id','description'])
+        })
+        q.preload('service',(q)=>{
+          q.select(['id','description'])
+        })
       })
       .where('companies_id', authenticate.companies_id)
 
