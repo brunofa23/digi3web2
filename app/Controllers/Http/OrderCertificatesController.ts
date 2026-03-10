@@ -302,7 +302,7 @@ export default class OrderCertificatesController {
         inactive: secondData?.inactive ?? null
       })
 
-      console.log("@@@@@@@@@@@@@@@@@@", secondcopy)
+
 
       await secondcopy.save()
 
@@ -593,7 +593,6 @@ export default class OrderCertificatesController {
 
     //TIPO DE CERTIDÃO
     const bookId = request.input('bookId') || null
-    console.log("BOOKID:", bookId)
 
     // pega cpf (se vier) e tira máscara
     const cpf = request.input('cpf')
@@ -706,12 +705,10 @@ export default class OrderCertificatesController {
 
     //RECEIPT FREE
     if (freeReceipt === 'true') {
-      console.log("entrei aqui...true")
       query.whereHas('receipt', (r) => {
         r.where('free', true)
       })
     } else if (freeReceipt === 'false') {
-      console.log("entrei aqui...false")
       query.whereHas('receipt', (r) => {
         r.where('free', false)
       })
@@ -1073,8 +1070,6 @@ export default class OrderCertificatesController {
 
     const body = request.body()
 
-    //console.log("!!!!!!!!!!!!!!!!!!!!!!!!",body)
-
     const bookId = this.toNumber(body.bookId ?? body.book_id)
     const certificateIdFromBody = this.toNumber(body.certificateId ?? body.certificate_id)
     const typeCertificate = this.toNumber(body.typeCertificate ?? body.type_certificate)
@@ -1114,7 +1109,7 @@ export default class OrderCertificatesController {
           const parsedSecond = this.parseJsonFieldOrFail(response, rawSecond, 'secondcopyCertificate')
           if (!parsedSecond) return
 
-          console.log("###############################", parsedSecond)
+
           // ✅ regra: o ID da secondcopy que deve ser atualizado é o certificateId do pedido (se existir)
           // ou o certificateId vindo do body; se não existir, usa parsedSecond.id
           const secondcopyId =
@@ -1131,7 +1126,7 @@ export default class OrderCertificatesController {
           parsedSecond.id = secondcopyId
           const savedSecondcopyId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
 
-          console.log("!!!!!!!!!!!", savedSecondcopyId)
+
 
           // ✅ garante vínculo no pedido (se estiver vazio)
           if (!orderCertificate.certificateId) {
