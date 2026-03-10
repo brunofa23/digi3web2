@@ -317,38 +317,55 @@ export default class OrderCertificatesController {
   // =====================================================
   // Index / Show
   // =====================================================
-
   // public async index({ auth, request }: HttpContextContract) {
-  //   console.log("STEP 55555")
   //   const authenticate = await auth.use('api').authenticate()
 
   //   const dateStartOrderCertificate = request.input('dateStartOrderCertificate')
   //   const dateEndtOrderCertificate = request.input('dateEndOrderCertificate')
+
+  //   //TIPO DE CERTIDÃO
+  //   const bookId = request.input('bookId') || null
+  //   console.log("BOOKID:", bookId)
+
+
   //   // pega cpf (se vier) e tira máscara
   //   const cpf = request.input('cpf')
   //     ? String(request.input('cpf')).replace(/\D/g, '')
   //     : null
+  //   // RECEIPT***************************************************
+  //   const freeReceipt = request.input('freeReceipt')
 
-  //   //RECEIPT***************************************************
-  //   //FILTER FOR DATE RECEIPT
+  //   // FILTER FOR DATE RECEIPT
   //   const dateStartReceipt = request.input('dateStartReceipt') || null
   //   const dateEndReceipt = request.input('dateEndReceipt') || null
-  //   //dateProtocol
+
+  //   // dateProtocol
   //   const dateStartProtocol = request.input('dateStartProtocol') || null
   //   const dateEndProtocol = request.input('dateEndProtocol') || null
-  //   //dateStamp
+
+  //   // dateStamp
   //   const dateStartStamp = request.input('dateStartStamp') || null
   //   const dateEndStamp = request.input('dateEndStamp') || null
-  //   //datePrevision
+
+  //   // datePrevision
   //   const dateStartPrevision = request.input('dateStartPrevision') || null
   //   const dateEndPrevision = request.input('dateEndPrevision') || null
 
-  //   //filter for receipt_id
+  //   //TRIBUTATION LIST
+  //   const tributationList = request.input('tributationList') || null
+
+  //   //SERVICE ID
+  //   const serviceList = request.input('serviceList') || null
+
+  //   // filter for receipt_id
   //   const receiptId = request.input('receiptId') || null
-  //   //employee_verification
+
+  //   // employee_verification
   //   const employeeVerificationId = request.input('employeeVerificationId') || null
+
   //   // emolument code (para filtrar por código de emolumento)
   //   const emolumentCode = request.input('emolumentCode') || null
+
   //   const query = OrderCertificate.query()
   //     .preload('book', (query) => query.select('id', 'name'))
   //     .preload('marriedCertificate', (query) => {
@@ -363,8 +380,8 @@ export default class OrderCertificatesController {
   //       q.preload('registered2Person', (p) => p.select('name', 'cpf'))
   //     })
   //     .preload('receipt', (q) => {
-  //       //q.select(['id', 'order_certificate_id', 'date_stamp', 'date_protocol', 'date_stamp', 'free'])
-  //       q.select(['id',
+  //       q.select([
+  //         'id',
   //         'order_certificate_id',
   //         'date_prevision',
   //         'date_protocol',
@@ -379,15 +396,18 @@ export default class OrderCertificatesController {
   //         'habilitation_proccess',
   //         'status',
   //       ])
-  //       q.preload('tributation',(q)=>{
-  //         q.select(['id','description'])
+
+  //       q.preload('tributation', (q) => {
+  //         q.select(['id', 'description'])
   //       })
-  //       q.preload('service',(q)=>{
-  //         q.select(['id','description'])
+
+  //       q.preload('service', (q) => {
+  //         q.select(['id', 'description'])
   //       })
-  //       q.preload('items',(q)=>{
+
+  //       q.preload('items', (q) => {
   //         q.select(['emolument_id'])
-  //         q.preload('emolument',(q)=>{
+  //         q.preload('emolument', (q) => {
   //           q.select(['code'])
   //         })
   //       })
@@ -396,16 +416,51 @@ export default class OrderCertificatesController {
 
   //   if (dateStartOrderCertificate)
   //     query.andWhere('created_at', '>=', dateStartOrderCertificate)
+
   //   if (dateEndtOrderCertificate) {
-  //     query.andWhere('created_at', '<=', dateEndtOrderCertificate) // (provavelmente aqui era <=)
+  //     query.andWhere('created_at', '<=', dateEndtOrderCertificate)
   //   }
+
+  //   if (bookId)
+  //     query.andWhere('book_id', bookId)
+
+
   //   // RECEIPT***************************************************
-  //   //RECEIPT ID
+  //   // RECEIPT ID
   //   if (receiptId) {
   //     query.whereHas('receipt', (r) => {
   //       r.where('id', receiptId)
   //     })
   //   }
+
+  //   //RECEIPT FREE
+  //   if (freeReceipt === 'true') {
+  //     console.log("entrei aqui...true")
+  //     query.whereHas('receipt', (r) => {
+  //       r.where('free', true)
+  //     })
+  //   } else if (freeReceipt === 'false') {
+  //     console.log("entrei aqui...false")
+  //     query.whereHas('receipt', (r) => {
+  //       r.where('free', false)
+  //     })
+  //   }
+
+  //   //TRIBUTATION ID
+  //   if (tributationList) {
+  //     // query.whereHas('receipt', (r) => {
+  //     //   r.where('tributation_id', tributationId)
+  //     // })
+  //   }
+
+  //   //SERVICE ID
+  //   if (serviceList) {
+  //     // query.whereHas('receipt', (r) => {
+  //     //   r.where('service_id', serviceId)
+  //     // })
+  //   }
+
+
   //   // 🔍 Filtro por data do RECEIPT (created_at da tabela receipts)
   //   if (dateStartReceipt || dateEndReceipt) {
   //     query.whereHas('receipt', (r) => {
@@ -417,6 +472,7 @@ export default class OrderCertificatesController {
   //       }
   //     })
   //   }
+
   //   // 🔍 Filtro por data do PROTOCOL
   //   if (dateStartProtocol || dateEndProtocol) {
   //     query.whereHas('receipt', (r) => {
@@ -440,6 +496,7 @@ export default class OrderCertificatesController {
   //       }
   //     })
   //   }
+
   //   // 🔍 Filtro por data de PREVISION
   //   if (dateStartPrevision || dateEndPrevision) {
   //     query.whereHas('receipt', (r) => {
@@ -457,8 +514,8 @@ export default class OrderCertificatesController {
   //     query.whereHas('receipt', (r) => {
   //       r.whereHas('employeeVerificationXReceipts', (evxr) => {
   //         evxr
-  //           .where('employeeVerificationId', employeeVerificationId) // mapeia pra employee_verification_id
-  //           .where('companiesId', authenticate.companies_id) // garante mesma empresa
+  //           .where('employeeVerificationId', employeeVerificationId)
+  //           .where('companiesId', authenticate.companies_id)
   //       })
   //     })
   //   }
@@ -485,11 +542,9 @@ export default class OrderCertificatesController {
   //         mc
   //           .whereHas('groom', (g) => {
   //             g.where('cpf', cpf)
-  //             // g.where('cpf', 'like', `%${cpf}%`)
   //           })
   //           .orWhereHas('bride', (b) => {
   //             b.where('cpf', cpf)
-  //             // b.where('cpf', 'like', `%${cpf}%`)
   //           })
   //       })
 
@@ -498,28 +553,47 @@ export default class OrderCertificatesController {
   //         sc
   //           .whereHas('applicantPerson', (p) => {
   //             p.where('cpf', cpf)
-  //             // p.where('cpf', 'like', `%${cpf}%`)
   //           })
   //           .orWhereHas('registered1Person', (p) => {
   //             p.where('cpf', cpf)
-  //             // p.where('cpf', 'like', `%${cpf}%`)
   //           })
   //           .orWhereHas('registered2Person', (p) => {
   //             p.where('cpf', cpf)
-  //             // p.where('cpf', 'like', `%${cpf}%`)
   //           })
   //       })
   //     })
   //   }
+
+  //   //console.log("query:", query.toQuery())
   //   const orderCertificate = await query.orderBy('id', 'asc')
-  //   return orderCertificate
+
+  //   const result = orderCertificate.map((order) => {
+  //     const json = order.toJSON()
+
+  //     if (json.receipt) {
+  //       const codeList = (json.receipt.items || [])
+  //         .map((item) => item.emolument?.code)
+  //         .filter((code) => !!code)
+  //         .join(',')
+
+  //       json.receipt.emolumentCode = codeList
+  //       delete json.receipt.items
+  //     }
+
+  //     return json
+  //   })
+
+  //   return result
   // }
   public async index({ auth, request }: HttpContextContract) {
-    console.log("STEP 55555")
     const authenticate = await auth.use('api').authenticate()
 
     const dateStartOrderCertificate = request.input('dateStartOrderCertificate')
     const dateEndtOrderCertificate = request.input('dateEndOrderCertificate')
+
+    //TIPO DE CERTIDÃO
+    const bookId = request.input('bookId') || null
+    console.log("BOOKID:", bookId)
 
     // pega cpf (se vier) e tira máscara
     const cpf = request.input('cpf')
@@ -527,6 +601,8 @@ export default class OrderCertificatesController {
       : null
 
     // RECEIPT***************************************************
+    const freeReceipt = request.input('freeReceipt')
+
     // FILTER FOR DATE RECEIPT
     const dateStartReceipt = request.input('dateStartReceipt') || null
     const dateEndReceipt = request.input('dateEndReceipt') || null
@@ -542,6 +618,16 @@ export default class OrderCertificatesController {
     // datePrevision
     const dateStartPrevision = request.input('dateStartPrevision') || null
     const dateEndPrevision = request.input('dateEndPrevision') || null
+
+    //TRIBUTATION LIST
+    const tributationList = (request.input('tributationIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => !Number.isNaN(id))
+
+    //SERVICE ID
+    const serviceList = (request.input('serviceIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => !Number.isNaN(id))
 
     // filter for receipt_id
     const receiptId = request.input('receiptId') || null
@@ -607,11 +693,41 @@ export default class OrderCertificatesController {
       query.andWhere('created_at', '<=', dateEndtOrderCertificate)
     }
 
+    if (bookId)
+      query.andWhere('book_id', bookId)
+
     // RECEIPT***************************************************
     // RECEIPT ID
     if (receiptId) {
       query.whereHas('receipt', (r) => {
         r.where('id', receiptId)
+      })
+    }
+
+    //RECEIPT FREE
+    if (freeReceipt === 'true') {
+      console.log("entrei aqui...true")
+      query.whereHas('receipt', (r) => {
+        r.where('free', true)
+      })
+    } else if (freeReceipt === 'false') {
+      console.log("entrei aqui...false")
+      query.whereHas('receipt', (r) => {
+        r.where('free', false)
+      })
+    }
+
+    //TRIBUTATION IDS
+    if (tributationList.length) {
+      query.whereHas('receipt', (r) => {
+        r.whereIn('tributation_id', tributationList)
+      })
+    }
+
+    //SERVICE IDS
+    if (serviceList.length) {
+      query.whereHas('receipt', (r) => {
+        r.whereIn('service_id', serviceList)
       })
     }
 
@@ -718,6 +834,7 @@ export default class OrderCertificatesController {
       })
     }
 
+    //console.log("query:", query.toQuery())
     const orderCertificate = await query.orderBy('id', 'asc')
 
     const result = orderCertificate.map((order) => {
@@ -736,6 +853,10 @@ export default class OrderCertificatesController {
       return json
     })
 
+    const teste =result.map((receipt)=>{
+      return receipt.receipt
+    })
+    //console.log(teste)
     return result
   }
 
