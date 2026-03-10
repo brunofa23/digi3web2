@@ -16,7 +16,7 @@ import User from 'App/Models/User'
 import Typebook from 'App/Models/Typebook'
 import ReceiptItem from './ReceiptItem'
 import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
-import Tributation from 'App/Models/Tributation' // 🔹 IMPORT NOVO
+import Tributation from 'App/Models/Tributation'
 
 export default class Receipt extends BaseModel {
   public static table = 'receipts'
@@ -36,7 +36,6 @@ export default class Receipt extends BaseModel {
   @column()
   public userId: number
 
-  // 🔹 NOVO CAMPO FK
   @column()
   public tributationId?: number | null
 
@@ -85,7 +84,6 @@ export default class Receipt extends BaseModel {
   @column.dateTime()
   public dateMarriage?: DateTime | null
 
-  // 🔹 NOVO CAMPO STRING
   @column()
   public stamps?: string | null
 
@@ -94,6 +92,15 @@ export default class Receipt extends BaseModel {
 
   @column()
   public habilitationProccess?: string | null
+
+  @column()
+  public deliveryName?: string | null
+
+  @column.dateTime()
+  public deliveryDate?: DateTime | null
+
+  @column()
+  public trackingCod?: string | null
 
   @column()
   public status?: string | null
@@ -119,7 +126,6 @@ export default class Receipt extends BaseModel {
   @belongsTo(() => Typebook, { foreignKey: 'typebookId' })
   public typebook: BelongsTo<typeof Typebook>
 
-  // 🔹 NOVA RELAÇÃO
   @belongsTo(() => Tributation, { foreignKey: 'tributationId' })
   public tributation: BelongsTo<typeof Tributation>
 

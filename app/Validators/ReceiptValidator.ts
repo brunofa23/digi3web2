@@ -52,12 +52,15 @@ export default class ReceiptValidator {
     datePrevision: schema.date.optional(),
     dateProtocol: schema.date.optional(),
     dateStamp: schema.date.optional(),
-    dateMarriage: schema.date.optional(), // se preferir datetime, troque para schema.dateTime.optional()
+    dateMarriage: schema.date.optional(),
 
     securitySheet: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
     habilitationProccess: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
 
-    // 🔹 NOVOS CAMPOS
+    deliveryName: schema.string.optional({ trim: true }, [rules.maxLength(100)]),
+    deliveryDate: schema.date.optional(),
+    trackingCod: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
+
     stamps: schema.string.optional({ trim: true }, [rules.maxLength(255)]),
 
     tributationId: schema.number.optional([
@@ -65,7 +68,7 @@ export default class ReceiptValidator {
       rules.exists({ table: 'tributations', column: 'id' }),
     ]),
 
-    status: schema.string.optional({ trim: true }, [rules.maxLength(15)]), // ['PROTOCOL', 'STAMP', 'CANCELED']
+    status: schema.string.optional({ trim: true }, [rules.maxLength(15)]),
 
     items: schema.array.optional().members(
       schema.object().members({
