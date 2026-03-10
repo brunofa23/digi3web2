@@ -318,40 +318,239 @@ export default class OrderCertificatesController {
   // Index / Show
   // =====================================================
 
+  // public async index({ auth, request }: HttpContextContract) {
+  //   console.log("STEP 55555")
+  //   const authenticate = await auth.use('api').authenticate()
+
+  //   const dateStartOrderCertificate = request.input('dateStartOrderCertificate')
+  //   const dateEndtOrderCertificate = request.input('dateEndOrderCertificate')
+  //   // pega cpf (se vier) e tira máscara
+  //   const cpf = request.input('cpf')
+  //     ? String(request.input('cpf')).replace(/\D/g, '')
+  //     : null
+
+  //   //RECEIPT***************************************************
+  //   //FILTER FOR DATE RECEIPT
+  //   const dateStartReceipt = request.input('dateStartReceipt') || null
+  //   const dateEndReceipt = request.input('dateEndReceipt') || null
+  //   //dateProtocol
+  //   const dateStartProtocol = request.input('dateStartProtocol') || null
+  //   const dateEndProtocol = request.input('dateEndProtocol') || null
+  //   //dateStamp
+  //   const dateStartStamp = request.input('dateStartStamp') || null
+  //   const dateEndStamp = request.input('dateEndStamp') || null
+  //   //datePrevision
+  //   const dateStartPrevision = request.input('dateStartPrevision') || null
+  //   const dateEndPrevision = request.input('dateEndPrevision') || null
+
+  //   //filter for receipt_id
+  //   const receiptId = request.input('receiptId') || null
+  //   //employee_verification
+  //   const employeeVerificationId = request.input('employeeVerificationId') || null
+  //   // emolument code (para filtrar por código de emolumento)
+  //   const emolumentCode = request.input('emolumentCode') || null
+  //   const query = OrderCertificate.query()
+  //     .preload('book', (query) => query.select('id', 'name'))
+  //     .preload('marriedCertificate', (query) => {
+  //       query.select('id', 'groomPersonId', 'bridePersonId')
+  //       query.preload('groom', (q) => q.select('name', 'cpf'))
+  //       query.preload('bride', (q) => q.select('name', 'cpf'))
+  //     })
+  //     .preload('secondcopyCertificate', (q) => {
+  //       q.select('*')
+  //       q.preload('applicantPerson', (p) => p.select('name', 'cpf'))
+  //       q.preload('registered1Person', (p) => p.select('name', 'cpf'))
+  //       q.preload('registered2Person', (p) => p.select('name', 'cpf'))
+  //     })
+  //     .preload('receipt', (q) => {
+  //       //q.select(['id', 'order_certificate_id', 'date_stamp', 'date_protocol', 'date_stamp', 'free'])
+  //       q.select(['id',
+  //         'order_certificate_id',
+  //         'date_prevision',
+  //         'date_protocol',
+  //         'date_stamp',
+  //         'service_id',
+  //         'user_id',
+  //         'tributation_id',
+  //         'free',
+  //         'stamps',
+  //         'date_marriage',
+  //         'security_sheet',
+  //         'habilitation_proccess',
+  //         'status',
+  //       ])
+  //       q.preload('tributation',(q)=>{
+  //         q.select(['id','description'])
+  //       })
+  //       q.preload('service',(q)=>{
+  //         q.select(['id','description'])
+  //       })
+  //       q.preload('items',(q)=>{
+  //         q.select(['emolument_id'])
+  //         q.preload('emolument',(q)=>{
+  //           q.select(['code'])
+  //         })
+  //       })
+  //     })
+  //     .where('companies_id', authenticate.companies_id)
+
+  //   if (dateStartOrderCertificate)
+  //     query.andWhere('created_at', '>=', dateStartOrderCertificate)
+  //   if (dateEndtOrderCertificate) {
+  //     query.andWhere('created_at', '<=', dateEndtOrderCertificate) // (provavelmente aqui era <=)
+  //   }
+  //   // RECEIPT***************************************************
+  //   //RECEIPT ID
+  //   if (receiptId) {
+  //     query.whereHas('receipt', (r) => {
+  //       r.where('id', receiptId)
+  //     })
+  //   }
+  //   // 🔍 Filtro por data do RECEIPT (created_at da tabela receipts)
+  //   if (dateStartReceipt || dateEndReceipt) {
+  //     query.whereHas('receipt', (r) => {
+  //       if (dateStartReceipt) {
+  //         r.where('created_at', '>=', dateStartReceipt)
+  //       }
+  //       if (dateEndReceipt) {
+  //         r.where('created_at', '<=', dateEndReceipt)
+  //       }
+  //     })
+  //   }
+  //   // 🔍 Filtro por data do PROTOCOL
+  //   if (dateStartProtocol || dateEndProtocol) {
+  //     query.whereHas('receipt', (r) => {
+  //       if (dateStartProtocol) {
+  //         r.where('date_protocol', '>=', dateStartProtocol)
+  //       }
+  //       if (dateEndProtocol) {
+  //         r.where('date_protocol', '<=', dateEndProtocol)
+  //       }
+  //     })
+  //   }
+
+  //   // 🔍 Filtro por data de SELO
+  //   if (dateStartStamp || dateEndStamp) {
+  //     query.whereHas('receipt', (r) => {
+  //       if (dateStartStamp) {
+  //         r.where('date_stamp', '>=', dateStartStamp)
+  //       }
+  //       if (dateEndStamp) {
+  //         r.where('date_stamp', '<=', dateEndStamp)
+  //       }
+  //     })
+  //   }
+  //   // 🔍 Filtro por data de PREVISION
+  //   if (dateStartPrevision || dateEndPrevision) {
+  //     query.whereHas('receipt', (r) => {
+  //       if (dateStartPrevision) {
+  //         r.where('date_prevision', '>=', dateStartPrevision)
+  //       }
+  //       if (dateEndPrevision) {
+  //         r.where('date_prevision', '<=', dateEndPrevision)
+  //       }
+  //     })
+  //   }
+
+  //   // ✅ Filtro por employee_verification_id na pivot employee_verification_x_receipts
+  //   if (employeeVerificationId) {
+  //     query.whereHas('receipt', (r) => {
+  //       r.whereHas('employeeVerificationXReceipts', (evxr) => {
+  //         evxr
+  //           .where('employeeVerificationId', employeeVerificationId) // mapeia pra employee_verification_id
+  //           .where('companiesId', authenticate.companies_id) // garante mesma empresa
+  //       })
+  //     })
+  //   }
+
+  //   // ✅ Filtro por código de EMOLUMENT (via receipt_items -> emoluments)
+  //   if (emolumentCode) {
+  //     query.whereHas('receipt', (r) => {
+  //       r.whereHas('items', (it) => {
+  //         it.whereHas('emolument', (e) => {
+  //           e.where('code', emolumentCode)
+  //           e.where('companiesId', authenticate.companies_id)
+  //         })
+  //       })
+  //     })
+  //   }
+
+  //   // ***********************************************************
+  //   // 🔍 Filtro por CPF em marriedCertificate -> groom ou bride
+  //   //     OU em secondcopyCertificate (applicant/registered1/registered2)
+  //   if (cpf) {
+  //     query.where((q) => {
+  //       // --- marriedCertificate: groom ou bride ---
+  //       q.whereHas('marriedCertificate', (mc) => {
+  //         mc
+  //           .whereHas('groom', (g) => {
+  //             g.where('cpf', cpf)
+  //             // g.where('cpf', 'like', `%${cpf}%`)
+  //           })
+  //           .orWhereHas('bride', (b) => {
+  //             b.where('cpf', cpf)
+  //             // b.where('cpf', 'like', `%${cpf}%`)
+  //           })
+  //       })
+
+  //       // --- secondcopyCertificate: applicant / registered1 / registered2 ---
+  //       q.orWhereHas('secondcopyCertificate', (sc) => {
+  //         sc
+  //           .whereHas('applicantPerson', (p) => {
+  //             p.where('cpf', cpf)
+  //             // p.where('cpf', 'like', `%${cpf}%`)
+  //           })
+  //           .orWhereHas('registered1Person', (p) => {
+  //             p.where('cpf', cpf)
+  //             // p.where('cpf', 'like', `%${cpf}%`)
+  //           })
+  //           .orWhereHas('registered2Person', (p) => {
+  //             p.where('cpf', cpf)
+  //             // p.where('cpf', 'like', `%${cpf}%`)
+  //           })
+  //       })
+  //     })
+  //   }
+  //   const orderCertificate = await query.orderBy('id', 'asc')
+  //   return orderCertificate
+  // }
   public async index({ auth, request }: HttpContextContract) {
     console.log("STEP 55555")
     const authenticate = await auth.use('api').authenticate()
 
     const dateStartOrderCertificate = request.input('dateStartOrderCertificate')
     const dateEndtOrderCertificate = request.input('dateEndOrderCertificate')
+
     // pega cpf (se vier) e tira máscara
     const cpf = request.input('cpf')
       ? String(request.input('cpf')).replace(/\D/g, '')
       : null
 
-    //RECEIPT***************************************************
-    //FILTER FOR DATE RECEIPT
+    // RECEIPT***************************************************
+    // FILTER FOR DATE RECEIPT
     const dateStartReceipt = request.input('dateStartReceipt') || null
     const dateEndReceipt = request.input('dateEndReceipt') || null
-    //dateProtocol
+
+    // dateProtocol
     const dateStartProtocol = request.input('dateStartProtocol') || null
     const dateEndProtocol = request.input('dateEndProtocol') || null
-    //dateStamp
+
+    // dateStamp
     const dateStartStamp = request.input('dateStartStamp') || null
     const dateEndStamp = request.input('dateEndStamp') || null
-    //datePrevision
+
+    // datePrevision
     const dateStartPrevision = request.input('dateStartPrevision') || null
     const dateEndPrevision = request.input('dateEndPrevision') || null
 
-    //filter for receipt_id
+    // filter for receipt_id
     const receiptId = request.input('receiptId') || null
-    //employee_verification
+
+    // employee_verification
     const employeeVerificationId = request.input('employeeVerificationId') || null
+
     // emolument code (para filtrar por código de emolumento)
     const emolumentCode = request.input('emolumentCode') || null
-
-
-
 
     const query = OrderCertificate.query()
       .preload('book', (query) => query.select('id', 'name'))
@@ -367,8 +566,8 @@ export default class OrderCertificatesController {
         q.preload('registered2Person', (p) => p.select('name', 'cpf'))
       })
       .preload('receipt', (q) => {
-        //q.select(['id', 'order_certificate_id', 'date_stamp', 'date_protocol', 'date_stamp', 'free'])
-        q.select(['id',
+        q.select([
+          'id',
           'order_certificate_id',
           'date_prevision',
           'date_protocol',
@@ -383,27 +582,39 @@ export default class OrderCertificatesController {
           'habilitation_proccess',
           'status',
         ])
-        q.preload('tributation',(q)=>{
-          q.select(['id','description'])
+
+        q.preload('tributation', (q) => {
+          q.select(['id', 'description'])
         })
-        q.preload('service',(q)=>{
-          q.select(['id','description'])
+
+        q.preload('service', (q) => {
+          q.select(['id', 'description'])
+        })
+
+        q.preload('items', (q) => {
+          q.select(['emolument_id'])
+          q.preload('emolument', (q) => {
+            q.select(['code'])
+          })
         })
       })
       .where('companies_id', authenticate.companies_id)
 
     if (dateStartOrderCertificate)
       query.andWhere('created_at', '>=', dateStartOrderCertificate)
+
     if (dateEndtOrderCertificate) {
-      query.andWhere('created_at', '<=', dateEndtOrderCertificate) // (provavelmente aqui era <=)
+      query.andWhere('created_at', '<=', dateEndtOrderCertificate)
     }
+
     // RECEIPT***************************************************
-    //RECEIPT ID
+    // RECEIPT ID
     if (receiptId) {
       query.whereHas('receipt', (r) => {
         r.where('id', receiptId)
       })
     }
+
     // 🔍 Filtro por data do RECEIPT (created_at da tabela receipts)
     if (dateStartReceipt || dateEndReceipt) {
       query.whereHas('receipt', (r) => {
@@ -415,6 +626,7 @@ export default class OrderCertificatesController {
         }
       })
     }
+
     // 🔍 Filtro por data do PROTOCOL
     if (dateStartProtocol || dateEndProtocol) {
       query.whereHas('receipt', (r) => {
@@ -438,6 +650,7 @@ export default class OrderCertificatesController {
         }
       })
     }
+
     // 🔍 Filtro por data de PREVISION
     if (dateStartPrevision || dateEndPrevision) {
       query.whereHas('receipt', (r) => {
@@ -455,8 +668,8 @@ export default class OrderCertificatesController {
       query.whereHas('receipt', (r) => {
         r.whereHas('employeeVerificationXReceipts', (evxr) => {
           evxr
-            .where('employeeVerificationId', employeeVerificationId) // mapeia pra employee_verification_id
-            .where('companiesId', authenticate.companies_id) // garante mesma empresa
+            .where('employeeVerificationId', employeeVerificationId)
+            .where('companiesId', authenticate.companies_id)
         })
       })
     }
@@ -483,11 +696,9 @@ export default class OrderCertificatesController {
           mc
             .whereHas('groom', (g) => {
               g.where('cpf', cpf)
-              // g.where('cpf', 'like', `%${cpf}%`)
             })
             .orWhereHas('bride', (b) => {
               b.where('cpf', cpf)
-              // b.where('cpf', 'like', `%${cpf}%`)
             })
         })
 
@@ -496,22 +707,38 @@ export default class OrderCertificatesController {
           sc
             .whereHas('applicantPerson', (p) => {
               p.where('cpf', cpf)
-              // p.where('cpf', 'like', `%${cpf}%`)
             })
             .orWhereHas('registered1Person', (p) => {
               p.where('cpf', cpf)
-              // p.where('cpf', 'like', `%${cpf}%`)
             })
             .orWhereHas('registered2Person', (p) => {
               p.where('cpf', cpf)
-              // p.where('cpf', 'like', `%${cpf}%`)
             })
         })
       })
     }
+
     const orderCertificate = await query.orderBy('id', 'asc')
-    return orderCertificate
+
+    const result = orderCertificate.map((order) => {
+      const json = order.toJSON()
+
+      if (json.receipt) {
+        const codeList = (json.receipt.items || [])
+          .map((item) => item.emolument?.code)
+          .filter((code) => !!code)
+          .join(',')
+
+        json.receipt.emolumentCode = codeList
+        delete json.receipt.items
+      }
+
+      return json
+    })
+
+    return result
   }
+
 
 
   public async show({ auth, params, request, response }: HttpContextContract) {
