@@ -12,6 +12,7 @@ const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Comp
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
+const sharp_1 = __importDefault(require("sharp"));
 const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
@@ -94,58 +95,84 @@ class IndeximagesController {
         }
     }
     async uploads({ auth, request, params, response }) {
+        console.log("passo 1....");
         const authenticate = await auth.use('api').authenticate();
         const company = await Company_1.default.find(authenticate.companies_id);
         const images = request.files('images', {
             size: '100mb',
             extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
         });
-        const { dataImages } = request['requestBody'];
-        const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData'];
-        console.log("passo 4>>");
-        if (indexImagesInitial == 'true') {
-            const listFilesImages = images.map((image) => {
-                const imageName = image.clientName;
-                return imageName;
-            });
-            const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages);
+        let dataImagesRaw = request.input('dataImages');
+        if (!dataImagesRaw) {
+            dataImagesRaw = request?.['requestBody']?.dataImages;
+        }
+        let dataImages = {};
+        if (dataImagesRaw) {
+            try {
+                dataImages = typeof dataImagesRaw === 'string' ? JSON.parse(dataImagesRaw) : dataImagesRaw;
+            }
+            catch (err) {
+                dataImages = dataImagesRaw;
+            }
+        }
+        const indexImagesInitial = request.input('indexImagesInitial') === 'true';
+        const updateImage = request.input('updateImage') === 'true';
+        const updateImageDocument = request.input('updateImageDocument') === 'true';
+        const landscape = !!(dataImages?.landscape === true ||
+            dataImages?.landscape === 'true' ||
+            dataImages?.landscape === 1 ||
+            dataImages?.landscape === '1');
+        if (indexImagesInitial) {
+            const listFilesImages = images.map((image) => image.clientName);
+            const listFiles = await FileRename.indeximagesinitial('', authenticate.companies_id, company?.cloud, listFilesImages);
             for (const item of listFiles.bookRecord) {
                 try {
                     await Bookrecord_1.default.create(item);
                 }
                 catch (error) {
-                    console.log("ERRO BOOKRECORD::", error);
+                    console.log('ERRO BOOKRECORD::', error);
                 }
             }
         }
         if (updateImage) {
+            if (dataImages?.book === undefined || dataImages?.book === null || dataImages?.book === '') {
+                return response.status(422).send({ message: 'Campo "book" é obrigatório em dataImages.' });
+            }
             const query = Bookrecord_1.default.query()
                 .where('typebooks_id', params.typebooks_id)
                 .andWhere('companies_id', authenticate.companies_id)
                 .andWhere('book', dataImages.book);
             if (dataImages.side)
                 query.andWhere('side', dataImages.side);
-            if (dataImages.sheet)
+            if (dataImages.sheet !== undefined && dataImages.sheet !== null && dataImages.sheet !== '')
                 query.andWhere('sheet', dataImages.sheet);
             if (dataImages.indexBook)
                 query.andWhere('indexbook', dataImages.indexBook);
+            if (dataImages.approximateTerm) {
+                query.andWhere('approximate_term', dataImages.approximateTerm);
+            }
             const bookRecord = await query.first();
             if (!bookRecord || dataImages.sheet == 0) {
-                const books_id = await Typebook_1.default.query().where('id', params.typebooks_id)
-                    .andWhere('companies_id', authenticate.companies_id).first();
+                const books_id = await Typebook_1.default.query()
+                    .where('id', params.typebooks_id)
+                    .andWhere('companies_id', authenticate.companies_id)
+                    .first();
                 const codBookrecord = await Bookrecord_1.default.query()
                     .where('typebooks_id', params.typebooks_id)
                     .andWhere('companies_id', authenticate.companies_id)
-                    .max('cod as max_cod').firstOrFail();
+                    .max('cod as max_cod')
+                    .firstOrFail();
                 if (dataImages.sheet == 0 && books_id) {
                     const book = await Bookrecord_1.default.create({
                         typebooks_id: params.typebooks_id,
                         companies_id: authenticate.companies_id,
-                        cod: (codBookrecord?.$extras.max_cod + 1),
+                        cod: codBookrecord?.$extras.max_cod + 1,
                         books_id: books_id.books_id,
                         book: dataImages.book,
                         sheet: dataImages.sheet,
                         indexbook: dataImages.indexBook,
+                        approximate_term: dataImages.approximateTerm,
+                        letter: dataImages.letter,
                     });
                     dataImages.id = book.id;
                 }
@@ -153,22 +180,28 @@ class IndeximagesController {
                     const book = await Bookrecord_1.default.create({
                         typebooks_id: params.typebooks_id,
                         companies_id: authenticate.companies_id,
-                        cod: (codBookrecord?.$extras.max_cod + 1),
+                        cod: codBookrecord?.$extras.max_cod + 1,
                         books_id: books_id.books_id,
                         book: dataImages.book,
                         sheet: dataImages.sheet,
                         side: dataImages.side,
-                        indexbook: dataImages.indexBook
+                        indexbook: dataImages.indexBook,
+                        approximate_term: dataImages.approximateTerm,
+                        letter: dataImages.letter,
                     });
                     dataImages.id = book.id;
                 }
             }
         }
         else if (updateImageDocument) {
+            if (dataImages?.cod === undefined || dataImages?.cod === null || dataImages?.cod === '') {
+                return response.status(422).send({ message: 'Campo "cod" é obrigatório em dataImages.' });
+            }
             const verifyExistBookrecord = await Bookrecord_1.default.query()
                 .where('companies_id', authenticate.companies_id)
                 .andWhere('cod', dataImages.cod)
-                .andWhere('typebooks_id', params.typebooks_id).first();
+                .andWhere('typebooks_id', params.typebooks_id)
+                .first();
             if (verifyExistBookrecord) {
                 dataImages.id = verifyExistBookrecord.id;
             }
@@ -181,21 +214,27 @@ class IndeximagesController {
                         cod: dataImages.cod,
                         book: dataImages.book,
                         side: dataImages.side,
-                        books_id: 13
+                        books_id: 13,
                     }, trx);
-                    const document = await Document_1.default.create({
+                    const normalizeIntOrNull = (value) => {
+                        if (value === undefined || value === null || value === '')
+                            return null;
+                        return Number(value);
+                    };
+                    await Document_1.default.create({
                         bookrecords_id: bookRecord.id,
                         books_id: 13,
                         typebooks_id: params.typebooks_id,
                         companies_id: authenticate.companies_id,
                         prot: dataImages.prot,
-                        documenttype_id: dataImages.documenttype_id,
+                        documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
+                        document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
                         book_name: dataImages.book_name,
                         book_number: dataImages.book_number,
                         sheet_number: dataImages.sheet_number,
                         free: dataImages.free ? 1 : 0,
                         averb_anot: dataImages.averb_anot ? 1 : 0,
-                        obs: dataImages.obs
+                        obs: dataImages.obs,
                     }, trx);
                     dataImages.id = bookRecord.id;
                     await trx.commit();
@@ -206,8 +245,30 @@ class IndeximagesController {
                 }
             }
         }
+        if (landscape) {
+            for (const image of images) {
+                const ext = (image.extname || '').toLowerCase();
+                if (!['jpg', 'jpeg', 'png', 'jfif'].includes(ext))
+                    continue;
+                if (!image.tmpPath)
+                    continue;
+                try {
+                    const inputPath = image.tmpPath;
+                    const tempOutputPath = `${inputPath}_landscape`;
+                    const imgSharp = (0, sharp_1.default)(inputPath);
+                    const metadata = await imgSharp.metadata();
+                    if (metadata.width && metadata.height && metadata.height > metadata.width) {
+                        await imgSharp.rotate(-90).toFile(tempOutputPath);
+                        await fs.promises.rename(tempOutputPath, inputPath);
+                    }
+                }
+                catch (err) {
+                    console.error('Erro ao rotacionar imagem para paisagem:', err);
+                }
+            }
+        }
         const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
-        return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" });
+        return response.status(201).send({ files, message: 'Arquivo Salvo com sucesso!!!' });
     }
     async uploadCapture({ auth, request, params }) {
         const authenticate = await auth.use('api').authenticate();
