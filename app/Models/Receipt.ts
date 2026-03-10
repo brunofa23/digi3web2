@@ -96,6 +96,9 @@ export default class Receipt extends BaseModel {
   @column()
   public deliveryName?: string | null
 
+  @column()
+  public deliveryCpf?: string | null
+
   @column.dateTime()
   public deliveryDate?: DateTime | null
 

@@ -58,6 +58,7 @@ export default class ReceiptValidator {
     habilitationProccess: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
 
     deliveryName: schema.string.optional({ trim: true }, [rules.maxLength(100)]),
+    deliveryCpf: schema.string.optional({ trim: true }, [rules.maxLength(11)]),
     deliveryDate: schema.date.optional(),
     trackingCod: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
 

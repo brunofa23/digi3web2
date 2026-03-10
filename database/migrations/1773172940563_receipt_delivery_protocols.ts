@@ -6,7 +6,8 @@ export default class extends BaseSchema {
   public async up () {
     this.schema.alterTable(this.tableName, (table) => {
       table.string('delivery_name',100).nullable().after('habilitation_proccess')
-      table.dateTime('delivery_date').nullable().after('delivery_name')
+      table.string('delivery_cpf',11).nullable().after('delivery_name')
+      table.dateTime('delivery_date').nullable().after('delivery_cpf')
       table.string('tracking_cod',50).nullable().after('delivery_date')
     })
   }
@@ -16,6 +17,7 @@ export default class extends BaseSchema {
       table.dropColumn('delivery_name')
       table.dropColumn('delivery_date')
       table.dropColumn('tracking_cod')
+      table.dropColumn('delivery_cpf')
     })
   }
 }
