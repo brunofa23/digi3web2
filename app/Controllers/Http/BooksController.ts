@@ -4,18 +4,31 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 
 export default class BooksController {
 
-  public async index({ auth, response }) {
- await auth.use('api').authenticate()
-    try {
-      const books = await Book
-        .query()
-        .preload('typebooks')
-      return response.status(200).send(books)
-    } catch (error) {
-      throw new BadRequest('Bad Request', 401, 'erro')
+  public async index({ auth, request, response }) {
+  await auth.use('api').authenticate()
+
+  const ordercertificateRaw = request.input('ordercertificate')
+  const ordercertificate =
+    ordercertificateRaw === undefined
+      ? null
+      : ordercertificateRaw === 'true'
+
+  try {
+    const query = Book
+      .query()
+      .preload('typebooks')
+
+    if (ordercertificate !== null) {
+      query.where('ordercertificate', ordercertificate)
     }
 
+    const books = await query
+
+    return response.status(200).send(books)
+  } catch (error) {
+    throw new BadRequest('Bad Request', 401, 'erro')
   }
+}
 
 
 

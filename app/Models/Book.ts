@@ -1,17 +1,21 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, HasMany, hasMany, hasManyThrough,
-  HasManyThrough } from '@ioc:Adonis/Lucid/Orm'
+import {
+  BaseModel, column, HasMany, hasMany, hasManyThrough,
+  HasManyThrough
+} from '@ioc:Adonis/Lucid/Orm'
 
 import Typebook from './Typebook'
 import Bookrecord from './Bookrecord'
 
 export default class Book extends BaseModel {
 
-  public static get fillable(){
-    return[
+  public static get fillable() {
+    return [
       'id',
       'name',
       'namefolder',
+      'description',
+      'ordercertificate',
       'status',
       'createdAt',
       'updatedAt'
@@ -19,15 +23,15 @@ export default class Book extends BaseModel {
   }
 
 
-  @hasMany(()=>Typebook, {
+  @hasMany(() => Typebook, {
     foreignKey: 'books_id',
-    localKey:'id'
+    localKey: 'id'
   })
   public typebooks: HasMany<typeof Typebook>
 
-  @hasMany(()=>Bookrecord, {
+  @hasMany(() => Bookrecord, {
     foreignKey: 'books_id',
-    localKey:'id'
+    localKey: 'id'
   })
   public bookrecords: HasMany<typeof Bookrecord>
 
@@ -36,6 +40,12 @@ export default class Book extends BaseModel {
 
   @column()
   public name: string
+
+  @column()
+  public description: string
+
+  @column()
+  public ordercertificate: boolean
 
 
   @column()
