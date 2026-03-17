@@ -207,6 +207,8 @@ export default class ReceiptsController {
       }
 
       const payload = await request.validate(ReceiptValidator)
+
+      console.log(payload)
       const { items, ...receiptData } = payload as any
 
       // ✅ REGRA STATUS x DATESTAMP
@@ -227,7 +229,6 @@ export default class ReceiptsController {
         companiesId: authenticate.companies_id,
         userId: authenticate.id,
       })
-
 
       await receipt.save()
 
