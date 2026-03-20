@@ -62,6 +62,17 @@ export default class OrderCertificatesController {
     return null
   }
 
+  private normalizeOptionalCpf(person: any) {
+    if (!person) return person
+
+    if (typeof person.cpf === 'string') {
+      const cpf = person.cpf.replace(/\D/g, '').trim()
+      person.cpf = cpf === '' ? null : cpf
+    }
+
+    return person
+  }
+
   //********************************* */
   // 🔹 Helper para salvar/atualizar Person com TODOS os campos do model
   private async upsertPerson(
@@ -223,7 +234,6 @@ export default class OrderCertificatesController {
   }
 
   // 🔹 Salva o formulário de 2ª via (pessoas + secondcopy_certificates)
-  // 🔹 Salva o formulário de 2ª via (pessoas + secondcopy_certificates)
   private async saveSecondcopy(
     secondData: any,
     companiesId: number,
@@ -231,11 +241,6 @@ export default class OrderCertificatesController {
     trx: TransactionClientContract
   ): Promise<number> {
     try {
-      const isValidId = (v: any) => {
-        const n = typeof v === 'string' ? Number(v) : v
-        return typeof n === 'number' && Number.isFinite(n) && n > 0
-      }
-
       const toId = (v: any) => {
         if (v === null || v === undefined || v === '') return null
         const n = Number(v)
@@ -253,7 +258,6 @@ export default class OrderCertificatesController {
         const id = this.toNumber(idField)
         return id ?? null
       }
-
 
       // ✅ prioridade correta: PersonObj antes do id (mas aceita id também)
       const applicantPersonObj = secondData?.applicantPerson ?? null
@@ -299,10 +303,8 @@ export default class OrderCertificatesController {
         city2: secondData?.city2 ?? null,
 
         obs: secondData?.obs ?? null,
-        inactive: secondData?.inactive ?? null
+        inactive: secondData?.inactive ?? null,
       })
-
-
 
       await secondcopy.save()
 
@@ -312,7 +314,6 @@ export default class OrderCertificatesController {
       throw error
     }
   }
-
 
   // =====================================================
   // Index / Show
@@ -646,7 +647,6 @@ export default class OrderCertificatesController {
       })
     }
 
-    // console.log(query.toQuery())
     const paginated = await query
       .orderBy('id', 'asc')
       .paginate(page, perPage)
@@ -672,7 +672,6 @@ export default class OrderCertificatesController {
       data: result,
     }
   }
-
 
   public async show({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
@@ -765,43 +764,42 @@ export default class OrderCertificatesController {
         }
 
         // ✅ 2ª VIA
-
         if (bookId === 21 && (body.secondcopyCertificate || body.secondCopyCertificate)) {
           const rawSecond = body.secondcopyCertificate ?? body.secondCopyCertificate
           const parsedSecond = this.parseJsonFieldOrFail(response, rawSecond, 'secondcopyCertificate')
           if (!parsedSecond) return null as any
 
-          // valida aceitando fallback applicantPerson/registered1Person
-          const applicant = parsedSecond?.applicant ?? parsedSecond?.applicantPerson
-          const registered1 = parsedSecond?.registered1 ?? parsedSecond?.registered1Person
+          const applicant = this.normalizeOptionalCpf(
+            parsedSecond?.applicantPerson ?? parsedSecond?.applicant
+          )
+          const registered1 = this.normalizeOptionalCpf(
+            parsedSecond?.registered1Person ?? parsedSecond?.registered1
+          )
 
           await validator.validate({
             schema: schema.create({
               applicant: schema.object().members({
                 name: schema.string({ trim: true }),
-                cpf: schema.string({ trim: true }),
+                cpf: schema.string.optional({ trim: true }, [rules.regex(/^\d{11}$/)]),
               }),
               registered1: schema.object().members({
                 name: schema.string({ trim: true }),
-                cpf: schema.string({ trim: true }),
+                cpf: schema.string({ trim: true }, [rules.regex(/^\d{11}$/)]),
               }),
             }),
             data: { applicant, registered1 },
             messages: {
               'applicant.required': 'O requerente é obrigatório',
               'applicant.name.required': 'Nome do requerente é obrigatório',
-              'applicant.cpf.required': 'CPF do requerente é obrigatório',
+              'applicant.cpf.regex': 'CPF do requerente inválido',
               'registered1.required': 'O registrado 1 é obrigatório',
               'registered1.name.required': 'Nome do registrado 1 é obrigatório',
               'registered1.cpf.required': 'CPF do registrado 1 é obrigatório',
+              'registered1.cpf.regex': 'CPF do registrado 1 inválido',
             },
           })
 
           finalCertificateId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
-
-          // console.log('UPDATED secondcopy id:', parsedSecond.id)
-          // console.log('ORDER certificateId:', orderCertificate.certificateId)
-
         }
 
         const oc = new OrderCertificate()
@@ -811,14 +809,13 @@ export default class OrderCertificatesController {
           certificateId: finalCertificateId,
           bookId,
           companiesId: user.companies_id,
-          typeCertificate: typeCertificate ?? undefined, // só seta se vier
+          typeCertificate: typeCertificate ?? undefined,
         })
 
         await oc.save()
         return oc
       })
 
-      // Se a transaction retornou null por causa de badRequest dentro do helper
       if (!orderCertificate) return
 
       // Upload após commit (apenas casamento)
@@ -856,7 +853,6 @@ export default class OrderCertificatesController {
         }
       }
 
-      // Reload relations
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
@@ -876,7 +872,6 @@ export default class OrderCertificatesController {
   // Update
   // =====================================================
   public async update({ auth, params, request, response }: HttpContextContract) {
-
     const user = await auth.use('api').authenticate()
 
     const orderCertificate = await OrderCertificate.find(params.id)
@@ -924,8 +919,36 @@ export default class OrderCertificatesController {
           const parsedSecond = this.parseJsonFieldOrFail(response, rawSecond, 'secondcopyCertificate')
           if (!parsedSecond) return
 
-          // ✅ regra: o ID da secondcopy que deve ser atualizado é o certificateId do pedido (se existir)
-          // ou o certificateId vindo do body; se não existir, usa parsedSecond.id
+          const applicant = this.normalizeOptionalCpf(
+            parsedSecond?.applicantPerson ?? parsedSecond?.applicant
+          )
+          const registered1 = this.normalizeOptionalCpf(
+            parsedSecond?.registered1Person ?? parsedSecond?.registered1
+          )
+
+          await validator.validate({
+            schema: schema.create({
+              applicant: schema.object().members({
+                name: schema.string({ trim: true }),
+                cpf: schema.string.optional({ trim: true }, [rules.regex(/^\d{11}$/)]),
+              }),
+              registered1: schema.object().members({
+                name: schema.string({ trim: true }),
+                cpf: schema.string({ trim: true }, [rules.regex(/^\d{11}$/)]),
+              }),
+            }),
+            data: { applicant, registered1 },
+            messages: {
+              'applicant.required': 'O requerente é obrigatório',
+              'applicant.name.required': 'Nome do requerente é obrigatório',
+              'applicant.cpf.regex': 'CPF do requerente inválido',
+              'registered1.required': 'O registrado 1 é obrigatório',
+              'registered1.name.required': 'Nome do registrado 1 é obrigatório',
+              'registered1.cpf.required': 'CPF do registrado 1 é obrigatório',
+              'registered1.cpf.regex': 'CPF do registrado 1 inválido',
+            },
+          })
+
           const secondcopyId =
             this.toNumber(body.certificateId ?? body.certificate_id) ??
             orderCertificate.certificateId ??
@@ -940,15 +963,11 @@ export default class OrderCertificatesController {
           parsedSecond.id = secondcopyId
           const savedSecondcopyId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
 
-
-
-          // ✅ garante vínculo no pedido (se estiver vazio)
           if (!orderCertificate.certificateId) {
             orderCertificate.certificateId = savedSecondcopyId
             await orderCertificate.save()
           }
         }
-
       })
 
       // Upload no update (só casamento)
@@ -990,15 +1009,15 @@ export default class OrderCertificatesController {
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
 
-
       const check = await SecondcopyCertificate.find(orderCertificate.certificateId)
       //console.log('CHECK SECOND COPY AFTER UPDATE:', check?.toJSON())
 
-
-
-
       return orderCertificate
     } catch (error: any) {
+      if (error.code === 'E_VALIDATION_FAILURE') {
+        return response.status(422).send({ errors: error.messages.errors })
+      }
+
       console.error('❌ ERRO UPDATE:', error)
       return response.internalServerError({
         message: 'Erro ao atualizar pedido de certidão',
@@ -1006,7 +1025,4 @@ export default class OrderCertificatesController {
       })
     }
   }
-
-
-
 }
