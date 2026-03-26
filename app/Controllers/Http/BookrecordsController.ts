@@ -914,6 +914,7 @@ export default class BookrecordsController {
 
 
   public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
+    console.log("GERAÇÃO DE LIVROS...")
     const authenticate = await auth.use('api').authenticate();
 
     // ✅ detectar se o campo veio no request (mesmo se for 0)
@@ -1941,7 +1942,7 @@ export default class BookrecordsController {
 
         .where('companies_id', authenticate.companies_id)
         .andWhere('typebooks_id', typebooks_id)
-        .andWhere('sheet','>',0)
+        .andWhere('sheet', '>', 0)
 
       if (book > 0) {
         query.andWhere('book', book)
