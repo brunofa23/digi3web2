@@ -1421,9 +1421,7 @@ export default class BookrecordsController {
   //   }
   // }
   public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
-    console.log("GERAÇÃO DE LIVROS.")
     const authenticate = await auth.use('api').authenticate();
-
     // ✅ detectar se o campo veio no request (mesmo se for 0)
     const rawIndexbook: any = request.input('indexbook');
     const indexbookWasSent = rawIndexbook !== undefined;
