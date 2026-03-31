@@ -2101,5 +2101,67 @@ export default class BookrecordsController {
     return response.status(200).send({ max_book: maxBook?.$extras.max_book, max_sheet: maxSheet.$extras.max_sheet, max_cod_document: maxCodDocument?.$extras.max_cod })
   }
 
+
+  public async imagesForItem({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    console.log("IMAGES POR ITEM", request.body())
+
+    const body = request.only([
+      'book',
+      'sheet',
+      'side',
+      'approximate_term',
+      'indexbook',
+      'total_images',
+      'typebooks_id',
+    ])
+
+    const query = Bookrecord.query()
+      .where('typebooks_id', body.typebooks_id)
+      .andWhere('companies_id', authenticate.companies_id)
+      .andWhere('sheet', body.sheet)
+      .andWhere('book',body.book)
+      if(body.side)
+        query.andWhere('side', body.side)
+      if(body.indexbook)
+        query.andWhere('indexbook', body.indexbook)
+
+    const bookrecord = await query.first()
+
+    console.log(query.toQuery())
+
+    if (!bookrecord) {
+      return response.status(404).send({
+        message: 'Registro não encontrado',
+      })
+    }
+
+    const approximateTerm = Number(body.approximate_term)
+    const totalImages = Number(body.total_images)
+
+    if (isNaN(approximateTerm) || isNaN(totalImages)) {
+      return response.status(400).send({
+        message: 'approximate_term e total_images devem ser numéricos',
+      })
+    }
+
+    const terms: number[] = []
+
+    for (let i = 0; i <= totalImages; i++) {
+      terms.push(approximateTerm + i)
+    }
+
+    bookrecord.approximate_term = terms.join('-')
+    await bookrecord.save()
+
+    return response.status(200).send({
+      message: 'approximate_term atualizado com sucesso',
+      approximate_term: bookrecord.approximate_term,
+      data: bookrecord,
+    })
+  }
+
+
+
   //********************************************************* */
 }

@@ -60,6 +60,7 @@ Route.group(() => {
 
   Route.get("/fastfinddocuments", 'BookrecordsController.fastFindDocuments').middleware('bookrecord_permission:fastfind')
   Route.get("/maxbookrecord", 'BookrecordsController.maxBookRecord')
+  Route.post("/imagesforitem",'BookrecordsController.imagesForItem')
   Route.get("/sheetwithside/:typebooks_id/:book", 'BookrecordsController.sheetWithSide')
 
   //DOCUMENTS
