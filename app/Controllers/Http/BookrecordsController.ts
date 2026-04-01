@@ -2178,8 +2178,11 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
 
     const typebooksId = Number(params.typebooks_id)
-    const { book } = request.only(['book'])
-    const bookNumber = book !== undefined && book !== null && book !== '' ? Number(book) : null
+    const { books } = request.only(['books'])
+
+    const bookNumbers = Array.isArray(books)
+      ? books.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+      : []
 
     if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
       return response.status(400).send({
@@ -2187,9 +2190,15 @@ export default class BookrecordsController {
       })
     }
 
-    if (book !== undefined && book !== null && book !== '' && (!Number.isInteger(bookNumber!) || bookNumber! <= 0)) {
+    if (books !== undefined && books !== null && !Array.isArray(books)) {
       return response.status(400).send({
-        message: 'book inválido',
+        message: 'books deve ser um array',
+      })
+    }
+
+    if (Array.isArray(books) && books.length > 0 && bookNumbers.length !== books.length) {
+      return response.status(400).send({
+        message: 'books contém valores inválidos',
       })
     }
 
@@ -2222,7 +2231,6 @@ export default class BookrecordsController {
         })
       }
 
-      // Evita reprocessamento simultâneo do mesmo typebook
       if (foldername.dateindex === 'Indexing') {
         return response.status(409).send({
           message: 'Já existe um reprocessamento em andamento para este typebook',
@@ -2238,18 +2246,15 @@ export default class BookrecordsController {
           totalfiles: null,
         })
 
-      // ===============================
-      // 1) Atualiza os nomes internamente
-      // ===============================
       const query = Indeximage
         .query()
         .preload('bookrecord')
         .where('companies_id', authenticate.companies_id)
         .andWhere('typebooks_id', typebooksId)
 
-      if (bookNumber) {
+      if (bookNumbers.length) {
         query.whereHas('bookrecord', (queryBookRecord) => {
-          queryBookRecord.where('book', bookNumber)
+          queryBookRecord.whereIn('book', bookNumbers)
         })
       }
 
@@ -2264,9 +2269,6 @@ export default class BookrecordsController {
         await fileRename.updateFileName(bookrecordInstance)
       }
 
-      // ===============================
-      // 2) Renomeia arquivos no Google Drive e sincroniza banco
-      // ===============================
       const listFilesToModify = await Indeximage
         .query()
         .where('companies_id', authenticate.companies_id)
@@ -2296,9 +2298,6 @@ export default class BookrecordsController {
           })
       }
 
-      // ===============================
-      // 3) Reindexa arquivos
-      // ===============================
       listFiles = await fileRename.indeximagesinitial(
         foldername,
         authenticate.companies_id,
@@ -2309,31 +2308,52 @@ export default class BookrecordsController {
         throw new Error('Falha ao gerar lista de reindexação')
       }
 
-      // ===============================
-      // 4) Salva no banco com transaction
-      // ===============================
       const trx = await Database.transaction()
 
       try {
         for (const item of listFiles.bookRecord) {
-          const { yeardoc, month, ...itemBook } = item
+          const existingBookrecord = await Bookrecord
+            .query({ client: trx })
+            .where('id', item.id)
+            .andWhere('typebooks_id', item.typebooks_id)
+            .andWhere('books_id', item.books_id)
+            .andWhere('companies_id', item.companies_id)
+            .first()
 
-          const createdBookrecord = await Bookrecord.create(itemBook, { client: trx })
+          let createdBookrecord = existingBookrecord
 
-          if (item.books_id === 13) {
-            await Document.create(
-              {
-                bookrecords_id: createdBookrecord.id,
-                month: item.month,
-                yeardoc: item.yeardoc,
-              },
-              { client: trx }
-            )
+          if (!existingBookrecord) {
+            const { yeardoc, month, ...itemBook } = item
+            createdBookrecord = await Bookrecord.create(itemBook, { client: trx })
+          }
+
+          if (item.books_id === 13 && createdBookrecord) {
+            const existingDocument = await Document
+              .query({ client: trx })
+              .where('bookrecords_id', createdBookrecord.id)
+              .first()
+
+            if (!existingDocument) {
+              await Document.create(
+                {
+                  bookrecords_id: createdBookrecord.id,
+                  month: item.month,
+                  yeardoc: item.yeardoc,
+                },
+                { client: trx }
+              )
+            }
           }
         }
 
         for (const item of listFiles.indexImages) {
-          await Indeximage.create(item, { client: trx })
+          try {
+            await Indeximage.create(item, { client: trx })
+          } catch (error) {
+            if (error.code !== 'ER_DUP_ENTRY') {
+              throw error
+            }
+          }
         }
 
         await Typebook
@@ -2373,13 +2393,19 @@ export default class BookrecordsController {
         }
       }
 
+      if (error.code === 'ER_DUP_ENTRY') {
+        return response.status(409).send({
+          message: 'Registro duplicado encontrado durante o reprocessamento',
+          error: error.sqlMessage || error.message || error,
+        })
+      }
+
       return response.status(500).send({
         message: 'Erro ao executar reprocessamento completo',
         error: error.message || error,
       })
     }
   }
-
   //********************************************************* */
 
 }
