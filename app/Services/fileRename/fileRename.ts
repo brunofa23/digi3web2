@@ -478,14 +478,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
           //if prot exist then generate the document row
           //if (prot)
-            await Document.create({
-              bookrecords_id: bookRecord.id,
-              typebooks_id: bookRecord.typebooks_id,
-              books_id: bookRecord.books_id,
-              companies_id: bookRecord.companies_id,
-              prot:prot==0?null:prot,
-              obs
-            })
+          await Document.create({
+            bookrecords_id: bookRecord.id,
+            typebooks_id: bookRecord.typebooks_id,
+            books_id: bookRecord.books_id,
+            companies_id: bookRecord.companies_id,
+            prot: prot == 0 ? null : prot,
+            obs
+          })
 
           seq = 1
 
@@ -534,6 +534,8 @@ async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: Strin
   let dateNow: DateTime = DateTime.now()
   dateNow = dateNow.toFormat('yyyyMMddHHmm')
 
+  console.log("PASSEI NO CÓDIGO 100000000000000000000000000")
+
   return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
 }
 
@@ -562,8 +564,6 @@ async function updateFileName(bookRecord: Bookrecord) {
       .where('indeximages.bookrecords_id', bookRecord.id)
       .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
       .andWhere('indeximages.companies_id', bookRecord.companies_id)
-
-
     if (_indexImage.length > 0) {
       for (const data of _indexImage) {
         const newFileName = await mountNameFile(bookRecord, data?.seq, data.file_name)
@@ -575,7 +575,6 @@ async function updateFileName(bookRecord: Bookrecord) {
           .update({ previous_file_name: newFileName })
       }
     }
-
 
   } catch (error) {
     throw error
