@@ -462,6 +462,7 @@ export default class BookrecordsController {
   }
 
 
+
   public async update({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const { document } = request.only(['document'])
@@ -2173,6 +2174,125 @@ export default class BookrecordsController {
   }
 
 
+  public async fullReprocessing({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    console.log("passei aqui.........reindexação....", params)
+
+
+    let listFiles
+    let foldername
+    try {
+      foldername = await Typebook
+        .query()
+        .preload('company')
+        .where("companies_id", "=", authenticate.companies_id)
+        .andWhere("id", "=", params.typebooks_id).first()
+
+      if (foldername) {
+        await Typebook.query()
+          .where('companies_id', '=', authenticate.companies_id)
+          .andWhere('id', '=', foldername?.id)
+          .update({ dateindex: 'Indexing', totalfiles: null })
+
+      } else
+        throw "ERROR::SEM PASTA DE IMAGENS"
+
+
+      //ROTINA QUE IRÁ REFAZER TODOS OS NOMES DOS ARQUIVOS E ARMAZENAR EM PREVIOUS_FILE_NAME
+      console.time("Medir")
+      const query = Indeximage.query()
+        .preload('bookrecord')
+        .where('companies_id', authenticate.companies_id)
+        .andWhere("typebooks_id", params.typebooks_id)
+        .whereHas('bookrecord', (queryBookRecord) => {
+          queryBookRecord.where('book', 6)
+        })
+      console.timeEnd("Medir")
+
+      // 1. Executa a query para obter a lista de registros
+      const indeximages = await query
+
+      // 2. Percorre cada registro para processar a lógica
+      console.time("Medir 2")
+      for (const item of indeximages) {
+        // item.bookrecord acessa o modelo carregado pelo .preload()
+        if (item.bookrecord) {
+          // // 3. Chama sua função passando o bookrecord
+          const newFileName = await fileRename.updateFileName(item.bookrecord)
+          // // 4. Atribui o retorno ao campo desejado e salva
+          item.previous_file_name = newFileName
+          await item.save()
+          console.log("ALTERANDO...")
+        }
+      }
+      console.timeEnd("Medir 2")
+      console.log("Finalizei..")
+      // 5. Retorna os dados atualizados
+      return //response.status(200).send(indeximages)
+
+
+      /////////////////////////////////////////////////////////////////
+
+      //ROTINA DE ALTERAR NOME DOS ARQUIVOS MODIFICADOS ENTRA AQUI
+      const listFilesToModify =
+        await Indeximage.query()
+          .where("companies_id", "=", authenticate.companies_id)
+          .andWhere("typebooks_id", "=", params.typebooks_id)
+          .whereNotNull('previous_file_name')
+
+      if (listFilesToModify) {
+        for (const iterator of listFilesToModify) {
+          //1 - modificar o aquivo no gdrive
+          await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud)
+
+          //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
+          await Indeximage.query()
+            .where("companies_id", "=", authenticate.companies_id)
+            .andWhere("typebooks_id", "=", params.typebooks_id)
+            .andWhere("bookrecords_id", iterator.bookrecords_id)
+            .andWhere("seq", iterator.seq)
+            .andWhere("file_name", iterator.file_name)
+            .update({ file_name: iterator.previous_file_name, previous_file_name: null })
+
+        }
+      }
+
+      listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id, foldername.company.cloud)
+    } catch (error) {
+      console.log(error)
+    }
+    //***************************************************** */
+    for (const item of listFiles.bookRecord) {
+      try {
+        const { yeardoc, month, ...itemBook } = item
+        const create = await Bookrecord.create(itemBook)
+        if (item.books_id == 13)
+          await Document.create({ bookrecords_id: create.id, month: item.month, yeardoc: item.yeardoc })
+      } catch (error) {
+        //return error
+      }
+    }
+
+    for (const item of listFiles.indexImages) {
+      try {
+        await Indeximage.create(item)
+      } catch (error) {
+        //return error
+      }
+    }
+
+
+    try {
+      const typebookPayload = await Typebook.query()
+        .where('companies_id', '=', authenticate.companies_id)
+        .andWhere('id', '=', foldername.id)
+        .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
+      return response.status(201).send(typebookPayload)
+    } catch (error) {
+      return error
+    }
+
+  }
 
   //********************************************************* */
 }
