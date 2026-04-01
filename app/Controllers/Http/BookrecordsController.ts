@@ -159,33 +159,52 @@ export default class BookrecordsController {
     //side *************************************************
     if (side != undefined)
       queryExecute.where('side', side)
-    //aproximate_term **************************************
-    if ((approximateterm != null && String(approximateterm).trim() !== '') && (approximatetermend == null && approximatetermend == undefined)) {
-      queryExecute.whereRaw('CAST(approximate_term AS UNSIGNED) = ?', [Number(approximateterm)])
+
+
+    // approximate_term **************************************
+    const hasApproxStart = approximateterm != null && String(approximateterm).trim() !== ''
+    const hasApproxEnd = approximatetermend != null && String(approximatetermend).trim() !== ''
+
+    if (hasApproxStart && !hasApproxEnd) {
+      queryExecute.whereRaw(
+        "CONCAT('-', approximate_term, '-') LIKE ?",
+        [`%-${Number(approximateterm)}-%`]
+      )
+    } else if (hasApproxStart && hasApproxEnd) {
+      const start = Number(approximateterm)
+      const end = Number(approximatetermend)
+
+      queryExecute.where((subQuery) => {
+        for (let i = start; i <= end; i++) {
+          subQuery.orWhereRaw(
+            "CONCAT('-', approximate_term, '-') LIKE ?",
+            [`%-${i}-%`]
+          )
+        }
+      })
     }
-    if (approximateterm != null && String(approximateterm).trim() !== '') {
-      queryExecute.whereRaw('CAST(approximate_term AS UNSIGNED) >= ?', [Number(approximateterm)])
+
+    // Index **************************************
+    const hasIndexStart = indexbook !== undefined && indexbook !== null && indexbook !== ''
+    const hasIndexEnd = indexbookend !== undefined && indexbookend !== null && indexbookend !== ''
+
+    if (indexbook == 0) {
+      queryExecute.andWhereNull('indexbook')
+    } else {
+      if (hasIndexStart && !hasIndexEnd) {
+        queryExecute.where('indexbook', indexbook)
+      } else if (hasIndexStart && hasIndexEnd) {
+        queryExecute.whereBetween('indexbook', [indexbook, indexbookend])
+      }
     }
-    if (approximatetermend != null && String(approximatetermend).trim() !== '') {
-      queryExecute.whereRaw('CAST(approximate_term AS UNSIGNED) <= ?', [Number(approximatetermend)])
-    }
+
 
 
     //obs **************************************
     if (obs != undefined)
       queryExecute.where('obs', obs)
 
-    //Index **************************************
-    const hasStart = indexbook !== undefined && indexbook !== null && indexbook !== ''
-    const hasEnd = indexbookend !== undefined && indexbookend !== null && indexbookend !== ''
-    if (indexbook == 0)
-      queryExecute.andWhereNull('indexbook')
-    else
-      if (hasStart && !hasEnd) {
-        queryExecute.where('indexbook', indexbook)
-      } else if (hasStart && hasEnd) {
-        queryExecute.whereBetween('indexbook', [indexbook, indexbookend])
-      }
+
 
     //year ***********************************************
     if (year != undefined)
@@ -2104,8 +2123,6 @@ export default class BookrecordsController {
 
   public async imagesForItem({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    console.log("IMAGES POR ITEM", request.body())
-
     const body = request.only([
       'book',
       'sheet',
@@ -2120,16 +2137,13 @@ export default class BookrecordsController {
       .where('typebooks_id', body.typebooks_id)
       .andWhere('companies_id', authenticate.companies_id)
       .andWhere('sheet', body.sheet)
-      .andWhere('book',body.book)
-      if(body.side)
-        query.andWhere('side', body.side)
-      if(body.indexbook)
-        query.andWhere('indexbook', body.indexbook)
+      .andWhere('book', body.book)
+    if (body.side)
+      query.andWhere('side', body.side)
+    if (body.indexbook)
+      query.andWhere('indexbook', body.indexbook)
 
     const bookrecord = await query.first()
-
-    console.log(query.toQuery())
-
     if (!bookrecord) {
       return response.status(404).send({
         message: 'Registro não encontrado',
