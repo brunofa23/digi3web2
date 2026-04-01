@@ -462,9 +462,6 @@ export default class BookrecordsController {
   }
 
 
-
-
-
   public async update({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const { document } = request.only(['document'])
@@ -1486,6 +1483,7 @@ export default class BookrecordsController {
 
   public async indeximagesinitial({ auth, params, response }: HttpContextContract) {
 
+    console.log("passei aqui.........reindexação....")
     const authenticate = await auth.use('api').authenticate()
     let listFiles
     let foldername
@@ -1552,7 +1550,6 @@ export default class BookrecordsController {
         //return error
       }
     }
-
 
 
     try {

@@ -217,6 +217,16 @@ definir o nome do arquivo no inicio do teste
 public created_at: DateTime;
 
 
+# ATALHOS EXPANDIR E RECOLHER CÓDIGOS
+RECOLHER: Ctrl + K depois 0 (zero)
+EXPANDIR: Ctrl + K depois J 
+Recolher por Nível: Você pode recolher apenas os blocos mais externos ou internos usando níveis:
+Nível 1 (Geralmente classes/módulos): Ctrl + K depois 1.
+Nível 2 (Geralmente funções principais): Ctrl + K depois 2.
+Recolher Bloco Atual: Ctrl + Shift + [.
+Expandir Bloco Atual: Ctrl + Shift + ]. 
+
+
 ## FORMATOS DE IMPORTAÇÃO DE IMAGENS
 L389(1).jpg = Importa pelo Livro e Código
 
