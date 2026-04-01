@@ -2176,213 +2176,210 @@ export default class BookrecordsController {
 
   public async fullReprocessing({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    console.log("passei aqui.........reindexação....", params)
 
+    const typebooksId = Number(params.typebooks_id)
+    const { book } = request.only(['book'])
+    const bookNumber = book !== undefined && book !== null && book !== '' ? Number(book) : null
 
-    let listFiles
-    let foldername
+    if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+      return response.status(400).send({
+        message: 'typebooks_id inválido',
+      })
+    }
+
+    if (book !== undefined && book !== null && book !== '' && (!Number.isInteger(bookNumber!) || bookNumber! <= 0)) {
+      return response.status(400).send({
+        message: 'book inválido',
+      })
+    }
+
+    let foldername: any = null
+    let listFiles: any = null
+
     try {
       foldername = await Typebook
         .query()
         .preload('company')
-        .where("companies_id", "=", authenticate.companies_id)
-        .andWhere("id", "=", params.typebooks_id).first()
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('id', typebooksId)
+        .first()
 
-      if (foldername) {
-        await Typebook.query()
-          .where('companies_id', '=', authenticate.companies_id)
-          .andWhere('id', '=', foldername?.id)
-          .update({ dateindex: 'Indexing', totalfiles: null })
+      if (!foldername) {
+        return response.status(404).send({
+          message: 'Typebook não encontrado',
+        })
+      }
 
-      } else
-        throw "ERROR::SEM PASTA DE IMAGENS"
+      if (!foldername.path) {
+        return response.status(422).send({
+          message: 'Typebook sem caminho da pasta configurado',
+        })
+      }
 
+      if (!foldername.company || !foldername.company.cloud) {
+        return response.status(422).send({
+          message: 'Empresa sem configuração de cloud',
+        })
+      }
 
-      //ROTINA QUE IRÁ REFAZER TODOS OS NOMES DOS ARQUIVOS E ARMAZENAR EM PREVIOUS_FILE_NAME
+      // Evita reprocessamento simultâneo do mesmo typebook
+      if (foldername.dateindex === 'Indexing') {
+        return response.status(409).send({
+          message: 'Já existe um reprocessamento em andamento para este typebook',
+        })
+      }
 
-      console.time("Medir")
-      const query = Indeximage.query()
+      await Typebook
+        .query()
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('id', foldername.id)
+        .update({
+          dateindex: 'Indexing',
+          totalfiles: null,
+        })
+
+      // ===============================
+      // 1) Atualiza os nomes internamente
+      // ===============================
+      const query = Indeximage
+        .query()
         .preload('bookrecord')
         .where('companies_id', authenticate.companies_id)
-        .andWhere("typebooks_id", params.typebooks_id)
-        .whereHas('bookrecord', (queryBookRecord) => {
-          queryBookRecord.where('book', 6)
+        .andWhere('typebooks_id', typebooksId)
+
+      if (bookNumber) {
+        query.whereHas('bookrecord', (queryBookRecord) => {
+          queryBookRecord.where('book', bookNumber)
         })
-      console.timeEnd("Medir")
+      }
 
-      // 1. Executa a query para obter a lista de registros
       const indeximages = await query
-      // 2. Percorre cada registro para processar a lógica
-      console.time("Medir 2")
+
       for (const item of indeximages) {
-        if (item.bookrecord) {
-          //console.log("filename>>>>:", item.bookrecord.$original)
-          const bookrecordInstance = new Bookrecord()
-          bookrecordInstance.fill(item.bookrecord.$original)
-          const newFileName = await fileRename.updateFileName(bookrecordInstance)
+        if (!item.bookrecord) continue
+
+        const bookrecordInstance = new Bookrecord()
+        bookrecordInstance.fill(item.bookrecord.$original)
+
+        await fileRename.updateFileName(bookrecordInstance)
+      }
+
+      // ===============================
+      // 2) Renomeia arquivos no Google Drive e sincroniza banco
+      // ===============================
+      const listFilesToModify = await Indeximage
+        .query()
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('typebooks_id', typebooksId)
+        .whereNotNull('previous_file_name')
+
+      for (const iterator of listFilesToModify) {
+        if (!iterator.file_name || !iterator.previous_file_name) continue
+
+        await fileRename.renameFileGoogle(
+          iterator.file_name,
+          foldername.path,
+          iterator.previous_file_name,
+          foldername.company.cloud
+        )
+
+        await Indeximage
+          .query()
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('typebooks_id', typebooksId)
+          .andWhere('bookrecords_id', iterator.bookrecords_id)
+          .andWhere('seq', iterator.seq)
+          .andWhere('file_name', iterator.file_name)
+          .update({
+            file_name: iterator.previous_file_name,
+            previous_file_name: null,
+          })
+      }
+
+      // ===============================
+      // 3) Reindexa arquivos
+      // ===============================
+      listFiles = await fileRename.indeximagesinitial(
+        foldername,
+        authenticate.companies_id,
+        foldername.company.cloud
+      )
+
+      if (!listFiles || !Array.isArray(listFiles.bookRecord) || !Array.isArray(listFiles.indexImages)) {
+        throw new Error('Falha ao gerar lista de reindexação')
+      }
+
+      // ===============================
+      // 4) Salva no banco com transaction
+      // ===============================
+      const trx = await Database.transaction()
+
+      try {
+        for (const item of listFiles.bookRecord) {
+          const { yeardoc, month, ...itemBook } = item
+
+          const createdBookrecord = await Bookrecord.create(itemBook, { client: trx })
+
+          if (item.books_id === 13) {
+            await Document.create(
+              {
+                bookrecords_id: createdBookrecord.id,
+                month: item.month,
+                yeardoc: item.yeardoc,
+              },
+              { client: trx }
+            )
+          }
+        }
+
+        for (const item of listFiles.indexImages) {
+          await Indeximage.create(item, { client: trx })
+        }
+
+        await Typebook
+          .query({ client: trx })
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('id', foldername.id)
+          .update({
+            dateindex: new Date(),
+            totalfiles: listFiles.indexImages.length,
+          })
+
+        await trx.commit()
+      } catch (error) {
+        await trx.rollback()
+        throw error
+      }
+
+      return response.status(201).send({
+        message: 'Reprocessamento concluído com sucesso',
+        totalfiles: listFiles.indexImages.length,
+        typebooks_id: foldername.id,
+      })
+    } catch (error) {
+      console.error('Erro em fullReprocessing:', error)
+
+      if (foldername?.id) {
+        try {
+          await Typebook
+            .query()
+            .where('companies_id', authenticate.companies_id)
+            .andWhere('id', foldername.id)
+            .update({
+              dateindex: null,
+            })
+        } catch (updateError) {
+          console.error('Erro ao restaurar status do typebook:', updateError)
         }
       }
-      console.timeEnd("Medir 2")
-      console.log("Finalizei..")
-      // 5. Retorna os dados atualizados
-      //return //response.status(200).send(indeximages)
 
-
-      //ROTINA DE ALTERAR NOME DOS ARQUIVOS MODIFICADOS ENTRA AQUI
-      const listFilesToModify =
-        await Indeximage.query()
-          .where("companies_id", "=", authenticate.companies_id)
-          .andWhere("typebooks_id", "=", params.typebooks_id)
-          .whereNotNull('previous_file_name')
-
-      if (listFilesToModify) {
-        for (const iterator of listFilesToModify) {
-          //1 - modificar o aquivo no gdrive
-          await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud)
-
-          //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
-          await Indeximage.query()
-            .where("companies_id", "=", authenticate.companies_id)
-            .andWhere("typebooks_id", "=", params.typebooks_id)
-            .andWhere("bookrecords_id", iterator.bookrecords_id)
-            .andWhere("seq", iterator.seq)
-            .andWhere("file_name", iterator.file_name)
-            .update({ file_name: iterator.previous_file_name, previous_file_name: null })
-
-        }
-      }
-
-      listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id, foldername.company.cloud)
-    } catch (error) {
-      console.log(error)
+      return response.status(500).send({
+        message: 'Erro ao executar reprocessamento completo',
+        error: error.message || error,
+      })
     }
-    //***************************************************** */
-    for (const item of listFiles.bookRecord) {
-      try {
-        const { yeardoc, month, ...itemBook } = item
-        const create = await Bookrecord.create(itemBook)
-        if (item.books_id == 13)
-          await Document.create({ bookrecords_id: create.id, month: item.month, yeardoc: item.yeardoc })
-      } catch (error) {
-        //return error
-      }
-    }
-
-    for (const item of listFiles.indexImages) {
-      try {
-        await Indeximage.create(item)
-      } catch (error) {
-        //return error
-      }
-    }
-
-
-    try {
-      const typebookPayload = await Typebook.query()
-        .where('companies_id', '=', authenticate.companies_id)
-        .andWhere('id', '=', foldername.id)
-        .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
-      return response.status(201).send(typebookPayload)
-    } catch (error) {
-      return error
-    }
-
   }
 
   //********************************************************* */
-
-  // public async fullReprocessing({ auth, params, response }: HttpContextContract) {
-  //   const authenticate = await auth.use('api').authenticate()
-  //   const companyId = authenticate.companies_id
-  //   const typebookId = params.typebooks_id
-
-  //   // 1. Buscar pasta inicial com validação rigorosa
-  //   const foldername = await Typebook.query()
-  //     .preload('company')
-  //     .where("companies_id", companyId)
-  //     .andWhere("id", typebookId)
-  //     .firstOrFail() // Lança erro 404 se não encontrar
-
-  //   // Iniciamos uma transação para garantir que tudo ou nada seja salvo
-  //   const trx = await Database.transaction()
-
-  //   try {
-  //     // Atualizar status para Indexing usando a transação
-  //     foldername.useTransaction(trx)
-  //     await foldername.merge({ dateindex: 'Indexing', totalfiles: null }).save()
-
-  //     // --- BLOCO 1: Recálculo de nomes (Book 6) ---
-  //     const indeximages = await Indeximage.query()
-  //       .preload('bookrecord')
-  //       .where('companies_id', companyId)
-  //       .andWhere("typebooks_id", typebookId)
-  //       .whereHas('bookrecord', (q) => q.where('book', 6))
-  //       .useTransaction(trx)
-
-  //     for (const item of indeximages) {
-  //       if (item.bookrecord) {
-  //         const bookrecordInstance = new Bookrecord()
-  //         bookrecordInstance.fill(item.bookrecord.$original)
-  //         // Assume-se que updateFileName já salva internamente ou prepara o model
-  //         await fileRename.updateFileName(bookrecordInstance)
-  //       }
-  //     }
-
-  //     // --- BLOCO 2: Renomeação Física e Sync ---
-  //     const listFilesToModify = await Indeximage.query()
-  //       .where("companies_id", companyId)
-  //       .andWhere("typebooks_id", typebookId)
-  //       .whereNotNull('previous_file_name')
-  //       .useTransaction(trx)
-
-  //     for (const iterator of listFilesToModify) {
-  //       // Renomeia no Google Drive
-  //       await fileRename.renameFileGoogle(
-  //         iterator.file_name,
-  //         foldername.path,
-  //         iterator.previous_file_name,
-  //         foldername.company.cloud
-  //       )
-
-  //       // Atualiza o registro atual dentro da transação
-  //       iterator.useTransaction(trx)
-  //       await iterator.merge({
-  //         file_name: iterator.previous_file_name,
-  //         previous_file_name: null
-  //       }).save()
-  //     }
-
-  //     // --- BLOCO 3: Processamento Final ---
-  //     const listFiles = await fileRename.indeximagesinitial(foldername, companyId, foldername.company.cloud)
-
-  //     // Inserção em lote (Bulk Insert) para Bookrecords
-  //     // Dica: Use o método createMany se possível para performance
-  //     for (const item of listFiles.bookRecord) {
-  //       const { yeardoc, month, ...itemBook } = item
-  //       const create = await Bookrecord.create(itemBook, { client: trx })
-  //       if (item.books_id == 13) {
-  //         await Document.create({ bookrecords_id: create.id, month, yeardoc }, { client: trx })
-  //       }
-  //     }
-
-  //     // Finaliza pasta
-  //     await foldername.merge({
-  //       dateindex: new Date() as any,
-  //       totalfiles: listFiles.indexImages.length
-  //     }).save()
-
-  //     // Se chegou aqui, confirma todas as alterações no banco
-  //     await trx.commit()
-  //     return response.status(201).send(foldername)
-
-  //   } catch (error) {
-  //     // Se algo falhou, desfaz tudo que foi feito no banco
-  //     await trx.rollback()
-  //     console.error("Erro no reprocessamento:", error)
-  //     return response.status(500).send({ error: "Falha ao processar arquivos" })
-  //   }
-  // }
-
-
 
 }
