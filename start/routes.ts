@@ -92,6 +92,7 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')//.middleware('indeximage_permission:uploads')
   Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')//.middleware('indeximage_permission:download')
   Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')//.middleware('indeximage_permission:uploadCapture')
+  Route.get("/countprocessing/:typebooks_id","IndeximagesController.countProcessing")
 
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")//.middleware('authentication_permission:free_time')

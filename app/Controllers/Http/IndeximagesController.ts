@@ -114,149 +114,6 @@ export default class IndeximagesController {
 
   }
 
-  // public async uploads({ auth, request, params, response }: HttpContextContract) {
-
-  //   const authenticate = await auth.use('api').authenticate()
-  //   const company = await Company.find(authenticate.companies_id)
-  //   const images = request.files('images', {
-  //     size: '100mb',
-  //     extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
-  //   })
-
-  //   const { dataImages } = request['requestBody']
-  //   const { indexImagesInitial, updateImage, updateImageDocument } = request['requestData']
-
-  //   //Através do nome da imagem é recriado o registro no bookrecord
-  //   if (indexImagesInitial == 'true') {
-  //     const listFilesImages = images.map((image) => {
-  //       const imageName = image.clientName
-  //       return imageName
-  //     })
-  //     const listFiles = await FileRename.indeximagesinitial("", authenticate.companies_id, company?.cloud, listFilesImages)
-  //     for (const item of listFiles.bookRecord) {
-  //       try {
-  //         await Bookrecord.create(item)
-  //       } catch (error) {
-  //         console.log("ERRO BOOKRECORD::", error)
-  //       }
-  //     }
-  //   }
-
-  //   //ATUALIZAÇÃO DE LIVROS
-  //   if (updateImage) {
-  //     const query = Bookrecord.query()
-  //       .where('typebooks_id', params.typebooks_id)
-  //       .andWhere('companies_id', authenticate.companies_id)
-  //       .andWhere('book', dataImages.book)
-  //     if (dataImages.side)
-  //       query.andWhere('side', dataImages.side)
-  //     if (dataImages.sheet)
-  //       query.andWhere('sheet', dataImages.sheet)
-  //     if (dataImages.indexBook)
-  //       query.andWhere('indexbook', dataImages.indexBook)
-  //     if (dataImages.approximateTerm) {
-  //       query.andWhere('approximate_term', dataImages.approximateTerm)
-  //     }
-
-  //     const bookRecord = await query.first()
-
-  //     if (!bookRecord || dataImages.sheet == 0) {
-  //       const books_id = await Typebook.query().where('id', params.typebooks_id)
-  //         .andWhere('companies_id', authenticate.companies_id).first()
-  //       const codBookrecord = await Bookrecord.query()
-  //         .where('typebooks_id', params.typebooks_id)
-  //         .andWhere('companies_id', authenticate.companies_id)
-  //         .max('cod as max_cod').firstOrFail()
-
-  //       if (dataImages.sheet == 0 && books_id) {
-  //         const book = await Bookrecord.create({
-  //           typebooks_id: params.typebooks_id,
-  //           companies_id: authenticate.companies_id,
-  //           cod: (codBookrecord?.$extras.max_cod + 1),
-  //           books_id: books_id.books_id,
-  //           book: dataImages.book,
-  //           sheet: dataImages.sheet,
-  //           indexbook: dataImages.indexBook,
-  //           approximate_term: dataImages.approximateTerm,
-  //           letter: dataImages.letter
-
-  //         })
-
-  //         dataImages.id = book.id
-  //       } else
-  //         if (books_id) {
-  //           const book = await Bookrecord.create({
-  //             typebooks_id: params.typebooks_id,
-  //             companies_id: authenticate.companies_id,
-  //             cod: (codBookrecord?.$extras.max_cod + 1),
-  //             books_id: books_id.books_id,
-  //             book: dataImages.book,
-  //             sheet: dataImages.sheet,
-  //             side: dataImages.side,
-  //             indexbook: dataImages.indexBook,
-  //             approximate_term: dataImages.approximateTerm,
-  //             letter: dataImages.letter
-  //           })
-  //           dataImages.id = book.id
-  //         }
-  //     }
-  //   } else if (updateImageDocument)//ATUALIZAÇÃO DE DOCUMENTOS
-  //   {
-  //     //SEMPRE CRIAR UM NOVO REGISTRO
-  //     const verifyExistBookrecord = await Bookrecord.query()
-  //       .where('companies_id', authenticate.companies_id)
-  //       .andWhere('cod', dataImages.cod)
-  //       .andWhere('typebooks_id', params.typebooks_id).first()
-
-  //     //SE EXISTIR CODIGO E LIVRO DE DOCUMENTO INCLUI IMAGEM NO MESMO REGISTRO
-  //     if (verifyExistBookrecord) {
-  //       dataImages.id = verifyExistBookrecord.id
-
-  //     } else {
-  //       const trx = await Database.beginGlobalTransaction()
-  //       try {
-  //         const bookRecord = await Bookrecord.create({
-  //           typebooks_id: params.typebooks_id,
-  //           companies_id: authenticate.companies_id,
-  //           cod: dataImages.cod,
-  //           book: dataImages.book,
-  //           side: dataImages.side,
-  //           books_id: 13
-  //         }, trx)
-
-  //         const document = await Document.create({
-  //           bookrecords_id: bookRecord.id,
-  //           books_id: 13,
-  //           typebooks_id: params.typebooks_id,
-  //           companies_id: authenticate.companies_id,
-  //           prot: dataImages.prot,
-  //           documenttype_id: dataImages.documenttype_id,
-  //           document_type_book_id: dataImages.document_type_book_id,
-  //           book_name: dataImages.book_name,
-  //           book_number: dataImages.book_number,
-  //           sheet_number: dataImages.sheet_number,
-  //           free: dataImages.free ? 1 : 0,
-  //           averb_anot: dataImages.averb_anot ? 1 : 0,
-  //           obs: dataImages.obs
-  //         }, trx)
-  //         dataImages.id = bookRecord.id
-  //         await trx.commit()
-  //       } catch (error) {
-  //         await trx.rollback()
-  //         throw error
-  //       }
-  //     }
-  //   }
-
-
-  //   // console.time('teste')
-  //   const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages)
-  //   // console.timeEnd('teste')
-  //   console.log("UPLOAD PASSO 9")
-  //   return response.status(201).send({ files, message: "Arquivo Salvo com sucesso!!!" })
-
-  // }
-
   public async uploads({ auth, request, params, response }: HttpContextContract) {
     console.log("passo 1....")
     const authenticate = await auth.use('api').authenticate()
@@ -495,9 +352,6 @@ export default class IndeximagesController {
     return response.status(201).send({ files, message: 'Arquivo Salvo com sucesso!!!' })
   }
 
-
-
-
   public async uploadCapture({ auth, request, params }) {
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
@@ -537,6 +391,20 @@ export default class IndeximagesController {
     const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
     return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }
 
+  }
+
+  public async countProcessing({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const result = await Indeximage.query()
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('typebooks_id', params.typebooks_id)
+      .whereNotNull('previous_file_name')
+      .count('* as total')
+
+    return response.ok({
+      total: Number(result[0].$extras.total),
+    })
   }
 
   //*************************************************************** */
