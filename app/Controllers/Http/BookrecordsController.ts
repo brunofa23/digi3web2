@@ -1656,7 +1656,7 @@ export default class BookrecordsController {
           })
         }
       } catch (error) {
-        
+
       }
     }
 
@@ -2291,6 +2291,7 @@ export default class BookrecordsController {
 
 
   public async fullReprocessing({ auth, params, request, response }: HttpContextContract) {
+   console.log("passo 1")
     const authenticate = await auth.use('api').authenticate()
 
     const typebooksId = Number(params.typebooks_id)
