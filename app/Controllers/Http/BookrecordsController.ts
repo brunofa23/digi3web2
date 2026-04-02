@@ -2291,7 +2291,7 @@ export default class BookrecordsController {
 
 
   public async fullReprocessing({ auth, params, request, response }: HttpContextContract) {
-   console.log("passo 1")
+    console.log("@@passo 1")
     const authenticate = await auth.use('api').authenticate()
 
     const typebooksId = Number(params.typebooks_id)
@@ -2322,6 +2322,7 @@ export default class BookrecordsController {
     let foldername: any = null
     let listFiles: any = null
 
+    console.log("@@passo 1.1")
     try {
       foldername = await Typebook
         .query()
@@ -2336,24 +2337,28 @@ export default class BookrecordsController {
         })
       }
 
+      console.log("@@passo 1.2")
       if (!foldername.path) {
         return response.status(422).send({
           message: 'Typebook sem caminho da pasta configurado',
         })
       }
 
+      console.log("@@passo 1.3")
       if (!foldername.company || !foldername.company.cloud) {
         return response.status(422).send({
           message: 'Empresa sem configuração de cloud',
         })
       }
 
+      console.log("@@passo 1.4")
       if (foldername.dateindex === 'Indexing') {
         return response.status(409).send({
           message: 'Já existe um reprocessamento em andamento para este Livro',
         })
       }
 
+      console.log("@@passo 1.5")
       await Typebook
         .query()
         .where('companies_id', authenticate.companies_id)
@@ -2377,13 +2382,13 @@ export default class BookrecordsController {
 
       const indeximages = await query
 
+      console.log("@@passo 2")
       for (const item of indeximages) {
         if (!item.bookrecord) continue
-
         const bookrecordInstance = new Bookrecord()
         bookrecordInstance.fill(item.bookrecord.$original)
-
-        await fileRename.updateFileName(bookrecordInstance)
+        const filerename = await fileRename.updateFileName(bookrecordInstance)
+        console.log("@@passo 3", filerename)
       }
 
       const listFilesToModify = await Indeximage
@@ -2392,6 +2397,7 @@ export default class BookrecordsController {
         .andWhere('typebooks_id', typebooksId)
         .whereNotNull('previous_file_name')
 
+      console.log("@@passo 4")
       for (const iterator of listFilesToModify) {
         if (!iterator.file_name || !iterator.previous_file_name) continue
 
@@ -2401,6 +2407,8 @@ export default class BookrecordsController {
           iterator.previous_file_name,
           foldername.company.cloud
         )
+
+        console.log("@@passo 5 Nome atual:",iterator.file_name, "- mudar para:", iterator.previous_file_name)
 
         await Indeximage
           .query()
@@ -2415,6 +2423,8 @@ export default class BookrecordsController {
           })
       }
 
+      console.log("@@passo 6")
+
       listFiles = await fileRename.indeximagesinitial(
         foldername,
         authenticate.companies_id,
@@ -2426,6 +2436,8 @@ export default class BookrecordsController {
       }
 
       const trx = await Database.transaction()
+      console.log("@@passo 7")
+
 
       try {
         for (const item of listFiles.bookRecord) {
@@ -2463,6 +2475,8 @@ export default class BookrecordsController {
           }
         }
 
+        console.log("@@passo 8")
+
         for (const item of listFiles.indexImages) {
           try {
             await Indeximage.create(item, { client: trx })
@@ -2473,6 +2487,7 @@ export default class BookrecordsController {
           }
         }
 
+        console.log("@@passo 9")
         await Typebook
           .query({ client: trx })
           .where('companies_id', authenticate.companies_id)
@@ -2483,6 +2498,7 @@ export default class BookrecordsController {
           })
 
         await trx.commit()
+        console.log("@@passo 10")
       } catch (error) {
         await trx.rollback()
         throw error
@@ -2496,6 +2512,7 @@ export default class BookrecordsController {
     } catch (error) {
       console.error('Erro em fullReprocessing:', error)
 
+      console.log("@@passo 11")
       if (foldername?.id) {
         try {
           await Typebook
@@ -2517,6 +2534,7 @@ export default class BookrecordsController {
         })
       }
 
+      console.log("@@passo 12")
       return response.status(500).send({
         message: 'Erro ao executar reprocessamento completo',
         error: error.message || error,
