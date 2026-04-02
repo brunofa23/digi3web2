@@ -1482,41 +1482,148 @@ export default class BookrecordsController {
     }
   }
 
-  public async indeximagesinitial({ auth, params, response }: HttpContextContract) {
+  // public async indeximagesinitial({ auth, params, response }: HttpContextContract) {
 
+  //   console.log("passei aqui.........reindexação....")
+  //   const authenticate = await auth.use('api').authenticate()
+  //   let listFiles
+  //   let foldername
+  //   try {
+  //     foldername = await Typebook
+  //       .query()
+  //       .preload('company')
+  //       .where("companies_id", "=", authenticate.companies_id)
+  //       .andWhere("id", "=", params.typebooks_id).first()
+
+  //     if (foldername) {
+  //       await Typebook.query()
+  //         .where('companies_id', '=', authenticate.companies_id)
+  //         .andWhere('id', '=', foldername?.id)
+  //         .update({ dateindex: 'Indexing', totalfiles: null })
+
+  //     } else
+  //       throw "ERROR::SEM PASTA DE IMAGENS"
+
+  //     //ROTINA DE ALTERAR NOME DOS ARQUIVOS MODIFICADOS ENTRA AQUI
+  //     const listFilesToModify =
+  //       await Indeximage.query()
+  //         .where("companies_id", "=", authenticate.companies_id)
+  //         .andWhere("typebooks_id", "=", params.typebooks_id)
+  //         .whereNotNull('previous_file_name')
+  //     if (bookNumbers.length) {
+  //       query.whereHas('bookrecord', (queryBookRecord) => {
+  //         queryBookRecord.whereIn('book', bookNumbers)
+  //       })
+  //     }
+
+
+  //     if (listFilesToModify) {
+  //       for (const iterator of listFilesToModify) {
+  //         //1 - modificar o aquivo no gdrive
+  //         await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud)
+
+  //         //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
+  //         await Indeximage.query()
+  //           .where("companies_id", "=", authenticate.companies_id)
+  //           .andWhere("typebooks_id", "=", params.typebooks_id)
+  //           .andWhere("bookrecords_id", iterator.bookrecords_id)
+  //           .andWhere("seq", iterator.seq)
+  //           .andWhere("file_name", iterator.file_name)
+  //           .update({ file_name: iterator.previous_file_name, previous_file_name: null })
+
+  //       }
+  //     }
+
+  //     listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id, foldername.company.cloud)
+  //   } catch (error) {
+  //     console.log(error)
+  //   }
+  //   //***************************************************** */
+  //   for (const item of listFiles.bookRecord) {
+  //     try {
+  //       const { yeardoc, month, ...itemBook } = item
+  //       const create = await Bookrecord.create(itemBook)
+  //       if (item.books_id == 13)
+  //         await Document.create({ bookrecords_id: create.id, month: item.month, yeardoc: item.yeardoc })
+  //     } catch (error) {
+  //       //return error
+  //     }
+  //   }
+
+  //   for (const item of listFiles.indexImages) {
+  //     try {
+  //       await Indeximage.create(item)
+  //     } catch (error) {
+  //       //return error
+  //     }
+  //   }
+
+
+  //   try {
+  //     const typebookPayload = await Typebook.query()
+  //       .where('companies_id', '=', authenticate.companies_id)
+  //       .andWhere('id', '=', foldername.id)
+  //       .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
+  //     return response.status(201).send(typebookPayload)
+  //   } catch (error) {
+  //     return error
+  //   }
+  // },
+  public async indeximagesinitial({ auth, params, request, response }: HttpContextContract) {
     console.log("passei aqui.........reindexação....")
     const authenticate = await auth.use('api').authenticate()
+
+    const { books } = request.only(['books'])
+    console.log(">>>", books)
+
+    const bookNumbers = Array.isArray(books)
+      ? books
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0)
+      : []
+
     let listFiles
     let foldername
+
     try {
       foldername = await Typebook
         .query()
         .preload('company')
         .where("companies_id", "=", authenticate.companies_id)
-        .andWhere("id", "=", params.typebooks_id).first()
+        .andWhere("id", "=", params.typebooks_id)
+        .first()
 
       if (foldername) {
         await Typebook.query()
           .where('companies_id', '=', authenticate.companies_id)
           .andWhere('id', '=', foldername?.id)
           .update({ dateindex: 'Indexing', totalfiles: null })
-
-      } else
+      } else {
         throw "ERROR::SEM PASTA DE IMAGENS"
+      }
 
-      //ROTINA DE ALTERAR NOME DOS ARQUIVOS MODIFICADOS ENTRA AQUI
-      const listFilesToModify =
-        await Indeximage.query()
-          .where("companies_id", "=", authenticate.companies_id)
-          .andWhere("typebooks_id", "=", params.typebooks_id)
-          .whereNotNull('previous_file_name')
+      const query = Indeximage.query()
+        .where("companies_id", "=", authenticate.companies_id)
+        .andWhere("typebooks_id", "=", params.typebooks_id)
+        .whereNotNull('previous_file_name')
+
+      if (bookNumbers.length > 0) {
+        query.whereHas('bookrecord', (queryBookRecord) => {
+          queryBookRecord.whereIn('book', bookNumbers)
+        })
+      }
+
+      const listFilesToModify = await query
 
       if (listFilesToModify) {
         for (const iterator of listFilesToModify) {
-          //1 - modificar o aquivo no gdrive
-          await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud)
+          await fileRename.renameFileGoogle(
+            iterator.file_name,
+            foldername.path,
+            iterator.previous_file_name,
+            foldername.company.cloud
+          )
 
-          //2 - modificar na coluna de file_name e setar para nulo na coluna previous_file_name
           await Indeximage.query()
             .where("companies_id", "=", authenticate.companies_id)
             .andWhere("typebooks_id", "=", params.typebooks_id)
@@ -1524,23 +1631,32 @@ export default class BookrecordsController {
             .andWhere("seq", iterator.seq)
             .andWhere("file_name", iterator.file_name)
             .update({ file_name: iterator.previous_file_name, previous_file_name: null })
-
         }
       }
 
-      listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id, foldername.company.cloud)
+      listFiles = await fileRename.indeximagesinitial(
+        foldername,
+        authenticate.companies_id,
+        foldername.company.cloud
+      )
     } catch (error) {
       console.log(error)
     }
-    //***************************************************** */
+
     for (const item of listFiles.bookRecord) {
       try {
         const { yeardoc, month, ...itemBook } = item
         const create = await Bookrecord.create(itemBook)
-        if (item.books_id == 13)
-          await Document.create({ bookrecords_id: create.id, month: item.month, yeardoc: item.yeardoc })
+
+        if (item.books_id == 13) {
+          await Document.create({
+            bookrecords_id: create.id,
+            month: item.month,
+            yeardoc: item.yeardoc
+          })
+        }
       } catch (error) {
-        //return error
+        
       }
     }
 
@@ -1548,21 +1664,21 @@ export default class BookrecordsController {
       try {
         await Indeximage.create(item)
       } catch (error) {
-        //return error
       }
     }
-
 
     try {
       const typebookPayload = await Typebook.query()
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('id', '=', foldername.id)
         .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
+
       return response.status(201).send(typebookPayload)
     } catch (error) {
       return error
     }
   }
+
 
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
@@ -2233,7 +2349,7 @@ export default class BookrecordsController {
 
       if (foldername.dateindex === 'Indexing') {
         return response.status(409).send({
-          message: 'Já existe um reprocessamento em andamento para este typebook',
+          message: 'Já existe um reprocessamento em andamento para este Livro',
         })
       }
 
