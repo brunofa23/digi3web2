@@ -6,6 +6,7 @@ import TokenDevice from 'App/Models/TokenDevice'
 import AuthorizedDevice from 'App/Models/AuthorizedDevice'
 import User from 'App/Models/User'
 
+
 export default class TokensDevicesController {
   public async generate({ auth, response }: HttpContextContract) {
     try {
@@ -248,4 +249,60 @@ export default class TokensDevicesController {
       })
     }
   }
+
+  public async checkDevice({ request, response }: HttpContextContract) {
+    try {
+      const { companies_id, device_identifier } = request.only([
+        'companies_id',
+        'device_identifier',
+      ])
+
+      if (!companies_id) {
+        return response.status(400).send({
+          message: 'Empresa não informada',
+        })
+      }
+
+      if (!device_identifier) {
+        return response.status(400).send({
+          message: 'Identificador do dispositivo não informado',
+        })
+      }
+
+      const device = await AuthorizedDevice.query()
+        .where('company_id', companies_id)
+        .andWhere('device_identifier', device_identifier)
+        .andWhere('active', true)
+        .first()
+
+      if (!device) {
+        return response.status(403).send({
+          message: 'Dispositivo não autorizado para esta empresa',
+        })
+      }
+
+      device.lastUsedAt = DateTime.now()
+      await device.save()
+
+      return response.status(200).send({
+        message: 'Dispositivo autorizado',
+        data: {
+          id: device.id,
+          company_id: device.companyId,
+          user_id: device.userId,
+          device_name: device.deviceName,
+          device_identifier: device.deviceIdentifier,
+        },
+      })
+    } catch (error) {
+      console.log('Erro ao verificar dispositivo:', error)
+
+      return response.status(400).send({
+        message: 'Erro ao verificar dispositivo',
+        error: error.message || error,
+      })
+    }
+  }
+
+
 }

@@ -210,6 +210,7 @@ Route.group(() => {
   Route.post('/tokens-devices/generate', 'TokensDevicesController.generate').middleware('auth')
   Route.post('/tokens-devices/validate', 'TokensDevicesController.validateToken')
   Route.post('/tokens-devices/register-device', 'TokensDevicesController.registerDevice')
+  Route.post('/tokens-devices/check-device', 'TokensDevicesController.checkDevice')
 
 
   //****************************************************************************************************************** */
