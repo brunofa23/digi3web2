@@ -166,11 +166,17 @@ export default class extends BaseSeeder {
         //   name: "Excluir Imagem - Tela de Visualização de Imagens",
         //   desc: "Excluir Imagem - Tela de Livros -> Visualizar Imagens -> Botão Excluir"
         // },
+        // {
+        //   id: 33,
+        //   name: "Financeiro - Acesso Total aos Lançamentos.",
+        //   desc: "Financeiro - Lançamentos -> Acesso Total aos Lançamentos."
+        // },
         {
-          id: 33,
-          name: "Financeiro - Acesso Total aos Lançamentos.",
-          desc: "Financeiro - Lançamentos -> Acesso Total aos Lançamentos."
+          id: 36,
+          name: "Liberação de Token.",
+          desc: "Liberação de Token para instalação em dispositivos."
         },
+
 
       ]
     )

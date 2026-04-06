@@ -63,7 +63,7 @@ Route.group(() => {
 
   Route.get("/fastfinddocuments", 'BookrecordsController.fastFindDocuments').middleware('bookrecord_permission:fastfind')
   Route.get("/maxbookrecord", 'BookrecordsController.maxBookRecord')
-  Route.post("/imagesforitem",'BookrecordsController.imagesForItem')
+  Route.post("/imagesforitem", 'BookrecordsController.imagesForItem')
   Route.get("/sheetwithside/:typebooks_id/:book", 'BookrecordsController.sheetWithSide')
 
   //DOCUMENTS
@@ -92,7 +92,7 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')//.middleware('indeximage_permission:uploads')
   Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')//.middleware('indeximage_permission:download')
   Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')//.middleware('indeximage_permission:uploadCapture')
-  Route.get("/countprocessing/:typebooks_id","IndeximagesController.countProcessing")
+  Route.get("/countprocessing/:typebooks_id", "IndeximagesController.countProcessing")
 
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")//.middleware('authentication_permission:free_time')
@@ -204,6 +204,14 @@ Route.group(() => {
   Route.put('/tributations/:id', 'TributationsController.update').middleware('tributationPermission:update')
   Route.patch('/tributations/:id', 'TributationsController.update').middleware('tributationPermission:update')
   Route.delete('/tributations/:id', 'TributationsController.destroy').middleware('tributationPermission:delete')
+
+
+  //TOKENS_DEVICES
+  Route.post('/tokens-devices/generate', 'TokensDevicesController.generate').middleware('auth')
+  Route.post('/tokens-devices/validate', 'TokensDevicesController.validateToken')
+  Route.post('/tokens-devices/register-device', 'TokensDevicesController.registerDevice')
+
+
   //****************************************************************************************************************** */
 
 
