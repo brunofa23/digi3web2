@@ -5,6 +5,10 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import { DateTime } from 'luxon'
 import { verifyPermission } from 'App/Services/util'
+
+import AuthorizedDevice from 'App/Models/AuthorizedDevice'
+
+
 //import Groupxpermission from 'App/Models/Groupxpermission'
 
 export default class AuthenticationController {
@@ -14,10 +18,20 @@ export default class AuthenticationController {
     const username = request.input('username')
     const shortname = request.input('shortname')
     const password = request.input('password')
+    const device_identifier = request.input('device_identifier')
+
     const user = await User
       .query()
       .preload('company', query => {
-        query.select('id', 'name', 'shortname', 'foldername', 'cloud','responsablename')
+        query.select(
+          'id',
+          'name',
+          'shortname',
+          'foldername',
+          'cloud',
+          'responsablename',
+          'use_device_control'
+        )
       })
       .preload('usergroup', query => {
         query.preload('groupxpermission', query => {
@@ -42,18 +56,41 @@ export default class AuthenticationController {
     }
 
     const permissions = user?.$preloaded.usergroup.$preloaded.groupxpermission || {}
-    //VERIFICAR HORARIO DISPONÍVEL
+
+    // VERIFICAR HORARIO DISPONÍVEL
     if (!verifyPermission(user.superuser, permissions, 31)) {
 
       const now = DateTime.now().setZone('America/Sao_Paulo');
       const hourNow = now.hour
       const minuteNow = now.minute
       const estaNoHorarioPermitido = hourNow >= 7 && (hourNow < 19 || (hourNow === 19 && minuteNow === 0));
+
       if (!estaNoHorarioPermitido) {
         const errorValidation = await new validations('user_error_208')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-
       }
+    }
+
+    // VERIFICAR DISPOSITIVO AUTORIZADO
+    if (user.company?.use_device_control) {
+
+      if (!device_identifier) {
+        throw new BadRequest('Dispositivo não informado', 400, 'device_error_001')
+      }
+
+      const authorizedDevice = await AuthorizedDevice
+        .query()
+        .where('company_id', user.companies_id)
+        .andWhere('device_identifier', device_identifier)
+        .andWhere('active', true)
+        .first()
+
+      if (!authorizedDevice) {
+        throw new BadRequest('Dispositivo não autorizado para esta empresa', 403, 'device_error_002')
+      }
+
+      authorizedDevice.lastUsedAt = DateTime.now()
+      await authorizedDevice.save()
     }
 
     const token = await auth.use('api').generate(user, {
@@ -67,11 +104,8 @@ export default class AuthenticationController {
       }
     })
 
-    //console.log(">>>>token:", token.meta.payload.permissions)
     return response.status(200).send({ token, user })
-
   }
-
 
   public async logout({ auth }: HttpContextContract) {
 
