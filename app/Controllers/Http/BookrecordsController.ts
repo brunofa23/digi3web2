@@ -2323,6 +2323,7 @@ export default class BookrecordsController {
     let listFiles: any = null
 
     console.log("@@passo 1.1")
+
     try {
       foldername = await Typebook
         .query()
@@ -2370,7 +2371,10 @@ export default class BookrecordsController {
 
       const query = Indeximage
         .query()
-        .preload('bookrecord')
+        .preload('bookrecord', (query)=>{
+          query.where('companies_id', authenticate.companies_id)
+          query.andWhere('typebooks_id', typebooksId)
+        })
         .where('companies_id', authenticate.companies_id)
         .andWhere('typebooks_id', typebooksId)
 
@@ -2379,16 +2383,16 @@ export default class BookrecordsController {
           queryBookRecord.whereIn('book', bookNumbers)
         })
       }
-
       const indeximages = await query
-
+      //console.log("PASSO 5555", indeximages)
       console.log("@@passo 2")
+
       for (const item of indeximages) {
-        if (!item.bookrecord) continue
+        if (!item.bookrecord.$original) continue
         const bookrecordInstance = new Bookrecord()
         bookrecordInstance.fill(item.bookrecord.$original)
         const filerename = await fileRename.updateFileName(bookrecordInstance)
-        console.log("@@passo 3", filerename)
+        //console.log("FFFFF", filerename)
       }
 
       const listFilesToModify = await Indeximage
@@ -2396,7 +2400,6 @@ export default class BookrecordsController {
         .where('companies_id', authenticate.companies_id)
         .andWhere('typebooks_id', typebooksId)
         .whereNotNull('previous_file_name')
-
       console.log("@@passo 4")
       for (const iterator of listFilesToModify) {
         if (!iterator.file_name || !iterator.previous_file_name) continue
@@ -2408,7 +2411,7 @@ export default class BookrecordsController {
           foldername.company.cloud
         )
 
-        console.log("@@passo 5 Nome atual:",iterator.file_name, "- mudar para:", iterator.previous_file_name)
+        console.log("@@passo 5 Nome atual:", iterator.file_name, "- mudar para:", iterator.previous_file_name)
 
         await Indeximage
           .query()
