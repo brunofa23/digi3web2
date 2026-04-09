@@ -11,6 +11,7 @@ import { DateTime } from "luxon";
 import { promises as fsp } from 'fs'
 
 
+
 import {
   sendUploadFiles,
   sendCreateFolder,
@@ -28,7 +29,8 @@ import Document from "App/Models/Document";
 
 //const authorize = require('App/Services/googleDrive/googledrive')
 const fs = require('fs');
-const path = require('path')
+//const path = require('path')
+import path from 'path'
 
 function sleep(ms) {
   return new Promise((resolve) => {
@@ -594,72 +596,164 @@ async function totalFilesInFolder(folderName, cloud_number: number) {
 }
 //**************************************************** */
 
-async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
+// async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
 
-  let listFiles
-  if (listFilesImages.length > 0) {
+//   let listFiles
+//   if (listFilesImages.length > 0) {
+//     listFiles = listFilesImages
+//   } else {
+//     listFiles = await totalFilesInFolder(folderName?.path, cloud_number)
+//   }
+//   listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"))
+//   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
+//   const objlistFilesBookRecord = listFiles.map((file) => {
+//     const fileSplit = file.split("_")
+//     const id = fileSplit[0].match(/\d+/g)[0];
+//     const typebooks_id = fileSplit[2]
+//     const books_id = fileSplit[7].match(/\d+/g)[0];
+//     const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
+//     const book = fileSplit[3] == '' ? null : fileSplit[3]
+//     const sheet = fileSplit[4] == '' ? null : fileSplit[4]
+//     const side = fileSplit[6]
+//     const approximate_term = fileSplit[5]
+//     const indexbook = fileSplit[8] == '' ? null : fileSplit[8]
+//     const obs = fileSplit[9]
+//     const letter = fileSplit[10]
+//     const year = fileSplit[11]
+//     //para documentos
+//     const yeardoc = fileSplit[4] == '' ? null : fileSplit[4] //documentos
+//     const month = fileSplit[6] //documentos
+
+//     return {
+//       id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
+//       approximate_term, indexbook, obs, letter, year, yeardoc, month
+//     }
+
+//   });
+
+
+//   const indexImages = listFiles.map((file) => {
+//     const fileSplit = file.split("_")
+//     const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
+//     const typebooks_id = fileSplit[2]
+//     const seq = fileSplit[1].match(/^(\d+)/)[0];
+//     const ext = path.extname(file);
+
+//     return {
+//       bookrecords_id, typebooks_id, companies_id, seq,
+//       ext, file_name: file, previous_file_name: file
+//     }
+//   });
+
+//   const uniqueIds = {};
+//   const bookRecord = objlistFilesBookRecord.filter(obj => {
+//     if (!uniqueIds[obj.id]) {
+//       uniqueIds[obj.id] = true;
+//       return true;
+//     }
+//     return false;
+//   });
+
+
+
+//   bookRecord.sort((a, b) => a.id - b.id);
+//   indexImages.sort((a, b) => a.id - b.id);
+
+//   return { bookRecord, indexImages }
+
+
+// }
+//import path from 'path'
+
+async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
+  let listFiles = []
+
+  if (Array.isArray(listFilesImages) && listFilesImages.length > 0) {
     listFiles = listFilesImages
   } else {
     listFiles = await totalFilesInFolder(folderName?.path, cloud_number)
   }
-  listFiles = listFiles.filter(item => item.startsWith("Id" || "id" || "ID"))
-  //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
-  const objlistFilesBookRecord = listFiles.map((file) => {
-    const fileSplit = file.split("_")
-    const id = fileSplit[0].match(/\d+/g)[0];
+
+  const bookRecord = []
+  const indexImages = []
+  const uniqueIds = new Set()
+
+  for (const file of listFiles) {
+    if (!/^id/i.test(file)) continue
+
+    const fileSplit = file.split('_')
+    if (!fileSplit || fileSplit.length < 12) continue
+
+    const idMatch = fileSplit[0]?.match(/\d+/g)
+    const codMatch = fileSplit[1]?.match(/\((\d+)\)/)
+    const seqMatch = fileSplit[1]?.match(/^(\d+)/)
+
+    if (!idMatch || !idMatch[0] || !seqMatch || !seqMatch[0]) continue
+
+    const id = idMatch[0]
     const typebooks_id = fileSplit[2]
-    const books_id = fileSplit[7].match(/\d+/g)[0];
-    const cod = fileSplit[1].match(/\((\d+)\)/)[0].replace(/\(|\)/g, '');
-    const book = fileSplit[3] == '' ? null : fileSplit[3]
-    const sheet = fileSplit[4] == '' ? null : fileSplit[4]
-    const side = fileSplit[6]
-    const approximate_term = fileSplit[5]
-    const indexbook = fileSplit[8] == '' ? null : fileSplit[8]
-    const obs = fileSplit[9]
-    const letter = fileSplit[10]
-    const year = fileSplit[11]
-    //para documentos
-    const yeardoc = fileSplit[4] == '' ? null : fileSplit[4] //documentos
-    const month = fileSplit[6] //documentos
+    const bookrecords_id = id
+    const seq = seqMatch[0]
+    const ext = path.extname(file)
 
-    return {
-      id, typebooks_id, books_id, companies_id, cod, book, sheet, side,
-      approximate_term, indexbook, obs, letter, year, yeardoc, month
+    const booksMatch = fileSplit[7]?.match(/\d+/g)
+    const books_id = booksMatch && booksMatch[0] ? booksMatch[0] : null
+    const cod = codMatch && codMatch[1] ? codMatch[1] : null
+    const book = fileSplit[3] === '' ? null : fileSplit[3]
+    const sheet = fileSplit[4] === '' ? null : fileSplit[4]
+    const side = fileSplit[6] || null
+    const approximate_term = fileSplit[5] === '' ? null : fileSplit[5]
+    const indexbook = fileSplit[8] === '' ? null : fileSplit[8]
+    const obs = fileSplit[9] === '' ? null : fileSplit[9]
+    const letter = fileSplit[10] === '' ? null : fileSplit[10]
+    const year = fileSplit[11] === '' ? null : fileSplit[11]
+
+    const yeardoc = fileSplit[4] === '' ? null : fileSplit[4]
+    const month = fileSplit[6] === '' ? null : fileSplit[6]
+
+    if (!uniqueIds.has(id)) {
+      uniqueIds.add(id)
+
+      bookRecord.push({
+        id,
+        typebooks_id,
+        books_id,
+        companies_id,
+        cod,
+        book,
+        sheet,
+        side,
+        approximate_term,
+        indexbook,
+        obs,
+        letter,
+        year,
+        yeardoc,
+        month,
+      })
     }
 
-  });
+    indexImages.push({
+      bookrecords_id,
+      typebooks_id,
+      companies_id,
+      seq,
+      ext,
+      file_name: file,
+      previous_file_name: file,
+    })
+  }
 
-
-  const indexImages = listFiles.map((file) => {
-    const fileSplit = file.split("_")
-    const bookrecords_id = fileSplit[0].match(/\d+/g)[0];
-    const typebooks_id = fileSplit[2]
-    const seq = fileSplit[1].match(/^(\d+)/)[0];
-    const ext = path.extname(file);
-
-    return {
-      bookrecords_id, typebooks_id, companies_id, seq,
-      ext, file_name: file, previous_file_name: file
-    }
-  });
-
-  const uniqueIds = {};
-  const bookRecord = objlistFilesBookRecord.filter(obj => {
-    if (!uniqueIds[obj.id]) {
-      uniqueIds[obj.id] = true;
-      return true;
-    }
-    return false;
-  });
-
-
-
-  bookRecord.sort((a, b) => a.id - b.id);
-  indexImages.sort((a, b) => a.id - b.id);
+  bookRecord.sort((a, b) => Number(a.id) - Number(b.id))
+  indexImages.sort((a, b) => {
+    const idDiff = Number(a.bookrecords_id) - Number(b.bookrecords_id)
+    if (idDiff !== 0) return idDiff
+    return Number(a.seq) - Number(b.seq)
+  })
 
   return { bookRecord, indexImages }
-
-
 }
+
+
 
 export { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }
