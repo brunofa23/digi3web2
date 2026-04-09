@@ -2371,7 +2371,7 @@ export default class BookrecordsController {
 
       const query = Indeximage
         .query()
-        .preload('bookrecord', (query)=>{
+        .preload('bookrecord', (query) => {
           query.where('companies_id', authenticate.companies_id)
           query.andWhere('typebooks_id', typebooksId)
         })
@@ -2383,24 +2383,34 @@ export default class BookrecordsController {
           queryBookRecord.whereIn('book', bookNumbers)
         })
       }
+
       const indeximages = await query
-      //console.log("PASSO 5555", indeximages)
+      console.log("PASSO 5555", query.toQuery())
       console.log("@@passo 2")
 
       for (const item of indeximages) {
-        if (!item.bookrecord.$original) continue
+        if (!item.bookrecord?.$original) continue
+
         const bookrecordInstance = new Bookrecord()
         bookrecordInstance.fill(item.bookrecord.$original)
-        const filerename = await fileRename.updateFileName(bookrecordInstance)
-        //console.log("FFFFF", filerename)
+        await fileRename.updateFileName(bookrecordInstance)
       }
 
-      const listFilesToModify = await Indeximage
+      const querylistFilesToModify = Indeximage
         .query()
         .where('companies_id', authenticate.companies_id)
         .andWhere('typebooks_id', typebooksId)
         .whereNotNull('previous_file_name')
-      console.log("@@passo 4")
+
+      if (bookNumbers.length) {
+        querylistFilesToModify.whereHas('bookrecord', (queryBookRecord) => {
+          queryBookRecord.whereIn('book', bookNumbers)
+        })
+      }
+
+      const listFilesToModify = await querylistFilesToModify
+      console.log("@@passo 4", querylistFilesToModify.toQuery())
+
       for (const iterator of listFilesToModify) {
         if (!iterator.file_name || !iterator.previous_file_name) continue
 
@@ -2413,7 +2423,7 @@ export default class BookrecordsController {
 
         console.log("@@passo 5 Nome atual:", iterator.file_name, "- mudar para:", iterator.previous_file_name)
 
-        await Indeximage
+        const resultIndeximage = await Indeximage
           .query()
           .where('companies_id', authenticate.companies_id)
           .andWhere('typebooks_id', typebooksId)
@@ -2424,6 +2434,8 @@ export default class BookrecordsController {
             file_name: iterator.previous_file_name,
             previous_file_name: null,
           })
+
+        console.log("PASSO 5.2>>", resultIndeximage)
       }
 
       console.log("@@passo 6")
@@ -2440,7 +2452,6 @@ export default class BookrecordsController {
 
       const trx = await Database.transaction()
       console.log("@@passo 7")
-
 
       try {
         for (const item of listFiles.bookRecord) {
@@ -2544,6 +2555,7 @@ export default class BookrecordsController {
       })
     }
   }
+
   //********************************************************* */
 
 }
