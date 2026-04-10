@@ -666,19 +666,28 @@ async function totalFilesInFolder(folderName, cloud_number: number) {
 //import path from 'path'
 
 async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
+  console.log("@@PASSO 66.1")
   let listFiles = []
 
   if (Array.isArray(listFilesImages) && listFilesImages.length > 0) {
+    console.log("@@PASSO 66.2##")
     listFiles = listFilesImages
   } else {
+    console.log("@@PASSO 66.3##")
     listFiles = await totalFilesInFolder(folderName?.path, cloud_number)
   }
+
+  console.log("@@PASSO 66.2")
 
   const bookRecord = []
   const indexImages = []
   const uniqueIds = new Set()
 
+
+  console.log("@@PASSO 66.3")
+
   for (const file of listFiles) {
+    console.log("@@PASSO 66.4")
     if (!/^id/i.test(file)) continue
 
     const fileSplit = file.split('_')
@@ -750,6 +759,8 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     if (idDiff !== 0) return idDiff
     return Number(a.seq) - Number(b.seq)
   })
+
+  console.log("@@PASSO 66.5")
 
   return { bookRecord, indexImages }
 }

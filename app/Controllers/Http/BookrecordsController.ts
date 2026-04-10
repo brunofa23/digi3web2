@@ -2352,12 +2352,12 @@ export default class BookrecordsController {
         })
       }
 
-      console.log("@@passo 1.4")
-      if (foldername.dateindex === 'Indexing') {
-        return response.status(409).send({
-          message: 'Já existe um reprocessamento em andamento para este Livro',
-        })
-      }
+      // console.log("@@passo 1.4")
+      // if (foldername.dateindex === 'Indexing') {
+      //   return response.status(409).send({
+      //     message: 'Já existe um reprocessamento em andamento para este Livro',
+      //   })
+      // }
 
       console.log("@@passo 1.5")
       await Typebook
@@ -2411,6 +2411,9 @@ export default class BookrecordsController {
       const listFilesToModify = await querylistFilesToModify
       console.log("@@passo 4", querylistFilesToModify.toQuery())
 
+      const listFilesImages=[]
+
+
       for (const iterator of listFilesToModify) {
         if (!iterator.file_name || !iterator.previous_file_name) continue
 
@@ -2422,6 +2425,8 @@ export default class BookrecordsController {
         )
 
         console.log("@@passo 5 Nome atual:", iterator.file_name, "- mudar para:", iterator.previous_file_name)
+        listFilesImages.push(iterator.file_name)
+
 
         const resultIndeximage = await Indeximage
           .query()
@@ -2438,13 +2443,16 @@ export default class BookrecordsController {
         console.log("PASSO 5.2>>", resultIndeximage)
       }
 
-      console.log("@@passo 6")
+      console.log("@@passo 6", listFilesImages)
 
       listFiles = await fileRename.indeximagesinitial(
         foldername,
         authenticate.companies_id,
-        foldername.company.cloud
+        foldername.company.cloud,
+        listFilesImages
       )
+
+      //console.log("@@passo 6.1", listFiles)
 
       if (!listFiles || !Array.isArray(listFiles.bookRecord) || !Array.isArray(listFiles.indexImages)) {
         throw new Error('Falha ao gerar lista de reindexação')
