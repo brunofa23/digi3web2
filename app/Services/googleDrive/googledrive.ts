@@ -277,6 +277,7 @@ async function listAllFiles(authClient, folderId = "") {
     const pageSize = 100;
     do {
       // Solicite a lista de arquivos na pasta com base no token de página atual
+      console.log("PASSO 1533@@")
       const response = await drive.files.list({
         q: `'${folderId[0].id}' in parents and trashed=false`,
         pageSize: pageSize,
@@ -287,6 +288,7 @@ async function listAllFiles(authClient, folderId = "") {
       const items = response.data.files;
       // Adicione os itens à lista principal
       //allItems = allItems.concat(items);
+      console.log("PASSO 1544@@")
       allItems.push(...items);
       // Atualize o token de página para a próxima página (se houver)
       pageToken = response.data.nextPageToken;
