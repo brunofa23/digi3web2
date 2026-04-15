@@ -582,10 +582,10 @@ async function updateFileName(bookRecord: Bookrecord) {
 
 }
 
-async function totalFilesInFolder(folderName, cloud_number: number) {
+async function totalFilesInFolder(folderName, cloud_number: number, book=[]) {
   try {
     const idFolder = await sendSearchFile(folderName, cloud_number)
-    const listFiles = await sendListAllFiles(cloud_number, idFolder)
+    const listFiles = await sendListAllFiles(cloud_number, idFolder, book)
     if (listFiles) {
       return listFiles
     }
@@ -665,7 +665,7 @@ async function totalFilesInFolder(folderName, cloud_number: number) {
 // }
 //import path from 'path'
 
-async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = []) {
+async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = [], book=[]) {
   console.log("@@PASSO 66.1")
   let listFiles = []
 
@@ -674,7 +674,7 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     listFiles = listFilesImages
   } else {
     console.log("@@PASSO 66.3##")
-    listFiles = await totalFilesInFolder(folderName?.path, cloud_number)
+    listFiles = await totalFilesInFolder(folderName?.path, cloud_number, book)
   }
 
   console.log("@@PASSO 66.2")

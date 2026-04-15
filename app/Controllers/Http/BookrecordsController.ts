@@ -2449,7 +2449,8 @@ export default class BookrecordsController {
         foldername,
         authenticate.companies_id,
         foldername.company.cloud,
-        //listFilesImages
+        [],
+        bookNumbers
       )
 
       //console.log("@@passo 6.1", listFiles)

@@ -266,50 +266,93 @@ async function listFiles(authClient, folderId = "") {
 }
 
 
-async function listAllFiles(authClient, folderId = "") {
-  const drive = google.drive({ version: 'v3', auth: authClient });
+// async function listAllFiles(authClient, folderId = "", book="") {
+//   const drive = google.drive({ version: 'v3', auth: authClient });
+
+//   try {
+//     //console.time("valor1")
+//     let allItems = [];
+//     // Variáveis de controle para paginação
+//     let pageToken = null;
+//     const pageSize = 100;
+//     do {
+//       // Solicite a lista de arquivos na pasta com base no token de página atual
+//       console.log("PASSO 1533@@")
+//       const response = await drive.files.list({
+//         q: `'${folderId[0].id}' in parents and trashed=false`,
+//         pageSize: pageSize,
+//         pageToken: pageToken,
+//         fields: 'nextPageToken, files(name)',
+//       });
+//       // Obtenha os itens da resposta
+//       const items = response.data.files;
+//       // Adicione os itens à lista principal
+//       //allItems = allItems.concat(items);
+//       console.log("PASSO 1544@@")
+//       allItems.push(...items);
+//       // Atualize o token de página para a próxima página (se houver)
+//       pageToken = response.data.nextPageToken;
+//     } while (pageToken);
+//     // Agora, a lista `allItems` contém todos os itens da pasta
+//     // Faça o que for necessário com a lista completa
+
+//     const listFiles = []
+//     allItems.forEach(item => {
+//       listFiles.push(item.name)
+//     });
+
+//     return listFiles
+//   }
+//   catch (error) {
+//     //console.error('Erro ao listar os itens:', error);
+//   }
+// }
+async function listAllFiles(authClient, folderId = "", codigos = []) {
+  const drive = google.drive({ version: "v3", auth: authClient });
 
   try {
-    //console.time("valor1")
-    let allItems = [];
-    // Variáveis de controle para paginação
     let pageToken = null;
     const pageSize = 100;
+    const listFiles = [];
+
+    const folder = folderId[0].id;
+
+    let query = `'${folder}' in parents and trashed=false`;
+
+    if (Array.isArray(codigos) && codigos.length > 0) {
+      const filtros = codigos
+        .filter(c => c !== null && c !== undefined && c !== "")
+        .map(c => `name contains '_${String(c).replace(/'/g, "\\'")}_'`);
+
+      if (filtros.length > 0) {
+        query += ` and (${filtros.join(" or ")})`;
+      }
+    }
+
     do {
-      // Solicite a lista de arquivos na pasta com base no token de página atual
-      console.log("PASSO 1533@@")
       const response = await drive.files.list({
-        q: `'${folderId[0].id}' in parents and trashed=false`,
-        pageSize: pageSize,
-        pageToken: pageToken,
-        fields: 'nextPageToken, files(name)',
+        q: query,
+        pageSize,
+        pageToken,
+        fields: "nextPageToken, files(name)",
       });
-      // Obtenha os itens da resposta
-      const items = response.data.files;
-      // Adicione os itens à lista principal
-      //allItems = allItems.concat(items);
-      console.log("PASSO 1544@@")
-      allItems.push(...items);
-      // Atualize o token de página para a próxima página (se houver)
+
+      const items = response.data.files || [];
+
+      for (const item of items) {
+        listFiles.push(item.name);
+      }
+
       pageToken = response.data.nextPageToken;
     } while (pageToken);
-    // Agora, a lista `allItems` contém todos os itens da pasta
-    // Faça o que for necessário com a lista completa
 
-    const listFiles = []
-    allItems.forEach(item => {
-      listFiles.push(item.name)
-    });
-
-    return listFiles
+    return listFiles;
+  } catch (error) {
+    console.error("Erro ao listar os itens:", error);
+    return [];
   }
-  catch (error) {
-    //console.error('Erro ao listar os itens:', error);
-  }
-
-
-
 }
+
 
 
 async function downloadFile(authClient, fileId, extension) {
@@ -360,10 +403,10 @@ async function sendListFiles(cloud_number: number, folderId = "") {
 
 }
 
-async function sendListAllFiles(cloud_number: number, folderId = "") {
+async function sendListAllFiles(cloud_number: number, folderId = "", book = []) {
   //authorize().then(listFiles(folderId)).catch(console.error);
   const auth = await authorize(cloud_number)
-  return listAllFiles(auth, folderId)
+  return listAllFiles(auth, folderId, book)
 
 }
 
