@@ -10,6 +10,7 @@ import AuthorizedDevice from 'App/Models/AuthorizedDevice'
 
 
 //import Groupxpermission from 'App/Models/Groupxpermission'
+//teste
 
 export default class AuthenticationController {
 
