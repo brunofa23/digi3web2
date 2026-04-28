@@ -17,6 +17,7 @@ export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -60,6 +61,7 @@ export default class BookrecordsController {
     let data
     let queryExecute
     if (noAttachment) {
+      console.log("PASSO 1")
 
       queryExecute = Bookrecord.query()
         .where('companies_id', '=', authenticate.companies_id)
@@ -80,6 +82,7 @@ export default class BookrecordsController {
       //data = await queryExecute.paginate(page, limit)
     }
     else if (codmax) {
+      console.log("PASSO 2")
       data = await Database.from('bookrecords')
         .where('companies_id', authenticate.companies_id)
         .where('typebooks_id', params.typebooks_id)
@@ -88,6 +91,7 @@ export default class BookrecordsController {
 
     }
     else {
+      console.log("PASSO 3")
       queryExecute = Bookrecord.query()
         .where("bookrecords.companies_id", authenticate.companies_id)
         //IF PARAMETER=0 THEN COME ALL
@@ -96,6 +100,7 @@ export default class BookrecordsController {
         })
         .preload('indeximage', (queryIndex) => {
           queryIndex.where("companies_id", '=', authenticate.companies_id)
+          .andWhere('typebooks_id',params.typebooks_id)
         })
         .preload('document', query => {
           query.preload('documenttype', query => {
