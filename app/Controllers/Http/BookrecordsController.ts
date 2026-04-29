@@ -17,7 +17,7 @@ export default class BookrecordsController {
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
@@ -100,7 +100,7 @@ export default class BookrecordsController {
         })
         .preload('indeximage', (queryIndex) => {
           queryIndex.where("companies_id", '=', authenticate.companies_id)
-          .andWhere('typebooks_id',params.typebooks_id)
+            .andWhere('typebooks_id', params.typebooks_id)
         })
         .preload('document', query => {
           query.preload('documenttype', query => {
@@ -2243,10 +2243,12 @@ export default class BookrecordsController {
       .max('cod as max_cod')
     const maxCodDocument = await query.first();
 
-    return response.status(200).send({ max_book: maxBook?.$extras.max_book, 
-      max_sheet: maxSheet.$extras.max_sheet, 
-      max_cod_document: maxCodDocument?.$extras.max_cod, 
-      max_cod:maxCod?.$extras.max_cod })
+    return response.status(200).send({
+      max_book: maxBook?.$extras.max_book,
+      max_sheet: maxSheet.$extras.max_sheet,
+      max_cod_document: maxCodDocument?.$extras.max_cod,
+      max_cod: maxCod?.$extras.max_cod
+    })
   }
 
 
@@ -2263,8 +2265,6 @@ export default class BookrecordsController {
       'total_images',
       'typebooks_id',
     ])
-
-    console.log(body)
 
     const book = Number(body.book)
     const sheet = Number(body.sheet)
@@ -2503,7 +2503,7 @@ export default class BookrecordsController {
       const listFilesToModify = await querylistFilesToModify
       console.log("@@passo 4", querylistFilesToModify.toQuery())
 
-      const listFilesImages=[]
+      const listFilesImages = []
 
 
       for (const iterator of listFilesToModify) {
