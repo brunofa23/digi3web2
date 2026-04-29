@@ -2264,6 +2264,8 @@ export default class BookrecordsController {
       'typebooks_id',
     ])
 
+    console.log(body)
+
     const book = Number(body.book)
     const sheet = Number(body.sheet)
     const approximateTerm = Number(body.approximate_term)
@@ -2307,11 +2309,10 @@ export default class BookrecordsController {
       .toLowerCase()
 
     const expectedSheetRemainder = parity === 'par' ? 0 : parity === 'impar' ? 1 : null
-    const firstSheet = expectedSheetRemainder === null || Math.abs(sheet % 2) === expectedSheetRemainder
-      ? sheet
-      : sheet + 1
-    const sheetIncrement = expectedSheetRemainder === null ? 1 : 2
-    const approximateTermIncrement = 2
+    const firstApproximateTerm = expectedSheetRemainder === null || Math.abs(approximateTerm % 2) === expectedSheetRemainder
+      ? approximateTerm
+      : approximateTerm + 1
+    const approximateTermIncrement = expectedSheetRemainder === null ? 1 : 2
 
     const maxCod = await Bookrecord.query()
       .where('typebooks_id', typebooksId)
@@ -2321,8 +2322,8 @@ export default class BookrecordsController {
       .first()
 
     let currentCod = Number(maxCod?.$extras.max_cod || 0) + 1
-    let currentSheet = firstSheet
-    let currentApproximateTerm = approximateTerm
+    let currentSheet = sheet
+    let currentApproximateTerm = firstApproximateTerm
 
     const bookrecords = totalImages.map((quantity) => {
       const terms: number[] = []
@@ -2345,7 +2346,7 @@ export default class BookrecordsController {
         userid: authenticate.id,
       }
 
-      currentSheet += sheetIncrement
+      currentSheet++
 
       return bookrecord
     })
