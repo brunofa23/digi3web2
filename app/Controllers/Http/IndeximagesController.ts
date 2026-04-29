@@ -115,24 +115,23 @@ export default class IndeximagesController {
   }
 
   public async uploads({ auth, request, params, response }: HttpContextContract) {
-    console.log("passo 1....")
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
-
+    
     // Arquivos sempre vêm por multipart
     const images = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
     })
-
+    
     /**
      * ✅ PADRÃO NOVO:
      * - dataImages vem em multipart como string JSON em request.input('dataImages')
      * ✅ COMPATIBILIDADE:
      * - se ainda vier do legado (request['requestBody']), ainda aceita
-     */
-    let dataImagesRaw: any = request.input('dataImages')
-
+    */
+   let dataImagesRaw: any = request.input('dataImages')
+   
     // fallback legado (caso Vue antigo ainda mande via interceptor custom)
     if (!dataImagesRaw) {
       dataImagesRaw = request?.['requestBody']?.dataImages
