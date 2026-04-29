@@ -2269,8 +2269,10 @@ export default class BookrecordsController {
     const book = Number(body.book)
     const sheet = Number(body.sheet)
     const approximateTerm = Number(body.approximate_term)
-    const indexbook = Number(body.indexbook)
     const typebooksId = Number(body.typebooks_id)
+    const hasSide = body.side !== undefined && body.side !== null && body.side !== ''
+    const hasIndexbook = body.indexbook !== undefined && body.indexbook !== null && body.indexbook !== ''
+    const indexbook = hasIndexbook ? Number(body.indexbook) : null
     const totalImagesParts = String(body.total_images || '')
       .split('-')
       .map((item) => item.trim())
@@ -2280,8 +2282,8 @@ export default class BookrecordsController {
       isNaN(book) ||
       isNaN(sheet) ||
       isNaN(approximateTerm) ||
-      isNaN(indexbook) ||
       isNaN(typebooksId) ||
+      (hasIndexbook && isNaN(Number(indexbook))) ||
       !totalImages.length ||
       totalImagesParts.some((item) => item === '') ||
       totalImages.some((item) => isNaN(item)) ||
@@ -2289,17 +2291,6 @@ export default class BookrecordsController {
     ) {
       return response.status(400).send({
         message: 'book, sheet, approximate_term, indexbook, typebooks_id e total_images devem ser válidos',
-      })
-    }
-
-    const typebook = await Typebook.query()
-      .where('id', typebooksId)
-      .andWhere('companies_id', authenticate.companies_id)
-      .first()
-
-    if (!typebook) {
-      return response.status(404).send({
-        message: 'Tipo de livro não encontrado',
       })
     }
 
@@ -2314,14 +2305,6 @@ export default class BookrecordsController {
       : approximateTerm + 1
     const approximateTermIncrement = expectedSheetRemainder === null ? 1 : 2
 
-    const maxCod = await Bookrecord.query()
-      .where('typebooks_id', typebooksId)
-      .andWhere('books_id', typebook.books_id)
-      .andWhere('companies_id', authenticate.companies_id)
-      .max('cod as max_cod')
-      .first()
-
-    let currentCod = Number(maxCod?.$extras.max_cod || 0) + 1
     let currentSheet = sheet
     let currentApproximateTerm = firstApproximateTerm
 
@@ -2334,16 +2317,12 @@ export default class BookrecordsController {
       }
 
       const bookrecord = {
-        cod: currentCod++,
         book,
         sheet: currentSheet,
         side: body.side,
         approximate_term: terms.join('-'),
-        indexbook,
         typebooks_id: typebooksId,
-        books_id: typebook.books_id,
         companies_id: authenticate.companies_id,
-        userid: authenticate.id,
       }
 
       currentSheet++
@@ -2354,19 +2333,49 @@ export default class BookrecordsController {
     const trx = await Database.transaction()
 
     try {
-      const createdBookrecords = await Bookrecord.createMany(bookrecords, { client: trx })
+      const updatedBookrecords: Bookrecord[] = []
+
+      for (const item of bookrecords) {
+        const query = Bookrecord.query({ client: trx })
+          .where('typebooks_id', item.typebooks_id)
+          .andWhere('companies_id', item.companies_id)
+          .andWhere('book', item.book)
+          .andWhere('sheet', item.sheet)
+
+        if (hasSide) {
+          query.andWhere('side', item.side)
+        } else {
+          query.whereNull('side')
+        }
+
+        if (hasIndexbook) {
+          query.andWhere('indexbook', indexbook)
+        } else {
+          query.whereNull('indexbook')
+        }
+
+        const bookrecord = await query.first()
+
+        if (!bookrecord) continue
+
+        bookrecord.approximate_term = item.approximate_term
+        await bookrecord.save()
+        updatedBookrecords.push(bookrecord)
+      }
+
       await trx.commit()
 
-      return response.status(201).send({
-        message: 'Bookrecords gerados com sucesso',
-        total: createdBookrecords.length,
-        data: createdBookrecords,
+      return response.status(200).send({
+        message: 'Bookrecords atualizados com sucesso',
+        total: updatedBookrecords.length,
+        ignored: bookrecords.length - updatedBookrecords.length,
+        data: updatedBookrecords,
       })
     } catch (error) {
       await trx.rollback()
 
       return response.status(500).send({
-        message: 'Erro ao gerar Bookrecords',
+        message: 'Erro ao atualizar Bookrecords',
         error: error.message,
       })
     }
