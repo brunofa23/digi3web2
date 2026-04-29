@@ -2252,56 +2252,123 @@ export default class BookrecordsController {
 
   public async imagesForItem({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
     const body = request.only([
       'book',
       'sheet',
       'side',
+      'parity',
       'approximate_term',
       'indexbook',
       'total_images',
       'typebooks_id',
     ])
 
-    const query = Bookrecord.query()
-      .where('typebooks_id', body.typebooks_id)
-      .andWhere('companies_id', authenticate.companies_id)
-      .andWhere('sheet', body.sheet)
-      .andWhere('book', body.book)
-    if (body.side)
-      query.andWhere('side', body.side)
-    if (body.indexbook)
-      query.andWhere('indexbook', body.indexbook)
-
-    const bookrecord = await query.first()
-    if (!bookrecord) {
-      return response.status(404).send({
-        message: 'Registro não encontrado',
-      })
-    }
-
+    const book = Number(body.book)
+    const sheet = Number(body.sheet)
     const approximateTerm = Number(body.approximate_term)
-    const totalImages = Number(body.total_images)
+    const indexbook = Number(body.indexbook)
+    const typebooksId = Number(body.typebooks_id)
+    const totalImagesParts = String(body.total_images || '')
+      .split('-')
+      .map((item) => item.trim())
+    const totalImages = totalImagesParts.map((item) => Number(item))
 
-    if (isNaN(approximateTerm) || isNaN(totalImages)) {
+    if (
+      isNaN(book) ||
+      isNaN(sheet) ||
+      isNaN(approximateTerm) ||
+      isNaN(indexbook) ||
+      isNaN(typebooksId) ||
+      !totalImages.length ||
+      totalImagesParts.some((item) => item === '') ||
+      totalImages.some((item) => isNaN(item)) ||
+      totalImages.some((item) => item <= 0)
+    ) {
       return response.status(400).send({
-        message: 'approximate_term e total_images devem ser numéricos',
+        message: 'book, sheet, approximate_term, indexbook, typebooks_id e total_images devem ser válidos',
       })
     }
 
-    const terms: number[] = []
+    const typebook = await Typebook.query()
+      .where('id', typebooksId)
+      .andWhere('companies_id', authenticate.companies_id)
+      .first()
 
-    for (let i = 0; i <= totalImages; i++) {
-      terms.push(approximateTerm + i)
+    if (!typebook) {
+      return response.status(404).send({
+        message: 'Tipo de livro não encontrado',
+      })
     }
 
-    bookrecord.approximate_term = terms.join('-')
-    await bookrecord.save()
+    const parity = String(body.parity || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
 
-    return response.status(200).send({
-      message: 'approximate_term atualizado com sucesso',
-      approximate_term: bookrecord.approximate_term,
-      data: bookrecord,
+    const expectedSheetRemainder = parity === 'par' ? 0 : parity === 'impar' ? 1 : null
+    const firstSheet = expectedSheetRemainder === null || Math.abs(sheet % 2) === expectedSheetRemainder
+      ? sheet
+      : sheet + 1
+    const sheetIncrement = expectedSheetRemainder === null ? 1 : 2
+    const approximateTermIncrement = 2
+
+    const maxCod = await Bookrecord.query()
+      .where('typebooks_id', typebooksId)
+      .andWhere('books_id', typebook.books_id)
+      .andWhere('companies_id', authenticate.companies_id)
+      .max('cod as max_cod')
+      .first()
+
+    let currentCod = Number(maxCod?.$extras.max_cod || 0) + 1
+    let currentSheet = firstSheet
+    let currentApproximateTerm = approximateTerm
+
+    const bookrecords = totalImages.map((quantity) => {
+      const terms: number[] = []
+
+      for (let i = 0; i < quantity; i++) {
+        terms.push(currentApproximateTerm)
+        currentApproximateTerm += approximateTermIncrement
+      }
+
+      const bookrecord = {
+        cod: currentCod++,
+        book,
+        sheet: currentSheet,
+        side: body.side,
+        approximate_term: terms.join('-'),
+        indexbook,
+        typebooks_id: typebooksId,
+        books_id: typebook.books_id,
+        companies_id: authenticate.companies_id,
+        userid: authenticate.id,
+      }
+
+      currentSheet += sheetIncrement
+
+      return bookrecord
     })
+
+    const trx = await Database.transaction()
+
+    try {
+      const createdBookrecords = await Bookrecord.createMany(bookrecords, { client: trx })
+      await trx.commit()
+
+      return response.status(201).send({
+        message: 'Bookrecords gerados com sucesso',
+        total: createdBookrecords.length,
+        data: createdBookrecords,
+      })
+    } catch (error) {
+      await trx.rollback()
+
+      return response.status(500).send({
+        message: 'Erro ao gerar Bookrecords',
+        error: error.message,
+      })
+    }
   }
 
 
