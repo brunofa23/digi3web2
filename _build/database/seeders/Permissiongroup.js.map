@@ -1,0 +1,1 @@
+{"version":3,"file":"Permissiongroup.js","sourceRoot":"","sources":["../../../database/seeders/Permissiongroup.ts"],"names":[],"mappings":";;;;;AAAA,uFAAiD;AACjD,uGAAwD;AAExD,eAAqB,SAAQ,gBAAU;IAC9B,KAAK,CAAC,GAAG;QAEd,MAAM,yBAAe,CAAC,UAAU,CAC9B;YAsKE;gBACE,EAAE,EAAE,EAAE;gBACN,IAAI,EAAE,qBAAqB;gBAC3B,IAAI,EAAE,qDAAqD;aAC5D;SAGF,CACF,CAAA;IAEH,CAAC;CACF;AArLD,4BAqLC"}
