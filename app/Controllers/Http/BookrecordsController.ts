@@ -2270,13 +2270,15 @@ export default class BookrecordsController {
     const sheet = Number(body.sheet)
     const approximateTerm = Number(body.approximate_term)
     const typebooksId = Number(body.typebooks_id)
-    const hasSide = body.side !== undefined && body.side !== null && body.side !== ''
+    const side = String(body.side || '').trim().toUpperCase()
+    const hasSide = side !== ''
+    const generateFrontAndBack = side === 'FV'
     const hasIndexbook = body.indexbook !== undefined && body.indexbook !== null && body.indexbook !== ''
     const indexbook = hasIndexbook ? Number(body.indexbook) : null
     const totalImagesParts = String(body.total_images || '')
       .split('-')
       .map((item) => item.trim())
-    const totalImages = totalImagesParts.map((item) => Number(item))
+    const totalImagesIncrements = totalImagesParts.map((item) => Number(item))
 
     if (
       isNaN(book) ||
@@ -2284,13 +2286,14 @@ export default class BookrecordsController {
       isNaN(approximateTerm) ||
       isNaN(typebooksId) ||
       (hasIndexbook && isNaN(Number(indexbook))) ||
-      !totalImages.length ||
+      !totalImagesIncrements.length ||
       totalImagesParts.some((item) => item === '') ||
-      totalImages.some((item) => isNaN(item)) ||
-      totalImages.some((item) => item <= 0)
+      totalImagesIncrements.some((item) => isNaN(item)) ||
+      totalImagesIncrements.some((item) => item <= 0) ||
+      (hasSide && side !== 'F' && side !== 'V' && side !== 'FV')
     ) {
       return response.status(400).send({
-        message: 'book, sheet, approximate_term, indexbook, typebooks_id e total_images devem ser válidos',
+        message: 'book, sheet, side, approximate_term, indexbook, typebooks_id e total_images devem ser válidos',
       })
     }
 
@@ -2306,10 +2309,11 @@ export default class BookrecordsController {
     const approximateTermIncrement = expectedSheetRemainder === null ? 1 : 2
 
     let currentSheet = sheet
-    let currentApproximateTerm = firstApproximateTerm
+    let currentSide = generateFrontAndBack ? 'F' : side
 
-    const bookrecords = totalImages.map((quantity) => {
+    const bookrecords = totalImagesIncrements.map((quantity) => {
       const terms: number[] = []
+      let currentApproximateTerm = firstApproximateTerm
 
       for (let i = 0; i < quantity; i++) {
         terms.push(currentApproximateTerm)
@@ -2319,13 +2323,18 @@ export default class BookrecordsController {
       const bookrecord = {
         book,
         sheet: currentSheet,
-        side: body.side,
+        side: hasSide ? currentSide : null,
         approximate_term: terms.join('-'),
         typebooks_id: typebooksId,
         companies_id: authenticate.companies_id,
       }
 
-      currentSheet++
+      if (generateFrontAndBack) {
+        currentSheet++
+        currentSide = currentSide === 'F' ? 'V' : 'F'
+      } else {
+        currentSheet++
+      }
 
       return bookrecord
     })
