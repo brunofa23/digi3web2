@@ -969,6 +969,7 @@ export default class BookrecordsController {
         books_id: schema.number(),
         indexbook: schema.number.optional(),
         year: schema.number.optional(),
+        letter: schema.string.optional(),
         approximate_term: schema.number.optional(),
         obs: schema.string.optional(),
       }),
@@ -1019,6 +1020,7 @@ export default class BookrecordsController {
     const bodyIndexbook = forceIndexbookNull ? null : body.indexbook;
 
     const bodyYear = zeroToNull(body.year);
+    const bodyLetter = body.letter;
     const bodyApprox = zeroToNull(body.approximate_term);
     const bodyObs = zeroToNull(body.obs);
 
@@ -1173,6 +1175,7 @@ export default class BookrecordsController {
                   approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
                   indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
                   year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
                   obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                 });
               } else {
@@ -1191,6 +1194,7 @@ export default class BookrecordsController {
                   approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
                   indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
                   year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
                   obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                 });
 
@@ -1226,6 +1230,7 @@ export default class BookrecordsController {
                   approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
                   indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
                   year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
                   obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                 });
               } else {
@@ -1244,6 +1249,7 @@ export default class BookrecordsController {
                   approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
                   indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
                   year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
                   obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                 });
 
@@ -1281,6 +1287,7 @@ export default class BookrecordsController {
                   approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
                   indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
                   year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
                   obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                 });
               } else {
@@ -1299,6 +1306,7 @@ export default class BookrecordsController {
                   approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
                   indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
                   year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
                   obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                 });
 
@@ -1334,6 +1342,7 @@ export default class BookrecordsController {
                   approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
                   indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
                   year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
                   obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                 });
               } else {
@@ -1352,6 +1361,7 @@ export default class BookrecordsController {
                   approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
                   indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
                   year: overwriteIfValid(bodyYear, baseRecord?.year),
+                  letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
                   obs: overwriteIfValid(bodyObs, baseRecord?.obs),
                 });
 
@@ -1420,6 +1430,7 @@ export default class BookrecordsController {
             }
 
             if (body.year !== undefined) updateData.year = bodyYear;
+            if (body.letter !== undefined) updateData.letter = bodyLetter;
             if (body.obs !== undefined) updateData.obs = bodyObs;
 
             const finalUpdateData = Object.fromEntries(
@@ -1461,6 +1472,7 @@ export default class BookrecordsController {
             }
 
             if (body.year !== undefined) createPayload.year = bodyYear;
+            if (body.letter !== undefined) createPayload.letter = bodyLetter;
             if (body.obs !== undefined) createPayload.obs = bodyObs;
 
             const created = await Bookrecord.create(createPayload, { client: trx });
