@@ -1685,6 +1685,338 @@ export default class BookrecordsController {
   }
 
 
+  // public async bookSummary({ auth, params, request, response }: HttpContextContract) {
+  //   const authenticate = await auth.use('api').authenticate()
+  //   const typebooks_id = Number(params.typebooks_id)
+
+  //   const qs = request.qs()
+  //   const book = Number(qs.book || 0)
+  //   const bookStart = Number(qs.bookStart || 0)
+  //   const bookEnd = Number(qs.bookEnd || 0)
+  //   const countSheetNotExists = qs.countSheetNotExists
+
+  //   const indexBook =
+  //     qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
+  //       ? Number(qs.indexBook)
+  //       : undefined
+  //   try {
+  //     const query = Database
+  //       .from('bookrecords')
+  //       .select('book', 'indexbook', 'year')
+  //       .min('cod as initialCod')
+  //       .max('cod as finalCod')
+  //       .min('sheet as initialSheet')
+  //       .max('sheet as finalSheet')
+  //       .count('* as totalRows')
+
+  //       // ✅ sheetInicial respeitando o nível do agrupamento da própria linha
+  //       .select(
+  //         Database.raw(`
+  //         CASE
+  //           -- agrupamento: book + indexbook + year
+  //           WHEN bookrecords.year IS NOT NULL THEN
+  //             COALESCE(
+  //               (
+  //                 SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+  //                 FROM bookrecords bkr
+  //                 WHERE bkr.companies_id = bookrecords.companies_id
+  //                   AND bkr.typebooks_id = bookrecords.typebooks_id
+  //                   AND bkr.book = bookrecords.book
+  //                   AND (
+  //                     (bkr.indexbook = bookrecords.indexbook)
+  //                     OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+  //                   )
+  //                   AND (
+  //                     (bkr.year = bookrecords.year)
+  //                     OR (bkr.year IS NULL AND bookrecords.year IS NULL)
+  //                   )
+  //                   AND bkr.sheet = 1
+  //                   AND bkr.side = 'V'
+  //                 LIMIT 1
+  //               ),
+  //               (
+  //                 SELECT CONCAT(CAST(bkr2.sheet AS CHAR), bkr2.side)
+  //                 FROM bookrecords bkr2
+  //                 WHERE bkr2.companies_id = bookrecords.companies_id
+  //                   AND bkr2.typebooks_id = bookrecords.typebooks_id
+  //                   AND bkr2.book = bookrecords.book
+  //                   AND (
+  //                     (bkr2.indexbook = bookrecords.indexbook)
+  //                     OR (bkr2.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+  //                   )
+  //                   AND bkr2.sheet = 1
+  //                   AND bkr2.side = 'V'
+  //                 LIMIT 1
+  //               ),
+  //               (
+  //                 SELECT CONCAT(CAST(bkr3.sheet AS CHAR), bkr3.side)
+  //                 FROM bookrecords bkr3
+  //                 WHERE bkr3.companies_id = bookrecords.companies_id
+  //                   AND bkr3.typebooks_id = bookrecords.typebooks_id
+  //                   AND bkr3.book = bookrecords.book
+  //                   AND bkr3.sheet = 1
+  //                   AND bkr3.side = 'V'
+  //                 LIMIT 1
+  //               )
+  //             )
+
+  //           -- agrupamento: book + indexbook
+  //           WHEN bookrecords.indexbook IS NOT NULL THEN
+  //             COALESCE(
+  //               (
+  //                 SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+  //                 FROM bookrecords bkr
+  //                 WHERE bkr.companies_id = bookrecords.companies_id
+  //                   AND bkr.typebooks_id = bookrecords.typebooks_id
+  //                   AND bkr.book = bookrecords.book
+  //                   AND (
+  //                     (bkr.indexbook = bookrecords.indexbook)
+  //                     OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+  //                   )
+  //                   AND bkr.sheet = 1
+  //                   AND bkr.side = 'V'
+  //                 LIMIT 1
+  //               ),
+  //               (
+  //                 SELECT CONCAT(CAST(bkr2.sheet AS CHAR), bkr2.side)
+  //                 FROM bookrecords bkr2
+  //                 WHERE bkr2.companies_id = bookrecords.companies_id
+  //                   AND bkr2.typebooks_id = bookrecords.typebooks_id
+  //                   AND bkr2.book = bookrecords.book
+  //                   AND bkr2.sheet = 1
+  //                   AND bkr2.side = 'V'
+  //                 LIMIT 1
+  //               )
+  //             )
+
+  //           -- agrupamento: somente book
+  //           ELSE
+  //             (
+  //               SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+  //               FROM bookrecords bkr
+  //               WHERE bkr.companies_id = bookrecords.companies_id
+  //                 AND bkr.typebooks_id = bookrecords.typebooks_id
+  //                 AND bkr.book = bookrecords.book
+  //                 AND bkr.sheet = 1
+  //                 AND bkr.side = 'V'
+  //               LIMIT 1
+  //             )
+  //         END as sheetInicial
+  //       `)
+  //       )
+
+  //       // ✅ totalFiles respeitando o nível do agrupamento da própria linha
+  //       .select(
+  //         Database.raw(`
+  //         CASE
+  //           -- agrupamento: book + indexbook + year
+  //           WHEN bookrecords.year IS NOT NULL THEN
+  //             (
+  //               SELECT COUNT(*)
+  //               FROM indeximages
+  //               INNER JOIN bookrecords bkr ON
+  //                 indeximages.bookrecords_id = bkr.id
+  //                 AND indeximages.companies_id = bkr.companies_id
+  //                 AND indeximages.typebooks_id = bkr.typebooks_id
+  //               WHERE bkr.companies_id = bookrecords.companies_id
+  //                 AND bkr.typebooks_id = bookrecords.typebooks_id
+  //                 AND bkr.book = bookrecords.book
+  //                 AND (
+  //                   (bkr.indexbook = bookrecords.indexbook)
+  //                   OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+  //                 )
+  //                 AND (
+  //                   (bkr.year = bookrecords.year)
+  //                   OR (bkr.year IS NULL AND bookrecords.year IS NULL)
+  //                 )
+  //                 AND indeximages.companies_id = ${authenticate.companies_id}
+  //                 AND indeximages.typebooks_id = ${typebooks_id}
+  //             )
+
+  //           -- agrupamento: book + indexbook
+  //           WHEN bookrecords.indexbook IS NOT NULL THEN
+  //             (
+  //               SELECT COUNT(*)
+  //               FROM indeximages
+  //               INNER JOIN bookrecords bkr ON
+  //                 indeximages.bookrecords_id = bkr.id
+  //                 AND indeximages.companies_id = bkr.companies_id
+  //                 AND indeximages.typebooks_id = bkr.typebooks_id
+  //               WHERE bkr.companies_id = bookrecords.companies_id
+  //                 AND bkr.typebooks_id = bookrecords.typebooks_id
+  //                 AND bkr.book = bookrecords.book
+  //                 AND (
+  //                   (bkr.indexbook = bookrecords.indexbook)
+  //                   OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+  //                 )
+  //                 AND indeximages.companies_id = ${authenticate.companies_id}
+  //                 AND indeximages.typebooks_id = ${typebooks_id}
+  //             )
+
+  //           -- agrupamento: somente book
+  //           ELSE
+  //             (
+  //               SELECT COUNT(*)
+  //               FROM indeximages
+  //               INNER JOIN bookrecords bkr ON
+  //                 indeximages.bookrecords_id = bkr.id
+  //                 AND indeximages.companies_id = bkr.companies_id
+  //                 AND indeximages.typebooks_id = bkr.typebooks_id
+  //               WHERE bkr.companies_id = bookrecords.companies_id
+  //                 AND bkr.typebooks_id = bookrecords.typebooks_id
+  //                 AND bkr.book = bookrecords.book
+  //                 AND indeximages.companies_id = ${authenticate.companies_id}
+  //                 AND indeximages.typebooks_id = ${typebooks_id}
+  //             )
+  //         END as totalFiles
+  //       `)
+  //       )
+
+  //       .where('companies_id', authenticate.companies_id)
+  //       .andWhere('typebooks_id', typebooks_id)
+  //       .andWhere('sheet', '>', 0)
+
+  //     if (book > 0) {
+  //       query.andWhere('book', book)
+  //     } else if (bookStart > 0 || bookEnd > 0) {
+  //       if (bookStart > 0) query.andWhere('book', '>=', bookStart)
+  //       if (bookEnd > 0) query.andWhere('book', '<=', bookEnd)
+  //     }
+
+  //     // indexBook pode ser:
+  //     //  - >0 : filtra indexbook
+  //     //  - 0  : filtra NULL
+  //     //  - undefined : não filtra
+  //     if (typeof indexBook === 'number' && indexBook > 0) query.andWhere('indexbook', indexBook)
+  //     else if (indexBook === 0) query.andWhereNull('indexbook')
+
+  //     query.groupBy('book', 'indexbook', 'year')
+  //     query.orderBy('bookrecords.book')
+  //     query.orderBy('bookrecords.indexbook')
+  //     query.orderBy('bookrecords.year')
+
+  //     const bookSummaryPayload = await query
+
+  //     //**************************************** */
+  //     // FUNÇÃO PARA CONTAR AS FOLHAS FALTANTES
+  //     // respeitando o nível do agrupamento da linha:
+  //     // year != null -> book + indexbook + year
+  //     // year == null && indexbook != null -> book + indexbook
+  //     // year == null && indexbook == null -> somente book
+  //     async function verifySide(
+  //       bookNum: number,
+  //       indexbookGroup: number | null,
+  //       yearGroup: number | null
+  //     ): Promise<string> {
+  //       const generateSequence = (start: number, end: number): number[] =>
+  //         Array.from({ length: end - start + 1 }, (_, i) => start + i)
+
+  //       const findMissingItems = (
+  //         completeList: any[],
+  //         currentList: any[],
+  //         keyFn: (item: any) => string
+  //       ): any[] => {
+  //         const currentSet = new Set(currentList.map(keyFn))
+  //         return completeList.filter(item => !currentSet.has(keyFn(item)))
+  //       }
+
+  //       const sheetWithSideQuery = Bookrecord.query()
+  //         .where('companies_id', authenticate.companies_id)
+  //         .andWhere('typebooks_id', typebooks_id)
+  //         .andWhere('book', bookNum)
+
+  //       // ✅ se year existe, o nível é book + indexbook + year
+  //       if (yearGroup !== null) {
+  //         if (indexbookGroup === null) sheetWithSideQuery.andWhereNull('indexbook')
+  //         else sheetWithSideQuery.andWhere('indexbook', indexbookGroup)
+
+  //         sheetWithSideQuery.andWhere('year', yearGroup)
+  //       }
+  //       // ✅ se year não existe, mas indexbook existe, o nível é book + indexbook
+  //       else if (indexbookGroup !== null) {
+  //         sheetWithSideQuery.andWhere('indexbook', indexbookGroup)
+  //         sheetWithSideQuery.whereNull('year')
+  //       }
+  //       // ✅ senão o nível é somente book
+  //       else {
+  //         sheetWithSideQuery.whereNull('indexbook').whereNull('year')
+  //       }
+
+  //       const sheetWithSide = await sheetWithSideQuery
+
+  //       const sheetCount = sheetWithSide.map(item => ({
+  //         sheet: Number(item.sheet),
+  //         side: item.side
+  //       }))
+
+  //       const maxSheet = Math.max(0, ...sheetCount.map(item => item.sheet))
+
+  //       if (!maxSheet) return ''
+
+  //       // P = apenas número da folha
+  //       if (countSheetNotExists === 'P') {
+  //         const completeSheetList = generateSequence(1, maxSheet)
+  //         const currentSheetSet = new Set(sheetCount.map(item => item.sheet))
+  //         const missingSheets = completeSheetList.filter(s => !currentSheetSet.has(s))
+  //         return missingSheets.join(', ')
+  //       }
+
+  //       const sides =
+  //         countSheetNotExists === 'V'
+  //           ? ['V']
+  //           : countSheetNotExists === 'F'
+  //             ? ['F']
+  //             : ['F', 'V']
+
+  //       const completeList = generateSequence(1, maxSheet).flatMap(sheet =>
+  //         sides.map(side => ({ sheet, side }))
+  //       )
+
+  //       const missingItems = findMissingItems(
+  //         completeList,
+  //         sheetCount,
+  //         item => `${item.sheet}-${item.side}`
+  //       )
+
+  //       if (countSheetNotExists === 'I') {
+  //         const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === 'F')
+  //         return oddItens.map(item => `${item.sheet}${item.side}`).join(', ')
+  //       }
+
+  //       if (countSheetNotExists === 'PA') {
+  //         const pairItens = missingItems.filter(item => item.sheet % 2 === 0 && item.side === 'V')
+  //         return pairItens.map(item => `${item.sheet}${item.side}`).join(', ')
+  //       }
+
+  //       return missingItems.map(item => `${item.sheet}${item.side}`).join(', ')
+  //     }
+  //     //************************************************************ */
+
+  //     if (countSheetNotExists) {
+  //       const bookSumaryList: any[] = []
+
+  //       for (const item of bookSummaryPayload as any[]) {
+  //         const idx =
+  //           item.indexbook === null || item.indexbook === undefined
+  //             ? null
+  //             : Number(item.indexbook)
+
+  //         const yearGroup =
+  //           item.year === null || item.year === undefined
+  //             ? null
+  //             : Number(item.year)
+
+  //         item.side = await verifySide(Number(item.book), idx, yearGroup)
+  //         bookSumaryList.push(item)
+  //       }
+
+  //       return response.status(200).send(bookSumaryList)
+  //     }
+  //     return response.status(200).send(bookSummaryPayload)
+  //   } catch (error) {
+  //     return error
+  //   }
+  // }
   public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = Number(params.typebooks_id)
@@ -1708,6 +2040,30 @@ export default class BookrecordsController {
         .min('sheet as initialSheet')
         .max('sheet as finalSheet')
         .count('* as totalRows')
+        .select(
+          Database.raw(`
+            (
+              SELECT bkr.letter
+              FROM bookrecords bkr
+              WHERE bkr.companies_id = bookrecords.companies_id
+                AND bkr.typebooks_id = bookrecords.typebooks_id
+                AND bkr.book = bookrecords.book
+                AND (
+                  (bkr.indexbook = bookrecords.indexbook)
+                  OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+                )
+                AND (
+                  (bkr.year = bookrecords.year)
+                  OR (bkr.year IS NULL AND bookrecords.year IS NULL)
+                )
+              ORDER BY bkr.cod ASC,
+                bkr.sheet ASC,
+                CASE WHEN bkr.side = 'F' THEN 0 WHEN bkr.side = 'V' THEN 1 ELSE 2 END,
+                bkr.id ASC
+              LIMIT 1
+            ) as letter
+          `)
+        )
 
         // ✅ sheetInicial respeitando o nível do agrupamento da própria linha
         .select(
