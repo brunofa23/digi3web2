@@ -2308,36 +2308,126 @@ export default class BookrecordsController {
       : approximateTerm + 1
     const approximateTermIncrement = expectedSheetRemainder === null ? 1 : 2
 
-    let currentSheet = sheet
-    let currentSide = generateFrontAndBack ? 'F' : side
+    const generateSingleSide = side === 'F' || side === 'V'
+    const oppositeSide = side === 'F' ? 'V' : 'F'
 
-    const bookrecords = totalImagesIncrements.map((quantity) => {
+    type PendingBookrecord = {
+      book: number,
+      sheet: number,
+      side: string | null,
+      approximate_term: string,
+      typebooks_id: number,
+      companies_id: number,
+    }
+
+    let currentApproximateTerm = firstApproximateTerm
+
+    const buildTerms = (quantity: number) => {
       const terms: number[] = []
-      let currentApproximateTerm = firstApproximateTerm
 
       for (let i = 0; i < quantity; i++) {
         terms.push(currentApproximateTerm)
         currentApproximateTerm += approximateTermIncrement
       }
 
-      const bookrecord = {
-        book,
-        sheet: currentSheet,
-        side: hasSide ? currentSide : null,
-        approximate_term: terms.join('-'),
-        typebooks_id: typebooksId,
-        companies_id: authenticate.companies_id,
-      }
+      return terms.join('-')
+    }
 
-      if (generateFrontAndBack) {
-        currentSheet++
-        currentSide = currentSide === 'F' ? 'V' : 'F'
+    const buildSequentialBookrecords = () => {
+      const generatedBookrecords: PendingBookrecord[] = []
+      let currentSheet = sheet
+      let currentSide = generateFrontAndBack ? 'F' : side
+
+      currentApproximateTerm = firstApproximateTerm
+
+      totalImagesIncrements.forEach((quantity, index) => {
+        const positionSide = generateSingleSide
+          ? index % 2 === 0 ? side : oppositeSide
+          : currentSide
+
+        if (generateSingleSide && positionSide !== side) {
+          currentSheet++
+          return
+        }
+
+        generatedBookrecords.push({
+          book,
+          sheet: currentSheet,
+          side: hasSide ? positionSide : null,
+          approximate_term: buildTerms(quantity),
+          typebooks_id: typebooksId,
+          companies_id: authenticate.companies_id,
+        })
+
+        if (generateFrontAndBack) {
+          currentSheet++
+          currentSide = currentSide === 'F' ? 'V' : 'F'
+        } else {
+          currentSheet++
+        }
+      })
+
+      return generatedBookrecords
+    }
+
+    let bookrecords: PendingBookrecord[]
+
+    if (hasSide) {
+      const sideRank = (value: string | null | undefined) => value === 'F' ? 0 : value === 'V' ? 1 : 2
+      const firstSide = generateFrontAndBack ? 'F' : side
+      const existingRecordsQuery = Bookrecord.query()
+        .where('typebooks_id', typebooksId)
+        .andWhere('companies_id', authenticate.companies_id)
+        .andWhere('book', book)
+        .andWhere('sheet', '>=', sheet)
+        .whereIn('side', ['F', 'V'])
+        .orderBy('sheet', 'asc')
+        .orderBy('id', 'asc')
+
+      if (hasIndexbook) {
+        existingRecordsQuery.andWhere('indexbook', indexbook)
       } else {
-        currentSheet++
+        existingRecordsQuery.whereNull('indexbook')
       }
 
-      return bookrecord
-    })
+      const existingRecords = await existingRecordsQuery
+      const orderedRecords = existingRecords.slice().sort((a, b) => {
+        if (a.sheet !== b.sheet) return a.sheet - b.sheet
+        const sideDifference = sideRank(a.side) - sideRank(b.side)
+        if (sideDifference !== 0) return sideDifference
+        return a.id - b.id
+      }).filter((record) => {
+        const recordSideRank = sideRank(record.side)
+        return record.sheet > sheet || (record.sheet === sheet && recordSideRank >= sideRank(firstSide))
+      })
+
+      if (orderedRecords.length >= totalImagesIncrements.length) {
+        currentApproximateTerm = firstApproximateTerm
+
+        bookrecords = orderedRecords.slice(0, totalImagesIncrements.length).reduce((records, record, index) => {
+          const positionSide = String(record.side || '').trim().toUpperCase()
+
+          if (generateSingleSide && positionSide !== side) {
+            return records
+          }
+
+          records.push({
+            book,
+            sheet: record.sheet,
+            side: positionSide,
+            approximate_term: buildTerms(totalImagesIncrements[index]),
+            typebooks_id: typebooksId,
+            companies_id: authenticate.companies_id,
+          })
+
+          return records
+        }, [] as PendingBookrecord[])
+      } else {
+        bookrecords = buildSequentialBookrecords()
+      }
+    } else {
+      bookrecords = buildSequentialBookrecords()
+    }
 
     const trx = await Database.transaction()
 
