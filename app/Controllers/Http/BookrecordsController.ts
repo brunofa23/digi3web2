@@ -2838,7 +2838,7 @@ export default class BookrecordsController {
 
 
   public async fullReprocessing({ auth, params, request, response }: HttpContextContract) {
-    console.log("@@passo 1")
+    
     const authenticate = await auth.use('api').authenticate()
 
     const typebooksId = Number(params.typebooks_id)
@@ -2869,7 +2869,7 @@ export default class BookrecordsController {
     let foldername: any = null
     let listFiles: any = null
 
-    console.log("@@passo 1.1")
+    
 
     try {
       foldername = await Typebook
@@ -2885,14 +2885,14 @@ export default class BookrecordsController {
         })
       }
 
-      console.log("@@passo 1.2")
+      
       if (!foldername.path) {
         return response.status(422).send({
           message: 'Typebook sem caminho da pasta configurado',
         })
       }
 
-      console.log("@@passo 1.3")
+      
       if (!foldername.company || !foldername.company.cloud) {
         return response.status(422).send({
           message: 'Empresa sem configuração de cloud',
@@ -2906,7 +2906,7 @@ export default class BookrecordsController {
       //   })
       // }
 
-      console.log("@@passo 1.5")
+      
       await Typebook
         .query()
         .where('companies_id', authenticate.companies_id)
@@ -2932,8 +2932,7 @@ export default class BookrecordsController {
       }
 
       const indeximages = await query
-      console.log("PASSO 5555", query.toQuery())
-      console.log("@@passo 2")
+      
 
       for (const item of indeximages) {
         if (!item.bookrecord?.$original) continue
@@ -2956,7 +2955,7 @@ export default class BookrecordsController {
       }
 
       const listFilesToModify = await querylistFilesToModify
-      console.log("@@passo 4", querylistFilesToModify.toQuery())
+      
 
       const listFilesImages = []
 
@@ -2987,7 +2986,7 @@ export default class BookrecordsController {
             previous_file_name: null,
           })
 
-        console.log("PASSO 5.2>>", resultIndeximage)
+        
       }
 
       console.log("@@passo 6", listFilesImages)
