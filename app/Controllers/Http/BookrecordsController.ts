@@ -1725,6 +1725,30 @@ export default class BookrecordsController {
   //       .min('sheet as initialSheet')
   //       .max('sheet as finalSheet')
   //       .count('* as totalRows')
+  //       .select(
+  //         Database.raw(`
+  //           (
+  //             SELECT bkr.letter
+  //             FROM bookrecords bkr
+  //             WHERE bkr.companies_id = bookrecords.companies_id
+  //               AND bkr.typebooks_id = bookrecords.typebooks_id
+  //               AND bkr.book = bookrecords.book
+  //               AND (
+  //                 (bkr.indexbook = bookrecords.indexbook)
+  //                 OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+  //               )
+  //               AND (
+  //                 (bkr.year = bookrecords.year)
+  //                 OR (bkr.year IS NULL AND bookrecords.year IS NULL)
+  //               )
+  //             ORDER BY bkr.cod ASC,
+  //               bkr.sheet ASC,
+  //               CASE WHEN bkr.side = 'F' THEN 0 WHEN bkr.side = 'V' THEN 1 ELSE 2 END,
+  //               bkr.id ASC
+  //             LIMIT 1
+  //           ) as letter
+  //         `)
+  //       )
 
   //       // ✅ sheetInicial respeitando o nível do agrupamento da própria linha
   //       .select(
@@ -2034,7 +2058,8 @@ export default class BookrecordsController {
   //     return error
   //   }
   // }
-  public async bookSummary({ auth, params, request, response }: HttpContextContract) {
+
+    public async bookSummary({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebooks_id = Number(params.typebooks_id)
 
@@ -2048,6 +2073,19 @@ export default class BookrecordsController {
       qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
         ? Number(qs.indexBook)
         : undefined
+    const letter =
+      qs.letter !== undefined && qs.letter !== null && String(qs.letter).trim() !== ''
+        ? String(qs.letter).trim()
+        : undefined
+    const letterRawCondition = (alias: string) => {
+      if (letter === undefined) return ''
+      if (letter === '0') return `AND ${alias}.letter IS NULL`
+      return `AND ${alias}.letter = ?`
+    }
+    const letterRawBindings = (...aliases: string[]) =>
+      letter !== undefined && letter !== '0'
+        ? aliases.map(() => letter)
+        : []
     try {
       const query = Database
         .from('bookrecords')
@@ -2073,13 +2111,14 @@ export default class BookrecordsController {
                   (bkr.year = bookrecords.year)
                   OR (bkr.year IS NULL AND bookrecords.year IS NULL)
                 )
+                ${letterRawCondition('bkr')}
               ORDER BY bkr.cod ASC,
                 bkr.sheet ASC,
                 CASE WHEN bkr.side = 'F' THEN 0 WHEN bkr.side = 'V' THEN 1 ELSE 2 END,
                 bkr.id ASC
               LIMIT 1
             ) as letter
-          `)
+          `, letterRawBindings('bkr'))
         )
 
         // ✅ sheetInicial respeitando o nível do agrupamento da própria linha
@@ -2103,6 +2142,7 @@ export default class BookrecordsController {
                       (bkr.year = bookrecords.year)
                       OR (bkr.year IS NULL AND bookrecords.year IS NULL)
                     )
+                    ${letterRawCondition('bkr')}
                     AND bkr.sheet = 1
                     AND bkr.side = 'V'
                   LIMIT 1
@@ -2117,6 +2157,7 @@ export default class BookrecordsController {
                       (bkr2.indexbook = bookrecords.indexbook)
                       OR (bkr2.indexbook IS NULL AND bookrecords.indexbook IS NULL)
                     )
+                    ${letterRawCondition('bkr2')}
                     AND bkr2.sheet = 1
                     AND bkr2.side = 'V'
                   LIMIT 1
@@ -2127,6 +2168,7 @@ export default class BookrecordsController {
                   WHERE bkr3.companies_id = bookrecords.companies_id
                     AND bkr3.typebooks_id = bookrecords.typebooks_id
                     AND bkr3.book = bookrecords.book
+                    ${letterRawCondition('bkr3')}
                     AND bkr3.sheet = 1
                     AND bkr3.side = 'V'
                   LIMIT 1
@@ -2146,6 +2188,7 @@ export default class BookrecordsController {
                       (bkr.indexbook = bookrecords.indexbook)
                       OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
                     )
+                    ${letterRawCondition('bkr')}
                     AND bkr.sheet = 1
                     AND bkr.side = 'V'
                   LIMIT 1
@@ -2156,6 +2199,7 @@ export default class BookrecordsController {
                   WHERE bkr2.companies_id = bookrecords.companies_id
                     AND bkr2.typebooks_id = bookrecords.typebooks_id
                     AND bkr2.book = bookrecords.book
+                    ${letterRawCondition('bkr2')}
                     AND bkr2.sheet = 1
                     AND bkr2.side = 'V'
                   LIMIT 1
@@ -2170,12 +2214,13 @@ export default class BookrecordsController {
                 WHERE bkr.companies_id = bookrecords.companies_id
                   AND bkr.typebooks_id = bookrecords.typebooks_id
                   AND bkr.book = bookrecords.book
+                  ${letterRawCondition('bkr')}
                   AND bkr.sheet = 1
                   AND bkr.side = 'V'
                 LIMIT 1
               )
           END as sheetInicial
-        `)
+        `, letterRawBindings('bkr', 'bkr2', 'bkr3', 'bkr', 'bkr2', 'bkr'))
         )
 
         // ✅ totalFiles respeitando o nível do agrupamento da própria linha
@@ -2202,6 +2247,7 @@ export default class BookrecordsController {
                     (bkr.year = bookrecords.year)
                     OR (bkr.year IS NULL AND bookrecords.year IS NULL)
                   )
+                  ${letterRawCondition('bkr')}
                   AND indeximages.companies_id = ${authenticate.companies_id}
                   AND indeximages.typebooks_id = ${typebooks_id}
               )
@@ -2222,6 +2268,7 @@ export default class BookrecordsController {
                     (bkr.indexbook = bookrecords.indexbook)
                     OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
                   )
+                  ${letterRawCondition('bkr')}
                   AND indeximages.companies_id = ${authenticate.companies_id}
                   AND indeximages.typebooks_id = ${typebooks_id}
               )
@@ -2238,11 +2285,12 @@ export default class BookrecordsController {
                 WHERE bkr.companies_id = bookrecords.companies_id
                   AND bkr.typebooks_id = bookrecords.typebooks_id
                   AND bkr.book = bookrecords.book
+                  ${letterRawCondition('bkr')}
                   AND indeximages.companies_id = ${authenticate.companies_id}
                   AND indeximages.typebooks_id = ${typebooks_id}
               )
           END as totalFiles
-        `)
+        `, letterRawBindings('bkr', 'bkr', 'bkr'))
         )
 
         .where('companies_id', authenticate.companies_id)
@@ -2262,6 +2310,13 @@ export default class BookrecordsController {
       //  - undefined : não filtra
       if (typeof indexBook === 'number' && indexBook > 0) query.andWhere('indexbook', indexBook)
       else if (indexBook === 0) query.andWhereNull('indexbook')
+
+      // letter pode ser:
+      //  - valor preenchido : filtra letter
+      //  - 0 : filtra NULL
+      //  - undefined : não filtra
+      if (letter !== undefined && letter !== '0') query.andWhere('letter', letter)
+      else if (letter === '0') query.andWhereNull('letter')
 
       query.groupBy('book', 'indexbook', 'year')
       query.orderBy('bookrecords.book')
@@ -2314,6 +2369,9 @@ export default class BookrecordsController {
         else {
           sheetWithSideQuery.whereNull('indexbook').whereNull('year')
         }
+
+        if (letter !== undefined && letter !== '0') sheetWithSideQuery.andWhere('letter', letter)
+        else if (letter === '0') sheetWithSideQuery.andWhereNull('letter')
 
         const sheetWithSide = await sheetWithSideQuery
 
