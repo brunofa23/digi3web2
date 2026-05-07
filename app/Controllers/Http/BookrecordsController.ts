@@ -18,6 +18,8 @@ export default class BookrecordsController {
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
+    console.log("22@@@@@@@")
+
     const { codstart, codend,
       bookstart, bookend,
       approximateterm,
