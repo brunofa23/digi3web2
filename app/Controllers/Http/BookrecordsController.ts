@@ -103,6 +103,7 @@ export default class BookrecordsController {
         .preload('indeximage', (queryIndex) => {
           queryIndex.where("companies_id", '=', authenticate.companies_id)
             .andWhere('typebooks_id', params.typebooks_id)
+            //.andWhere('indeximages.typebooks_id', '=', 'typebooks.id')
         })
         .preload('document', query => {
           query.preload('documenttype', query => {
@@ -299,7 +300,7 @@ export default class BookrecordsController {
     }
     //*******************************************************************/
 
-    //console.log('SQL FINAL:', queryExecute.toQuery())
+    console.log('SQL FINAL:', queryExecute.toQuery())
 
 
     data = await queryExecute.paginate(page, limit)
@@ -308,10 +309,15 @@ export default class BookrecordsController {
   }
 
   public async fastFind({ auth, request, response }: HttpContextContract) {
+   
     const authenticate = await auth.use('api').authenticate()
     const { book, sheet, typebook } = request.only(['book', 'sheet', 'typebook'])
+    
+    console.log("FAST FIND @@@@@@@@", book, sheet, typebook)
+    
     if (!book || !sheet)
       return
+    
     const query = Bookrecord.query()
       .where("bookrecords.companies_id", authenticate.companies_id)
       .preload('indeximage', (subQuery) => {
