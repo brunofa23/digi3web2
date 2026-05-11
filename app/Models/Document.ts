@@ -19,6 +19,8 @@ export default class Document extends BaseModel {
       'prot',
       'month',
       'yeardoc',
+      'name',
+      'cpf',
       'documenttype_id',
       'document_type_book_id',
       'free',
@@ -118,6 +120,10 @@ export default class Document extends BaseModel {
   public month: number
   @column()
   public yeardoc: number
+  @column()
+  public name: string
+  @column()
+  public cpf: string
   @column()
   public documenttype_id: number
   @column()

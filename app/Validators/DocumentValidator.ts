@@ -11,6 +11,8 @@ export default class DocumentValidator {
     prot: schema.number.nullableAndOptional(),
     month: schema.number.nullableAndOptional([rules.range(1, 12)]),
     yeardoc: schema.number.nullableAndOptional(),
+    name: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(95)]),
+    cpf: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(11)]),
     documenttype_id: schema.number.optional(),
     document_type_book_id: schema.number.optional(),
     fin_entities_id:schema.number.optional(),
