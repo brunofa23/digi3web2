@@ -296,12 +296,7 @@ export default class BookrecordsController {
       })
     }
     //*******************************************************************/
-
-    console.log('SQL FINAL:', queryExecute.toQuery())
-
-
     data = await queryExecute.paginate(page, limit)
-
     return response.status(200).send(data)
   }
 
@@ -2678,7 +2673,9 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     const { typebooks_id } = request.only(['typebooks_id'])
     if (typebooks_id == undefined)
-      return
+        return
+
+    console.log("PASSO 1")
 
     const maxBook = await Bookrecord.query()
       .where('typebooks_id', typebooks_id)
@@ -2706,6 +2703,8 @@ export default class BookrecordsController {
       .where('books_id', 13)
       .andWhere('companies_id', authenticate.companies_id)
       .max('cod as max_cod')
+
+    //console.log("passo:::",query.toQuery())
     const maxCodDocument = await query.first();
 
     return response.status(200).send({
