@@ -148,6 +148,21 @@ export default class BookrecordsController {
     return null
   }
 
+  private extractIntegerByPatterns(text: string, patterns: RegExp[]) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match?.[1]) {
+        const digits = String(match[1]).replace(/\D/g, '')
+
+        if (digits) {
+          return Number(digits)
+        }
+      }
+    }
+
+    return null
+  }
+
   private parseIndexImageFilename(fileName: string) {
     const fileSplit = String(fileName || '').split('_')
     const codMatch = fileSplit[1]?.match(/\((\d+)\)/)
@@ -174,6 +189,33 @@ export default class BookrecordsController {
     ]) || fallback.register
 
     return { book, sheet, register }
+  }
+
+  private resolveExtractionLayout(typeLayout: any) {
+    if (typeLayout === undefined || typeLayout === null || typeLayout === '') {
+      return null
+    }
+
+    const layout = Number(typeLayout)
+
+    if (layout === 1) {
+      return 'personal_indicator'
+    }
+
+    return null
+  }
+
+  private extractPersonalIndicatorFields(text: string, fileName: string) {
+    const genericFields = this.extractBookSheetRegister(text, fileName)
+    const orderNumber = this.extractIntegerByPatterns(text, [
+      /(?:n\.?\s*[º°o]?|numero|número)\s*(?:de\s*)?ordem\D{0,20}(\d{1,3}(?:[.\s]\d{3})*|\d{1,8})/i,
+      /ordem\D{0,20}(?:n\.?\s*[º°o]?|numero|número)?\D{0,20}(\d{1,3}(?:[.\s]\d{3})*|\d{1,8})/i,
+    ])
+
+    return {
+      ...genericFields,
+      register: orderNumber || genericFields.register,
+    }
   }
 
   public async index({ auth, request, params, response }: HttpContextContract) {
@@ -2880,7 +2922,8 @@ export default class BookrecordsController {
     console.log("INICIO DO OCR SÍNCRONO")
     const authenticate = await auth.use('api').authenticate()
     const typebooksId = Number(params.typebooks_id)
-    const { books } = request.only(['books'])
+    const { books, typeLayout } = request.only(['books', 'typeLayout'])
+    const extractionLayout = this.resolveExtractionLayout(typeLayout)
 
     const bookNumbers = Array.isArray(books)
       ? books.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
@@ -2889,6 +2932,12 @@ export default class BookrecordsController {
     if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
       return response.status(400).send({
         message: 'typebooks_id inválido',
+      })
+    }
+
+    if (typeLayout !== undefined && typeLayout !== null && typeLayout !== '' && !extractionLayout) {
+      return response.status(400).send({
+        message: 'typeLayout inválido',
       })
     }
 
@@ -3014,7 +3063,9 @@ export default class BookrecordsController {
         const indexText = await extractDocumentTextFromBuffer(imageBuffer)
         const cpfs = this.extractCpfs(indexText)
         const names = this.extractNames(indexText)
-        const { book, sheet, register } = this.extractBookSheetRegister(indexText, indeximage.file_name)
+        const { book, sheet, register } = extractionLayout === 'personal_indicator'
+          ? this.extractPersonalIndicatorFields(indexText, indeximage.file_name)
+          : this.extractBookSheetRegister(indexText, indeximage.file_name)
 
         console.log("PASSO 10", { book, sheet, register, cpfs, names })
 
@@ -3053,6 +3104,8 @@ export default class BookrecordsController {
     return response.status(201).send({
       message: 'OCR concluído',
       typebooks_id: typebooksId,
+      typeLayout: typeLayout || null,
+      extractionLayout,
       books: bookNumbers,
       total: indeximages.length,
       ...result,
