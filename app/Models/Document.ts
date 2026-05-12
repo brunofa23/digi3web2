@@ -21,6 +21,7 @@ export default class Document extends BaseModel {
       'yeardoc',
       'name',
       'cpf',
+      'indexText',
       'documenttype_id',
       'document_type_book_id',
       'free',
@@ -124,6 +125,8 @@ export default class Document extends BaseModel {
   public name: string
   @column()
   public cpf: string
+  @column()
+  public indexText: string
   @column()
   public documenttype_id: number
   @column()
