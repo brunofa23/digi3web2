@@ -57,6 +57,7 @@ Route.group(() => {
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords')
 
   Route.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing')//.middleware('bookrecord_permission:indeximagesinitial')
+  Route.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages')//.middleware('bookrecord_permission:indeximagesinitial')
 
 
   Route.get("/fastfind", 'BookrecordsController.fastFind').middleware('bookrecord_permission:fastfind')
@@ -225,7 +226,6 @@ Route.group(() => {
     return auth.use('api').user!
   })
 }).prefix('/api')//.middleware(['auth'])
-
 
 
 

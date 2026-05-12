@@ -15,6 +15,12 @@ export default class Indeximage extends BaseModel {
       'ext',
       'file_name',
       'previous_file_name',
+      'name',
+      'cpf',
+      'indexText',
+      'book',
+      'sheet',
+      'register',
       'date_atualization',
       'created_at',
       'updated_at'
@@ -65,6 +71,24 @@ export default class Indeximage extends BaseModel {
 
   @column()
   public previous_file_name: string
+
+  @column()
+  public name: string
+
+  @column()
+  public cpf: string
+
+  @column()
+  public indexText: string
+
+  @column()
+  public book: number
+
+  @column()
+  public sheet: number
+
+  @column()
+  public register: number
 
   @column()
   public date_atualization: DateTime

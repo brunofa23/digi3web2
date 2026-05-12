@@ -11,9 +11,170 @@ import Document from 'App/Models/Document'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
 import { DateTime } from 'luxon'
+import { extractDocumentTextFromBuffer } from 'App/Services/ocr/googleVision'
+import {
+  sendDownloadFileBuffer,
+  sendListAllFilesMetadata,
+  sendSearchFile,
+} from 'App/Services/googleDrive/googledrive'
 
 const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
+  private normalizeText(value: string) {
+    return String(value || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toUpperCase()
+  }
+
+  private uniqueValues(values: string[]) {
+    const unique = new Map<string, string>()
+
+    for (const value of values) {
+      const cleaned = String(value || '').replace(/\s+/g, ' ').trim()
+      const key = this.normalizeText(cleaned)
+
+      if (cleaned && key && !unique.has(key)) {
+        unique.set(key, cleaned)
+      }
+    }
+
+    return Array.from(unique.values())
+  }
+
+  private isValidCpf(cpf: string) {
+    const digits = String(cpf || '').replace(/\D/g, '')
+
+    if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
+      return false
+    }
+
+    let sum = 0
+    for (let index = 0; index < 9; index++) {
+      sum += Number(digits[index]) * (10 - index)
+    }
+
+    let digit = 11 - (sum % 11)
+    const firstDigit = digit >= 10 ? 0 : digit
+
+    if (firstDigit !== Number(digits[9])) {
+      return false
+    }
+
+    sum = 0
+    for (let index = 0; index < 10; index++) {
+      sum += Number(digits[index]) * (11 - index)
+    }
+
+    digit = 11 - (sum % 11)
+    const secondDigit = digit >= 10 ? 0 : digit
+
+    return secondDigit === Number(digits[10])
+  }
+
+  private extractCpfs(text: string) {
+    const matches = text.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g) || []
+
+    return this.uniqueValues(
+      matches
+        .map((cpf) => cpf.replace(/\D/g, ''))
+        .filter((cpf) => this.isValidCpf(cpf))
+    )
+  }
+
+  private extractNames(text: string) {
+    const names: string[] = []
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.replace(/\s+/g, ' ').trim())
+      .filter(Boolean)
+
+    const labelPatterns = [
+      /(?:^|\b)nome(?:\s+da\s+pessoa)?\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
+      /(?:^|\b)requerente\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
+      /(?:^|\b)interessad[oa]\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
+      /(?:^|\b)propriet[aá]ri[oa]\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
+    ]
+
+    for (const line of lines) {
+      for (const pattern of labelPatterns) {
+        const match = line.match(pattern)
+        if (match?.[1]) {
+          names.push(this.cleanDetectedName(match[1]))
+        }
+      }
+    }
+
+    if (!names.length) {
+      const ignored = /CPF|RG|CNPJ|LIVRO|FOLHA|FLS|TERMO|REGISTRO|MATRICULA|MATRÍCULA|NASCIMENTO|CASAMENTO|CERTIDAO|CERTIDÃO|CARTORIO|CARTÓRIO|DATA|ENDERECO|ENDEREÇO/i
+
+      for (const line of lines) {
+        const cleanLine = this.cleanDetectedName(line)
+        const words = cleanLine.split(' ').filter(Boolean)
+
+        if (
+          words.length >= 2 &&
+          words.length <= 8 &&
+          !/\d/.test(cleanLine) &&
+          !ignored.test(cleanLine) &&
+          cleanLine.length >= 8
+        ) {
+          names.push(cleanLine)
+          break
+        }
+      }
+    }
+
+    return this.uniqueValues(names)
+  }
+
+  private cleanDetectedName(value: string) {
+    return String(value || '')
+      .replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  private extractNumberByPatterns(text: string, patterns: RegExp[]) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern)
+      if (match?.[1]) {
+        return Number(match[1])
+      }
+    }
+
+    return null
+  }
+
+  private parseIndexImageFilename(fileName: string) {
+    const fileSplit = String(fileName || '').split('_')
+    const codMatch = fileSplit[1]?.match(/\((\d+)\)/)
+    const book = Number(fileSplit[3]) || null
+    const sheet = Number(fileSplit[4]) || null
+    const register = Number(fileSplit[5]) || Number(codMatch?.[1]) || null
+
+    return { book, sheet, register }
+  }
+
+  private extractBookSheetRegister(text: string, fileName: string) {
+    const fallback = this.parseIndexImageFilename(fileName)
+
+    const book = this.extractNumberByPatterns(text, [
+      /(?:livro|book)\D{0,20}(\d{1,8})/i,
+    ]) || fallback.book
+
+    const sheet = this.extractNumberByPatterns(text, [
+      /(?:folha|fls?\.?|sheet)\D{0,20}(\d{1,8})/i,
+    ]) || fallback.sheet
+
+    const register = this.extractNumberByPatterns(text, [
+      /(?:termo|registro|register|matr[ií]cula)\D{0,20}(\d{1,8})/i,
+    ]) || fallback.register
+
+    return { book, sheet, register }
+  }
 
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
@@ -2715,6 +2876,166 @@ export default class BookrecordsController {
     })
   }
 
+  public async visionOcrIndeximages({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const typebooksId = Number(params.typebooks_id)
+    const { books } = request.only(['books'])
+
+    const bookNumbers = Array.isArray(books)
+      ? books.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+      : []
+
+    if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+      return response.status(400).send({
+        message: 'typebooks_id inválido',
+      })
+    }
+
+    if (books !== undefined && books !== null && !Array.isArray(books)) {
+      return response.status(400).send({
+        message: 'books deve ser um array',
+      })
+    }
+
+    if (Array.isArray(books) && books.length > 0 && bookNumbers.length !== books.length) {
+      return response.status(400).send({
+        message: 'books contém valores inválidos',
+      })
+    }
+
+    const typebook = await Typebook
+      .query()
+      .preload('company')
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('id', typebooksId)
+      .first()
+
+    if (!typebook) {
+      return response.status(404).send({
+        message: 'Typebook não encontrado',
+      })
+    }
+
+    if (!typebook.path) {
+      return response.status(422).send({
+        message: 'Typebook sem caminho da pasta configurado',
+      })
+    }
+
+    if (!typebook.company || !typebook.company.cloud) {
+      return response.status(422).send({
+        message: 'Empresa sem configuração de cloud',
+      })
+    }
+
+    const folder = await sendSearchFile(typebook.path, typebook.company.cloud)
+
+    if (!Array.isArray(folder) || !folder[0]?.id) {
+      return response.status(404).send({
+        message: 'Pasta do Google Drive não encontrada',
+        path: typebook.path,
+      })
+    }
+
+    const driveFiles = await sendListAllFilesMetadata(typebook.company.cloud, folder, bookNumbers)
+    const driveFilesByName = new Map<string, any>()
+
+    for (const file of driveFiles || []) {
+      if (file?.name) {
+        driveFilesByName.set(String(file.name).toLowerCase(), file)
+      }
+    }
+
+    const query = Indeximage
+      .query()
+      .preload('bookrecord')
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('typebooks_id', typebooksId)
+      .whereHas('bookrecord', (queryBookRecord) => {
+        queryBookRecord
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('typebooks_id', typebooksId)
+          .andWhere('books_id', 13)
+
+        if (bookNumbers.length) {
+          queryBookRecord.whereIn('book', bookNumbers)
+        }
+      })
+
+    const indeximages = await query
+    const result = {
+      processed: 0,
+      skipped: 0,
+      errors: [] as any[],
+    }
+
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.webp']
+
+    for (const indeximage of indeximages) {
+      try {
+        const driveFile = driveFilesByName.get(String(indeximage.file_name || '').toLowerCase())
+
+        if (!driveFile?.id) {
+          result.skipped++
+          result.errors.push({
+            file_name: indeximage.file_name,
+            message: 'Arquivo não encontrado na pasta do Google Drive',
+          })
+          continue
+        }
+
+        const extension = String(indeximage.ext || indeximage.file_name || '').toLowerCase()
+        const hasAllowedExtension = allowedExtensions.some((item) => extension.endsWith(item))
+
+        if (!hasAllowedExtension) {
+          result.skipped++
+          result.errors.push({
+            file_name: indeximage.file_name,
+            message: 'Extensão não suportada no OCR síncrono',
+          })
+          continue
+        }
+
+        const imageBuffer = await sendDownloadFileBuffer(driveFile.id, typebook.company.cloud)
+        const indexText = await extractDocumentTextFromBuffer(imageBuffer)
+        const cpfs = this.extractCpfs(indexText)
+        const names = this.extractNames(indexText)
+        const { book, sheet, register } = this.extractBookSheetRegister(indexText, indeximage.file_name)
+
+        await Indeximage
+          .query()
+          .where('companies_id', indeximage.companies_id)
+          .andWhere('typebooks_id', indeximage.typebooks_id)
+          .andWhere('bookrecords_id', indeximage.bookrecords_id)
+          .andWhere('seq', indeximage.seq)
+          .update({
+            name: names.length ? names.join(' - ') : null,
+            cpf: cpfs.length ? cpfs.join(' - ') : null,
+            indexText,
+            book,
+            sheet,
+            register,
+          })
+
+        result.processed++
+      } catch (error) {
+        result.skipped++
+        result.errors.push({
+          file_name: indeximage.file_name,
+          message: error.message || error,
+        })
+      }
+    }
+
+    return response.status(201).send({
+      message: 'OCR concluído',
+      typebooks_id: typebooksId,
+      books: bookNumbers,
+      total: indeximages.length,
+      ...result,
+    })
+  }
+
 
   public async imagesForItem({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
@@ -3218,6 +3539,8 @@ export default class BookrecordsController {
       })
     }
   }
+
+  
 
   //********************************************************* */
 

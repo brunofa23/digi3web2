@@ -353,6 +353,55 @@ async function listAllFiles(authClient, folderId = "", codigos = []) {
   }
 }
 
+async function listAllFilesMetadata(authClient, folderId = "", codigos = []) {
+  const drive = google.drive({ version: "v3", auth: authClient });
+
+  try {
+    let pageToken = null;
+    const pageSize = 100;
+    const listFiles = [];
+    const folder = folderId[0].id;
+
+    let query = `'${folder}' in parents and trashed=false`;
+
+    if (Array.isArray(codigos) && codigos.length > 0) {
+      const filtros = codigos
+        .filter(c => c !== null && c !== undefined && c !== "")
+        .map(c => `name contains '_${String(c).replace(/'/g, "\\'")}_'`);
+
+      if (filtros.length > 0) {
+        query += ` and (${filtros.join(" or ")})`;
+      }
+    }
+
+    do {
+      const response = await drive.files.list({
+        q: query,
+        pageSize,
+        pageToken,
+        fields: "nextPageToken, files(id, name, mimeType)",
+      });
+
+      const items = response.data.files || [];
+
+      for (const item of items) {
+        listFiles.push({
+          id: item.id,
+          name: item.name,
+          mimeType: item.mimeType,
+        });
+      }
+
+      pageToken = response.data.nextPageToken;
+    } while (pageToken);
+
+    return listFiles;
+  } catch (error) {
+    console.error("Erro ao listar os itens com metadados:", error);
+    return [];
+  }
+}
+
 
 
 async function downloadFile(authClient, fileId, extension) {
@@ -389,6 +438,19 @@ async function downloadFile(authClient, fileId, extension) {
   }
 }
 
+async function downloadFileBuffer(authClient, fileId) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+
+  const file = await drive.files.get({
+    fileId,
+    alt: 'media',
+  }, {
+    responseType: 'arraybuffer',
+  });
+
+  return Buffer.from(file.data);
+}
+
 //****************************************************************** */
 //****************************************************************** */
 async function sendAuthorize(cloud_number: number) {
@@ -408,6 +470,11 @@ async function sendListAllFiles(cloud_number: number, folderId = "", book = []) 
   const auth = await authorize(cloud_number)
   return listAllFiles(auth, folderId, book)
 
+}
+
+async function sendListAllFilesMetadata(cloud_number: number, folderId = "", book = []) {
+  const auth = await authorize(cloud_number)
+  return listAllFilesMetadata(auth, folderId, book)
 }
 
 async function sendUploadFiles(parent, folderPath, fileName, cloud_number: number) {
@@ -467,10 +534,15 @@ async function sendDownloadFile(fileId, extension, cloud_number: number) {
   return downloadFile(auth, fileId, extension)
 }
 
+async function sendDownloadFileBuffer(fileId, cloud_number: number) {
+  const auth = await authorize(cloud_number)
+  return downloadFileBuffer(auth, fileId)
+}
+
 async function sendRenameFile(fileId, newTitle, cloud_number: number) {
   const auth = await authorize(cloud_number)
   return renameFile(auth, fileId, newTitle)
 
 }
 
-export { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDeleteFile, sendListAllFiles, sendRenameFile }
+export { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDownloadFileBuffer, sendDeleteFile, sendListAllFiles, sendListAllFilesMetadata, sendRenameFile }
