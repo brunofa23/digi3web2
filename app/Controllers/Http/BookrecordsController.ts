@@ -219,6 +219,7 @@ export default class BookrecordsController {
   }
 
   public async index({ auth, request, params, response }: HttpContextContract) {
+    console.log("ENTROU NO INDEX BOOKRECORDS")
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -245,12 +246,14 @@ export default class BookrecordsController {
       created_atend,
       document_type_book_id,
       obs_document,
-      fin_entity_List
+      fin_entity_List,
+      name,
+      cpf
     } = request.qs()
 
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs)
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !name && !cpf)
       return null
     //last pages of each book****************************
     if (lastPagesOfEachBook) {
@@ -425,6 +428,29 @@ export default class BookrecordsController {
       if (!sheetzero || (sheetzero == 'false'))
         queryExecute.where('sheet', '>', 0)
 
+    if (name || cpf) {
+      queryExecute.whereHas('indeximage', queryIndex => {
+        queryIndex.where('indeximages.companies_id', authenticate.companies_id)
+
+        if (params.typebooks_id > 0) {
+          queryIndex.andWhere('indeximages.typebooks_id', params.typebooks_id)
+        }
+
+        if (name) {
+          queryIndex.andWhere('indeximages.name', 'like', `%${name}%`)
+        }
+
+        if (cpf) {
+          const cpfDigits = String(cpf).replace(/\D/g, '')
+
+          queryIndex.andWhereRaw(
+            "REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?",
+            [`%${cpfDigits || cpf}%`]
+          )
+        }
+      })
+    }
+
 
     //DOCUMENTOS***************************************************
     if (document == 'true') {
@@ -499,6 +525,9 @@ export default class BookrecordsController {
       })
     }
     //*******************************************************************/
+
+    console.log("QUERY FINAL: ", queryExecute.toQuery())
+
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
   }
