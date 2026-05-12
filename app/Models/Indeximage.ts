@@ -17,7 +17,7 @@ export default class Indeximage extends BaseModel {
       'previous_file_name',
       'name',
       'cpf',
-      'indexText',
+      'index_text',
       'book',
       'sheet',
       'register',
@@ -79,7 +79,7 @@ export default class Indeximage extends BaseModel {
   public cpf: string
 
   @column()
-  public indexText: string
+  public index_text: string
 
   @column()
   public book: number

@@ -14,7 +14,7 @@ export default class IndeximageValidator {
     previous_file_name: schema.string.nullableAndOptional({ trim: true }),
     name: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(500)]),
     cpf: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(300)]),
-    indexText: schema.string.nullableAndOptional({ trim: true }),
+    index_text: schema.string.nullableAndOptional({ trim: true }),
     book: schema.number.nullableAndOptional(),
     sheet: schema.number.nullableAndOptional(),
     register: schema.number.nullableAndOptional(),

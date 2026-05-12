@@ -2966,6 +2966,8 @@ export default class BookrecordsController {
         }
       })
 
+    console.log("PASSO 5 - QUERY:::", query.toQuery())
+
     const indeximages = await query
     const result = {
       processed: 0,
@@ -3013,26 +3015,32 @@ export default class BookrecordsController {
         const cpfs = this.extractCpfs(indexText)
         const names = this.extractNames(indexText)
         const { book, sheet, register } = this.extractBookSheetRegister(indexText, indeximage.file_name)
-        console.log("PASSO 10")
 
-        await Indeximage
-          .query()
-          .where('companies_id', indeximage.companies_id)
-          .andWhere('typebooks_id', indeximage.typebooks_id)
-          .andWhere('bookrecords_id', indeximage.bookrecords_id)
-          .andWhere('seq', indeximage.seq)
-          .update({
-            name: names.length ? names.join(' - ') : null,
-            cpf: cpfs.length ? cpfs.join(' - ') : null,
-            indexText,
-            book,
-            sheet,
-            register,
-          })
+        console.log("PASSO 10", { book, sheet, register, cpfs, names })
 
-        result.processed++
-        console.log("PASSO 11")
-        
+        try {
+          console.log("PASSO 10.1 - ATUALIZANDO INDEXIMAGE")
+          const updatedIndeximage = await Indeximage
+            .query()
+            .where('companies_id', indeximage.companies_id)
+            .andWhere('typebooks_id', indeximage.typebooks_id)
+            .andWhere('bookrecords_id', indeximage.bookrecords_id)
+            .andWhere('seq', indeximage.seq)
+            .update({
+              name: names.length ? names.join(' - ') : null,
+              cpf: cpfs.length ? cpfs.join(' - ') : null,
+              index_text: indexText,
+              book,
+              sheet,
+              register,
+            })
+          console.log("PASSO 11", updatedIndeximage)
+          result.processed++
+        } catch (error) {
+          console.error("Erro ao atualizar indeximage:", error)
+        }
+
+
       } catch (error) {
         result.skipped++
         result.errors.push({

@@ -10,7 +10,7 @@ export default class extends BaseSchema {
       table.integer('book').nullable().after('cpf')
       table.integer('sheet').nullable().after('book')
       table.integer('register', 20).nullable().after('sheet')
-      table.text('indexText').nullable().after('cpf')
+      table.text('index_text').nullable().after('cpf')
 
     })
   }
@@ -22,7 +22,7 @@ export default class extends BaseSchema {
       table.dropColumn('book')
       table.dropColumn('sheet')
       table.dropColumn('register')
-      table.dropColumn('indexText')
+      table.dropColumn('index_text')
     })
   }
 }
