@@ -6,4 +6,5 @@ coverage
 .env
 .history
 config/tokens
+config/credentials/*.json
 docker_volumes
