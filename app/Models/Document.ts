@@ -19,9 +19,6 @@ export default class Document extends BaseModel {
       'prot',
       'month',
       'yeardoc',
-      'name',
-      'cpf',
-      'indexText',
       'documenttype_id',
       'document_type_book_id',
       'free',
@@ -80,7 +77,7 @@ export default class Document extends BaseModel {
   })
   public bookrecord: HasOne<typeof Bookrecord>
 
- //*************************************** */
+  //*************************************** */
   // @hasOne(() => Documenttype, {
   //   foreignKey: 'id',
   //   localKey: 'documenttype_id'
@@ -91,7 +88,7 @@ export default class Document extends BaseModel {
     foreignKey: 'documenttype_id',
   })
   public documenttype: BelongsTo<typeof Documenttype>
-//****************************************************** */
+  //****************************************************** */
   @belongsTo(() => DocumentTypeBook, {
     foreignKey: 'document_type_book_id',
   })
@@ -121,12 +118,6 @@ export default class Document extends BaseModel {
   public month: number
   @column()
   public yeardoc: number
-  @column()
-  public name: string
-  @column()
-  public cpf: string
-  @column()
-  public indexText: string
   @column()
   public documenttype_id: number
   @column()
