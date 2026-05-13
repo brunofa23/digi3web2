@@ -3033,6 +3033,9 @@ export default class BookrecordsController {
       .preload('bookrecord')
       .where('companies_id', authenticate.companies_id)
       .andWhere('typebooks_id', typebooksId)
+      .andWhere((queryReady) => {
+        queryReady.where('ready', false).orWhereNull('ready')
+      })
       .whereHas('bookrecord', (queryBookRecord) => {
         queryBookRecord
           .where('companies_id', authenticate.companies_id)
@@ -3113,6 +3116,7 @@ export default class BookrecordsController {
               book,
               sheet,
               register,
+              ready: true,
             })
           console.log("PASSO 11", updatedIndeximage)
           result.processed++
