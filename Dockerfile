@@ -32,6 +32,7 @@ RUN npm ci --omit=dev
 
 # Copia o build TS->JS
 COPY --from=build /app/_build ./_build
+COPY scripts/write-google-credentials.js ./scripts/write-google-credentials.js
 # (se tiver /public)
 # COPY --from=build /app/public ./public
 
@@ -55,4 +56,4 @@ EXPOSE 8080
 # RUN useradd -m app && chown -R app:app /app
 # USER app
 
-CMD ["node", "_build/server.js"]
+CMD ["sh", "-c", "node scripts/write-google-credentials.js && node _build/server.js"]

@@ -45,8 +45,10 @@ jobs:
           npm ci
           node ace build --production --ignore-ts-errors
           mkdir -p _build/app/Services/Validations
+          mkdir -p _build/scripts
           cp -fR tmp _build || true
           cp -f app/Services/Validations/listMessage.json _build/app/Services/Validations/listMessage.json || true
+          cp -f scripts/write-google-credentials.js _build/scripts/write-google-credentials.js || true
 
       # 6️⃣ Commit de build e push do HEAD para main-production
       - name: Commit e push para main-production (forçando com segurança)
