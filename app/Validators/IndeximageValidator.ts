@@ -18,6 +18,7 @@ export default class IndeximageValidator {
     book: schema.number.nullableAndOptional(),
     sheet: schema.number.nullableAndOptional(),
     register: schema.number.nullableAndOptional(),
+    ready: schema.boolean.optional(),
     date_atualization: schema.date.nullableAndOptional(),
   })
 }

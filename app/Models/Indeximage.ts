@@ -21,6 +21,7 @@ export default class Indeximage extends BaseModel {
       'book',
       'sheet',
       'register',
+      'ready',
       'date_atualization',
       'created_at',
       'updated_at'
@@ -89,6 +90,9 @@ export default class Indeximage extends BaseModel {
 
   @column()
   public register: number
+
+  @column()
+  public ready: boolean
 
   @column()
   public date_atualization: DateTime
