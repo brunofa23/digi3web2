@@ -74,13 +74,39 @@ export default class BookrecordsController {
     return secondDigit === Number(digits[10])
   }
 
+  private isValidCnpj(cnpj: string) {
+    const digits = String(cnpj || '').replace(/\D/g, '')
+
+    if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) {
+      return false
+    }
+
+    const calculateDigit = (length: number) => {
+      const weights = length === 12
+        ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+        : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+
+      const sum = weights.reduce((total, weight, index) => {
+        return total + Number(digits[index]) * weight
+      }, 0)
+      const digit = 11 - (sum % 11)
+
+      return digit >= 10 ? 0 : digit
+    }
+
+    return calculateDigit(12) === Number(digits[12]) &&
+      calculateDigit(13) === Number(digits[13])
+  }
+
   private extractCpfs(text: string) {
-    const matches = text.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g) || []
+    const matches = text.match(/\b(?:\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\b/g) || []
 
     return this.uniqueValues(
       matches
-        .map((cpf) => cpf.replace(/\D/g, ''))
-        .filter((cpf) => this.isValidCpf(cpf))
+        .map((document) => document.replace(/\D/g, ''))
+        .filter((document) => {
+          return this.isValidCpf(document) || this.isValidCnpj(document)
+        })
     )
   }
 
