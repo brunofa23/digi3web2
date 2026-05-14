@@ -248,12 +248,14 @@ export default class BookrecordsController {
       obs_document,
       fin_entity_List,
       name,
-      cpf
+      cpf,
+      indeximagefield
     } = request.qs()
+    const indexImageField = indeximagefield || request.input('indexImageField')
 
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !name && !cpf)
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !name && !cpf && !indexImageField)
       return null
     //last pages of each book****************************
     if (lastPagesOfEachBook) {
@@ -428,7 +430,7 @@ export default class BookrecordsController {
       if (!sheetzero || (sheetzero == 'false'))
         queryExecute.where('sheet', '>', 0)
 
-    if (name || cpf) {
+    if (name || cpf || indexImageField) {
       queryExecute.whereHas('indeximage', queryIndex => {
         queryIndex.where('indeximages.companies_id', authenticate.companies_id)
 
@@ -447,6 +449,20 @@ export default class BookrecordsController {
             "REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?",
             [`%${cpfDigits || cpf}%`]
           )
+        }
+
+        if (indexImageField) {
+          const cpfDigits = String(indexImageField).replace(/\D/g, '')
+
+          queryIndex.andWhere((subQuery) => {
+            subQuery
+              .where('indeximages.name', 'like', `%${indexImageField}%`)
+              .orWhere('indeximages.index_text', 'like', `%${indexImageField}%`)
+              .orWhereRaw(
+                "REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?",
+                [`%${cpfDigits || indexImageField}%`]
+              )
+          })
         }
       })
     }
