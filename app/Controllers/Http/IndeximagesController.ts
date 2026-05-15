@@ -387,8 +387,13 @@ export default class IndeximagesController {
     const body = request.only(Indeximage.fillable)
     const fileName = params.id
     const company = await Company.find(authenticate.companies_id)
+    const indexImage = await Indeximage.query()
+      .where('file_name', fileName)
+      .andWhere('typebooks_id', typebook_id)
+      .andWhere('companies_id', authenticate.companies_id)
+      .first()
     const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
-    return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size }
+    return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size, index_text: indexImage?.index_text }
 
   }
 
