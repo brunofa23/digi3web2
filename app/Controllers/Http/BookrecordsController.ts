@@ -277,11 +277,13 @@ export default class BookrecordsController {
       cpf,
       indeximagefield
     } = request.qs()
-    const indexImageField = indeximagefield || request.input('indexImageField')
+    const nameField = name || request.input('name')
+    const cpfField = cpf || request.input('cpf')
+    const indexImageField = indeximagefield || request.input('indexImageField') || request.input('indeximagefield')
 
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !name && !cpf && !indexImageField)
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !nameField && !cpfField && !indexImageField)
       return null
     //last pages of each book****************************
     if (lastPagesOfEachBook) {
@@ -456,7 +458,7 @@ export default class BookrecordsController {
       if (!sheetzero || (sheetzero == 'false'))
         queryExecute.where('sheet', '>', 0)
 
-    if (name || cpf || indexImageField) {
+    if (nameField || cpfField || indexImageField) {
       queryExecute.whereHas('indeximage', queryIndex => {
         queryIndex.where('indeximages.companies_id', authenticate.companies_id)
 
@@ -464,16 +466,16 @@ export default class BookrecordsController {
           queryIndex.andWhere('indeximages.typebooks_id', params.typebooks_id)
         }
 
-        if (name) {
-          queryIndex.andWhere('indeximages.name', 'like', `%${name}%`)
+        if (nameField) {
+          queryIndex.andWhere('indeximages.name', 'like', `%${nameField}%`)
         }
 
-        if (cpf) {
-          const cpfDigits = String(cpf).replace(/\D/g, '')
+        if (cpfField) {
+          const cpfDigits = String(cpfField).replace(/\D/g, '')
 
           queryIndex.andWhereRaw(
             "REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?",
-            [`%${cpfDigits || cpf}%`]
+            [`%${cpfDigits || cpfField}%`]
           )
         }
 
