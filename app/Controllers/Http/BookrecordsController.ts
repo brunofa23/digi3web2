@@ -2990,7 +2990,7 @@ export default class BookrecordsController {
   }
 
   public async visionOcrIndeximages({ auth, params, request, response }: HttpContextContract) {
-    console.log("INICIO DO OCR SÍNCRONO")
+    
     const authenticate = await auth.use('api').authenticate()
     const typebooksId = Number(params.typebooks_id)
     const { books, typeLayout } = request.only(['books', 'typeLayout'])
@@ -3012,14 +3012,14 @@ export default class BookrecordsController {
       })
     }
 
-    console.log("PASSO 2")
+    
     if (books !== undefined && books !== null && !Array.isArray(books)) {
       return response.status(400).send({
         message: 'books deve ser um array',
       })
     }
 
-    console.log("PASSO 3")
+    
     if (Array.isArray(books) && books.length > 0 && bookNumbers.length !== books.length) {
       return response.status(400).send({
         message: 'books contém valores inválidos',
@@ -3050,7 +3050,7 @@ export default class BookrecordsController {
         message: 'Empresa sem configuração de cloud',
       })
     }
-    console.log("PASSO 3")
+    
     const folder = await sendSearchFile(typebook.path, typebook.company.cloud)
 
     if (!Array.isArray(folder) || !folder[0]?.id) {
@@ -3060,7 +3060,6 @@ export default class BookrecordsController {
       })
     }
 
-    console.log("PASSO 4")
     const driveFiles = await sendListAllFilesMetadata(typebook.company.cloud, folder, bookNumbers)
     const driveFilesByName = new Map<string, any>()
 
@@ -3082,7 +3081,7 @@ export default class BookrecordsController {
         queryBookRecord
           .where('companies_id', authenticate.companies_id)
           .andWhere('typebooks_id', typebooksId)
-          .andWhere('books_id', 13)
+          //.andWhere('books_id', 13)
 
         if (bookNumbers.length) {
           queryBookRecord.whereIn('book', bookNumbers)
@@ -3100,13 +3099,9 @@ export default class BookrecordsController {
 
     const allowedExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.webp']
 
-    console.log("PASSO 5")
     for (const indeximage of indeximages) {
       try {
-        console.log("PASSO 6")
-
         const driveFile = driveFilesByName.get(String(indeximage.file_name || '').toLowerCase())
-
         if (!driveFile?.id) {
           result.skipped++
           result.errors.push({
@@ -3115,9 +3110,6 @@ export default class BookrecordsController {
           })
           continue
         }
-
-        console.log("PASSO 7")
-
         const extension = String(indeximage.ext || indeximage.file_name || '').toLowerCase()
         const hasAllowedExtension = allowedExtensions.some((item) => extension.endsWith(item))
 
@@ -3130,10 +3122,10 @@ export default class BookrecordsController {
           continue
         }
 
-        console.log("PASSO 8")
+        // console.log("PASSO 8")
 
         const imageBuffer = await sendDownloadFileBuffer(driveFile.id, typebook.company.cloud)
-        console.log("PASSO 9")
+        // console.log("PASSO 9")
         const indexText = await extractDocumentTextFromBuffer(imageBuffer)
         const cpfs = this.extractCpfs(indexText)
         const names = this.extractNames(indexText)
@@ -3141,7 +3133,7 @@ export default class BookrecordsController {
           ? this.extractPersonalIndicatorFields(indexText, indeximage.file_name)
           : this.extractBookSheetRegister(indexText, indeximage.file_name)
 
-        console.log("PASSO 10", { book, sheet, register, cpfs, names })
+        // console.log("PASSO 10", { book, sheet, register, cpfs, names })
 
         try {
           console.log("PASSO 10.1 - ATUALIZANDO INDEXIMAGE")
@@ -3160,7 +3152,7 @@ export default class BookrecordsController {
               register,
               ready: true,
             })
-          console.log("PASSO 11", updatedIndeximage)
+          // console.log("PASSO 11", updatedIndeximage)
           result.processed++
         } catch (error) {
           console.error("Erro ao atualizar indeximage:", error)
