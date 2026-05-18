@@ -29,6 +29,13 @@ export default class BookrecordsController {
       .toUpperCase()
   }
 
+  private normalizeDriveFileName(value: string) {
+    return String(value || '')
+      .normalize('NFC')
+      .trim()
+      .toLowerCase()
+  }
+
   private uniqueValues(values: string[]) {
     const unique = new Map<string, string>()
 
@@ -245,7 +252,6 @@ export default class BookrecordsController {
   }
 
   public async index({ auth, request, params, response }: HttpContextContract) {
-    console.log("ENTROU NO INDEX BOOKRECORDS")
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
       bookstart, bookend,
@@ -570,7 +576,7 @@ export default class BookrecordsController {
     }
     //*******************************************************************/
 
-    console.log("QUERY FINAL: ", queryExecute.toQuery())
+    //console.log("QUERY FINAL: ", queryExecute.toQuery())
 
     data = await queryExecute.paginate(page, limit)
     return response.status(200).send(data)
@@ -581,7 +587,7 @@ export default class BookrecordsController {
     const authenticate = await auth.use('api').authenticate()
     const { book, sheet, typebook } = request.only(['book', 'sheet', 'typebook'])
 
-    console.log("FAST FIND @@@@@@@@", book, sheet, typebook)
+    //console.log("FAST FIND @@@@@@@@", book, sheet, typebook)
 
     if (!book || !sheet)
       return
@@ -2992,7 +2998,7 @@ export default class BookrecordsController {
   }
 
   public async visionOcrIndeximages({ auth, params, request, response }: HttpContextContract) {
-    
+    console.log("PASSO 1 - INÍCIO DA ROTA")
     const authenticate = await auth.use('api').authenticate()
     const typebooksId = Number(params.typebooks_id)
     const { books, typeLayout, fileName, bookrecords_id, seq } = request.only([
@@ -3074,6 +3080,7 @@ export default class BookrecordsController {
       })
     }
     
+    console.log("PASSO 4 - BUSCANDO ARQUIVOS NA PASTA DO GOOGLE DRIVE")
     const folder = await sendSearchFile(typebook.path, typebook.company.cloud)
 
     if (!Array.isArray(folder) || !folder[0]?.id) {
@@ -3115,7 +3122,7 @@ export default class BookrecordsController {
       query.andWhere('seq', sequence)
     }
 
-    console.log("PASSO 5 - QUERY:::", query.toQuery())
+    //console.log("PASSO 5 - QUERY:::", query.toQuery())
 
     const indeximages = await query
     const effectiveBookNumbers = bookNumbers.length
@@ -3123,12 +3130,14 @@ export default class BookrecordsController {
       : this.uniqueValues(indeximages.map((item) => String(item.bookrecord?.book || item.book || '')))
         .map((item) => Number(item))
         .filter((item) => Number.isInteger(item) && item > 0)
-    const driveFiles = await sendListAllFilesMetadata(typebook.company.cloud, folder, effectiveBookNumbers)
+    const driveFiles = singleFileName
+      ? await sendSearchFile(singleFileName, typebook.company.cloud, folder[0].id)
+      : await sendListAllFilesMetadata(typebook.company.cloud, folder, effectiveBookNumbers)
     const driveFilesByName = new Map<string, any>()
 
     for (const file of driveFiles || []) {
       if (file?.name) {
-        driveFilesByName.set(String(file.name).toLowerCase(), file)
+        driveFilesByName.set(this.normalizeDriveFileName(file.name), file)
       }
     }
 
@@ -3143,7 +3152,12 @@ export default class BookrecordsController {
 
     for (const indeximage of indeximages) {
       try {
-        const driveFile = driveFilesByName.get(String(indeximage.file_name || '').toLowerCase())
+        console.log("passo 7", indeximage.file_name)
+
+        const driveFile = driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name))
+
+        console.log("passo 7.1", driveFile)
+
         if (!driveFile?.id) {
           result.skipped++
           result.errors.push({
@@ -3152,6 +3166,9 @@ export default class BookrecordsController {
           })
           continue
         }
+
+        
+
         const extension = String(indeximage.ext || indeximage.file_name || '').toLowerCase()
         const hasAllowedExtension = allowedExtensions.some((item) => extension.endsWith(item))
 
@@ -3164,10 +3181,10 @@ export default class BookrecordsController {
           continue
         }
 
-        // console.log("PASSO 8")
+         console.log("PASSO 8")
 
         const imageBuffer = await sendDownloadFileBuffer(driveFile.id, typebook.company.cloud)
-        // console.log("PASSO 9")
+         console.log("PASSO 9")
         const indexText = await extractDocumentTextFromBuffer(imageBuffer)
         const cpfs = this.extractCpfs(indexText)
         const names = this.extractNames(indexText)
@@ -3175,7 +3192,7 @@ export default class BookrecordsController {
           ? this.extractPersonalIndicatorFields(indexText, indeximage.file_name)
           : this.extractBookSheetRegister(indexText, indeximage.file_name)
 
-        // console.log("PASSO 10", { book, sheet, register, cpfs, names })
+        console.log("PASSO 10", { book, sheet, register, cpfs, names })
 
         try {
           console.log("PASSO 10.1 - ATUALIZANDO INDEXIMAGE")
@@ -3597,7 +3614,7 @@ export default class BookrecordsController {
           foldername.company.cloud
         )
 
-        console.log("@@passo 5 Nome atual:", iterator.file_name, "- mudar para:", iterator.previous_file_name)
+        //console.log("@@passo 5 Nome atual:", iterator.file_name, "- mudar para:", iterator.previous_file_name)
         listFilesImages.push(iterator.file_name)
 
 
@@ -3616,7 +3633,7 @@ export default class BookrecordsController {
 
       }
 
-      console.log("@@passo 6", listFilesImages)
+     // console.log("@@passo 6", listFilesImages)
 
       listFiles = await fileRename.indeximagesinitial(
         foldername,
