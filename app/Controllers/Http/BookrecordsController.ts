@@ -2995,8 +2995,17 @@ export default class BookrecordsController {
     
     const authenticate = await auth.use('api').authenticate()
     const typebooksId = Number(params.typebooks_id)
-    const { books, typeLayout } = request.only(['books', 'typeLayout'])
+    const { books, typeLayout, fileName, bookrecords_id, seq } = request.only([
+      'books',
+      'typeLayout',
+      'fileName',
+      'bookrecords_id',
+      'seq',
+    ])
     const extractionLayout = this.resolveExtractionLayout(typeLayout)
+    const singleFileName = String(fileName || '').trim()
+    const bookrecordsId = Number(bookrecords_id)
+    const sequence = Number(seq)
 
     const bookNumbers = Array.isArray(books)
       ? books.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
@@ -3025,6 +3034,18 @@ export default class BookrecordsController {
     if (Array.isArray(books) && books.length > 0 && bookNumbers.length !== books.length) {
       return response.status(400).send({
         message: 'books contém valores inválidos',
+      })
+    }
+
+    if (bookrecords_id !== undefined && (!Number.isInteger(bookrecordsId) || bookrecordsId <= 0)) {
+      return response.status(400).send({
+        message: 'bookrecords_id inválido',
+      })
+    }
+
+    if (seq !== undefined && (!Number.isInteger(sequence) || sequence < 0)) {
+      return response.status(400).send({
+        message: 'seq inválido',
       })
     }
 
@@ -3062,23 +3083,11 @@ export default class BookrecordsController {
       })
     }
 
-    const driveFiles = await sendListAllFilesMetadata(typebook.company.cloud, folder, bookNumbers)
-    const driveFilesByName = new Map<string, any>()
-
-    for (const file of driveFiles || []) {
-      if (file?.name) {
-        driveFilesByName.set(String(file.name).toLowerCase(), file)
-      }
-    }
-
     const query = Indeximage
       .query()
       .preload('bookrecord')
       .where('companies_id', authenticate.companies_id)
       .andWhere('typebooks_id', typebooksId)
-      .andWhere((queryReady) => {
-        queryReady.where('ready', false).orWhereNull('ready')
-      })
       .whereHas('bookrecord', (queryBookRecord) => {
         queryBookRecord
           .where('companies_id', authenticate.companies_id)
@@ -3090,13 +3099,44 @@ export default class BookrecordsController {
         }
       })
 
+    if (singleFileName) {
+      query.andWhere('file_name', singleFileName)
+    } else {
+      query.andWhere((queryReady) => {
+        queryReady.where('ready', false).orWhereNull('ready')
+      })
+    }
+
+    if (Number.isInteger(bookrecordsId) && bookrecordsId > 0) {
+      query.andWhere('bookrecords_id', bookrecordsId)
+    }
+
+    if (Number.isInteger(sequence) && sequence >= 0) {
+      query.andWhere('seq', sequence)
+    }
+
     console.log("PASSO 5 - QUERY:::", query.toQuery())
 
     const indeximages = await query
+    const effectiveBookNumbers = bookNumbers.length
+      ? bookNumbers
+      : this.uniqueValues(indeximages.map((item) => String(item.bookrecord?.book || item.book || '')))
+        .map((item) => Number(item))
+        .filter((item) => Number.isInteger(item) && item > 0)
+    const driveFiles = await sendListAllFilesMetadata(typebook.company.cloud, folder, effectiveBookNumbers)
+    const driveFilesByName = new Map<string, any>()
+
+    for (const file of driveFiles || []) {
+      if (file?.name) {
+        driveFilesByName.set(String(file.name).toLowerCase(), file)
+      }
+    }
+
     const result = {
       processed: 0,
       skipped: 0,
       errors: [] as any[],
+      images: [] as any[],
     }
 
     const allowedExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.webp']
@@ -3156,6 +3196,18 @@ export default class BookrecordsController {
             })
           // console.log("PASSO 11", updatedIndeximage)
           result.processed++
+          result.images.push({
+            file_name: indeximage.file_name,
+            bookrecords_id: indeximage.bookrecords_id,
+            seq: indeximage.seq,
+            index_text: indexText,
+            name: names.length ? names.join(' - ') : null,
+            cpf: cpfs.length ? cpfs.join(' - ') : null,
+            book,
+            sheet,
+            register,
+            ready: true,
+          })
         } catch (error) {
           console.error("Erro ao atualizar indeximage:", error)
         }
@@ -3175,7 +3227,8 @@ export default class BookrecordsController {
       typebooks_id: typebooksId,
       typeLayout: typeLayout || null,
       extractionLayout,
-      books: bookNumbers,
+      books: effectiveBookNumbers,
+      fileName: singleFileName || null,
       total: indeximages.length,
       ...result,
     })

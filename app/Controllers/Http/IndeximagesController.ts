@@ -393,7 +393,17 @@ export default class IndeximagesController {
       .andWhere('companies_id', authenticate.companies_id)
       .first()
     const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
-    return { fileDownload: fileDownload.dataURI, fileName, extension: path.extname(fileName), body, size: fileDownload.size, index_text: indexImage?.index_text }
+    return {
+      fileDownload: fileDownload.dataURI,
+      fileName,
+      extension: path.extname(fileName),
+      body,
+      size: fileDownload.size,
+      index_text: indexImage?.index_text,
+      bookrecords_id: indexImage?.bookrecords_id,
+      typebooks_id: indexImage?.typebooks_id,
+      seq: indexImage?.seq,
+    }
 
   }
 
