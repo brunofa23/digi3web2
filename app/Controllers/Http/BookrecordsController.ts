@@ -20,6 +20,16 @@ import {
 
 const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
+  private documentCustomFields() {
+    const fields: string[] = []
+
+    for (let number = 1; number <= 13; number++) {
+      fields.push(`intfield${number}`, `stringfield${number}`, `datefield${number}`)
+    }
+
+    return fields
+  }
+
   private normalizeText(value: string) {
     return String(value || '')
       .normalize('NFD')
@@ -286,10 +296,20 @@ export default class BookrecordsController {
     const nameField = name || request.input('name')
     const cpfField = cpf || request.input('cpf')
     const indexImageField = indeximagefield || request.input('indexImageField') || request.input('indeximagefield')
+    const hasDocumentCustomFilter = this.documentCustomFields().some((field) => {
+      const value = request.input(field)
+      return value !== undefined && value !== null && value !== ''
+    })
+    const hasDocumentFilter = document == 'true' && (
+      !!created_atstart || !!created_atend || !!prot || !!documenttype_id ||
+      !!document_type_book_id || free == 'true' || averb_anot == 'true' ||
+      !!book_name || !!book_number || !!sheet_number || !!month ||
+      !!yeardoc || !!obs_document || !!fin_entity_List || hasDocumentCustomFilter
+    )
 
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !nameField && !cpfField && !indexImageField)
+      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter)
       return null
     //last pages of each book****************************
     if (lastPagesOfEachBook) {
@@ -558,6 +578,22 @@ export default class BookrecordsController {
         //OBS
         if (obs_document != undefined)
           query.where('obs', 'like', `%${obs_document}%`)
+
+        for (const field of this.documentCustomFields()) {
+          const value = request.input(field)
+
+          if (value === undefined || value === null || value === '') {
+            continue
+          }
+
+          if (field.startsWith('stringfield')) {
+            query.where(`documents.${field}`, 'like', `%${value}%`)
+          } else if (field.startsWith('datefield')) {
+            query.whereRaw('DATE(??) = ?', [`documents.${field}`, value])
+          } else {
+            query.where(`documents.${field}`, value)
+          }
+        }
 
         //ENTIDADE
         query.if(fin_entity_List, q => {
