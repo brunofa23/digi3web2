@@ -38,7 +38,7 @@ export default class TokensDevicesController {
         })
       }
 
-      const RELEASE_TOKEN_PERMISSIONGROUP_ID = 35
+      const RELEASE_TOKEN_PERMISSIONGROUP_ID = 36
 
       const hasPermission =
         user.usergroup?.groupxpermission?.some((item: any) => {

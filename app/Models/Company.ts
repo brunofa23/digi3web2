@@ -27,6 +27,7 @@ export default class Company extends BaseModel {
       'email',
       'status',
       'cloud',
+      'use_device_control',
       'created_at',
       'updated_at'
     ]
@@ -96,6 +97,9 @@ export default class Company extends BaseModel {
   @column()
   public cloud: number
 
+  @column()
+  public use_device_control: boolean
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
@@ -110,6 +114,5 @@ export default class Company extends BaseModel {
   }
 
 }
-
 
 
