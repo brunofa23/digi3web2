@@ -87,7 +87,15 @@ export default class AuthenticationController {
         .first()
 
       if (!authorizedDevice) {
-        throw new BadRequest('Dispositivo não autorizado para esta empresa', 403, 'device_error_002')
+        return response.status(403).send({
+          code: 'device_error_002',
+          message: 'Dispositivo não autorizado para esta empresa',
+          status: 403,
+          data: {
+            company_id: user.companies_id,
+            user_id: user.id,
+          },
+        })
       }
 
       authorizedDevice.lastUsedAt = DateTime.now()
@@ -188,4 +196,3 @@ export default class AuthenticationController {
 
 
 }
-

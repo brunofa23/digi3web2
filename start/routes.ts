@@ -208,6 +208,8 @@ Route.group(() => {
 
 
   //TOKENS_DEVICES
+  Route.get('/tokens-devices/authorized', 'TokensDevicesController.authorizedDevices').middleware('auth')
+  Route.patch('/tokens-devices/:id/deactivate', 'TokensDevicesController.deactivateDevice').middleware('auth')
   Route.post('/tokens-devices/generate', 'TokensDevicesController.generate').middleware('auth')
   Route.post('/tokens-devices/validate', 'TokensDevicesController.validateToken')
   Route.post('/tokens-devices/register-device', 'TokensDevicesController.registerDevice')
@@ -226,7 +228,6 @@ Route.group(() => {
     return auth.use('api').user!
   })
 }).prefix('/api')//.middleware(['auth'])
-
 
 
 

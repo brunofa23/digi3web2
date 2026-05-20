@@ -8,6 +8,74 @@ import User from 'App/Models/User'
 
 
 export default class TokensDevicesController {
+  public async authorizedDevices({ auth, response }: HttpContextContract) {
+    try {
+      const user = await auth.use('api').authenticate()
+
+      const devices = await AuthorizedDevice.query()
+        .where('company_id', user.companies_id)
+        .orderBy('id', 'desc')
+
+      return response.status(200).send({
+        data: devices.map((device) => ({
+          id: device.id,
+          company_id: device.companyId,
+          user_id: device.userId,
+          device_name: device.deviceName,
+          device_identifier: device.deviceIdentifier,
+          active: device.active,
+          last_used_at: device.lastUsedAt,
+          revoked_at: device.revokedAt,
+          created_at: device.createdAt,
+        })),
+      })
+    } catch (error) {
+      console.log('Erro ao listar dispositivos:', error)
+
+      return response.status(400).send({
+        message: 'Erro ao listar dispositivos',
+        error: error.message || error,
+      })
+    }
+  }
+
+  public async deactivateDevice({ auth, params, response }: HttpContextContract) {
+    try {
+      const user = await auth.use('api').authenticate()
+
+      const device = await AuthorizedDevice.query()
+        .where('id', params.id)
+        .andWhere('company_id', user.companies_id)
+        .first()
+
+      if (!device) {
+        return response.status(404).send({
+          message: 'Dispositivo não encontrado',
+        })
+      }
+
+      device.active = false
+      device.revokedAt = DateTime.now()
+      await device.save()
+
+      return response.status(200).send({
+        message: 'Dispositivo revogado com sucesso',
+        data: {
+          id: device.id,
+          active: device.active,
+          revoked_at: device.revokedAt,
+        },
+      })
+    } catch (error) {
+      console.log('Erro ao revogar dispositivo:', error)
+
+      return response.status(400).send({
+        message: 'Erro ao revogar dispositivo',
+        error: error.message || error,
+      })
+    }
+  }
+
   public async generate({ auth, response }: HttpContextContract) {
     try {
       const authenticate = await auth.use('api').authenticate()
@@ -57,7 +125,7 @@ export default class TokensDevicesController {
         companyId: user.companies_id,
         createdByUserId: user.id,
         token,
-        expiresAt: DateTime.now().plus({ minutes: 10 }),
+        expiresAt: DateTime.now().plus({ hours: 4 }),
         active: true,
       })
 
