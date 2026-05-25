@@ -141,7 +141,7 @@ export default class AuthenticationController {
         userId: user.id,
         type: 'authentication',
         challenge: options.challenge,
-        expiresAt: DateTime.now().plus({ minutes: 5 }),
+        expiresAt: DateTime.now().plus({ minutes: 60 }),
       })
 
       return response.status(403).send({

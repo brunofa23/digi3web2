@@ -328,7 +328,7 @@ export default class TokensDevicesController {
         type: 'registration',
         challenge: options.challenge,
         deviceName: body.device_name,
-        expiresAt: DateTime.now().plus({ minutes: 5 }),
+        expiresAt: DateTime.now().plus({ minutes: 60 }),
       })
 
       return response.status(200).send({
