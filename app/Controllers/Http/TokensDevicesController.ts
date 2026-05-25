@@ -315,7 +315,7 @@ export default class TokensDevicesController {
         })),
         authenticatorSelection: {
           residentKey: 'preferred',
-          userVerification: 'required',
+          userVerification: 'preferred',
         },
         preferredAuthenticatorType: 'localDevice',
         supportedAlgorithmIDs: [-7, -257],
@@ -388,7 +388,7 @@ export default class TokensDevicesController {
         expectedChallenge: challenge.challenge,
         expectedOrigin: origin,
         expectedRPID: rpID,
-        requireUserVerification: true,
+        requireUserVerification: false,
         supportedAlgorithmIDs: [-7, -257],
       })
 

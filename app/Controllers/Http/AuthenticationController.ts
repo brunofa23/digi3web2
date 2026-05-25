@@ -133,7 +133,7 @@ export default class AuthenticationController {
           id: credential.credentialId,
         })),
         timeout: 120000,
-        userVerification: 'required',
+        userVerification: 'preferred',
       })
 
       const challenge = await WebauthnChallenge.create({
@@ -229,7 +229,7 @@ export default class AuthenticationController {
           publicKey: isoBase64URL.toBuffer(credentialRecord.publicKey),
           counter: credentialRecord.counter,
         },
-        requireUserVerification: true,
+        requireUserVerification: false,
       })
 
       if (!verification.verified) {
