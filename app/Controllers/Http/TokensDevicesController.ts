@@ -293,7 +293,14 @@ export default class TokensDevicesController {
 
       const { rpName, rpID } = this.getWebauthnConfig(request)
       const credentials = await WebauthnCredential.query()
-        .where('company_id', body.companies_id)
+        .select('webauthn_credentials.*')
+        .join(
+          'authorized_devices',
+          'authorized_devices.id',
+          'webauthn_credentials.authorized_device_id'
+        )
+        .where('webauthn_credentials.company_id', body.companies_id)
+        .andWhere('authorized_devices.active', true)
 
       const options = await generateRegistrationOptions({
         rpName,
@@ -396,6 +403,48 @@ export default class TokensDevicesController {
         .first()
 
       if (alreadyExists) {
+        const existingDevice = await AuthorizedDevice.find(alreadyExists.authorizedDeviceId)
+
+        if (
+          alreadyExists.companyId === challenge.companyId &&
+          existingDevice &&
+          !existingDevice.active
+        ) {
+          existingDevice.userId = challenge.userId || null
+          existingDevice.deviceName = challenge.deviceName || existingDevice.deviceName
+          existingDevice.deviceIdentifier = credentialInfo.id
+          existingDevice.active = true
+          existingDevice.revokedAt = null
+          existingDevice.lastUsedAt = DateTime.now()
+          await existingDevice.save()
+
+          alreadyExists.userId = challenge.userId || null
+          alreadyExists.publicKey = isoBase64URL.fromBuffer(credentialInfo.publicKey)
+          alreadyExists.counter = credentialInfo.counter
+          alreadyExists.transports = credentialInfo.transports ? JSON.stringify(credentialInfo.transports) : null
+          alreadyExists.deviceType = verification.registrationInfo.credentialDeviceType
+          alreadyExists.backedUp = verification.registrationInfo.credentialBackedUp
+          await alreadyExists.save()
+
+          tokenDevice.usedAt = DateTime.now()
+          tokenDevice.active = false
+          await tokenDevice.save()
+
+          challenge.usedAt = DateTime.now()
+          await challenge.save()
+
+          return response.status(200).send({
+            message: 'Dispositivo registrado com sucesso',
+            data: {
+              id: existingDevice.id,
+              company_id: existingDevice.companyId,
+              user_id: existingDevice.userId,
+              device_name: existingDevice.deviceName,
+              device_identifier: existingDevice.deviceIdentifier,
+            },
+          })
+        }
+
         return response.status(409).send({
           message: 'Dispositivo já cadastrado',
         })
