@@ -149,6 +149,8 @@ export default class AuthenticationController {
         message: 'Confirme este dispositivo',
         status: 403,
         data: {
+          company_id: user.companies_id,
+          user_id: user.id,
           challenge_id: challenge.id,
           options,
         },
