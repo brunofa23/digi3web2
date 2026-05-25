@@ -1,13 +1,32 @@
 // app/Controllers/Http/TokensDevicesController.ts
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import crypto from 'crypto'
+import Env from '@ioc:Adonis/Core/Env'
 import { DateTime } from 'luxon'
+import {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+} from '@simplewebauthn/server'
+import { isoBase64URL } from '@simplewebauthn/server/helpers'
 import TokenDevice from 'App/Models/TokenDevice'
 import AuthorizedDevice from 'App/Models/AuthorizedDevice'
 import User from 'App/Models/User'
+import WebauthnCredential from 'App/Models/WebauthnCredential'
+import WebauthnChallenge from 'App/Models/WebauthnChallenge'
 
 
 export default class TokensDevicesController {
+  private getWebauthnConfig(request: HttpContextContract['request']) {
+    const origin = Env.get('WEBAUTHN_ORIGIN') || request.header('origin') || `${request.protocol()}://${request.host()}`
+    const hostname = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0]
+
+    return {
+      rpName: Env.get('WEBAUTHN_RP_NAME', 'Digi3'),
+      rpID: Env.get('WEBAUTHN_RP_ID', hostname),
+      origin,
+    }
+  }
+
   public async authorizedDevices({ auth, response }: HttpContextContract) {
     try {
       const user = await auth.use('api').authenticate()
@@ -210,13 +229,18 @@ export default class TokensDevicesController {
     }
   }
 
-  public async registerDevice({ request, response }: HttpContextContract) {
+  public async registerDevice({ response }: HttpContextContract) {
+    return response.status(410).send({
+      message: 'Registro de dispositivo agora utiliza WebAuthn',
+    })
+  }
+
+  public async registrationOptions({ request, response }: HttpContextContract) {
     try {
       const body = request.only([
         'token',
         'companies_id',
         'device_name',
-        'device_identifier',
         'user_id',
       ])
 
@@ -235,12 +259,6 @@ export default class TokensDevicesController {
       if (!body.device_name) {
         return response.status(400).send({
           message: 'Nome do dispositivo não informado',
-        })
-      }
-
-      if (!body.device_identifier) {
-        return response.status(400).send({
-          message: 'Identificador do dispositivo não informado',
         })
       }
 
@@ -273,30 +291,143 @@ export default class TokensDevicesController {
         })
       }
 
-      const alreadyExists = await AuthorizedDevice.query()
+      const { rpName, rpID } = this.getWebauthnConfig(request)
+      const credentials = await WebauthnCredential.query()
         .where('company_id', body.companies_id)
-        .andWhere('device_identifier', body.device_identifier)
-        .andWhere('active', true)
+
+      const options = await generateRegistrationOptions({
+        rpName,
+        rpID,
+        userName: `${body.companies_id}:${body.user_id || 'device'}`,
+        userDisplayName: body.device_name,
+        userID: Buffer.from(String(body.user_id || body.companies_id)),
+        attestationType: 'none',
+        excludeCredentials: credentials.map((credential) => ({
+          id: credential.credentialId,
+          transports: credential.transports ? JSON.parse(credential.transports) : undefined,
+        })),
+        authenticatorSelection: {
+          residentKey: 'preferred',
+          userVerification: 'required',
+        },
+        supportedAlgorithmIDs: [-7, -257],
+      })
+
+      const challenge = await WebauthnChallenge.create({
+        companyId: body.companies_id,
+        userId: body.user_id || null,
+        tokenDeviceId: tokenDevice.id,
+        type: 'registration',
+        challenge: options.challenge,
+        deviceName: body.device_name,
+        expiresAt: DateTime.now().plus({ minutes: 5 }),
+      })
+
+      return response.status(200).send({
+        data: {
+          challenge_id: challenge.id,
+          options,
+        },
+      })
+    } catch (error) {
+      console.log('Erro ao gerar opções WebAuthn:', error)
+
+      return response.status(400).send({
+        message: 'Erro ao gerar opções WebAuthn',
+        error: error.message || error,
+      })
+    }
+  }
+
+  public async verifyRegistration({ request, response }: HttpContextContract) {
+    try {
+      const { challenge_id, credential } = request.only(['challenge_id', 'credential'])
+
+      if (!challenge_id || !credential) {
+        return response.status(400).send({
+          message: 'Cadastro WebAuthn inválido',
+        })
+      }
+
+      const challenge = await WebauthnChallenge.query()
+        .where('id', challenge_id)
+        .andWhere('type', 'registration')
+        .first()
+
+      if (!challenge || challenge.usedAt) {
+        return response.status(403).send({
+          message: 'Desafio WebAuthn inválido',
+        })
+      }
+
+      if (challenge.expiresAt < DateTime.now()) {
+        return response.status(403).send({
+          message: 'Desafio WebAuthn expirado',
+        })
+      }
+
+      const tokenDevice = await TokenDevice.find(challenge.tokenDeviceId)
+
+      if (!tokenDevice || !tokenDevice.active || tokenDevice.usedAt || tokenDevice.expiresAt < DateTime.now()) {
+        return response.status(403).send({
+          message: 'Token inválido ou expirado',
+        })
+      }
+
+      const { origin, rpID } = this.getWebauthnConfig(request)
+      const verification = await verifyRegistrationResponse({
+        response: credential,
+        expectedChallenge: challenge.challenge,
+        expectedOrigin: origin,
+        expectedRPID: rpID,
+        requireUserVerification: true,
+        supportedAlgorithmIDs: [-7, -257],
+      })
+
+      if (!verification.verified) {
+        return response.status(403).send({
+          message: 'Não foi possível validar este dispositivo',
+        })
+      }
+
+      const credentialInfo = verification.registrationInfo.credential
+      const alreadyExists = await WebauthnCredential.query()
+        .where('credential_id', credentialInfo.id)
         .first()
 
       if (alreadyExists) {
         return response.status(409).send({
-          message: 'Dispositivo já cadastrado para esta empresa',
+          message: 'Dispositivo já cadastrado',
         })
       }
 
       const device = await AuthorizedDevice.create({
-        companyId: body.companies_id,
-        userId: body.user_id || null,
-        deviceName: body.device_name,
-        deviceIdentifier: body.device_identifier,
+        companyId: challenge.companyId,
+        userId: challenge.userId || null,
+        deviceName: challenge.deviceName || 'Dispositivo autorizado',
+        deviceIdentifier: credentialInfo.id,
         active: true,
         lastUsedAt: DateTime.now(),
+      })
+
+      await WebauthnCredential.create({
+        authorizedDeviceId: device.id,
+        companyId: challenge.companyId,
+        userId: challenge.userId || null,
+        credentialId: credentialInfo.id,
+        publicKey: isoBase64URL.fromBuffer(credentialInfo.publicKey),
+        counter: credentialInfo.counter,
+        transports: credentialInfo.transports ? JSON.stringify(credentialInfo.transports) : null,
+        deviceType: verification.registrationInfo.credentialDeviceType,
+        backedUp: verification.registrationInfo.credentialBackedUp,
       })
 
       tokenDevice.usedAt = DateTime.now()
       tokenDevice.active = false
       await tokenDevice.save()
+
+      challenge.usedAt = DateTime.now()
+      await challenge.save()
 
       return response.status(200).send({
         message: 'Dispositivo registrado com sucesso',
@@ -309,10 +440,10 @@ export default class TokensDevicesController {
         },
       })
     } catch (error) {
-      console.log('Erro ao registrar dispositivo:', error)
+      console.log('Erro ao validar cadastro WebAuthn:', error)
 
       return response.status(400).send({
-        message: 'Erro ao registrar dispositivo',
+        message: 'Erro ao validar cadastro WebAuthn',
         error: error.message || error,
       })
     }

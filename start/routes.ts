@@ -97,6 +97,7 @@ Route.group(() => {
 
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")//.middleware('authentication_permission:free_time')
+  Route.post("/login/webauthn", "AuthenticationController.verifyWebauthnLogin")
   Route.post("/logout", "AuthenticationController.logout")
   Route.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages")//.middleware('user_permission:authorizeAccessImages')
 
@@ -211,6 +212,8 @@ Route.group(() => {
   Route.get('/tokens-devices/authorized', 'TokensDevicesController.authorizedDevices').middleware('auth')
   Route.patch('/tokens-devices/:id/deactivate', 'TokensDevicesController.deactivateDevice').middleware('auth')
   Route.post('/tokens-devices/generate', 'TokensDevicesController.generate').middleware('auth')
+  Route.post('/tokens-devices/webauthn/register-options', 'TokensDevicesController.registrationOptions')
+  Route.post('/tokens-devices/webauthn/register-verify', 'TokensDevicesController.verifyRegistration')
   Route.post('/tokens-devices/validate', 'TokensDevicesController.validateToken')
   Route.post('/tokens-devices/register-device', 'TokensDevicesController.registerDevice')
   Route.post('/tokens-devices/check-device', 'TokensDevicesController.checkDevice')
@@ -228,6 +231,5 @@ Route.group(() => {
     return auth.use('api').user!
   })
 }).prefix('/api')//.middleware(['auth'])
-
 
 
