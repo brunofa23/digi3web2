@@ -308,15 +308,16 @@ export default class TokensDevicesController {
         userName: `${body.companies_id}:${body.user_id || 'device'}`,
         userDisplayName: body.device_name,
         userID: Buffer.from(String(body.user_id || body.companies_id)),
+        timeout: 120000,
         attestationType: 'none',
         excludeCredentials: credentials.map((credential) => ({
           id: credential.credentialId,
-          transports: credential.transports ? JSON.parse(credential.transports) : undefined,
         })),
         authenticatorSelection: {
           residentKey: 'preferred',
           userVerification: 'required',
         },
+        preferredAuthenticatorType: 'localDevice',
         supportedAlgorithmIDs: [-7, -257],
       })
 
@@ -492,7 +493,7 @@ export default class TokensDevicesController {
       console.log('Erro ao validar cadastro WebAuthn:', error)
 
       return response.status(400).send({
-        message: 'Erro ao validar cadastro WebAuthn',
+        message: error.message || 'Erro ao validar cadastro WebAuthn',
         error: error.message || error,
       })
     }

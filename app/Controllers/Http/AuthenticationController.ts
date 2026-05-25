@@ -131,8 +131,8 @@ export default class AuthenticationController {
         rpID,
         allowCredentials: credentials.map((credential) => ({
           id: credential.credentialId,
-          transports: credential.transports ? JSON.parse(credential.transports) : undefined,
         })),
+        timeout: 120000,
         userVerification: 'required',
       })
 
@@ -228,7 +228,6 @@ export default class AuthenticationController {
           id: credentialRecord.credentialId,
           publicKey: isoBase64URL.toBuffer(credentialRecord.publicKey),
           counter: credentialRecord.counter,
-          transports: credentialRecord.transports ? JSON.parse(credentialRecord.transports) : undefined,
         },
         requireUserVerification: true,
       })
@@ -283,7 +282,7 @@ export default class AuthenticationController {
       console.log('Erro ao validar login WebAuthn:', error)
 
       return response.status(400).send({
-        message: 'Erro ao validar login WebAuthn',
+        message: error.message || 'Erro ao validar login WebAuthn',
         error: error.message || error,
       })
     }
