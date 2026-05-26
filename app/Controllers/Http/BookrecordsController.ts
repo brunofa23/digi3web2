@@ -1313,7 +1313,7 @@ export default class BookrecordsController {
         .andWhere("typebooks_id", params.typebooks_id)
         .where("books_id", body.books_id)
         .andWhere("book", body.book)
-        .update({ book: body.book_replace });
+        .update({ book: body.book_replace, userid: authenticate.id });
 
       for (const bookrecord of recordsToRename) {
         bookrecord.book = body.book_replace!;
@@ -1405,7 +1405,7 @@ export default class BookrecordsController {
         const trx = await Database.transaction();
         try {
           for (const rec of ordered) {
-            const updatePayload: Record<string, any> = { cod: newCod++ };
+            const updatePayload: Record<string, any> = { cod: newCod++, userid: authenticate.id };
 
             // ✅ se indexbook=0 foi enviado, update NULL junto
             if (indexbookWasSent) {
@@ -1750,6 +1750,7 @@ export default class BookrecordsController {
             if (body.year !== undefined) updateData.year = bodyYear;
             if (body.letter !== undefined) updateData.letter = bodyLetter;
             if (body.obs !== undefined) updateData.obs = bodyObs;
+            updateData.userid = authenticate.id;
 
             const finalUpdateData = Object.fromEntries(
               Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== "")
@@ -1780,6 +1781,7 @@ export default class BookrecordsController {
               book: record.book,
               sheet: record.sheet,
               side: record.side,
+              userid: authenticate.id,
             };
 
             if (body.approximate_term !== undefined) createPayload.approximate_term = bodyApprox;
@@ -2931,6 +2933,7 @@ export default class BookrecordsController {
           books_id: 13,
           book: box,
           companies_id: authenticate.companies_id,
+          userid: authenticate.id,
         }
 
         const verifyBookRecord = await Bookrecord.query()
