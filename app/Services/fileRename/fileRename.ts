@@ -176,7 +176,7 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
       )
       result.push(r)
     } catch (error) {
-      await new BadRequestException(error + 'pushImageToGoogle', 409)
+      throw new BadRequestException(error + 'pushImageToGoogle', 409)
     } finally {
 
     }
@@ -238,20 +238,21 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     //copia o arquivo para o googledrive
     const sendUpload = await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
 
-    if (sendUpload.status === 200) {
-      //chamar função para inserir na tabela indeximages
-      if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
-        const date_atualization = DateTime.now()
-        objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm')
-        await Indeximage.create(objfileRename)
-      }
-      else if (sendUpload.status !== 200) {
-        delete objfileRename.date_atualization
-        await ErrorlogImage.create(objfileRename)
-      }
-      //chamar função de exclusão da imagem
-      await deleteImage(`${folderPath}/${objfileRename.file_name}`)
+    if (sendUpload.status !== 200) {
+      delete objfileRename.date_atualization
+      await ErrorlogImage.create(objfileRename)
+      throw new BadRequestException('Falha ao enviar arquivo para o Google Drive', 409)
     }
+
+    //chamar função para inserir na tabela indeximages
+    if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+      const date_atualization = DateTime.now()
+      objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm')
+      await Indeximage.create(objfileRename)
+    }
+
+    //chamar função de exclusão da imagem
+    await deleteImage(`${folderPath}/${objfileRename.file_name}`)
   } catch (error) {
     throw new BadRequestException(error + ' sendUploadFiles', 409)
   }

@@ -7,6 +7,7 @@ import Bookrecord from 'App/Models/Bookrecord'
 import Company from 'App/Models/Company'
 import Typebook from 'App/Models/Typebook'
 import Document from 'App/Models/Document'
+import ImageUploadJob from 'App/Models/ImageUploadJob'
 import Database from '@ioc:Adonis/Lucid/Database'
 
 import sharp from 'sharp'
@@ -15,6 +16,61 @@ const formatDate = new Format(new Date)
 const FileRename = require('../../Services/fileRename/fileRename')
 const fs = require('fs')
 const path = require('path')
+
+async function createUploadJob(payload: {
+  companiesId: number
+  typebooksId: number | null
+  source: string
+  fileNames: string[]
+  dataImages: any
+}) {
+  try {
+    return await ImageUploadJob.create({
+      companiesId: payload.companiesId,
+      typebooksId: payload.typebooksId,
+      status: 'RECEIVED',
+      source: payload.source,
+      fileNames: JSON.stringify(payload.fileNames || []),
+      dataImages: JSON.stringify(payload.dataImages || {}),
+    })
+  } catch (error) {
+    console.error('Erro ao criar image_upload_job:', error)
+    return null
+  }
+}
+
+async function updateUploadJob(uploadJob: ImageUploadJob | null, status: string, data: any = {}) {
+  if (!uploadJob) return null
+
+  try {
+    uploadJob.merge({
+      status,
+      ...data,
+    })
+    await uploadJob.save()
+  } catch (error) {
+    console.error('Erro ao atualizar image_upload_job:', error)
+  }
+
+  return uploadJob
+}
+
+function serializeUploadJob(uploadJob: ImageUploadJob | null) {
+  if (!uploadJob) return null
+
+  return {
+    id: uploadJob.id,
+    status: uploadJob.status,
+    source: uploadJob.source,
+    errorMessage: uploadJob.errorMessage,
+    updatedAt: uploadJob.updatedAt,
+  }
+}
+
+function getUploadJobErrorMessage(error: any) {
+  if (typeof error === 'string') return error
+  return error?.message || error?.response?.message || 'Falha ao processar upload.'
+}
 
 
 export default class IndeximagesController {
@@ -163,6 +219,25 @@ export default class IndeximagesController {
       dataImages?.landscape === '1'
     )
 
+    const source = updateImageDocument
+      ? 'updateImageDocument'
+      : updateImage
+        ? 'updateImage'
+        : indexImagesInitial
+          ? 'indexImagesInitial'
+          : 'uploads'
+
+    const uploadJob = await createUploadJob({
+      companiesId: authenticate.companies_id,
+      typebooksId: Number(params.typebooks_id) || null,
+      source,
+      fileNames: images.map((image) => image.clientName),
+      dataImages,
+    })
+
+    try {
+      await updateUploadJob(uploadJob, 'PREPARING_RECORDS')
+
     // Através do nome da imagem é recriado o registro no bookrecord
     if (indexImagesInitial) {
       const listFilesImages = images.map((image) => image.clientName)
@@ -186,7 +261,13 @@ export default class IndeximagesController {
     if (updateImage) {
       // ✅ evita 500 do ".where expects value to be defined"
       if (dataImages?.book === undefined || dataImages?.book === null || dataImages?.book === '') {
-        return response.status(422).send({ message: 'Campo "book" é obrigatório em dataImages.' })
+        await updateUploadJob(uploadJob, 'FAILED', {
+          errorMessage: 'Campo "book" é obrigatório em dataImages.',
+        })
+        return response.status(422).send({
+          message: 'Campo "book" é obrigatório em dataImages.',
+          uploadJob: serializeUploadJob(uploadJob),
+        })
       }
 
       const query = Bookrecord.query()
@@ -253,7 +334,13 @@ export default class IndeximagesController {
 
       // ✅ evita 500 se cod vier vazio
       if (dataImages?.cod === undefined || dataImages?.cod === null || dataImages?.cod === '') {
-        return response.status(422).send({ message: 'Campo "cod" é obrigatório em dataImages.' })
+        await updateUploadJob(uploadJob, 'FAILED', {
+          errorMessage: 'Campo "cod" é obrigatório em dataImages.',
+        })
+        return response.status(422).send({
+          message: 'Campo "cod" é obrigatório em dataImages.',
+          uploadJob: serializeUploadJob(uploadJob),
+        })
       }
 
       // SEMPRE CRIAR UM NOVO REGISTRO
@@ -339,6 +426,8 @@ export default class IndeximagesController {
       }
     }
 
+    await updateUploadJob(uploadJob, 'SAVING_FILES')
+
     const files = await FileRename.transformFilesNameToId(
       images,
       params,
@@ -348,7 +437,21 @@ export default class IndeximagesController {
       dataImages
     )
 
-    return response.status(201).send({ files, message: 'Arquivo Salvo com sucesso!!!' })
+    await updateUploadJob(uploadJob, 'COMPLETED', {
+      resultFiles: JSON.stringify(files || []),
+    })
+
+    return response.status(201).send({
+      files,
+      uploadJob: serializeUploadJob(uploadJob),
+      message: 'Arquivo Salvo com sucesso!!!',
+    })
+    } catch (error) {
+      await updateUploadJob(uploadJob, 'FAILED', {
+        errorMessage: getUploadJobErrorMessage(error).slice(0, 1000),
+      })
+      throw error
+    }
   }
 
   public async uploadCapture({ auth, request, params }) {
