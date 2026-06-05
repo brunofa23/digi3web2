@@ -49,6 +49,7 @@ export default class AuthenticationController {
     const username = request.input('username')
     const shortname = request.input('shortname')
     const password = request.input('password')
+    const clientType = request.input('client_type')
 
     const user = await User
       .query()
@@ -102,7 +103,7 @@ export default class AuthenticationController {
     }
 
     // VERIFICAR DISPOSITIVO AUTORIZADO
-    if (user.company?.use_device_control) {
+    if (user.company?.use_device_control && clientType !== 'digi3_capture_mobile') {
       const credentials = await WebauthnCredential
         .query()
         .select('webauthn_credentials.*')
