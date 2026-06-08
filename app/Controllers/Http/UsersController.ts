@@ -70,6 +70,14 @@ export default class UsersController {
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
+    if (body.email) {
+      const userByEmail = await User.findBy('email', body.email)
+      if (userByEmail) {
+        let errorValidation = await new validations('user_error_209')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
+    }
+
     //********APENAS PARA USUÁRIO ADMIN NA EMPRESA 1 */
     if (!authenticate.superuser) {
       body.companies_id = authenticate.companies_id
@@ -93,6 +101,18 @@ export default class UsersController {
 
     if (!authenticate.superuser) {
       body.companies_id = authenticate.companies_id
+    }
+
+    if (body.email) {
+      const userByEmail = await User.query()
+        .where('email', body.email)
+        .andWhereNot('id', body.id)
+        .first()
+
+      if (userByEmail) {
+        let errorValidation = await new validations('user_error_209')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
     }
 
     try {

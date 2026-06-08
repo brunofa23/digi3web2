@@ -65,6 +65,11 @@
         "status": 401
     },
     {
+        "code": "user_error_209",
+        "messages": "Email already in use",
+        "status": 402
+    },
+    {
         "code": "user_success_200",
         "messages": "User created successfully",
         "status": 201
