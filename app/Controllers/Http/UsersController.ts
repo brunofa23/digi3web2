@@ -103,7 +103,7 @@ export default class UsersController {
       body.companies_id = authenticate.companies_id
     }
 
-    if (body.email) {
+    if (body.email && body.email !== user.email) {
       const userByEmail = await User.query()
         .where('email', body.email)
         .andWhereNot('id', body.id)
