@@ -103,7 +103,7 @@ export default class AuthenticationController {
     }
 
     // VERIFICAR DISPOSITIVO AUTORIZADO
-    if (user.company?.use_device_control && clientType !== 'digi3_capture_mobile') {
+    if (user.company?.use_device_control && !Boolean(user.superuser) && clientType !== 'digi3_capture_mobile') {
       const credentials = await WebauthnCredential
         .query()
         .select('webauthn_credentials.*')
