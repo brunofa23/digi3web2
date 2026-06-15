@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import Usergroup from 'App/Models/Usergroup'
+import { schema, rules } from '@ioc:Adonis/Core/Validator'
 export default class UsergroupsController {
 
   public async index({ auth, response }: HttpContextContract) {
@@ -14,6 +15,23 @@ export default class UsergroupsController {
 
     } catch (error) {
       throw new BadRequestException('Erro ao buscar lançamentos', 401, error)
+    }
+  }
+
+  public async store({ auth, request, response }: HttpContextContract) {
+    await auth.use('api').authenticate()
+    const body = await request.validate({
+      schema: schema.create({
+        name: schema.string({ trim: true }, [rules.maxLength(60)]),
+        inactive: schema.boolean.optional(),
+      }),
+    })
+    try {
+      const data = await Usergroup.create(body)
+      return response.status(201).send(data)
+
+    } catch (error) {
+      throw new BadRequestException('Erro ao criar grupo', 401, error)
     }
   }
 }
