@@ -42,30 +42,30 @@ Route.group(() => {
   Route.get("/permissiongroupxusergroup/:usergroup_id", "GroupxpermissionsController.PermissiongroupXUsergroup")
 
   //BOOKRECORDS
-  Route.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index')
-  Route.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show')
-  Route.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary')
+  Route.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index').middleware('bookrecord_permission:get')
+  Route.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show').middleware('bookrecord_permission:get')
+  Route.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary').middleware('bookrecord_permission:get')
   Route.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post')
-  Route.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update')//.middleware('bookrecord_permission:patch')
+  Route.patch("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.update').middleware('bookrecord_permission:patch')
   Route.delete("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.destroy').middleware('bookrecord_permission:destroy')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords", 'BookrecordsController.generateOrUpdateBookrecords').middleware('bookrecord_permission:generateOrUpdateBookrecords')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecords2", 'BookrecordsController.generateOrUpdateBookrecords2').middleware('bookrecord_permission:generateOrUpdateBookrecords')
   Route.patch("bookrecords/createorupdatebookrecords", 'BookrecordsController.createorupdatebookrecords').middleware('bookrecord_permission:createorupdatebookrecords')
   Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords')
-  Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial')//.middleware('bookrecord_permission:indeximagesinitial')
-  Route.get('/updatedfiles', 'BookrecordsController.updatedFiles')
+  Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:get')
+  Route.get('/updatedfiles', 'BookrecordsController.updatedFiles').middleware('bookrecord_permission:get')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords')
 
-  Route.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing')//.middleware('bookrecord_permission:indeximagesinitial')
-  Route.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages')//.middleware('bookrecord_permission:indeximagesinitial')
+  Route.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get')
+  Route.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages').middleware('bookrecord_permission:get')
 
 
   Route.get("/fastfind", 'BookrecordsController.fastFind').middleware('bookrecord_permission:fastfind')
 
   Route.get("/fastfinddocuments", 'BookrecordsController.fastFindDocuments').middleware('bookrecord_permission:fastfind')
-  Route.get("/maxbookrecord", 'BookrecordsController.maxBookRecord')
-  Route.post("/imagesforitem", 'BookrecordsController.imagesForItem')
-  Route.get("/sheetwithside/:typebooks_id/:book", 'BookrecordsController.sheetWithSide')
+  Route.get("/maxbookrecord", 'BookrecordsController.maxBookRecord').middleware('bookrecord_permission:get')
+  Route.post("/imagesforitem", 'BookrecordsController.imagesForItem').middleware('bookrecord_permission:get')
+  Route.get("/sheetwithside/:typebooks_id/:book", 'BookrecordsController.sheetWithSide').middleware('bookrecord_permission:get')
 
   //DOCUMENTS
   Route.get("/typebooks/:typebooks_id/documents", 'DocumentsController.index')
@@ -231,5 +231,4 @@ Route.group(() => {
     return auth.use('api').user!
   })
 }).prefix('/api')//.middleware(['auth'])
-
 

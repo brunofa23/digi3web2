@@ -172,9 +172,9 @@ export default class extends BaseSeeder {
         //   desc: "Financeiro - Lançamentos -> Acesso Total aos Lançamentos."
         // },
         {
-          id: 36,
-          name: "Liberação de Token.",
-          desc: "Liberação de Token para instalação em dispositivos."
+          id: 37,
+          name: "Livros.",
+          desc: "Acesso total à tela de livros, incluindo a geração/alteração de livros, captura de imagens, anexar arquivos por item, exclusão em lote e outras opções relacionadas aos livros."
         },
 
 
