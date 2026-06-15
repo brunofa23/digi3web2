@@ -12,10 +12,10 @@ async function DeleteFiles(folderPath) {
 
 
 //VERIFICA SE POSSUI A PERMISSÃO NO ARRAY GROUPXPERMISSION
-const verifyPermission = (isSuperuser = false, permissions = [], permission_id) => {
+const verifyPermission = (isSuperuser = false, permissions: any[] = [], permission_id) => {
   if (isSuperuser)
     return true
-  const result = permissions?.some(p => p.permissiongroup_id === permission_id);
+  const result = permissions?.some(p => Number(p.permissiongroup_id) === Number(permission_id));
   return result;
 }
 

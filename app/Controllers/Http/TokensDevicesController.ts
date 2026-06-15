@@ -13,9 +13,12 @@ import AuthorizedDevice from 'App/Models/AuthorizedDevice'
 import User from 'App/Models/User'
 import WebauthnCredential from 'App/Models/WebauthnCredential'
 import WebauthnChallenge from 'App/Models/WebauthnChallenge'
+import { verifyPermission } from 'App/Services/util'
 
 
 export default class TokensDevicesController {
+  private releaseTokenPermissiongroupId = 36
+
   private getWebauthnConfig(request: HttpContextContract['request']) {
     const origin = Env.get('WEBAUTHN_ORIGIN') || request.header('origin') || `${request.protocol()}://${request.host()}`
     const hostname = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0]
@@ -30,6 +33,13 @@ export default class TokensDevicesController {
   public async authorizedDevices({ auth, response }: HttpContextContract) {
     try {
       const user = await auth.use('api').authenticate()
+      const permissions = auth.use('api').token?.meta.payload.permissions || []
+
+      if (!verifyPermission(Boolean(user.superuser), permissions, this.releaseTokenPermissiongroupId)) {
+        return response.status(403).send({
+          message: 'Usuário sem permissão para liberar token de dispositivo',
+        })
+      }
 
       const devices = await AuthorizedDevice.query()
         .where('company_id', user.companies_id)
@@ -61,6 +71,13 @@ export default class TokensDevicesController {
   public async deactivateDevice({ auth, params, response }: HttpContextContract) {
     try {
       const user = await auth.use('api').authenticate()
+      const permissions = auth.use('api').token?.meta.payload.permissions || []
+
+      if (!verifyPermission(Boolean(user.superuser), permissions, this.releaseTokenPermissiongroupId)) {
+        return response.status(403).send({
+          message: 'Usuário sem permissão para liberar token de dispositivo',
+        })
+      }
 
       const device = await AuthorizedDevice.query()
         .where('id', params.id)
@@ -125,12 +142,11 @@ export default class TokensDevicesController {
         })
       }
 
-      const RELEASE_TOKEN_PERMISSIONGROUP_ID = 36
-
-      const hasPermission =
-        user.usergroup?.groupxpermission?.some((item: any) => {
-          return Number(item.permissiongroup_id) === RELEASE_TOKEN_PERMISSIONGROUP_ID
-        }) || false
+      const hasPermission = verifyPermission(
+        Boolean(user.superuser),
+        user.usergroup?.groupxpermission || [],
+        this.releaseTokenPermissiongroupId
+      )
 
       if (!hasPermission) {
         return response.status(403).send({
