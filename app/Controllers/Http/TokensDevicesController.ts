@@ -11,6 +11,7 @@ import { isoBase64URL } from '@simplewebauthn/server/helpers'
 import TokenDevice from 'App/Models/TokenDevice'
 import AuthorizedDevice from 'App/Models/AuthorizedDevice'
 import User from 'App/Models/User'
+import Company from 'App/Models/Company'
 import WebauthnCredential from 'App/Models/WebauthnCredential'
 import WebauthnChallenge from 'App/Models/WebauthnChallenge'
 import { verifyPermission } from 'App/Services/util'
@@ -18,6 +19,7 @@ import { verifyPermission } from 'App/Services/util'
 
 export default class TokensDevicesController {
   private releaseTokenPermissiongroupId = 36
+  private deviceCookieName = 'digi3_device_token'
 
   private getWebauthnConfig(request: HttpContextContract['request']) {
     const origin = Env.get('WEBAUTHN_ORIGIN') || request.header('origin') || `${request.protocol()}://${request.host()}`
@@ -28,6 +30,52 @@ export default class TokensDevicesController {
       rpID: Env.get('WEBAUTHN_RP_ID', hostname),
       origin,
     }
+  }
+
+  private hashDeviceCookie(token: string) {
+    return crypto.createHash('sha256').update(token).digest('hex')
+  }
+
+  private getDeviceCookieOptions() {
+    const domain = Env.get('DEVICE_COOKIE_DOMAIN', '')
+    const secure = Env.get('DEVICE_COOKIE_SECURE', Env.get('NODE_ENV') === 'production')
+    const options: any = {
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: '365 days',
+    }
+
+    if (domain) {
+      options.domain = domain
+    }
+
+    return options
+  }
+
+  private async setDeviceCookie(response: HttpContextContract['response'], device: AuthorizedDevice) {
+    const cookieToken = crypto.randomBytes(32).toString('base64url')
+
+    device.deviceCookieHash = this.hashDeviceCookie(cookieToken)
+    device.deviceCookieCreatedAt = DateTime.now()
+    device.deviceCookieLastSeenAt = DateTime.now()
+    await device.save()
+
+    response.cookie(this.deviceCookieName, cookieToken, this.getDeviceCookieOptions())
+  }
+
+  private async validateReleaseToken(token: string, companyId: number) {
+    const tokenDevice = await TokenDevice.query()
+      .where('token', token)
+      .andWhere('company_id', companyId)
+      .first()
+
+    if (!tokenDevice || !tokenDevice.active || tokenDevice.usedAt || tokenDevice.expiresAt < DateTime.now()) {
+      return null
+    }
+
+    return tokenDevice
   }
 
   public async authorizedDevices({ auth, response }: HttpContextContract) {
@@ -52,6 +100,7 @@ export default class TokensDevicesController {
           user_id: device.userId,
           device_name: device.deviceName,
           device_identifier: device.deviceIdentifier,
+          has_device_cookie: Boolean(device.deviceCookieHash),
           active: device.active,
           last_used_at: device.lastUsedAt,
           revoked_at: device.revokedAt,
@@ -245,10 +294,94 @@ export default class TokensDevicesController {
     }
   }
 
-  public async registerDevice({ response }: HttpContextContract) {
-    return response.status(410).send({
-      message: 'Registro de dispositivo agora utiliza WebAuthn',
-    })
+  public async registerDevice({ request, response }: HttpContextContract) {
+    try {
+      const body = request.only([
+        'token',
+        'companies_id',
+        'device_name',
+        'user_id',
+      ])
+
+      if (!body.token) {
+        return response.status(400).send({
+          message: 'Token não informado',
+        })
+      }
+
+      if (!body.companies_id) {
+        return response.status(400).send({
+          message: 'Empresa não informada',
+        })
+      }
+
+      if (!body.device_name) {
+        return response.status(400).send({
+          message: 'Nome do dispositivo não informado',
+        })
+      }
+
+      const company = await Company.find(body.companies_id)
+
+      if (!company?.use_device_cookie_control) {
+        return response.status(403).send({
+          message: 'Controle por cookie seguro não habilitado para esta empresa',
+        })
+      }
+
+      if (company.use_device_control) {
+        return response.status(403).send({
+          message: 'Registro deste dispositivo exige WebAuthn',
+        })
+      }
+
+      const tokenDevice = await this.validateReleaseToken(body.token, body.companies_id)
+
+      if (!tokenDevice) {
+        return response.status(403).send({
+          message: 'Token inválido ou expirado',
+        })
+      }
+
+      const cookieToken = crypto.randomBytes(32).toString('base64url')
+      const cookieHash = this.hashDeviceCookie(cookieToken)
+
+      const device = await AuthorizedDevice.create({
+        companyId: body.companies_id,
+        userId: body.user_id || null,
+        deviceName: body.device_name,
+        deviceIdentifier: `cookie:${cookieHash.slice(0, 48)}`,
+        deviceCookieHash: cookieHash,
+        deviceCookieCreatedAt: DateTime.now(),
+        deviceCookieLastSeenAt: DateTime.now(),
+        active: true,
+        lastUsedAt: DateTime.now(),
+      })
+
+      tokenDevice.usedAt = DateTime.now()
+      tokenDevice.active = false
+      await tokenDevice.save()
+
+      response.cookie(this.deviceCookieName, cookieToken, this.getDeviceCookieOptions())
+
+      return response.status(200).send({
+        message: 'Dispositivo registrado com sucesso',
+        data: {
+          id: device.id,
+          company_id: device.companyId,
+          user_id: device.userId,
+          device_name: device.deviceName,
+          device_identifier: device.deviceIdentifier,
+        },
+      })
+    } catch (error) {
+      console.log('Erro ao registrar dispositivo por cookie:', error)
+
+      return response.status(400).send({
+        message: 'Erro ao registrar dispositivo',
+        error: error.message || error,
+      })
+    }
   }
 
   public async registrationOptions({ request, response }: HttpContextContract) {
@@ -278,32 +411,19 @@ export default class TokensDevicesController {
         })
       }
 
-      const tokenDevice = await TokenDevice.query()
-        .where('token', body.token)
-        .andWhere('company_id', body.companies_id)
-        .first()
+      const company = await Company.find(body.companies_id)
+
+      if (!company?.use_device_control) {
+        return response.status(403).send({
+          message: 'Controle WebAuthn não habilitado para esta empresa',
+        })
+      }
+
+      const tokenDevice = await this.validateReleaseToken(body.token, body.companies_id)
 
       if (!tokenDevice) {
-        return response.status(404).send({
-          message: 'Token não encontrado',
-        })
-      }
-
-      if (!tokenDevice.active) {
         return response.status(403).send({
-          message: 'Token inativo',
-        })
-      }
-
-      if (tokenDevice.usedAt) {
-        return response.status(403).send({
-          message: 'Token já utilizado',
-        })
-      }
-
-      if (tokenDevice.expiresAt < DateTime.now()) {
-        return response.status(403).send({
-          message: 'Token expirado',
+          message: 'Token inválido ou expirado',
         })
       }
 
@@ -443,6 +563,12 @@ export default class TokensDevicesController {
           alreadyExists.backedUp = verification.registrationInfo.credentialBackedUp
           await alreadyExists.save()
 
+          const company = await Company.find(challenge.companyId)
+
+          if (company?.use_device_cookie_control) {
+            await this.setDeviceCookie(response, existingDevice)
+          }
+
           tokenDevice.usedAt = DateTime.now()
           tokenDevice.active = false
           await tokenDevice.save()
@@ -487,6 +613,12 @@ export default class TokensDevicesController {
         deviceType: verification.registrationInfo.credentialDeviceType,
         backedUp: verification.registrationInfo.credentialBackedUp,
       })
+
+      const company = await Company.find(challenge.companyId)
+
+      if (company?.use_device_cookie_control) {
+        await this.setDeviceCookie(response, device)
+      }
 
       tokenDevice.usedAt = DateTime.now()
       tokenDevice.active = false

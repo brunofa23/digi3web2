@@ -1,4 +1,5 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import crypto from 'crypto'
 import User from 'App/Models/User'
 import Hash from '@ioc:Adonis/Core/Hash'
 import Env from '@ioc:Adonis/Core/Env'
@@ -21,6 +22,8 @@ import WebauthnChallenge from 'App/Models/WebauthnChallenge'
 //teste
 
 export default class AuthenticationController {
+  private deviceCookieName = 'digi3_device_token'
+
   private getWebauthnConfig(request: HttpContextContract['request']) {
     const origin = Env.get('WEBAUTHN_ORIGIN') || request.header('origin') || `${request.protocol()}://${request.host()}`
     const hostname = origin.replace(/^https?:\/\//, '').split('/')[0].split(':')[0]
@@ -29,6 +32,24 @@ export default class AuthenticationController {
       rpID: Env.get('WEBAUTHN_RP_ID', hostname),
       origin,
     }
+  }
+
+  private hashDeviceCookie(token: string) {
+    return crypto.createHash('sha256').update(token).digest('hex')
+  }
+
+  private async findDeviceByCookie(request: HttpContextContract['request'], companyId: number) {
+    const cookieToken = request.cookie(this.deviceCookieName)
+
+    if (!cookieToken) {
+      return null
+    }
+
+    return AuthorizedDevice.query()
+      .where('company_id', companyId)
+      .andWhere('device_cookie_hash', this.hashDeviceCookie(cookieToken))
+      .andWhere('active', true)
+      .first()
   }
 
   private async generateToken(auth: HttpContextContract['auth'], user: User, permissions: any, username: string) {
@@ -61,7 +82,8 @@ export default class AuthenticationController {
           'foldername',
           'cloud',
           'responsablename',
-          'use_device_control'
+          'use_device_control',
+          'use_device_cookie_control'
         )
       })
       .preload('usergroup', query => {
@@ -103,8 +125,41 @@ export default class AuthenticationController {
     }
 
     // VERIFICAR DISPOSITIVO AUTORIZADO
-    if (user.company?.use_device_control && !Boolean(user.superuser) && clientType !== 'digi3_capture_mobile') {
-      const credentials = await WebauthnCredential
+    const useWebauthnControl = Boolean(user.company?.use_device_control)
+    const useCookieControl = Boolean(user.company?.use_device_cookie_control)
+
+    if ((useWebauthnControl || useCookieControl) && !Boolean(user.superuser) && clientType !== 'digi3_capture_mobile') {
+      const cookieDevice = useCookieControl
+        ? await this.findDeviceByCookie(request, user.companies_id)
+        : null
+
+      if (useCookieControl && !cookieDevice) {
+        return response.status(403).send({
+          code: 'device_error_002',
+          message: 'Dispositivo não autorizado para esta empresa',
+          status: 403,
+          data: {
+            company_id: user.companies_id,
+            user_id: user.id,
+            requires_cookie: true,
+            requires_webauthn: useWebauthnControl,
+          },
+        })
+      }
+
+      if (!useWebauthnControl) {
+        if (cookieDevice) {
+          cookieDevice.lastUsedAt = DateTime.now()
+          cookieDevice.deviceCookieLastSeenAt = DateTime.now()
+          await cookieDevice.save()
+        }
+
+        const token = await this.generateToken(auth, user, permissions, username)
+
+        return response.status(200).send({ token, user })
+      }
+
+      const credentialsQuery = WebauthnCredential
         .query()
         .select('webauthn_credentials.*')
         .join(
@@ -115,6 +170,12 @@ export default class AuthenticationController {
         .where('webauthn_credentials.company_id', user.companies_id)
         .andWhere('authorized_devices.active', true)
 
+      if (cookieDevice) {
+        credentialsQuery.andWhere('authorized_devices.id', cookieDevice.id)
+      }
+
+      const credentials = await credentialsQuery
+
       if (!credentials.length) {
         return response.status(403).send({
           code: 'device_error_002',
@@ -123,6 +184,8 @@ export default class AuthenticationController {
           data: {
             company_id: user.companies_id,
             user_id: user.id,
+            requires_cookie: useCookieControl,
+            requires_webauthn: true,
           },
         })
       }
@@ -152,6 +215,8 @@ export default class AuthenticationController {
         data: {
           company_id: user.companies_id,
           user_id: user.id,
+          requires_cookie: useCookieControl,
+          requires_webauthn: true,
           challenge_id: challenge.id,
           options,
         },
@@ -219,6 +284,29 @@ export default class AuthenticationController {
         })
       }
 
+      const challengeUser = await User.query()
+        .preload('company', query => {
+          query.select('id', 'use_device_cookie_control')
+        })
+        .where('id', challenge.userId)
+        .first()
+
+      if (!challengeUser) {
+        return response.status(404).send({
+          message: 'Usuário não encontrado',
+        })
+      }
+
+      if (challengeUser.company?.use_device_cookie_control) {
+        const cookieDevice = await this.findDeviceByCookie(request, challenge.companyId)
+
+        if (!cookieDevice || cookieDevice.id !== authorizedDevice.id) {
+          return response.status(403).send({
+            message: 'Dispositivo não autorizado para esta empresa',
+          })
+        }
+      }
+
       const { origin, rpID } = this.getWebauthnConfig(request)
       const verification = await verifyAuthenticationResponse({
         response: credential,
@@ -249,7 +337,8 @@ export default class AuthenticationController {
             'foldername',
             'cloud',
             'responsablename',
-            'use_device_control'
+            'use_device_control',
+            'use_device_cookie_control'
           )
         })
         .preload('usergroup', query => {
@@ -273,6 +362,7 @@ export default class AuthenticationController {
       await credentialRecord.save()
 
       authorizedDevice.lastUsedAt = DateTime.now()
+      authorizedDevice.deviceCookieLastSeenAt = DateTime.now()
       await authorizedDevice.save()
 
       challenge.usedAt = DateTime.now()

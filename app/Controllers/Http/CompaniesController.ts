@@ -89,10 +89,17 @@ export default class CompaniesController {
     try {
       body['id'] = params.id
       const data = await Company.findOrFail(body.id)
-      const { use_device_control } = request.only(['use_device_control'])
+      const { use_device_control, use_device_cookie_control } = request.only([
+        'use_device_control',
+        'use_device_cookie_control',
+      ])
 
       if (use_device_control !== undefined) {
         body.use_device_control = use_device_control === true || use_device_control === 1 || use_device_control === '1' || use_device_control === 'true'
+      }
+
+      if (use_device_cookie_control !== undefined) {
+        body.use_device_cookie_control = use_device_cookie_control === true || use_device_cookie_control === 1 || use_device_cookie_control === '1' || use_device_cookie_control === 'true'
       }
 
       body.foldername = data.foldername

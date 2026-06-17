@@ -20,11 +20,20 @@ export default class AuthorizedDevice extends BaseModel {
   @column({ columnName: 'device_identifier' })
   public deviceIdentifier: string
 
+  @column({ columnName: 'device_cookie_hash' })
+  public deviceCookieHash: string | null
+
   @column()
   public active: boolean
 
   @column.dateTime({ columnName: 'last_used_at' })
   public lastUsedAt: DateTime | null
+
+  @column.dateTime({ columnName: 'device_cookie_created_at' })
+  public deviceCookieCreatedAt: DateTime | null
+
+  @column.dateTime({ columnName: 'device_cookie_last_seen_at' })
+  public deviceCookieLastSeenAt: DateTime | null
 
   @column.dateTime({ columnName: 'revoked_at' })
   public revokedAt: DateTime | null
