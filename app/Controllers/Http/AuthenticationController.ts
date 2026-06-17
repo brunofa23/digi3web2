@@ -39,7 +39,7 @@ export default class AuthenticationController {
   }
 
   private async findDeviceByCookie(request: HttpContextContract['request'], companyId: number) {
-    const cookieToken = request.cookie(this.deviceCookieName)
+    const cookieToken = request.plainCookie(this.deviceCookieName, null, true)
 
     if (!cookieToken) {
       return null

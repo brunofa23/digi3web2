@@ -62,7 +62,7 @@ export default class TokensDevicesController {
     device.deviceCookieLastSeenAt = DateTime.now()
     await device.save()
 
-    response.cookie(this.deviceCookieName, cookieToken, this.getDeviceCookieOptions())
+    response.plainCookie(this.deviceCookieName, cookieToken, this.getDeviceCookieOptions())
   }
 
   private async validateReleaseToken(token: string, companyId: number) {
@@ -362,7 +362,7 @@ export default class TokensDevicesController {
       tokenDevice.active = false
       await tokenDevice.save()
 
-      response.cookie(this.deviceCookieName, cookieToken, this.getDeviceCookieOptions())
+      response.plainCookie(this.deviceCookieName, cookieToken, this.getDeviceCookieOptions())
 
       return response.status(200).send({
         message: 'Dispositivo registrado com sucesso',
