@@ -41,6 +41,7 @@ function sanitizeGoogleDriveError(error, message = undefined) {
   sanitized.status = error?.status || error?.response?.status
   sanitized.type = error?.type
   sanitized.googleAuthTokenError = error?.googleAuthTokenError || false
+  sanitized.googleTransportError = error?.googleTransportError || false
   return sanitized
 }
 
@@ -67,10 +68,8 @@ function configureGoogleAuthClient(client, cloud_number: number) {
     const runRequest = async () => {
       const url = String(opts?.url || '')
       const isTokenRequest = url.includes('oauth2.googleapis.com/token')
-
-      if (!isTokenRequest) {
-        return originalRequest(opts)
-      }
+      const method = String(opts?.method || 'GET').toUpperCase()
+      const canRetryRequest = isTokenRequest || ['GET', 'HEAD', 'OPTIONS'].includes(method)
 
       const requestOptions = {
         ...opts,
@@ -84,10 +83,13 @@ function configureGoogleAuthClient(client, cloud_number: number) {
         try {
           return await originalRequest(requestOptions)
         } catch (error) {
-          const retry = attempt < 3 && isRetryableGoogleDriveError(error)
+          const retry = attempt < 3 && canRetryRequest && isRetryableGoogleDriveError(error)
 
-          console.log('erro 155454 googleDrive token refresh error', {
+          console.log('erro 155454 googleDrive request error', {
             cloud_number,
+            url,
+            method,
+            isTokenRequest,
             attempt,
             retry,
             error: safeGoogleDriveErrorLog(error),
@@ -95,7 +97,8 @@ function configureGoogleAuthClient(client, cloud_number: number) {
 
           if (!retry) {
             const sanitizedError = sanitizeGoogleDriveError(error)
-            sanitizedError.googleAuthTokenError = true
+            sanitizedError.googleAuthTokenError = isTokenRequest
+            sanitizedError.googleTransportError = true
             throw sanitizedError
           }
 
@@ -309,7 +312,7 @@ async function searchFile(authClient, fileName, parentId = undefined, cloud_numb
       });
       return driveFiles
     } catch (error) {
-      const retry = attempt < 2 && !error?.googleAuthTokenError && isRetryableGoogleDriveError(error)
+      const retry = attempt < 2 && !error?.googleAuthTokenError && !error?.googleTransportError && isRetryableGoogleDriveError(error)
 
       console.log('erro 155454 googleDrive searchFile error', {
         fileName: fileNamedecoded,
