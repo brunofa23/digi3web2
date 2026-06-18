@@ -76,6 +76,14 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
   // 🔹 Busca a pasta principal na nuvem
   const parent = await sendSearchFile(directoryParent.path, cloud_number)
   if (!parent?.length) {
+    console.log('erro 155454 downloadImage pasta nao encontrada', {
+      fileName,
+      typebook_id,
+      company_id,
+      cloud_number,
+      path: directoryParent.path,
+      parent,
+    })
     throw new Error(`Pasta ${directoryParent.path} não encontrada na nuvem`)
   }
 
@@ -106,6 +114,14 @@ async function ensureDriveFolder(path: string, cloud_number: number, companies_i
   const roots = await sendSearchFile(company.foldername, cloud_number) // idem: limitar fields/pageSize
   const parentCompanyId = roots?.[0]?.id
   if (!parentCompanyId) {
+    console.log('erro 155454 ensureDriveFolder pasta raiz nao encontrada', {
+      path,
+      cloud_number,
+      companies_id,
+      company_foldername: company.foldername,
+      found,
+      roots,
+    })
     throw new BadRequestException('company root folder not found in Google Drive', 404)
   }
 

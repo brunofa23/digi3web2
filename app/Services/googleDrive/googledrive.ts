@@ -189,7 +189,7 @@ async function createFolder(authClient, folderName, parentId = undefined) {
 
 }
 
-async function searchFile(authClient, fileName, parentId = undefined) {
+async function searchFile(authClient, fileName, parentId = undefined, cloud_number: number | undefined = undefined) {
   const drive = google.drive({ version: 'v3', auth: authClient });
   const files: Object[] = []
   const fileNamedecoded = decodeURIComponent(fileName);
@@ -209,6 +209,16 @@ async function searchFile(authClient, fileName, parentId = undefined) {
     });
     return res.data.files
   } catch (error) {
+    console.log('erro 155454 googleDrive searchFile error', {
+      fileName: fileNamedecoded,
+      parentId,
+      cloud_number,
+      query,
+      message: error?.message,
+      code: error?.code,
+      errors: error?.errors,
+      responseData: error?.response?.data,
+    })
     return error;
   }
 }
@@ -507,8 +517,11 @@ async function sendCreateFolder(folderName, cloud_number: number, parentId = und
 
 
 async function sendSearchFile(fileName, cloud_number: number, parentId = undefined) {
+  console.log("sendSearchFile 55666", { fileName, cloud_number, parentId })
   const auth = await authorize(cloud_number)
-  return searchFile(auth, fileName, parentId)
+  const teste = searchFile(auth, fileName, parentId, cloud_number)
+  console.log("Teste retorno seachfile 55555", await teste)
+  return searchFile(auth, fileName, parentId, cloud_number)
 }
 
 async function sendDeleteFile(fileId, cloud_number: number) {
