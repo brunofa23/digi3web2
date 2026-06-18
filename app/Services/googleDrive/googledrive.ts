@@ -17,6 +17,33 @@ const TOKEN_PATH = Application.configPath('tokens/')
 const CREDENTIALS_PATH = Application.configPath('/credentials/credentials.json')
 const CREDENTIALS_PATH_FOLDER = Application.configPath('/credentials/')
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+function isRetryableGoogleDriveError(error) {
+  const code = error?.code || error?.errno
+  const message = error?.message || ''
+
+  return [
+    'ERR_STREAM_PREMATURE_CLOSE',
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'EAI_AGAIN',
+  ].includes(code) || message.includes('Premature close') || message.includes('socket hang up')
+}
+
+function safeGoogleDriveErrorLog(error) {
+  return {
+    message: error?.message,
+    code: error?.code,
+    errno: error?.errno,
+    type: error?.type,
+    errors: error?.errors,
+    responseData: error?.response?.data,
+  }
+}
+
 async function getToken(cloud_number: number) {
   try {
     //const token = await Token.findBy("name", 'tokenGoogle')
@@ -198,28 +225,36 @@ async function searchFile(authClient, fileName, parentId = undefined, cloud_numb
     query += ` and parents in '${parentId}'`
   query += " and trashed=false "
 
-  try {
-    const res = await drive.files.list({
-      q: query
-    });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await drive.files.list({
+        q: query
+      });
 
-    Array.prototype.push.apply(files, res.files);
-    res.data.files.forEach(function (file) {
-      files.push({ name: file.name, id: file.id })
-    });
-    return res.data.files
-  } catch (error) {
-    console.log('erro 155454 googleDrive searchFile error', {
-      fileName: fileNamedecoded,
-      parentId,
-      cloud_number,
-      query,
-      message: error?.message,
-      code: error?.code,
-      errors: error?.errors,
-      responseData: error?.response?.data,
-    })
-    return error;
+      const driveFiles = res.data.files || []
+      driveFiles.forEach(function (file) {
+        files.push({ name: file.name, id: file.id })
+      });
+      return driveFiles
+    } catch (error) {
+      const retry = attempt < 2 && isRetryableGoogleDriveError(error)
+
+      console.log('erro 155454 googleDrive searchFile error', {
+        fileName: fileNamedecoded,
+        parentId,
+        cloud_number,
+        query,
+        attempt,
+        retry,
+        error: safeGoogleDriveErrorLog(error),
+      })
+
+      if (!retry) {
+        throw error
+      }
+
+      await sleep(500)
+    }
   }
 }
 
@@ -517,10 +552,7 @@ async function sendCreateFolder(folderName, cloud_number: number, parentId = und
 
 
 async function sendSearchFile(fileName, cloud_number: number, parentId = undefined) {
-  console.log("sendSearchFile 55666", { fileName, cloud_number, parentId })
   const auth = await authorize(cloud_number)
-  const teste = searchFile(auth, fileName, parentId, cloud_number)
-  console.log("Teste retorno seachfile 55555", await teste)
   return searchFile(auth, fileName, parentId, cloud_number)
 }
 
