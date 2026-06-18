@@ -33,6 +33,17 @@ function isRetryableGoogleDriveError(error) {
   ].includes(code) || message.includes('Premature close') || message.includes('socket hang up')
 }
 
+function sanitizeGoogleDriveError(error, message = undefined) {
+  const sanitized: any = new Error(message || error?.message || 'Google Drive request failed')
+  sanitized.name = error?.name || 'GoogleDriveError'
+  sanitized.code = error?.code
+  sanitized.errno = error?.errno
+  sanitized.status = error?.status || error?.response?.status
+  sanitized.type = error?.type
+  sanitized.googleAuthTokenError = error?.googleAuthTokenError || false
+  return sanitized
+}
+
 function safeGoogleDriveErrorLog(error) {
   return {
     message: error?.message,
@@ -42,6 +53,67 @@ function safeGoogleDriveErrorLog(error) {
     errors: error?.errors,
     responseData: error?.response?.data,
   }
+}
+
+function configureGoogleAuthClient(client, cloud_number: number) {
+  if (!client || client.__digi3TransporterConfigured || !client.transporter?.request) {
+    return client
+  }
+
+  const transporter = client.transporter
+  const originalRequest = transporter.request.bind(transporter)
+
+  transporter.request = function (opts, callback: any = undefined) {
+    const runRequest = async () => {
+      const url = String(opts?.url || '')
+      const isTokenRequest = url.includes('oauth2.googleapis.com/token')
+
+      if (!isTokenRequest) {
+        return originalRequest(opts)
+      }
+
+      const requestOptions = {
+        ...opts,
+        headers: {
+          ...(opts?.headers || {}),
+          'Accept-Encoding': 'identity',
+        },
+      }
+
+      for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+          return await originalRequest(requestOptions)
+        } catch (error) {
+          const retry = attempt < 3 && isRetryableGoogleDriveError(error)
+
+          console.log('erro 155454 googleDrive token refresh error', {
+            cloud_number,
+            attempt,
+            retry,
+            error: safeGoogleDriveErrorLog(error),
+          })
+
+          if (!retry) {
+            const sanitizedError = sanitizeGoogleDriveError(error)
+            sanitizedError.googleAuthTokenError = true
+            throw sanitizedError
+          }
+
+          await sleep(500 * attempt)
+        }
+      }
+    }
+
+    if (callback) {
+      runRequest().then((response) => callback(null, response), callback)
+      return
+    }
+
+    return runRequest()
+  }
+
+  client.__digi3TransporterConfigured = true
+  return client
 }
 
 async function getToken(cloud_number: number) {
@@ -89,7 +161,7 @@ async function loadSavedCredentialsIfExist(cloud_number: number) {
   const tokenNumber = await getToken(cloud_number)
   if (tokenNumber) {
     try {
-      return google.auth.fromJSON(tokenNumber.token);
+      return configureGoogleAuthClient(google.auth.fromJSON(tokenNumber.token), cloud_number);
     } catch (err) {
       return null;
     }
@@ -142,7 +214,7 @@ async function authorize(cloud_number: number) {
       await saveCredentials(client, cloud_number);
     }
 
-    return client;
+    return configureGoogleAuthClient(client, cloud_number);
 
   } catch (error) {
     console.error('Erro ao autenticar:', error);
@@ -237,7 +309,7 @@ async function searchFile(authClient, fileName, parentId = undefined, cloud_numb
       });
       return driveFiles
     } catch (error) {
-      const retry = attempt < 2 && isRetryableGoogleDriveError(error)
+      const retry = attempt < 2 && !error?.googleAuthTokenError && isRetryableGoogleDriveError(error)
 
       console.log('erro 155454 googleDrive searchFile error', {
         fileName: fileNamedecoded,
@@ -250,7 +322,7 @@ async function searchFile(authClient, fileName, parentId = undefined, cloud_numb
       })
 
       if (!retry) {
-        throw error
+        throw sanitizeGoogleDriveError(error)
       }
 
       await sleep(500)
