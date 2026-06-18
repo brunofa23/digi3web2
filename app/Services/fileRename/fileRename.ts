@@ -38,6 +38,19 @@ function sleep(ms) {
   });
 }
 
+function safeDriveSearchLog(result) {
+  if (Array.isArray(result)) {
+    return { isArray: true, length: result.length }
+  }
+
+  return {
+    isArray: false,
+    message: result?.message,
+    code: result?.code,
+    type: result?.type,
+  }
+}
+
 async function deleteImage(folderPath) {
   try {
     fs.unlink(`${folderPath}`, (err) => {
@@ -82,7 +95,7 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
       company_id,
       cloud_number,
       path: directoryParent.path,
-      parent,
+      parent: safeDriveSearchLog(parent),
     })
     throw new Error(`Pasta ${directoryParent.path} não encontrada na nuvem`)
   }
@@ -119,8 +132,8 @@ async function ensureDriveFolder(path: string, cloud_number: number, companies_i
       cloud_number,
       companies_id,
       company_foldername: company.foldername,
-      found,
-      roots,
+      found: safeDriveSearchLog(found),
+      roots: safeDriveSearchLog(roots),
     })
     throw new BadRequestException('company root folder not found in Google Drive', 404)
   }
