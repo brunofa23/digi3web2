@@ -72,6 +72,59 @@ function getUploadJobErrorMessage(error: any) {
   return error?.message || error?.response?.message || 'Falha ao processar upload.'
 }
 
+function getExtnameFromMime(mimeType: string) {
+  const subtype = mimeType?.split('/')?.[1]?.toLowerCase()
+  if (!subtype) return 'jpeg'
+  if (subtype === 'jpg') return 'jpeg'
+  return subtype.split(';')[0]
+}
+
+function sanitizeUploadFileName(fileName: string, extname: string) {
+  const fallback = `imagem_${Date.now()}.${extname}`
+  const baseName = path.basename(fileName || fallback).replace(/[^\w.\-]/g, '_')
+  return baseName.includes('.') ? baseName : `${baseName}.${extname}`
+}
+
+async function buildImageFromBase64Upload(payload: {
+  imageBase64: string
+  imageName?: string
+  imageType?: string
+}) {
+  const match = String(payload.imageBase64 || '').match(/^data:([^;]+);base64,(.+)$/)
+  const mimeType = payload.imageType || match?.[1] || 'image/jpeg'
+  const base64 = match?.[2] || payload.imageBase64
+  const extname = getExtnameFromMime(mimeType)
+  const clientName = sanitizeUploadFileName(payload.imageName || '', extname)
+  const buffer = Buffer.from(base64, 'base64')
+
+  if (!buffer.length) {
+    throw new BadRequestException('Arquivo base64 inválido.', 422)
+  }
+
+  const tmpDir = Application.tmpPath('uploads/base64')
+  await fs.promises.mkdir(tmpDir, { recursive: true })
+
+  const tmpPath = path.join(tmpDir, `${Date.now()}_${clientName}`)
+  await fs.promises.writeFile(tmpPath, buffer)
+
+  return {
+    clientName,
+    extname,
+    subtype: extname,
+    type: mimeType.split('/')[0] || 'image',
+    tmpPath,
+    size: buffer.length,
+    isValid: true,
+    errors: [],
+    async move(folderPath: string, options: { name?: string } = {}) {
+      await fs.promises.mkdir(folderPath, { recursive: true })
+      const targetPath = path.join(folderPath, options.name || clientName)
+      await fs.promises.copyFile(tmpPath, targetPath)
+      return true
+    },
+  }
+}
+
 
 export default class IndeximagesController {
 
@@ -175,7 +228,7 @@ export default class IndeximagesController {
     const company = await Company.find(authenticate.companies_id)
     
     // Arquivos sempre vêm por multipart
-    const images = request.files('images', {
+    let images: any[] = request.files('images', {
       size: '100mb',
       extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
     })
@@ -201,6 +254,17 @@ export default class IndeximagesController {
         // se não for JSON, não quebra
         dataImages = dataImagesRaw
       }
+    }
+
+    const imageBase64 = request.input('imageBase64')
+    if (!images.length && imageBase64) {
+      images = [
+        await buildImageFromBase64Upload({
+          imageBase64,
+          imageName: request.input('imageName'),
+          imageType: request.input('imageType'),
+        }),
+      ]
     }
 
     /**
