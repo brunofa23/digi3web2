@@ -236,6 +236,37 @@ export default class IndeximagesController {
     })
 
     try {
+      if (!images.length) {
+        await updateUploadJob(uploadJob, 'FAILED', {
+          errorMessage: 'Nenhum arquivo foi recebido no campo "images".',
+        })
+
+        return response.status(422).send({
+          message: 'Nenhum arquivo foi recebido no campo "images".',
+          uploadJob: serializeUploadJob(uploadJob),
+        })
+      }
+
+      const invalidImages = images.filter((image) => !image.isValid)
+      if (invalidImages.length) {
+        const errorMessage = invalidImages
+          .map((image) => `${image.clientName}: ${JSON.stringify(image.errors || [])}`)
+          .join('; ')
+
+        await updateUploadJob(uploadJob, 'FAILED', {
+          errorMessage: errorMessage.slice(0, 1000),
+        })
+
+        return response.status(422).send({
+          message: 'Um ou mais arquivos enviados são inválidos.',
+          errors: invalidImages.map((image) => ({
+            fileName: image.clientName,
+            errors: image.errors,
+          })),
+          uploadJob: serializeUploadJob(uploadJob),
+        })
+      }
+
       await updateUploadJob(uploadJob, 'PREPARING_RECORDS')
 
     // Através do nome da imagem é recriado o registro no bookrecord
@@ -436,6 +467,18 @@ export default class IndeximagesController {
       false,
       dataImages
     )
+
+    if (!files?.length) {
+      await updateUploadJob(uploadJob, 'FAILED', {
+        errorMessage: 'Nenhum arquivo foi enviado para o Google Drive.',
+      })
+
+      return response.status(422).send({
+        files,
+        uploadJob: serializeUploadJob(uploadJob),
+        message: 'Nenhum arquivo foi enviado para o Google Drive.',
+      })
+    }
 
     await updateUploadJob(uploadJob, 'COMPLETED', {
       resultFiles: JSON.stringify(files || []),
