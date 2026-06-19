@@ -9,7 +9,7 @@ const frontendOrigins = frontendUrl
 
 function isDevelopmentOrigin(origin: string) {
   return Env.get('NODE_ENV') === 'development'
-    && /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}):5173$/.test(origin)
+    && /^http:\/\/(localhost|127\.0\.0\.1|192\.168\.\d{1,3}\.\d{1,3}):517[34]$/.test(origin)
 }
 
 const corsConfig: CorsConfig = {
