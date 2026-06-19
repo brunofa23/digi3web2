@@ -2992,11 +2992,13 @@ export default class BookrecordsController {
 
   public async maxBookRecord({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const { typebooks_id } = request.only(['typebooks_id'])
+    const { typebooks_id, book } = request.only(['typebooks_id', 'book'])
     if (typebooks_id == undefined)
       return
 
     console.log("PASSO 1")
+
+    const bookNumber = book !== undefined && book !== null && book !== '' ? Number(book) : null
 
     const maxBook = await Bookrecord.query()
       .where('typebooks_id', typebooks_id)
@@ -3006,11 +3008,17 @@ export default class BookrecordsController {
     let maxSheet
     let maxCod
     if (maxBook) {
-      maxSheet = await Bookrecord.query()
+      const maxSheetQuery = Bookrecord.query()
         .where('typebooks_id', typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
-        .andWhere('book', maxBook?.$extras.max_book)
         .max('sheet as max_sheet')
+
+      if (bookNumber !== null && Number.isFinite(bookNumber))
+        maxSheetQuery.andWhere('book', bookNumber)
+      else
+        maxSheetQuery.andWhere('book', maxBook?.$extras.max_book)
+
+      maxSheet = await maxSheetQuery
         .first();
 
       maxCod = await Bookrecord.query()
@@ -3030,7 +3038,7 @@ export default class BookrecordsController {
 
     return response.status(200).send({
       max_book: maxBook?.$extras.max_book,
-      max_sheet: maxSheet.$extras.max_sheet,
+      max_sheet: maxSheet?.$extras.max_sheet,
       max_cod_document: maxCodDocument?.$extras.max_cod,
       max_cod: maxCod?.$extras.max_cod
     })
