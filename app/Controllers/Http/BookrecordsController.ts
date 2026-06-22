@@ -17,6 +17,7 @@ import {
   sendListAllFilesMetadata,
   sendSearchFile,
 } from 'App/Services/googleDrive/googledrive'
+import AuditLogger from 'App/Services/Audit/AuditLogger'
 
 const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
@@ -725,10 +726,11 @@ export default class BookrecordsController {
     }
   }
 
-  public async store({ auth, request, response }: HttpContextContract) {
+  public async store(ctx: HttpContextContract) {
+    const { auth, request, response } = ctx
 
     const authenticate = await auth.use('api').authenticate()
-    const body = await request.validate(BookrecordValidator)
+    const body: any = await request.validate(BookrecordValidator)
     const { document } = request.only(['document'])
 
     try {
@@ -737,9 +739,23 @@ export default class BookrecordsController {
       body.userid = authenticate.id
 
       // 🔹 Cria o Bookrecord principal
-      const bookrecord = await Bookrecord.create(body)
+      const bookrecord = await Bookrecord.create(body as any)
+      await AuditLogger.created(ctx, {
+        companiesId: authenticate.companies_id,
+        userId: authenticate.id,
+        action: 'bookrecord_create',
+        entityTable: 'bookrecords',
+        entityId: bookrecord.id,
+        resourceKey: `bookrecords:${bookrecord.typebooks_id}:${bookrecord.id}`,
+        entityKey: {
+          typebooks_id: bookrecord.typebooks_id,
+          bookrecords_id: bookrecord.id,
+        },
+        description: `Usuário ${authenticate.name || authenticate.username} criou o registro ${bookrecord.id}`,
+        afterData: bookrecord,
+      })
 
-      let createdDocument = null
+      let createdDocument: any = null
 
       // 🔹 Se for um tipo de livro que precisa de Document
       if (bookrecord.books_id === 13 && document) {
@@ -756,6 +772,21 @@ export default class BookrecordsController {
 
         // Cria o Document
         createdDocument = await Document.create(cleanDocument)
+        await AuditLogger.created(ctx, {
+          companiesId: authenticate.companies_id,
+          userId: authenticate.id,
+          action: 'document_create',
+          entityTable: 'documents',
+          entityId: createdDocument.id,
+          resourceKey: `documents:${createdDocument.typebooks_id}:${createdDocument.id}`,
+          entityKey: {
+            typebooks_id: createdDocument.typebooks_id,
+            document_id: createdDocument.id,
+            bookrecords_id: createdDocument.bookrecords_id,
+          },
+          description: `Usuário ${authenticate.name || authenticate.username} criou o documento ${createdDocument.id}`,
+          afterData: createdDocument,
+        })
       }
 
       // 🔹 Recarrega o Bookrecord com seus relacionamentos
@@ -786,7 +817,8 @@ export default class BookrecordsController {
 
 
 
-  public async update({ auth, request, params, response }: HttpContextContract) {
+  public async update(ctx: HttpContextContract) {
+    const { auth, request, params, response } = ctx
     const authenticate = await auth.use('api').authenticate()
     const { document } = request.only(['document'])
     const body = request.only(Bookrecord.fillable)
@@ -798,6 +830,7 @@ export default class BookrecordsController {
         .andWhere('typebooks_id', body.typebooks_id)
         .andWhere('companies_id', authenticate.companies_id)
         .firstOrFail()
+      const beforeBookrecord = bookrecord.serialize()
 
       // 🔹 Atualiza campos do Bookrecord
       bookrecord.merge({
@@ -806,8 +839,23 @@ export default class BookrecordsController {
         userid: authenticate.id,
       })
       await bookrecord.save()
+      await AuditLogger.updated(ctx, {
+        companiesId: authenticate.companies_id,
+        userId: authenticate.id,
+        action: 'bookrecord_update',
+        entityTable: 'bookrecords',
+        entityId: bookrecord.id,
+        resourceKey: `bookrecords:${bookrecord.typebooks_id}:${bookrecord.id}`,
+        entityKey: {
+          typebooks_id: bookrecord.typebooks_id,
+          bookrecords_id: bookrecord.id,
+        },
+        description: `Usuário ${authenticate.name || authenticate.username} alterou o registro ${bookrecord.id}`,
+        beforeData: beforeBookrecord,
+        afterData: bookrecord,
+      })
 
-      let updatedDocument = null
+      let updatedDocument: any = null
 
       // 🔹 Atualiza o documento vinculado (se aplicável)
       if (bookrecord.books_id === 13 && document && document.id) {
@@ -818,6 +866,7 @@ export default class BookrecordsController {
           .first()
 
         if (doc) {
+          const beforeDocument = doc.serialize()
           const cleanDocument = { ...document }
           delete cleanDocument.documenttype
           delete cleanDocument.documenttypebook
@@ -825,6 +874,22 @@ export default class BookrecordsController {
           doc.merge(cleanDocument)
           await doc.save()
           updatedDocument = doc
+          await AuditLogger.updated(ctx, {
+            companiesId: authenticate.companies_id,
+            userId: authenticate.id,
+            action: 'document_update',
+            entityTable: 'documents',
+            entityId: doc.id,
+            resourceKey: `documents:${doc.typebooks_id}:${doc.id}`,
+            entityKey: {
+              typebooks_id: doc.typebooks_id,
+              document_id: doc.id,
+              bookrecords_id: doc.bookrecords_id,
+            },
+            description: `Usuário ${authenticate.name || authenticate.username} alterou o documento ${doc.id}`,
+            beforeData: beforeDocument,
+            afterData: doc,
+          })
         }
       }
 
@@ -854,9 +919,22 @@ export default class BookrecordsController {
   }
 
 
-  public async destroy({ auth, params, response }: HttpContextContract) {
-    const { companies_id } = await auth.use('api').authenticate()
+  public async destroy(ctx: HttpContextContract) {
+    const { auth, params, response } = ctx
+    const authenticate = await auth.use('api').authenticate()
+    const companies_id = authenticate.companies_id
     try {
+      const beforeBookrecord = await Bookrecord.query()
+        .where('id', "=", params.id)
+        .andWhere('typebooks_id', '=', params.typebooks_id)
+        .andWhere('companies_id', "=", companies_id)
+        .first()
+
+      const imagesToDelete = await Indeximage.query()
+        .where('typebooks_id', '=', params.typebooks_id)
+        .andWhere('bookrecords_id', "=", params.id)
+        .andWhere('companies_id', "=", companies_id)
+
       //excluir imagens do google drive
       // const listOfImagesToDeleteGDrive = await Indeximage.query()
       //   .preload('typebooks', (query) => {
@@ -883,6 +961,24 @@ export default class BookrecordsController {
         .where('id', "=", params.id)
         .andWhere('typebooks_id', '=', params.typebooks_id)
         .andWhere('companies_id', "=", companies_id).delete()
+
+      await AuditLogger.deleted(ctx, {
+        companiesId: companies_id,
+        userId: authenticate.id,
+        action: 'bookrecord_delete',
+        entityTable: 'bookrecords',
+        entityId: Number(params.id),
+        resourceKey: `bookrecords:${params.typebooks_id}:${params.id}`,
+        entityKey: {
+          typebooks_id: Number(params.typebooks_id),
+          bookrecords_id: Number(params.id),
+        },
+        description: `Usuário ${authenticate.name || authenticate.username} excluiu o registro ${params.id}`,
+        beforeData: beforeBookrecord,
+        metadata: {
+          deleted_indeximages: imagesToDelete.length,
+        },
+      })
 
       return response.status(201).send({ data, message: "Excluido com sucesso!!" })
     } catch (error) {
@@ -3044,7 +3140,8 @@ export default class BookrecordsController {
     })
   }
 
-  public async visionOcrIndeximages({ auth, params, request, response }: HttpContextContract) {
+  public async visionOcrIndeximages(ctx: HttpContextContract) {
+    const { auth, params, request, response } = ctx
     console.log("PASSO 1 - INÍCIO DA ROTA")
     const authenticate = await auth.use('api').authenticate()
     const typebooksId = Number(params.typebooks_id)
@@ -3271,6 +3368,31 @@ export default class BookrecordsController {
             sheet,
             register,
             ready: true,
+          })
+
+          await AuditLogger.record(ctx, {
+            companiesId: authenticate.companies_id,
+            userId: authenticate.id,
+            action: 'indeximage_extract_text',
+            entityTable: 'indeximages',
+            resourceKey: `indeximages:${indeximage.typebooks_id}:${indeximage.bookrecords_id}:${indeximage.seq}:${indeximage.file_name}`,
+            entityKey: {
+              typebooks_id: indeximage.typebooks_id,
+              bookrecords_id: indeximage.bookrecords_id,
+              seq: indeximage.seq,
+              file_name: indeximage.file_name,
+            },
+            description: `Usuário ${authenticate.name || authenticate.username} extraiu texto da imagem ${indeximage.file_name}`,
+            metadata: {
+              file_name: indeximage.file_name,
+              text_length: indexText?.length || 0,
+              extracted_names: names.length,
+              extracted_documents: cpfs.length,
+              book,
+              sheet,
+              register,
+              ready: true,
+            },
           })
         } catch (error) {
           console.error("Erro ao atualizar indeximage:", error)

@@ -54,6 +54,7 @@ Route.group(() => {
   Route.post("bookrecords/destroymanybookrecords", 'BookrecordsController.destroyManyBookRecords').middleware('bookrecord_permission:destroyManyBookRecords')
   Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:get')
   Route.get('/updatedfiles', 'BookrecordsController.updatedFiles').middleware('bookrecord_permission:get')
+  Route.get('/auditlogs', 'AuditLogsController.index').middleware('auth')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords')
 
   Route.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get')
@@ -231,4 +232,3 @@ Route.group(() => {
     return auth.use('api').user!
   })
 }).prefix('/api')//.middleware(['auth'])
-

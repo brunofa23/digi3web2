@@ -16,6 +16,7 @@ import { isoBase64URL } from '@simplewebauthn/server/helpers'
 import AuthorizedDevice from 'App/Models/AuthorizedDevice'
 import WebauthnCredential from 'App/Models/WebauthnCredential'
 import WebauthnChallenge from 'App/Models/WebauthnChallenge'
+import AuditLogger from 'App/Services/Audit/AuditLogger'
 
 
 //import Groupxpermission from 'App/Models/Groupxpermission'
@@ -65,7 +66,8 @@ export default class AuthenticationController {
     })
   }
 
-  public async login({ auth, request, response }: HttpContextContract) {
+  public async login(ctx: HttpContextContract) {
+    const { auth, request, response } = ctx
 
     const username = request.input('username')
     const shortname = request.input('shortname')
@@ -155,6 +157,7 @@ export default class AuthenticationController {
         }
 
         const token = await this.generateToken(auth, user, permissions, username)
+        await AuditLogger.login(ctx, user)
 
         return response.status(200).send({ token, user })
       }
@@ -224,11 +227,14 @@ export default class AuthenticationController {
     }
 
     const token = await this.generateToken(auth, user, permissions, username)
+    await AuditLogger.login(ctx, user)
 
     return response.status(200).send({ token, user })
   }
 
-  public async verifyWebauthnLogin({ auth, request, response }: HttpContextContract) {
+  public async verifyWebauthnLogin(ctx: HttpContextContract) {
+    const { auth, request, response } = ctx
+
     try {
       const { challenge_id, credential } = request.only(['challenge_id', 'credential'])
 
@@ -367,6 +373,7 @@ export default class AuthenticationController {
 
       challenge.usedAt = DateTime.now()
       await challenge.save()
+      await AuditLogger.login(ctx, user)
 
       return response.status(200).send({ token, user })
     } catch (error) {

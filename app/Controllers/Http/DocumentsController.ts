@@ -4,6 +4,7 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import Indeximage from 'App/Models/Indeximage'
 import Database from '@ioc:Adonis/Lucid/Database'
 import BadRequest from 'App/Exceptions/BadRequestException'
+import AuditLogger from 'App/Services/Audit/AuditLogger'
 const fileRename = require('../../Services/fileRename/fileRename')
 
 
@@ -19,13 +20,29 @@ export default class DocumentsController {
         }
     }
 
-    public async store({ auth, request, params, response }: HttpContextContract) {
+    public async store(ctx: HttpContextContract) {
+      const { auth, request, response } = ctx
 
       const authenticate = await auth.use('api').authenticate()
         const documentPayload = request.only(Document.fillable)
         documentPayload.companies_id = authenticate.companies_id
         try {
             const data = await Document.create(documentPayload)
+            await AuditLogger.created(ctx, {
+                companiesId: authenticate.companies_id,
+                userId: authenticate.id,
+                action: 'document_create',
+                entityTable: 'documents',
+                entityId: data.id,
+                resourceKey: `documents:${data.typebooks_id}:${data.id}`,
+                entityKey: {
+                    typebooks_id: data.typebooks_id,
+                    document_id: data.id,
+                    bookrecords_id: data.bookrecords_id,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} criou o documento ${data.id}`,
+                afterData: data,
+            })
             return response.status(201).send(data)
         } catch (error) {
             //return error
@@ -33,16 +50,35 @@ export default class DocumentsController {
         }
     }
 
-    public async update({ auth, request, params, response }: HttpContextContract) {
+    public async update(ctx: HttpContextContract) {
+        const { auth, request, params, response } = ctx
       
-        const { companies_id } = await auth.use('api').authenticate()
+        const authenticate = await auth.use('api').authenticate()
+        const companies_id = authenticate.companies_id
         const body = request.only(Document.fillable)
         body.id = params.id
         body.companies_id = companies_id
 
         try {
             const data = await Document.findOrFail(body.id)
+            const beforeDocument = data.serialize()
             await data.fill(body).save()
+            await AuditLogger.updated(ctx, {
+                companiesId: companies_id,
+                userId: authenticate.id,
+                action: 'document_update',
+                entityTable: 'documents',
+                entityId: data.id,
+                resourceKey: `documents:${data.typebooks_id}:${data.id}`,
+                entityKey: {
+                    typebooks_id: data.typebooks_id,
+                    document_id: data.id,
+                    bookrecords_id: data.bookrecords_id,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} alterou o documento ${data.id}`,
+                beforeData: beforeDocument,
+                afterData: data,
+            })
             return response.status(201).send({ data, params: params.id })
         } catch (error) {
             throw new BadRequestException('Bad Request', 401, error)
@@ -50,10 +86,18 @@ export default class DocumentsController {
     }
 
 
-    public async destroy({ auth, request, params, response }: HttpContextContract) {
+    public async destroy(ctx: HttpContextContract) {
+        const { auth, params, response } = ctx
 
-        const { companies_id } = await auth.use('api').authenticate()
+        const authenticate = await auth.use('api').authenticate()
+        const companies_id = authenticate.companies_id
         try {
+            const beforeDocument = await Document.query()
+                .where('id', "=", params.id)
+                .andWhere('typebooks_id', '=', params.typebooks_id)
+                .andWhere('companies_id', "=", companies_id)
+                .first()
+
             //excluir imagens do google drive
             const listOfImagesToDeleteGDrive = await Indeximage.query()
                 .preload('typebooks')
@@ -78,6 +122,24 @@ export default class DocumentsController {
                 .where('id', "=", params.id)
                 .andWhere('typebooks_id', '=', params.typebooks_id)
                 .andWhere('companies_id', "=", companies_id).delete()
+
+            await AuditLogger.deleted(ctx, {
+                companiesId: companies_id,
+                userId: authenticate.id,
+                action: 'document_delete',
+                entityTable: 'documents',
+                entityId: Number(params.id),
+                resourceKey: `documents:${params.typebooks_id}:${params.id}`,
+                entityKey: {
+                    typebooks_id: Number(params.typebooks_id),
+                    document_id: Number(params.id),
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} excluiu o documento ${params.id}`,
+                beforeData: beforeDocument,
+                metadata: {
+                    deleted_indeximages: listOfImagesToDeleteGDrive.length,
+                },
+            })
 
             return response.status(201).send({ data, message: "Excluido com sucesso!!" })
         } catch (error) {

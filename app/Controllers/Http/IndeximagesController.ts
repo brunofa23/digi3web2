@@ -9,6 +9,7 @@ import Typebook from 'App/Models/Typebook'
 import Document from 'App/Models/Document'
 import ImageUploadJob from 'App/Models/ImageUploadJob'
 import Database from '@ioc:Adonis/Lucid/Database'
+import AuditLogger from 'App/Services/Audit/AuditLogger'
 
 import sharp from 'sharp'
 
@@ -163,8 +164,10 @@ export default class IndeximagesController {
     }
   }
 
-  public async destroy({ auth, params, response }: HttpContextContract) {
-    const { companies_id } = await auth.use('api').authenticate()
+  public async destroy(ctx: HttpContextContract) {
+    const { auth, params, response } = ctx
+    const authenticate = await auth.use('api').authenticate()
+    const companies_id = authenticate.companies_id
     try {
       //excluir imagens do google drive
       const query = Indeximage.query()
@@ -193,6 +196,24 @@ export default class IndeximagesController {
         .andWhere('companies_id', "=", companies_id)
         .andWhere('file_name', "like", decodeURIComponent(params.file_name))
         .delete()
+
+      await AuditLogger.deleted(ctx, {
+        companiesId: companies_id,
+        userId: authenticate.id,
+        action: 'indeximage_delete',
+        entityTable: 'indeximages',
+        resourceKey: `indeximages:${params.typebooks_id}:${params.bookrecords_id}:${decodeURIComponent(params.file_name)}`,
+        entityKey: {
+          typebooks_id: Number(params.typebooks_id),
+          bookrecords_id: Number(params.bookrecords_id),
+          file_name: decodeURIComponent(params.file_name),
+        },
+        description: `Usuário ${authenticate.name || authenticate.username} excluiu a imagem ${decodeURIComponent(params.file_name)}`,
+        beforeData: listOfImagesToDeleteGDrive,
+        metadata: {
+          file_name: decodeURIComponent(params.file_name),
+        },
+      })
 
       return response.status(201).send({ message: "Excluido com sucesso!!" })
     } catch (error) {
@@ -223,7 +244,8 @@ export default class IndeximagesController {
 
   }
 
-  public async uploads({ auth, request, params, response }: HttpContextContract) {
+  public async uploads(ctx: HttpContextContract) {
+    const { auth, request, params, response } = ctx
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
     
@@ -548,6 +570,23 @@ export default class IndeximagesController {
       resultFiles: JSON.stringify(files || []),
     })
 
+    await AuditLogger.imageUpload(ctx, {
+      companiesId: authenticate.companies_id,
+      userId: authenticate.id,
+      entityTable: 'indeximages',
+      resourceKey: `indeximages-upload:${params.typebooks_id}:${uploadJob?.id || Date.now()}`,
+      entityKey: {
+        typebooks_id: Number(params.typebooks_id),
+      },
+      description: `Usuário ${authenticate.name || authenticate.username} anexou ${files.length} imagem(ns)`,
+      metadata: {
+        source,
+        upload_job_id: uploadJob?.id,
+        file_names: files.map((file: any) => file.file_name || file.fileName || file.name).filter(Boolean),
+        quantity: files.length,
+      },
+    })
+
     return response.status(201).send({
       files,
       uploadJob: serializeUploadJob(uploadJob),
@@ -591,7 +630,8 @@ export default class IndeximagesController {
     return { sucesso: "sucesso", file, typebook: params.typebooks_id }
   }
 
-  public async download({ auth, params, request }: HttpContextContract) {
+  public async download(ctx: HttpContextContract) {
+    const { auth, params, request } = ctx
     const authenticate = await auth.use('api').authenticate()
     const { typebook_id } = request.only(['typebook_id'])
     const body = request.only(Indeximage.fillable)
@@ -603,6 +643,25 @@ export default class IndeximagesController {
       .andWhere('companies_id', authenticate.companies_id)
       .first()
     const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
+    await AuditLogger.imageView(ctx, {
+      companiesId: authenticate.companies_id,
+      userId: authenticate.id,
+      entityTable: 'indeximages',
+      resourceKey: `indeximages:${typebook_id}:${indexImage?.bookrecords_id || ''}:${indexImage?.seq || ''}:${fileName}`,
+      entityKey: {
+        typebooks_id: Number(typebook_id),
+        bookrecords_id: indexImage?.bookrecords_id,
+        seq: indexImage?.seq,
+        file_name: fileName,
+      },
+      description: `Usuário ${authenticate.name || authenticate.username} visualizou a imagem ${fileName}`,
+      metadata: {
+        file_name: fileName,
+        extension: path.extname(fileName),
+        size: fileDownload.size,
+      },
+    })
+
     return {
       fileDownload: fileDownload.dataURI,
       fileName,
