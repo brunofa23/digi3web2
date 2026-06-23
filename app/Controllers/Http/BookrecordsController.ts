@@ -988,8 +988,10 @@ export default class BookrecordsController {
 
   }
   //EXCLUSÃO EM LOTES
-  public async destroyManyBookRecords({ auth, request, response }: HttpContextContract) {
-    const { companies_id } = await auth.use('api').authenticate()
+  public async destroyManyBookRecords(ctx: HttpContextContract) {
+    const { auth, request, response } = ctx
+    const authenticate = await auth.use('api').authenticate()
+    const { companies_id } = authenticate
     const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages'])
 
     //deleteImages
@@ -1001,19 +1003,20 @@ export default class BookrecordsController {
       try {
         const deleteData = await Database
           .from('indeximages')
-          .innerJoin('bookrecords', function () {
-            this.on('indeximages.bookrecords_id', 'bookrecords.id')
-              .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
-              .andOn('indeximages.companies_id', 'bookrecords.companies_id');
-          })
           .where('indeximages.typebooks_id', typebooks_id)
           .andWhere('indeximages.companies_id', companies_id)
-          .whereRaw(query)
+          .whereIn('indeximages.bookrecords_id',
+            Database.from('bookrecords')
+              .select('id')
+              .where('typebooks_id', typebooks_id)
+              .andWhere('companies_id', companies_id)
+              .whereRaw(query)
+          )
           .delete()
 
-        return response.status(201).send({ deleteData })
+        return deleteData
       } catch (error) {
-        return error
+        throw error
       }
 
     }
@@ -1027,9 +1030,9 @@ export default class BookrecordsController {
           .whereRaw(query)
           .delete()
 
-        return response.status(201).send({ data })
+        return data
       } catch (error) {
-        return error
+        throw error
       }
     }
 
@@ -1054,9 +1057,14 @@ export default class BookrecordsController {
           fileRename.deleteFile(file_name)
         }
       } catch (error) {
-        return error
+        throw error
       }
 
+    }
+
+    function normalizeDeleteCount(value) {
+      if (Array.isArray(value)) return Number(value[0] || 0)
+      return Number(value || 0)
     }
 
     let query = '1 = 1'
@@ -1079,26 +1087,62 @@ export default class BookrecordsController {
           query += ` and cod>=${startCod} and cod <=${endCod} `
 
       try {
+        let deletedIndexImages = 0
+        let deletedBookrecords = 0
+
         //se 1  = exclui somente o livro
         if (deleteImages == 1) {
-
-          deleteIndexImages(query)
-          deleteBookrecord(query)
-          return
+          deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query))
+          deletedBookrecords = normalizeDeleteCount(await deleteBookrecord(query))
         }
         //se 2 = exclui somente as imagens
         else if (deleteImages == 2) {
 
           //await deleteImagesGoogle(query)
-          await deleteIndexImages(query)
+          deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query))
         }
         //se 3 = exclui imagens e livro
         else if (deleteImages == 3) {
 
           //await deleteImagesGoogle(query)
-          await deleteIndexImages(query)
-          await deleteBookrecord(query)
+          deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query))
+          deletedBookrecords = normalizeDeleteCount(await deleteBookrecord(query))
         }
+
+        await AuditLogger.deleted(ctx, {
+          companiesId: companies_id,
+          userId: authenticate.id,
+          action: 'bookrecord_batch_delete',
+          entityTable: 'bookrecords',
+          resourceKey: `bookrecords:batch-delete:${typebooks_id}:${Book || 0}:${Bookend || 0}:${startCod || 0}:${endCod || 0}`,
+          entityKey: {
+            typebooks_id: Number(typebooks_id),
+            book: Number(Book || 0),
+            bookend: Number(Bookend || 0),
+            startCod: Number(startCod || 0),
+            endCod: Number(endCod || 0),
+          },
+          description: `Usuário ${authenticate.name || authenticate.username} realizou exclusão de lotes. Livro: ${Book || 0}. Livro Final: ${Bookend || 0}. Código Inicial: ${startCod || 0}. Código Final: ${endCod || 0}.`,
+          beforeData: {
+            typebooks_id,
+            Book,
+            Bookend,
+            startCod,
+            endCod,
+            deleteImages,
+          },
+          metadata: {
+            deleteImages,
+            deleted_indeximages: deletedIndexImages,
+            deleted_bookrecords: deletedBookrecords,
+          },
+        })
+
+        return response.status(201).send({
+          data: deletedBookrecords,
+          deleteData: deletedIndexImages,
+          message: "Excluido com sucesso!!",
+        })
       } catch (error) {
         throw new BadRequest('Bad Request update', 401, 'bookrecord_error_102')
       }
@@ -1361,7 +1405,8 @@ export default class BookrecordsController {
     //SUBSTITUI O NUMERO DO LIVRO
   }
 
-  public async generateOrUpdateBookrecords2({ auth, params, request, response }: HttpContextContract) {
+  public async generateOrUpdateBookrecords2(ctx: HttpContextContract) {
+    const { auth, params, request, response } = ctx
     const authenticate = await auth.use('api').authenticate();
     // ✅ detectar se o campo veio no request (mesmo se for 0)
     const rawIndexbook: any = request.input('indexbook');
@@ -1393,6 +1438,51 @@ export default class BookrecordsController {
       throw new BadRequestException("erro: codigo inicial maior que o final");
     }
 
+    const filledOptions = Object.fromEntries(
+      Object.entries({
+        renumerate_cod: body.renumerate_cod,
+        is_create: body.is_create,
+        by_sheet: body.by_sheet,
+        start_cod: body.start_cod,
+        end_cod: body.end_cod,
+        book: body.book,
+        book_replace: body.book_replace,
+        sheet: body.sheet,
+        side: body.side,
+        model_book: body.model_book,
+        books_id: body.books_id,
+        indexbook: indexbookWasSent ? (forceIndexbookNull ? null : body.indexbook) : undefined,
+        year: body.year,
+        letter: body.letter,
+        approximate_term: body.approximate_term,
+        obs: body.obs,
+      }).filter(([_, value]) => value !== undefined && value !== null && value !== "")
+    )
+
+    async function logGenerateOrUpdate(operation: string, total: number, extraMetadata: Record<string, any> = {}) {
+      await AuditLogger.record(ctx, {
+        companiesId: authenticate.companies_id,
+        userId: authenticate.id,
+        action: 'bookrecord_generate_update',
+        entityTable: 'bookrecords',
+        resourceKey: `bookrecords:generate-update:${params.typebooks_id}:${body.book || 0}:${body.start_cod}:${body.end_cod}`,
+        entityKey: {
+          typebooks_id: Number(params.typebooks_id),
+          book: Number(body.book || 0),
+          start_cod: body.start_cod,
+          end_cod: body.end_cod,
+        },
+        description: `Usuário ${authenticate.name || authenticate.username} realizou ${operation}. Livro: ${body.book || 0}. ${body.by_sheet == "S" ? "Folha" : "Código"} Inicial: ${body.start_cod}. ${body.by_sheet == "S" ? "Folha" : "Código"} Final: ${body.end_cod}.`,
+        metadata: {
+          operation,
+          total_bookrecords: total,
+          filled_options: filledOptions,
+          ...extraMetadata,
+        },
+        beforeData: filledOptions,
+      })
+    }
+
     // 🔹 array para guardar os registros que sofreram alteração
     const updatedBookrecords: Bookrecord[] = [];
 
@@ -1415,6 +1505,10 @@ export default class BookrecordsController {
         bookrecord.book = body.book_replace!;
         await fileRename.updateFileName(bookrecord);
       }
+
+      await logGenerateOrUpdate('substituição de número de livro', Number(updatedCount || 0), {
+        book_replace: body.book_replace,
+      })
 
       return response.status(200).send({
         message: `Bookrecords atualizados para ${body.book_replace}!`,
@@ -1522,6 +1616,11 @@ export default class BookrecordsController {
         for (const rec of ordered) {
           await fileRename.updateFileName(rec);
         }
+
+        await logGenerateOrUpdate('renumeração de códigos', ordered.length, {
+          start_from: body.sheet ?? body.start_cod,
+          last_cod: newCod - 1,
+        })
 
         return response.status(200).send({
           message: "Cod renumerado com sucesso (sem alterar outros campos).",
@@ -1904,6 +2003,10 @@ export default class BookrecordsController {
       for (const bookrecord of updatedBookrecords) {
         await fileRename.updateFileName(bookrecord);
       }
+
+      await logGenerateOrUpdate(body.is_create ? 'geração de registros' : 'alteração de registros', updatedBookrecords.length, {
+        generated_total: generatedArray.length,
+      })
 
       return response.status(200).send({
         message: "Bookrecords atualizados/criados com sucesso!",

@@ -2,13 +2,17 @@
   "name": "digi3web2",
   "version": "1.1.129",
   "private": true,
+  "engines": {
+    "node": "20.x",
+    "npm": "10.x"
+  },
   "scripts": {
-    "dev": "npm run docker:dev && node ace serve --watch",
-    "build": "node ace build --production && mkdir -p _build/tmp/uploads",
+    "dev": "./start.sh npm run docker:dev && ./start.sh node ace serve --watch",
+    "build": "./start.sh node ace build --production && mkdir -p _build/tmp/uploads",
     "start": "./start.sh",
-    "ini": "node ace serve --watch",
-    "start2": "node server.js",
-    "mcp:mysql-readonly": "node mcp/mysql-readonly.js",
+    "ini": "./start.sh node ace serve --watch",
+    "start2": "./start.sh node server.js",
+    "mcp:mysql-readonly": "./start.sh node mcp/mysql-readonly.js",
     "docker:dev": "./scripts/docker-dev-start.sh",
     "docker:restore": "./scripts/import-dump.sh",
     "release": "standard-version -a"
