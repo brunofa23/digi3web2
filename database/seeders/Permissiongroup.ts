@@ -172,11 +172,15 @@ export default class extends BaseSeeder {
         //   desc: "Financeiro - Lançamentos -> Acesso Total aos Lançamentos."
         // },
         {
-          id: 37,
-          name: "Livros.",
-          desc: "Acesso total à tela de livros, incluindo a geração/alteração de livros, captura de imagens, anexar arquivos por item, exclusão em lote e outras opções relacionadas aos livros."
+          id: 38,
+          name: "Auditoria",
+          desc: "Acesso total à tela de auditoria, incluindo a visualização de logs de auditoria, filtros e detalhes."
         },
-
+        {
+          id: 39,
+          name: "Acesso sem Token (dispositivos autorizados)",
+          desc: "Login sem necessidade de token para dispositivos autorizados."
+        }
 
       ]
     )

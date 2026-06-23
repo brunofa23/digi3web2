@@ -3,11 +3,20 @@ import { DateTime } from 'luxon'
 import AuditLog from 'App/Models/AuditLog'
 import User from 'App/Models/User'
 import Company from 'App/Models/Company'
+import { verifyPermission } from 'App/Services/util'
 
 export default class AuditLogsController {
   public async index({ auth, request, response }: HttpContextContract) {
     try {
       const authenticate = await auth.use('api').authenticate()
+      const permissions = auth.use('api').token?.meta.payload.permissions || []
+
+      if (!verifyPermission(Boolean(authenticate.superuser), permissions, 38)) {
+        return response.status(403).send({
+          message: 'Usuário sem permissão para acessar auditoria.',
+        })
+      }
+
       const {
         companies_id,
         user_id,

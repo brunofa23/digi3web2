@@ -111,6 +111,7 @@ export default class AuthenticationController {
     }
 
     const permissions = (user as any)?.$preloaded.usergroup.$preloaded.groupxpermission || []
+    const canBypassDeviceControl = verifyPermission(Boolean(user.superuser), permissions, 39)
 
     // VERIFICAR HORARIO DISPONÍVEL
     if (!verifyPermission(Boolean(user.superuser), permissions, 31)) {
@@ -130,7 +131,7 @@ export default class AuthenticationController {
     const useWebauthnControl = Boolean(user.company?.use_device_control)
     const useCookieControl = Boolean(user.company?.use_device_cookie_control)
 
-    if ((useWebauthnControl || useCookieControl) && !Boolean(user.superuser) && clientType !== 'digi3_capture_mobile') {
+    if ((useWebauthnControl || useCookieControl) && !canBypassDeviceControl && clientType !== 'digi3_capture_mobile') {
       const cookieDevice = useCookieControl
         ? await this.findDeviceByCookie(request, user.companies_id)
         : null
