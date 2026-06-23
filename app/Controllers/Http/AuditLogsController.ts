@@ -29,17 +29,26 @@ export default class AuditLogsController {
       ])
 
       const maxLimit = Math.min(Number(limit) || 200, 500)
+      const effectiveCompanyId = authenticate.superuser && companies_id
+        ? companies_id
+        : authenticate.companies_id
       const query = AuditLog.query()
         .orderBy('created_at', 'desc')
         .limit(maxLimit)
 
-      if (authenticate.superuser && companies_id) {
-        query.where('companies_id', companies_id)
-      } else {
-        query.where('companies_id', authenticate.companies_id)
+      query.where('companies_id', effectiveCompanyId)
+
+      if (user_id) {
+        const user = await User.query()
+          .where('id', user_id)
+          .andWhere('companies_id', effectiveCompanyId)
+          .first()
+
+        if (!user) return response.status(200).send([])
+
+        query.andWhere('user_id', user_id)
       }
 
-      if (user_id) query.andWhere('user_id', user_id)
       if (action) query.andWhere('action', action)
       if (entity_table) query.andWhere('entity_table', entity_table)
 

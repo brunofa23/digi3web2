@@ -13,10 +13,16 @@ export default class UsersController {
     try {
       const query = User.query()
         .preload('company')
-      if (authenticate.superuser && companies_id)
-        query.where('companies_id', companies_id)
-      if (findCompany)
-        query.where('companies_id', findCompany)
+      if (authenticate.superuser) {
+        if (findCompany)
+          query.where('companies_id', findCompany)
+        else if (companies_id)
+          query.where('companies_id', companies_id)
+        else
+          query.where('companies_id', authenticate.companies_id)
+      } else {
+        query.where('companies_id', authenticate.companies_id)
+      }
       if (findUser)
         query.where('username', 'like', `%${findUser}%`)
       const data = await query
