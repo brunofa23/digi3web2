@@ -34,6 +34,11 @@ Route.group(() => {
   Route.patch("/users/:id", "UsersController.update")//.middleware('user_permission:patch')
   Route.post("/closeaccesimage/:id", "UsersController.closeAccesImage")//.middleware('user_permission:patch')
 
+  //SUPPORT TICKETS
+  Route.get("/support-tickets", "SupportTicketsController.index")
+  Route.post("/support-tickets", "SupportTicketsController.store")
+  Route.patch("/support-tickets/:id", "SupportTicketsController.update")
+
   //USERGROUPS
   Route.resource('/usergroups', "UsergroupsController").apiOnly()
 
