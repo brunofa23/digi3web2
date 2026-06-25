@@ -1654,6 +1654,8 @@ export default class BookrecordsController {
       }
 
       const generatedArray: any[] = [];
+      const fixedSideOnlyModel = body.model_book === "FF" || body.model_book === "VV";
+      const keepExistingSheetForFixedSide = fixedSideOnlyModel && body.sheet === undefined && !body.is_create;
 
       let sequenceSheet = body.sheet ?? body.start_cod;
       const defaultSideForModel = (() => {
@@ -1678,6 +1680,11 @@ export default class BookrecordsController {
           if (as !== bs) return as - bs;
           return (a?.id ?? 0) - (b?.id ?? 0);
         });
+
+      const getAssignedModelSheet = (baseRecord: any, fallbackSheet: number | null | undefined) => {
+        if (keepExistingSheetForFixedSide) return baseRecord?.sheet;
+        return fallbackSheet;
+      }
 
       // ---- GERAÇÃO ----
       if (body.by_sheet == "S") {
@@ -1713,7 +1720,7 @@ export default class BookrecordsController {
                 });
               } else {
                 const assignedSide = sequenceSide ?? defaultSideForModel;
-                const assignedSheetOut = sequenceSheet;
+                const assignedSheetOut = getAssignedModelSheet(baseRecord, sequenceSheet);
 
                 generatedArray.push({
                   id: getGeneratedId(baseRecord),
@@ -1768,7 +1775,7 @@ export default class BookrecordsController {
                 });
               } else {
                 const assignedSide = sequenceSide ?? defaultSideForModel;
-                const assignedSheetOut = sequenceSheet;
+                const assignedSheetOut = getAssignedModelSheet(baseRecord, sequenceSheet);
 
                 generatedArray.push({
                   id: getGeneratedId(baseRecord),
@@ -1825,7 +1832,7 @@ export default class BookrecordsController {
                 });
               } else {
                 const assignedSide = sequenceSide ?? defaultSideForModel;
-                const assignedSheetOut = sequenceSheet;
+                const assignedSheetOut = getAssignedModelSheet(baseRecord, sequenceSheet);
 
                 generatedArray.push({
                   id: getGeneratedId(baseRecord),
@@ -1880,7 +1887,7 @@ export default class BookrecordsController {
                 });
               } else {
                 const assignedSide = sequenceSide ?? defaultSideForModel;
-                const assignedSheetOut = sequenceSheet;
+                const assignedSheetOut = getAssignedModelSheet(baseRecord, sequenceSheet);
 
                 generatedArray.push({
                   id: getGeneratedId(baseRecord),
@@ -1947,7 +1954,7 @@ export default class BookrecordsController {
             const updateData: Record<string, any> = {};
 
             if (shouldApplyModel) {
-              updateData.sheet = record.sheet;
+              if (!keepExistingSheetForFixedSide) updateData.sheet = record.sheet;
               updateData.side = record.side;
             }
 
