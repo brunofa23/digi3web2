@@ -1,0 +1,2844 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
+const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
+const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
+const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
+const BadRequestException_2 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
+const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
+const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
+const BookrecordValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/BookrecordValidator"));
+const luxon_1 = require("luxon");
+const googleVision_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/googleVision");
+const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
+const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Audit/AuditLogger"));
+const fileRename = require('../../Services/fileRename/fileRename');
+class BookrecordsController {
+    documentCustomFields() {
+        const fields = [];
+        for (let number = 1; number <= 13; number++) {
+            fields.push(`intfield${number}`, `stringfield${number}`, `datefield${number}`);
+        }
+        return fields;
+    }
+    normalizeText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toUpperCase();
+    }
+    normalizeDriveFileName(value) {
+        return String(value || '')
+            .normalize('NFC')
+            .trim()
+            .toLowerCase();
+    }
+    uniqueValues(values) {
+        const unique = new Map();
+        for (const value of values) {
+            const cleaned = String(value || '').replace(/\s+/g, ' ').trim();
+            const key = this.normalizeText(cleaned);
+            if (cleaned && key && !unique.has(key)) {
+                unique.set(key, cleaned);
+            }
+        }
+        return Array.from(unique.values());
+    }
+    isValidCpf(cpf) {
+        const digits = String(cpf || '').replace(/\D/g, '');
+        if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
+            return false;
+        }
+        let sum = 0;
+        for (let index = 0; index < 9; index++) {
+            sum += Number(digits[index]) * (10 - index);
+        }
+        let digit = 11 - (sum % 11);
+        const firstDigit = digit >= 10 ? 0 : digit;
+        if (firstDigit !== Number(digits[9])) {
+            return false;
+        }
+        sum = 0;
+        for (let index = 0; index < 10; index++) {
+            sum += Number(digits[index]) * (11 - index);
+        }
+        digit = 11 - (sum % 11);
+        const secondDigit = digit >= 10 ? 0 : digit;
+        return secondDigit === Number(digits[10]);
+    }
+    isValidCnpj(cnpj) {
+        const digits = String(cnpj || '').replace(/\D/g, '');
+        if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) {
+            return false;
+        }
+        const calculateDigit = (length) => {
+            const weights = length === 12
+                ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+                : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+            const sum = weights.reduce((total, weight, index) => {
+                return total + Number(digits[index]) * weight;
+            }, 0);
+            const digit = 11 - (sum % 11);
+            return digit >= 10 ? 0 : digit;
+        };
+        return calculateDigit(12) === Number(digits[12]) &&
+            calculateDigit(13) === Number(digits[13]);
+    }
+    extractCpfs(text) {
+        const matches = text.match(/\b(?:\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\b/g) || [];
+        return this.uniqueValues(matches
+            .map((document) => document.replace(/\D/g, ''))
+            .filter((document) => {
+            return this.isValidCpf(document) || this.isValidCnpj(document);
+        }));
+    }
+    extractNames(text) {
+        const names = [];
+        const lines = text
+            .split(/\r?\n/)
+            .map((line) => line.replace(/\s+/g, ' ').trim())
+            .filter(Boolean);
+        const labelPatterns = [
+            /(?:^|\b)nome(?:\s+da\s+pessoa)?\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
+            /(?:^|\b)requerente\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
+            /(?:^|\b)interessad[oa]\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
+            /(?:^|\b)propriet[aá]ri[oa]\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
+        ];
+        for (const line of lines) {
+            for (const pattern of labelPatterns) {
+                const match = line.match(pattern);
+                if (match?.[1]) {
+                    names.push(this.cleanDetectedName(match[1]));
+                }
+            }
+        }
+        if (!names.length) {
+            const ignored = /CPF|RG|CNPJ|LIVRO|FOLHA|FLS|TERMO|REGISTRO|MATRICULA|MATRÍCULA|NASCIMENTO|CASAMENTO|CERTIDAO|CERTIDÃO|CARTORIO|CARTÓRIO|DATA|ENDERECO|ENDEREÇO/i;
+            for (const line of lines) {
+                const cleanLine = this.cleanDetectedName(line);
+                const words = cleanLine.split(' ').filter(Boolean);
+                if (words.length >= 2 &&
+                    words.length <= 8 &&
+                    !/\d/.test(cleanLine) &&
+                    !ignored.test(cleanLine) &&
+                    cleanLine.length >= 8) {
+                    names.push(cleanLine);
+                    break;
+                }
+            }
+        }
+        return this.uniqueValues(names);
+    }
+    cleanDetectedName(value) {
+        return String(value || '')
+            .replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' ]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+    extractNumberByPatterns(text, patterns) {
+        for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (match?.[1]) {
+                return Number(match[1]);
+            }
+        }
+        return null;
+    }
+    extractIntegerByPatterns(text, patterns) {
+        for (const pattern of patterns) {
+            const match = text.match(pattern);
+            if (match?.[1]) {
+                const digits = String(match[1]).replace(/\D/g, '');
+                if (digits) {
+                    return Number(digits);
+                }
+            }
+        }
+        return null;
+    }
+    parseIndexImageFilename(fileName) {
+        const fileSplit = String(fileName || '').split('_');
+        const codMatch = fileSplit[1]?.match(/\((\d+)\)/);
+        const book = Number(fileSplit[3]) || null;
+        const sheet = Number(fileSplit[4]) || null;
+        const register = Number(fileSplit[5]) || Number(codMatch?.[1]) || null;
+        return { book, sheet, register };
+    }
+    extractBookSheetRegister(text, fileName) {
+        const fallback = this.parseIndexImageFilename(fileName);
+        const book = this.extractNumberByPatterns(text, [
+            /(?:livro|book)\D{0,20}(\d{1,8})/i,
+        ]) || fallback.book;
+        const sheet = this.extractNumberByPatterns(text, [
+            /(?:folha|fls?\.?|sheet)\D{0,20}(\d{1,8})/i,
+        ]) || fallback.sheet;
+        const register = this.extractNumberByPatterns(text, [
+            /(?:termo|registro|register|matr[ií]cula)\D{0,20}(\d{1,8})/i,
+        ]) || fallback.register;
+        return { book, sheet, register };
+    }
+    resolveExtractionLayout(typeLayout) {
+        if (typeLayout === undefined || typeLayout === null || typeLayout === '') {
+            return null;
+        }
+        const layout = Number(typeLayout);
+        if (layout === 1) {
+            return 'personal_indicator';
+        }
+        return null;
+    }
+    extractPersonalIndicatorFields(text, fileName) {
+        const genericFields = this.extractBookSheetRegister(text, fileName);
+        const orderNumber = this.extractIntegerByPatterns(text, [
+            /(?:n\.?\s*[º°o]?|numero|número)\s*(?:de\s*)?ordem\D{0,20}(\d{1,3}(?:[.\s]\d{3})*|\d{1,8})/i,
+            /ordem\D{0,20}(?:n\.?\s*[º°o]?|numero|número)?\D{0,20}(\d{1,3}(?:[.\s]\d{3})*|\d{1,8})/i,
+        ]);
+        return {
+            ...genericFields,
+            register: orderNumber || genericFields.register,
+        };
+    }
+    async index({ auth, request, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const { codstart, codend, bookstart, bookend, approximateterm, approximatetermend, indexbook, indexbookend, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List, name, cpf, indeximagefield } = request.qs();
+        const nameField = name || request.input('name');
+        const cpfField = cpf || request.input('cpf');
+        const indexImageField = indeximagefield || request.input('indexImageField') || request.input('indeximagefield');
+        const hasDocumentCustomFilter = this.documentCustomFields().some((field) => {
+            const value = request.input(field);
+            return value !== undefined && value !== null && value !== '';
+        });
+        const hasDocumentFilter = document == 'true' && (!!created_atstart || !!created_atend || !!prot || !!documenttype_id ||
+            !!document_type_book_id || free == 'true' || averb_anot == 'true' ||
+            !!book_name || !!book_number || !!sheet_number || !!month ||
+            !!yeardoc || !!obs_document || !!fin_entity_List || hasDocumentCustomFilter);
+        let query = " 1=1 ";
+        if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
+            (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter)
+            return null;
+        if (lastPagesOfEachBook) {
+            query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
+        }
+        const page = request.input('page', 1);
+        const limit = Env_1.default.get('PAGINATION');
+        let data;
+        let queryExecute;
+        if (noAttachment) {
+            console.log("PASSO 1");
+            queryExecute = Bookrecord_1.default.query()
+                .where('companies_id', '=', authenticate.companies_id)
+                .andWhere('typebooks_id', '=', params.typebooks_id)
+                .whereNotExists((subquery) => {
+                subquery
+                    .select('id')
+                    .from('indeximages')
+                    .whereColumn('indeximages.bookrecords_id', '=', 'bookrecords.id')
+                    .andWhere('indeximages.typebooks_id', '=', params.typebooks_id)
+                    .andWhere("companies_id", '=', authenticate.companies_id);
+            })
+                .whereRaw(query)
+                .orderBy("book", "asc")
+                .orderBy("cod", "asc")
+                .orderBy("sheet", "asc");
+        }
+        else if (codmax) {
+            data = await Database_1.default.from('bookrecords')
+                .where('companies_id', authenticate.companies_id)
+                .where('typebooks_id', params.typebooks_id)
+                .max('cod as codmax');
+            return response.status(200).send(data);
+        }
+        else {
+            queryExecute = Bookrecord_1.default.query()
+                .where("bookrecords.companies_id", authenticate.companies_id)
+                .if(params.typebooks_id > 0, query => {
+                query.andWhere("bookrecords.typebooks_id", params.typebooks_id);
+            })
+                .preload('indeximage', (queryIndex) => {
+                queryIndex.where("companies_id", '=', authenticate.companies_id)
+                    .andWhere('typebooks_id', params.typebooks_id);
+            })
+                .preload('document', query => {
+                query.preload('documenttype', query => {
+                    query.select('name');
+                })
+                    .preload('documenttypebook', query => {
+                    query.select('description');
+                })
+                    .preload('entity', query => {
+                    query.select('description');
+                });
+            });
+            if (params.typebooks_id == 0)
+                queryExecute.preload('typebooks', query => {
+                    query.where('companies_id', authenticate.companies_id);
+                    query.select('name');
+                })
+                    .whereRaw(query)
+                    .orderBy("book", "asc")
+                    .orderBy("cod", "asc")
+                    .orderBy("sheet", "asc");
+        }
+        if (codstart != undefined && codend == undefined)
+            queryExecute.where('cod', codstart);
+        else if (codstart != undefined && codend != undefined)
+            queryExecute.where('cod', '>=', codstart);
+        if (codend != undefined)
+            queryExecute.where('cod', '<=', codend);
+        if (bookstart != undefined && bookend == undefined)
+            queryExecute.where('book', bookstart);
+        else if (bookstart != undefined && bookend != undefined)
+            queryExecute.where('book', '>=', bookstart);
+        if (bookend != undefined)
+            queryExecute.where('book', '<=', bookend);
+        if (book_number && document != 'true')
+            queryExecute.where('book', book_number);
+        const includeNullSheetFromZero = sheetstart !== undefined && Number(sheetstart) === 0;
+        if (includeNullSheetFromZero) {
+            queryExecute.where((sheetQuery) => {
+                sheetQuery.whereNull('sheet');
+                if (sheetend != undefined) {
+                    sheetQuery.orWhere((rangeQuery) => {
+                        rangeQuery.where('sheet', '>=', sheetstart).andWhere('sheet', '<=', sheetend);
+                    });
+                }
+                else {
+                    sheetQuery.orWhere('sheet', sheetstart);
+                }
+            });
+        }
+        else {
+            if (sheetstart != undefined && sheetend == undefined)
+                queryExecute.where('sheet', sheetstart);
+            else if (sheetstart != undefined && sheetend != undefined)
+                queryExecute.where('sheet', '>=', sheetstart);
+            if (sheetend != undefined)
+                queryExecute.where('sheet', '<=', sheetend);
+        }
+        if (sheet_number && document != 'true')
+            queryExecute.where('sheet', sheet_number);
+        if (side != undefined)
+            queryExecute.where('side', side);
+        const hasApproxStart = approximateterm != null && String(approximateterm).trim() !== '';
+        const hasApproxEnd = approximatetermend != null && String(approximatetermend).trim() !== '';
+        if (hasApproxStart && !hasApproxEnd) {
+            queryExecute.whereRaw("CONCAT('-', approximate_term, '-') LIKE ?", [`%-${Number(approximateterm)}-%`]);
+        }
+        else if (hasApproxStart && hasApproxEnd) {
+            const start = Number(approximateterm);
+            const end = Number(approximatetermend);
+            queryExecute.where((subQuery) => {
+                for (let i = start; i <= end; i++) {
+                    subQuery.orWhereRaw("CONCAT('-', approximate_term, '-') LIKE ?", [`%-${i}-%`]);
+                }
+            });
+        }
+        const hasIndexStart = indexbook !== undefined && indexbook !== null && indexbook !== '';
+        const hasIndexEnd = indexbookend !== undefined && indexbookend !== null && indexbookend !== '';
+        if (indexbook == 0) {
+            queryExecute.andWhereNull('indexbook');
+        }
+        else {
+            if (hasIndexStart && !hasIndexEnd) {
+                queryExecute.where('indexbook', indexbook);
+            }
+            else if (hasIndexStart && hasIndexEnd) {
+                queryExecute.whereBetween('indexbook', [indexbook, indexbookend]);
+            }
+        }
+        if (obs != undefined)
+            queryExecute.where('obs', obs);
+        if (year != undefined)
+            queryExecute.where('year', year);
+        if (letter != undefined)
+            queryExecute.where('letter', letter);
+        if (document != 'true')
+            if (!includeNullSheetFromZero && (!sheetzero || (sheetzero == 'false')))
+                queryExecute.where('sheet', '>', 0);
+        if (nameField || cpfField || indexImageField) {
+            queryExecute.whereHas('indeximage', queryIndex => {
+                queryIndex.where('indeximages.companies_id', authenticate.companies_id);
+                if (params.typebooks_id > 0) {
+                    queryIndex.andWhere('indeximages.typebooks_id', params.typebooks_id);
+                }
+                if (nameField) {
+                    queryIndex.andWhere('indeximages.name', 'like', `%${nameField}%`);
+                }
+                if (cpfField) {
+                    const cpfDigits = String(cpfField).replace(/\D/g, '');
+                    queryIndex.andWhereRaw("REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?", [`%${cpfDigits || cpfField}%`]);
+                }
+                if (indexImageField) {
+                    const cpfDigits = String(indexImageField).replace(/\D/g, '');
+                    queryIndex.andWhere((subQuery) => {
+                        subQuery
+                            .where('indeximages.name', 'like', `%${indexImageField}%`)
+                            .orWhere('indeximages.index_text', 'like', `%${indexImageField}%`)
+                            .orWhereRaw("REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?", [`%${cpfDigits || indexImageField}%`]);
+                    });
+                }
+            });
+        }
+        if (document == 'true') {
+            if (params.typebooks_id == 0)
+                queryExecute.preload('typebooks', query => {
+                    query.select('name');
+                });
+            queryExecute.whereHas('document', query => {
+                if (created_atstart != undefined) {
+                    query.where('created_at', '>=', created_atstart);
+                }
+                if (created_atend != undefined) {
+                    query.where('created_at', '<=', luxon_1.DateTime.fromISO(created_atend).plus({ days: 1 }).toFormat("yyyy-MM-dd"));
+                }
+                if (prot != undefined)
+                    query.where('documents.prot', prot);
+                if (documenttype_id != undefined)
+                    query.where('documenttype_id', documenttype_id);
+                if (document_type_book_id != undefined)
+                    query.where('document_type_book_id', document_type_book_id);
+                if (free == 'true') {
+                    query.where('free', 1);
+                }
+                if (averb_anot == 'true') {
+                    query.where('averb_anot', 1);
+                }
+                if (book_name != undefined)
+                    query.where('book_name', book_name);
+                if (book_number != undefined)
+                    query.where('book_number', book_number);
+                if (sheet_number != undefined)
+                    query.where('sheet_number', sheet_number);
+                if (month != undefined)
+                    query.where('month', month);
+                if (yeardoc != undefined)
+                    query.where('yeardoc', yeardoc);
+                if (obs_document != undefined)
+                    query.where('obs', 'like', `%${obs_document}%`);
+                for (const field of this.documentCustomFields()) {
+                    const value = request.input(field);
+                    if (value === undefined || value === null || value === '') {
+                        continue;
+                    }
+                    if (field.startsWith('stringfield')) {
+                        query.where(`documents.${field}`, 'like', `%${value}%`);
+                    }
+                    else if (field.startsWith('datefield')) {
+                        query.whereRaw('DATE(??) = ?', [`documents.${field}`, value]);
+                    }
+                    else {
+                        query.where(`documents.${field}`, value);
+                    }
+                }
+                query.if(fin_entity_List, q => {
+                    const ids = String(fin_entity_List)
+                        .split(',')
+                        .map((id) => Number(id.trim()))
+                        .filter((id) => !isNaN(id));
+                    if (ids.length > 1) {
+                        q.whereIn('fin_entities_id', ids);
+                    }
+                    else if (ids.length === 1) {
+                        q.where('fin_entities_id', ids[0]);
+                    }
+                });
+            });
+        }
+        data = await queryExecute.paginate(page, limit);
+        return response.status(200).send(data);
+    }
+    async fastFind({ auth, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const { book, sheet, typebook } = request.only(['book', 'sheet', 'typebook']);
+        if (!book || !sheet)
+            return;
+        const query = Bookrecord_1.default.query()
+            .where("bookrecords.companies_id", authenticate.companies_id)
+            .preload('indeximage', (subQuery) => {
+            subQuery.select('indeximages.*');
+            subQuery.where('companies_id', authenticate.companies_id);
+        })
+            .preload('typebooks', (subQuery) => {
+            subQuery.select('typebooks.*');
+            subQuery.where('companies_id', authenticate.companies_id);
+        });
+        if (book)
+            query.where('bookrecords.book', book);
+        if (sheet)
+            query.where('bookrecords.sheet', sheet);
+        if (typebook)
+            query.where('bookrecords.typebooks_id', typebook);
+        query.orderBy('bookrecords.book', 'asc')
+            .orderBy('bookrecords.cod', 'asc')
+            .orderBy('bookrecords.sheet', 'asc');
+        const data = await query;
+        return response.status(200).send(data);
+    }
+    async fastFindDocuments({ auth, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const { prot, dateStart, dateEnd, book_number, book_name, sheet_number, obs } = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook', 'obs']);
+        const query = Bookrecord_1.default.query()
+            .select('bookrecords.*')
+            .innerJoin('documents', (join) => {
+            join.on('bookrecords.id', 'documents.bookrecords_id')
+                .andOn('bookrecords.companies_id', 'documents.companies_id');
+        })
+            .where("bookrecords.companies_id", authenticate.companies_id)
+            .leftOuterJoin('indeximages', (join) => {
+            join.on('bookrecords.id', 'indeximages.bookrecords_id')
+                .andOn('bookrecords.companies_id', 'indeximages.companies_id')
+                .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id');
+        })
+            .preload('document')
+            .preload('indeximage')
+            .preload('typebooks', (subQuery) => {
+            subQuery.select('typebooks.name');
+            subQuery.where('companies_id', authenticate.companies_id);
+        });
+        if (prot)
+            query.where('documents.prot', '=', prot);
+        if (dateStart)
+            query.where('documents.created_at', '>=', dateStart);
+        if (dateEnd)
+            query.where('documents.created_at', '<=', dateEnd);
+        if (prot)
+            query.where('documents.prot', prot);
+        if (book_number)
+            query.where('documents.book_number', book_number);
+        if (sheet_number)
+            query.where('documents.sheet_number', sheet_number);
+        if (book_name)
+            query.where('documents.book_name', book_name);
+        if (obs)
+            query.where('documents.obs', 'like', `%${obs}%`);
+        query.groupBy('bookrecords.id', 'bookrecords.typebooks_id', 'bookrecords.books_id', 'bookrecords.companies_id', 'bookrecords.cod', 'bookrecords.book', 'bookrecords.sheet', 'bookrecords.side', 'bookrecords.approximate_term', 'bookrecords.indexbook', 'bookrecords.letter', 'bookrecords.year', 'bookrecords.model');
+        query.orderBy('bookrecords.book', 'asc')
+            .orderBy('bookrecords.cod', 'asc')
+            .orderBy('bookrecords.sheet', 'asc');
+        const data = await query;
+        return response.status(200).send(data);
+    }
+    async show({ params }) {
+        const data = await Bookrecord_1.default.findOrFail(params.id);
+        return {
+            data: data,
+        };
+    }
+    async store(ctx) {
+        const { auth, request, response } = ctx;
+        const authenticate = await auth.use('api').authenticate();
+        const body = await request.validate(BookrecordValidator_1.default);
+        const { document } = request.only(['document']);
+        try {
+            body.companies_id = authenticate.companies_id;
+            body.userid = authenticate.id;
+            const bookrecord = await Bookrecord_1.default.create(body);
+            await AuditLogger_1.default.created(ctx, {
+                companiesId: authenticate.companies_id,
+                userId: authenticate.id,
+                action: 'bookrecord_create',
+                entityTable: 'bookrecords',
+                entityId: bookrecord.id,
+                resourceKey: `bookrecords:${bookrecord.typebooks_id}:${bookrecord.id}`,
+                entityKey: {
+                    typebooks_id: bookrecord.typebooks_id,
+                    bookrecords_id: bookrecord.id,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} criou o registro ${bookrecord.id}`,
+                afterData: bookrecord,
+            });
+            let createdDocument = null;
+            if (bookrecord.books_id === 13 && document) {
+                const cleanDocument = { ...document };
+                delete cleanDocument.documenttype;
+                delete cleanDocument.documenttypebook;
+                cleanDocument.bookrecords_id = bookrecord.id;
+                cleanDocument.typebooks_id = bookrecord.typebooks_id;
+                cleanDocument.books_id = bookrecord.books_id;
+                cleanDocument.companies_id = bookrecord.companies_id;
+                createdDocument = await Document_1.default.create(cleanDocument);
+                await AuditLogger_1.default.created(ctx, {
+                    companiesId: authenticate.companies_id,
+                    userId: authenticate.id,
+                    action: 'document_create',
+                    entityTable: 'documents',
+                    entityId: createdDocument.id,
+                    resourceKey: `documents:${createdDocument.typebooks_id}:${createdDocument.id}`,
+                    entityKey: {
+                        typebooks_id: createdDocument.typebooks_id,
+                        document_id: createdDocument.id,
+                        bookrecords_id: createdDocument.bookrecords_id,
+                    },
+                    description: `Usuário ${authenticate.name || authenticate.username} criou o documento ${createdDocument.id}`,
+                    afterData: createdDocument,
+                });
+            }
+            await bookrecord.load((loader) => {
+                loader
+                    .preload('document', (documentQuery) => {
+                    documentQuery
+                        .preload('documenttype')
+                        .preload('documenttypebook');
+                });
+            });
+            await fileRename.updateFileName(bookrecord);
+            return response.status(201).send({
+                success: true,
+                message: 'Registro criado com sucesso',
+                bookrecord,
+                document: createdDocument,
+            });
+        }
+        catch (error) {
+            console.error('Erro ao criar registro:', error);
+            throw new BadRequestException_1.default('Erro ao criar registro', 400, error);
+        }
+    }
+    async update(ctx) {
+        const { auth, request, params, response } = ctx;
+        const authenticate = await auth.use('api').authenticate();
+        const { document } = request.only(['document']);
+        const body = request.only(Bookrecord_1.default.fillable);
+        try {
+            const bookrecord = await Bookrecord_1.default.query()
+                .where('id', params.id)
+                .andWhere('typebooks_id', body.typebooks_id)
+                .andWhere('companies_id', authenticate.companies_id)
+                .firstOrFail();
+            const beforeBookrecord = bookrecord.serialize();
+            bookrecord.merge({
+                ...body,
+                companies_id: authenticate.companies_id,
+                userid: authenticate.id,
+            });
+            await bookrecord.save();
+            await AuditLogger_1.default.updated(ctx, {
+                companiesId: authenticate.companies_id,
+                userId: authenticate.id,
+                action: 'bookrecord_update',
+                entityTable: 'bookrecords',
+                entityId: bookrecord.id,
+                resourceKey: `bookrecords:${bookrecord.typebooks_id}:${bookrecord.id}`,
+                entityKey: {
+                    typebooks_id: bookrecord.typebooks_id,
+                    bookrecords_id: bookrecord.id,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} alterou o registro ${bookrecord.id}`,
+                beforeData: beforeBookrecord,
+                afterData: bookrecord,
+            });
+            let updatedDocument = null;
+            if (bookrecord.books_id === 13 && document && document.id) {
+                const doc = await Document_1.default.query()
+                    .where('id', document.id)
+                    .andWhere('typebooks_id', bookrecord.typebooks_id)
+                    .andWhere('companies_id', authenticate.companies_id)
+                    .first();
+                if (doc) {
+                    const beforeDocument = doc.serialize();
+                    const cleanDocument = { ...document };
+                    delete cleanDocument.documenttype;
+                    delete cleanDocument.documenttypebook;
+                    doc.merge(cleanDocument);
+                    await doc.save();
+                    updatedDocument = doc;
+                    await AuditLogger_1.default.updated(ctx, {
+                        companiesId: authenticate.companies_id,
+                        userId: authenticate.id,
+                        action: 'document_update',
+                        entityTable: 'documents',
+                        entityId: doc.id,
+                        resourceKey: `documents:${doc.typebooks_id}:${doc.id}`,
+                        entityKey: {
+                            typebooks_id: doc.typebooks_id,
+                            document_id: doc.id,
+                            bookrecords_id: doc.bookrecords_id,
+                        },
+                        description: `Usuário ${authenticate.name || authenticate.username} alterou o documento ${doc.id}`,
+                        beforeData: beforeDocument,
+                        afterData: doc,
+                    });
+                }
+            }
+            await bookrecord.load((loader) => {
+                loader
+                    .preload('document', (documentQuery) => {
+                    documentQuery
+                        .preload('documenttype')
+                        .preload('documenttypebook');
+                });
+            });
+            await fileRename.updateFileName(bookrecord);
+            return response.status(200).send({
+                success: true,
+                message: 'Registro atualizado com sucesso',
+                bookrecord,
+                document: updatedDocument,
+            });
+        }
+        catch (error) {
+            console.error('Erro ao atualizar registro:', error);
+            throw new BadRequestException_1.default('Erro ao atualizar registro', 400, error);
+        }
+    }
+    async destroy(ctx) {
+        const { auth, params, response } = ctx;
+        const authenticate = await auth.use('api').authenticate();
+        const companies_id = authenticate.companies_id;
+        try {
+            const beforeBookrecord = await Bookrecord_1.default.query()
+                .where('id', "=", params.id)
+                .andWhere('typebooks_id', '=', params.typebooks_id)
+                .andWhere('companies_id', "=", companies_id)
+                .first();
+            const imagesToDelete = await Indeximage_1.default.query()
+                .where('typebooks_id', '=', params.typebooks_id)
+                .andWhere('bookrecords_id', "=", params.id)
+                .andWhere('companies_id', "=", companies_id);
+            await Indeximage_1.default.query()
+                .where('typebooks_id', '=', params.typebooks_id)
+                .andWhere('bookrecords_id', "=", params.id)
+                .andWhere('companies_id', "=", companies_id).delete();
+            const data = await Bookrecord_1.default.query()
+                .where('id', "=", params.id)
+                .andWhere('typebooks_id', '=', params.typebooks_id)
+                .andWhere('companies_id', "=", companies_id).delete();
+            await AuditLogger_1.default.deleted(ctx, {
+                companiesId: companies_id,
+                userId: authenticate.id,
+                action: 'bookrecord_delete',
+                entityTable: 'bookrecords',
+                entityId: Number(params.id),
+                resourceKey: `bookrecords:${params.typebooks_id}:${params.id}`,
+                entityKey: {
+                    typebooks_id: Number(params.typebooks_id),
+                    bookrecords_id: Number(params.id),
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} excluiu o registro ${params.id}`,
+                beforeData: beforeBookrecord,
+                metadata: {
+                    deleted_indeximages: imagesToDelete.length,
+                },
+            });
+            return response.status(201).send({ data, message: "Excluido com sucesso!!" });
+        }
+        catch (error) {
+            return error;
+        }
+    }
+    async destroyManyBookRecords(ctx) {
+        const { auth, request, response } = ctx;
+        const authenticate = await auth.use('api').authenticate();
+        const { companies_id } = authenticate;
+        const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages']);
+        async function deleteIndexImages(query) {
+            try {
+                const deleteData = await Database_1.default
+                    .from('indeximages')
+                    .where('indeximages.typebooks_id', typebooks_id)
+                    .andWhere('indeximages.companies_id', companies_id)
+                    .whereIn('indeximages.bookrecords_id', Database_1.default.from('bookrecords')
+                    .select('id')
+                    .where('typebooks_id', typebooks_id)
+                    .andWhere('companies_id', companies_id)
+                    .whereRaw(query))
+                    .delete();
+                return deleteData;
+            }
+            catch (error) {
+                throw error;
+            }
+        }
+        async function deleteBookrecord(query) {
+            try {
+                const data = await Bookrecord_1.default
+                    .query()
+                    .where('typebooks_id', typebooks_id)
+                    .andWhere('companies_id', companies_id)
+                    .whereRaw(query)
+                    .delete();
+                return data;
+            }
+            catch (error) {
+                throw error;
+            }
+        }
+        async function deleteImagesGoogle(query) {
+            try {
+                const listOfImagesToDeleteGDrive = await Indeximage_1.default
+                    .query()
+                    .preload('typebooks', (query) => {
+                    query.where('id', typebooks_id)
+                        .andWhere('companies_id', companies_id);
+                })
+                    .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
+                    .select('id')
+                    .where('typebooks_id', '=', typebooks_id)
+                    .andWhere('companies_id', '=', companies_id)
+                    .whereRaw(query));
+                if (listOfImagesToDeleteGDrive.length > 0) {
+                    var file_name = listOfImagesToDeleteGDrive.map(function (item) {
+                        return { file_name: item.file_name, path: item.typebooks.path };
+                    });
+                    fileRename.deleteFile(file_name);
+                }
+            }
+            catch (error) {
+                throw error;
+            }
+        }
+        function normalizeDeleteCount(value) {
+            if (Array.isArray(value))
+                return Number(value[0] || 0);
+            return Number(value || 0);
+        }
+        let query = '1 = 1';
+        if (Book == undefined)
+            return null;
+        if (typebooks_id != undefined) {
+            if (Book != undefined && (Bookend > 0 && Bookend !== undefined)) {
+                query += ` and book >=${Book} and book <=${Bookend}`;
+            }
+            else if (Book != undefined) {
+                query += ` and book=${Book} `;
+            }
+            if (startCod > 0 && (endCod == undefined || endCod == 0))
+                query += ` and cod=${startCod} `;
+            else if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
+                query += ` and cod>=${startCod} and cod <=${endCod} `;
+            try {
+                let deletedIndexImages = 0;
+                let deletedBookrecords = 0;
+                if (deleteImages == 1) {
+                    deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query));
+                    deletedBookrecords = normalizeDeleteCount(await deleteBookrecord(query));
+                }
+                else if (deleteImages == 2) {
+                    deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query));
+                }
+                else if (deleteImages == 3) {
+                    deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query));
+                    deletedBookrecords = normalizeDeleteCount(await deleteBookrecord(query));
+                }
+                await AuditLogger_1.default.deleted(ctx, {
+                    companiesId: companies_id,
+                    userId: authenticate.id,
+                    action: 'bookrecord_batch_delete',
+                    entityTable: 'bookrecords',
+                    resourceKey: `bookrecords:batch-delete:${typebooks_id}:${Book || 0}:${Bookend || 0}:${startCod || 0}:${endCod || 0}`,
+                    entityKey: {
+                        typebooks_id: Number(typebooks_id),
+                        book: Number(Book || 0),
+                        bookend: Number(Bookend || 0),
+                        startCod: Number(startCod || 0),
+                        endCod: Number(endCod || 0),
+                    },
+                    description: `Usuário ${authenticate.name || authenticate.username} realizou exclusão de lotes. Livro: ${Book || 0}. Livro Final: ${Bookend || 0}. Código Inicial: ${startCod || 0}. Código Final: ${endCod || 0}.`,
+                    beforeData: {
+                        typebooks_id,
+                        Book,
+                        Bookend,
+                        startCod,
+                        endCod,
+                        deleteImages,
+                    },
+                    metadata: {
+                        deleteImages,
+                        deleted_indeximages: deletedIndexImages,
+                        deleted_bookrecords: deletedBookrecords,
+                    },
+                });
+                return response.status(201).send({
+                    data: deletedBookrecords,
+                    deleteData: deletedIndexImages,
+                    message: "Excluido com sucesso!!",
+                });
+            }
+            catch (error) {
+                throw new BadRequestException_2.default('Bad Request update', 401, 'bookrecord_error_102');
+            }
+        }
+    }
+    async createorupdatebookrecords({ auth, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const _request = request.requestBody;
+        let newRecord = [];
+        let updateRecord = [];
+        for (const iterator of _request) {
+            if (!iterator.id) {
+                newRecord.push({
+                    typebooks_id: iterator.typebooks_id,
+                    books_id: iterator.books_id,
+                    companies_id: authenticate.companies_id,
+                    cod: iterator.cod,
+                    book: iterator.book,
+                    sheet: iterator.sheet,
+                    side: iterator.side,
+                    approximate_term: iterator.approximate_term,
+                    indexbook: iterator.indexbook,
+                    obs: iterator.obs,
+                    letter: iterator.letter,
+                    year: iterator.year,
+                    model: iterator.model
+                });
+            }
+            else {
+                updateRecord.push({
+                    id: iterator.id,
+                    typebooks_id: iterator.typebooks_id,
+                    books_id: iterator.books_id,
+                    companies_id: authenticate.companies_id,
+                    cod: iterator.cod,
+                    book: iterator.book,
+                    sheet: iterator.sheet,
+                    side: iterator.side,
+                    approximate_term: iterator.approximate_term,
+                    indexbook: iterator.indexbook,
+                    obs: iterator.obs,
+                    letter: iterator.letter,
+                    year: iterator.year,
+                    model: iterator.model
+                });
+            }
+        }
+        await Bookrecord_1.default.createMany(newRecord);
+        await Bookrecord_1.default.updateOrCreateMany('id', updateRecord);
+        return response.status(201).send({ "Mensage": "Sucess!" });
+    }
+    async generateOrUpdateBookrecords({ auth, request, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        let { generateBooks_id, generateBook, generateBookdestination, generateStartCode, generateEndCode, generateStartSheetInCodReference, generateSheetStart, generateSheetIncrement, generateSideStart, generateAlternateOfSides, generateApproximate_term, generateApproximate_termIncrement, generateIndex, generateIndexIncrement, generateYear, } = request.requestData;
+        const _startCode = generateStartCode;
+        const _endCode = generateEndCode;
+        if (!generateBook || isNaN(generateBook) || generateBook <= 0) {
+            let errorValidation = await new validations_1.default('bookrecord_error_100');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
+        }
+        if (!generateStartCode || generateStartCode <= 0) {
+            let errorValidation = await new validations_1.default('bookrecord_error_101');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
+        }
+        if (!generateEndCode || generateEndCode <= 0) {
+            let errorValidation = await new validations_1.default('bookrecord_error_102');
+            throw new BadRequestException_1.default(errorValidation.message, errorValidation.status, errorValidation.code);
+        }
+        let contFirstSide = false;
+        let sideNow = 0;
+        let approximate_term = generateApproximate_term;
+        let approximate_termIncrement = 0;
+        let indexBook = generateIndex;
+        let indexIncrement = generateIndexIncrement;
+        let sheetStart = 0;
+        let sheetIncrement = 0;
+        const bookrecords = [];
+        for (let index = (generateStartCode + 1); index <= generateEndCode + 1; index++) {
+            if (generateAlternateOfSides == "F")
+                generateSideStart = "F";
+            else if (generateAlternateOfSides == "V")
+                generateSideStart = "V";
+            else if (generateAlternateOfSides == "FV") {
+                if (contFirstSide == false) {
+                    generateSideStart = (generateSideStart == "F" ? "V" : "F");
+                    contFirstSide = true;
+                }
+                generateSideStart = (generateSideStart == "F" ? "V" : "F");
+            }
+            else if (generateAlternateOfSides == "FFVV") {
+                if (sideNow >= 2) {
+                    generateSideStart = (generateSideStart == "F" ? "V" : "F");
+                    sideNow = 0;
+                }
+                sideNow++;
+            }
+            if (generateApproximate_term > 0) {
+                if (index == 0) {
+                    approximate_term = generateApproximate_term;
+                    approximate_termIncrement++;
+                    if (approximate_termIncrement >= generateApproximate_termIncrement && generateApproximate_termIncrement > 1) {
+                        approximate_termIncrement = 0;
+                    }
+                }
+                else {
+                    if (approximate_termIncrement >= generateApproximate_termIncrement) {
+                        approximate_termIncrement = 0;
+                        approximate_term++;
+                    }
+                    approximate_termIncrement++;
+                }
+            }
+            if (generateStartSheetInCodReference <= generateStartCode) {
+                if (generateSheetIncrement == 1) {
+                    sheetStart = generateSheetStart;
+                    generateStartSheetInCodReference++;
+                    generateSheetStart++;
+                }
+                else if (generateSheetIncrement == 2) {
+                    if (sheetIncrement < 2) {
+                        sheetStart = generateSheetStart;
+                        sheetIncrement++;
+                    }
+                    if (sheetIncrement == 2) {
+                        sheetIncrement = 0;
+                        generateStartSheetInCodReference++;
+                        generateSheetStart++;
+                    }
+                }
+                else if (generateSheetIncrement == 3) {
+                    if (sheetIncrement < 3) {
+                        sheetStart = generateSheetStart;
+                        sheetIncrement++;
+                    }
+                    if (sheetIncrement == 3) {
+                        sheetIncrement = 0;
+                        generateStartSheetInCodReference++;
+                        generateSheetStart++;
+                    }
+                }
+                else if (generateSheetIncrement == 4) {
+                    if (sheetIncrement < 4) {
+                        sheetStart = generateSheetStart;
+                        sheetIncrement++;
+                    }
+                    if (sheetIncrement == 4) {
+                        sheetIncrement = 0;
+                        generateStartSheetInCodReference++;
+                        generateSheetStart++;
+                    }
+                }
+            }
+            bookrecords.push({
+                cod: generateStartCode++,
+                book: generateBook,
+                sheet: ((!generateSheetStart || generateSheetStart == 0) ? undefined : sheetStart),
+                side: (!generateSideStart || (generateSideStart != "F" && generateSideStart != "V") ? undefined : generateSideStart),
+                approximate_term: ((!generateApproximate_term || generateApproximate_term == 0) ? undefined : approximate_term),
+                indexbook: (!generateIndex ? null : generateIndex),
+                year: ((!generateYear ? undefined : generateYear)),
+                typebooks_id: params.typebooks_id,
+                books_id: generateBooks_id,
+                companies_id: authenticate.companies_id,
+                userid: authenticate.id
+            });
+        }
+        try {
+            for (const record of bookrecords) {
+                const existingRecord = await Bookrecord_1.default.query()
+                    .where('cod', record.cod)
+                    .andWhere('book', record.book)
+                    .andWhere('books_id', record.books_id)
+                    .andWhere('typebooks_id', record.typebooks_id)
+                    .andWhere('companies_id', record.companies_id)
+                    .first();
+                if (existingRecord) {
+                    const book = record.book;
+                    if (generateBookdestination > 0) {
+                        record.book = generateBookdestination;
+                    }
+                    await Bookrecord_1.default.query()
+                        .where('cod', record.cod)
+                        .andWhere('book', book)
+                        .andWhere('books_id', record.books_id)
+                        .andWhere('typebooks_id', record.typebooks_id)
+                        .andWhere('companies_id', record.companies_id)
+                        .update(record);
+                    const bookrecord = await Bookrecord_1.default.query()
+                        .where('cod', record.cod)
+                        .andWhere('book', book)
+                        .andWhere('books_id', record.books_id)
+                        .andWhere('typebooks_id', record.typebooks_id)
+                        .andWhere('companies_id', record.companies_id).first();
+                    record.id = existingRecord.id;
+                    fileRename.updateFileName(bookrecord);
+                }
+                else {
+                    await Bookrecord_1.default.create(record);
+                }
+            }
+            let successValidation = await new validations_1.default('bookrecord_success_100');
+            return response.status(201).send(successValidation.code);
+        }
+        catch (error) {
+            throw new BadRequestException_1.default("Bad Request", 402, error);
+        }
+    }
+    async generateOrUpdateBookrecords2(ctx) {
+        const { auth, params, request, response } = ctx;
+        const authenticate = await auth.use('api').authenticate();
+        const rawIndexbook = request.input('indexbook');
+        const indexbookWasSent = rawIndexbook !== undefined;
+        const forceIndexbookNull = indexbookWasSent && (rawIndexbook === 0 || rawIndexbook === '0');
+        const body = await request.validate({
+            schema: Validator_1.schema.create({
+                renumerate_cod: Validator_1.schema.boolean.optional(),
+                is_create: Validator_1.schema.boolean.optional(),
+                by_sheet: Validator_1.schema.string.optional(),
+                start_cod: Validator_1.schema.number(),
+                end_cod: Validator_1.schema.number(),
+                book: Validator_1.schema.number.optional(),
+                book_replace: Validator_1.schema.number.optional(),
+                sheet: Validator_1.schema.number.optional(),
+                side: Validator_1.schema.string.optional(),
+                model_book: Validator_1.schema.string.optional(),
+                books_id: Validator_1.schema.number(),
+                indexbook: Validator_1.schema.number.optional(),
+                year: Validator_1.schema.number.optional(),
+                letter: Validator_1.schema.string.optional(),
+                approximate_term: Validator_1.schema.number.optional(),
+                obs: Validator_1.schema.string.optional(),
+            }),
+        });
+        if (body.start_cod > body.end_cod) {
+            throw new BadRequestException_1.default("erro: codigo inicial maior que o final");
+        }
+        const filledOptions = Object.fromEntries(Object.entries({
+            renumerate_cod: body.renumerate_cod,
+            is_create: body.is_create,
+            by_sheet: body.by_sheet,
+            start_cod: body.start_cod,
+            end_cod: body.end_cod,
+            book: body.book,
+            book_replace: body.book_replace,
+            sheet: body.sheet,
+            side: body.side,
+            model_book: body.model_book,
+            books_id: body.books_id,
+            indexbook: indexbookWasSent ? (forceIndexbookNull ? null : body.indexbook) : undefined,
+            year: body.year,
+            letter: body.letter,
+            approximate_term: body.approximate_term,
+            obs: body.obs,
+        }).filter(([_, value]) => value !== undefined && value !== null && value !== ""));
+        async function logGenerateOrUpdate(operation, total, extraMetadata = {}) {
+            await AuditLogger_1.default.record(ctx, {
+                companiesId: authenticate.companies_id,
+                userId: authenticate.id,
+                action: 'bookrecord_generate_update',
+                entityTable: 'bookrecords',
+                resourceKey: `bookrecords:generate-update:${params.typebooks_id}:${body.book || 0}:${body.start_cod}:${body.end_cod}`,
+                entityKey: {
+                    typebooks_id: Number(params.typebooks_id),
+                    book: Number(body.book || 0),
+                    start_cod: body.start_cod,
+                    end_cod: body.end_cod,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} realizou ${operation}. Livro: ${body.book || 0}. ${body.by_sheet == "S" ? "Folha" : "Código"} Inicial: ${body.start_cod}. ${body.by_sheet == "S" ? "Folha" : "Código"} Final: ${body.end_cod}.`,
+                metadata: {
+                    operation,
+                    total_bookrecords: total,
+                    filled_options: filledOptions,
+                    ...extraMetadata,
+                },
+                beforeData: filledOptions,
+            });
+        }
+        const updatedBookrecords = [];
+        if (body.book_replace && body.book_replace > 0) {
+            const recordsToRename = await Bookrecord_1.default.query()
+                .where("companies_id", authenticate.companies_id)
+                .andWhere("typebooks_id", params.typebooks_id)
+                .where("books_id", body.books_id)
+                .andWhere("book", body.book);
+            const updatedCount = await Bookrecord_1.default.query()
+                .where("companies_id", authenticate.companies_id)
+                .andWhere("typebooks_id", params.typebooks_id)
+                .where("books_id", body.books_id)
+                .andWhere("book", body.book)
+                .update({ book: body.book_replace, userid: authenticate.id });
+            for (const bookrecord of recordsToRename) {
+                bookrecord.book = body.book_replace;
+                await fileRename.updateFileName(bookrecord);
+            }
+            await logGenerateOrUpdate('substituição de número de livro', Number(updatedCount || 0), {
+                book_replace: body.book_replace,
+            });
+            return response.status(200).send({
+                message: `Bookrecords atualizados para ${body.book_replace}!`,
+                updatedCount,
+            });
+        }
+        const shouldApplyModel = (body.sheet !== undefined || body.side !== undefined || body.model_book !== undefined);
+        const shouldRenumerate = !!body.renumerate_cod && shouldApplyModel;
+        const zeroToNull = (v) => (v === 0 || v === "0" ? null : v);
+        const bodyIndexbook = forceIndexbookNull ? null : body.indexbook;
+        const bodyYear = zeroToNull(body.year);
+        const bodyLetter = body.letter;
+        const bodyApprox = zeroToNull(body.approximate_term);
+        const bodyObs = zeroToNull(body.obs);
+        const getGeneratedId = (baseRecord) => (body.is_create ? undefined : baseRecord?.id);
+        function modelBookNext(model_book, side, sheet) {
+            if (!model_book)
+                return { side, sheet: (sheet ?? 0) + 1 };
+            switch (model_book) {
+                case "C": return { side: null, sheet: 0 };
+                case "FF": return { side: "F", sheet: (sheet ?? 0) + 1 };
+                case "VV": return { side: "V", sheet: (sheet ?? 0) + 1 };
+                case "F": return { side: "F", sheet: (sheet ?? 0) + 1 };
+                case "V": return { side: "V", sheet: (sheet ?? 0) + 1 };
+                case "FV": return { side: side === "F" ? "V" : "F", sheet: (sheet ?? 0) + 1 };
+                case "FVFV":
+                    if (side === "F")
+                        return { side: "V", sheet };
+                    return { side: "F", sheet: (sheet ?? 0) + 1 };
+                case "F-IMPAR": return { side: "F", sheet: (sheet ?? 0) + 2 };
+                case "V-PAR": return { side: "V", sheet: (sheet ?? 0) + 2 };
+                default: return { side, sheet: (sheet ?? 0) + 1 };
+            }
+        }
+        try {
+            const query = Bookrecord_1.default.query()
+                .andWhere("companies_id", authenticate.companies_id)
+                .andWhere("typebooks_id", params.typebooks_id)
+                .where("books_id", body.books_id)
+                .andWhere("book", body.book);
+            if (body.by_sheet == "S") {
+                query.andWhere("sheet", ">=", body.start_cod).andWhere("sheet", "<=", body.end_cod);
+            }
+            else {
+                query.andWhere("cod", ">=", body.start_cod).andWhere("cod", "<=", body.end_cod);
+            }
+            const result = await query;
+            if (body.renumerate_cod) {
+                const sideRank = (s) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+                const ordered = (result ?? []).slice().sort((a, b) => {
+                    if (body.by_sheet == "S") {
+                        const as = a?.sheet ?? 0;
+                        const bs = b?.sheet ?? 0;
+                        if (as !== bs)
+                            return as - bs;
+                        const sa = sideRank(a?.side);
+                        const sb = sideRank(b?.side);
+                        if (sa !== sb)
+                            return sa - sb;
+                        return (a?.id ?? 0) - (b?.id ?? 0);
+                    }
+                    else {
+                        const ac = a?.cod ?? 0;
+                        const bc = b?.cod ?? 0;
+                        if (ac !== bc)
+                            return ac - bc;
+                        return (a?.id ?? 0) - (b?.id ?? 0);
+                    }
+                });
+                let newCod = (body.sheet ?? body.start_cod);
+                const trx = await Database_1.default.transaction();
+                try {
+                    for (const rec of ordered) {
+                        const updatePayload = { cod: newCod++, userid: authenticate.id };
+                        if (indexbookWasSent) {
+                            updatePayload.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+                        }
+                        await Bookrecord_1.default.query({ client: trx })
+                            .where("id", rec.id)
+                            .update(updatePayload);
+                    }
+                    await trx.commit();
+                }
+                catch (err) {
+                    await trx.rollback();
+                    throw err;
+                }
+                for (const rec of ordered) {
+                    await fileRename.updateFileName(rec);
+                }
+                await logGenerateOrUpdate('renumeração de códigos', ordered.length, {
+                    start_from: body.sheet ?? body.start_cod,
+                    last_cod: newCod - 1,
+                });
+                return response.status(200).send({
+                    message: "Cod renumerado com sucesso (sem alterar outros campos).",
+                    updatedCount: ordered.length,
+                    start_from: body.sheet ?? body.start_cod,
+                    last_cod: newCod - 1,
+                });
+            }
+            function overwriteIfValid(bodyValue, dbValue) {
+                return bodyValue !== undefined && bodyValue !== null && bodyValue !== "" ? bodyValue : dbValue;
+            }
+            const generatedArray = [];
+            const fixedSideOnlyModel = body.model_book === "FF" || body.model_book === "VV";
+            const keepExistingSheetForFixedSide = fixedSideOnlyModel && body.sheet === undefined && !body.is_create;
+            let sequenceSheet = body.sheet ?? body.start_cod;
+            const defaultSideForModel = (() => {
+                switch (body.model_book) {
+                    case "FF":
+                    case "F":
+                    case "F-IMPAR": return "F";
+                    case "VV":
+                    case "V":
+                    case "V-PAR": return "V";
+                    case "FV":
+                    case "FVFV": return "F";
+                    default: return body.side ?? null;
+                }
+            })();
+            let sequenceSide = body.side ?? defaultSideForModel;
+            const sortRecords = (arr) => (arr ?? []).slice().sort((a, b) => {
+                const as = a?.sheet ?? 0;
+                const bs = b?.sheet ?? 0;
+                if (as !== bs)
+                    return as - bs;
+                return (a?.id ?? 0) - (b?.id ?? 0);
+            });
+            const getAssignedModelSheet = (baseRecord, fallbackSheet) => {
+                if (keepExistingSheetForFixedSide)
+                    return baseRecord?.sheet;
+                return fallbackSheet;
+            };
+            if (body.by_sheet == "S") {
+                if (body.is_create) {
+                    for (let sheetNum = body.start_cod; sheetNum <= body.end_cod; sheetNum++) {
+                        let recordsForSheet = result.filter((r) => r.sheet === sheetNum);
+                        recordsForSheet = sortRecords(recordsForSheet);
+                        const minSlots = body.model_book === "FVFV" ? 2 : 1;
+                        const slotsToProcess = Math.max(recordsForSheet.length, minSlots);
+                        for (let slot = 0; slot < slotsToProcess; slot++) {
+                            const baseRecord = recordsForSheet[slot] ?? null;
+                            if (!shouldApplyModel) {
+                                const assignedSide = baseRecord?.side ?? null;
+                                const assignedSheetOut = baseRecord?.sheet ?? sheetNum;
+                                generatedArray.push({
+                                    id: getGeneratedId(baseRecord),
+                                    typebooks_id: params.typebooks_id,
+                                    books_id: baseRecord?.books_id ?? body.books_id,
+                                    companies_id: authenticate.companies_id,
+                                    cod: baseRecord?.cod ?? sheetNum,
+                                    book: baseRecord?.book ?? body.book,
+                                    sheet: assignedSheetOut,
+                                    side: assignedSide,
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                                });
+                            }
+                            else {
+                                const assignedSide = sequenceSide ?? defaultSideForModel;
+                                const assignedSheetOut = getAssignedModelSheet(baseRecord, sequenceSheet);
+                                generatedArray.push({
+                                    id: getGeneratedId(baseRecord),
+                                    typebooks_id: params.typebooks_id,
+                                    books_id: baseRecord?.books_id ?? body.books_id,
+                                    companies_id: authenticate.companies_id,
+                                    cod: baseRecord?.cod ?? sheetNum,
+                                    book: baseRecord?.book ?? body.book,
+                                    sheet: assignedSheetOut,
+                                    side: assignedSide,
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                                });
+                                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                                sequenceSide = next.side;
+                                sequenceSheet = next.sheet ?? sequenceSheet;
+                            }
+                        }
+                    }
+                }
+                else {
+                    const distinctSheets = Array.from(new Set(result.map((r) => r.sheet)))
+                        .filter((s) => s !== undefined && s !== null)
+                        .sort((a, b) => a - b);
+                    for (const sheetVal of distinctSheets) {
+                        let recordsForSheet = result.filter((r) => r.sheet === sheetVal);
+                        recordsForSheet = sortRecords(recordsForSheet);
+                        for (const baseRecord of recordsForSheet) {
+                            if (!shouldApplyModel) {
+                                const assignedSide = baseRecord?.side ?? null;
+                                const assignedSheetOut = baseRecord?.sheet ?? sheetVal;
+                                generatedArray.push({
+                                    id: getGeneratedId(baseRecord),
+                                    typebooks_id: params.typebooks_id,
+                                    books_id: baseRecord?.books_id ?? body.books_id,
+                                    companies_id: authenticate.companies_id,
+                                    cod: baseRecord?.cod ?? sheetVal,
+                                    book: baseRecord?.book ?? body.book,
+                                    sheet: assignedSheetOut,
+                                    side: assignedSide,
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                                });
+                            }
+                            else {
+                                const assignedSide = sequenceSide ?? defaultSideForModel;
+                                const assignedSheetOut = getAssignedModelSheet(baseRecord, sequenceSheet);
+                                generatedArray.push({
+                                    id: getGeneratedId(baseRecord),
+                                    typebooks_id: params.typebooks_id,
+                                    books_id: baseRecord?.books_id ?? body.books_id,
+                                    companies_id: authenticate.companies_id,
+                                    cod: baseRecord?.cod ?? sheetVal,
+                                    book: baseRecord?.book ?? body.book,
+                                    sheet: assignedSheetOut,
+                                    side: assignedSide,
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                                });
+                                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                                sequenceSide = next.side;
+                                sequenceSheet = next.sheet ?? sequenceSheet;
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                if (body.is_create) {
+                    for (let cod = body.start_cod; cod <= body.end_cod; cod++) {
+                        let recordsForCod = result.filter((r) => r.cod === cod);
+                        recordsForCod = sortRecords(recordsForCod);
+                        const slotsToProcess = Math.max(recordsForCod.length, 1);
+                        for (let slot = 0; slot < slotsToProcess; slot++) {
+                            const baseRecord = recordsForCod[slot] ?? null;
+                            if (!shouldApplyModel) {
+                                const assignedSide = baseRecord?.side ?? null;
+                                const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
+                                generatedArray.push({
+                                    id: getGeneratedId(baseRecord),
+                                    typebooks_id: params.typebooks_id,
+                                    books_id: baseRecord?.books_id ?? body.books_id,
+                                    companies_id: authenticate.companies_id,
+                                    cod: cod,
+                                    book: baseRecord?.book ?? body.book,
+                                    sheet: assignedSheetOut,
+                                    side: assignedSide,
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                                });
+                            }
+                            else {
+                                const assignedSide = sequenceSide ?? defaultSideForModel;
+                                const assignedSheetOut = getAssignedModelSheet(baseRecord, sequenceSheet);
+                                generatedArray.push({
+                                    id: getGeneratedId(baseRecord),
+                                    typebooks_id: params.typebooks_id,
+                                    books_id: baseRecord?.books_id ?? body.books_id,
+                                    companies_id: authenticate.companies_id,
+                                    cod: cod,
+                                    book: baseRecord?.book ?? body.book,
+                                    sheet: assignedSheetOut,
+                                    side: assignedSide,
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                                });
+                                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                                sequenceSide = next.side;
+                                sequenceSheet = next.sheet ?? sequenceSheet;
+                            }
+                        }
+                    }
+                }
+                else {
+                    const distinctCods = Array.from(new Set(result.map((r) => r.cod)))
+                        .filter((c) => c !== undefined && c !== null)
+                        .sort((a, b) => a - b);
+                    for (const codVal of distinctCods) {
+                        let recordsForCod = result.filter((r) => r.cod === codVal);
+                        recordsForCod = sortRecords(recordsForCod);
+                        for (const baseRecord of recordsForCod) {
+                            if (!shouldApplyModel) {
+                                const assignedSide = baseRecord?.side ?? null;
+                                const assignedSheetOut = baseRecord?.sheet ?? sequenceSheet;
+                                generatedArray.push({
+                                    id: getGeneratedId(baseRecord),
+                                    typebooks_id: params.typebooks_id,
+                                    books_id: baseRecord?.books_id ?? body.books_id,
+                                    companies_id: authenticate.companies_id,
+                                    cod: codVal,
+                                    book: baseRecord?.book ?? body.book,
+                                    sheet: assignedSheetOut,
+                                    side: assignedSide,
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                                });
+                            }
+                            else {
+                                const assignedSide = sequenceSide ?? defaultSideForModel;
+                                const assignedSheetOut = getAssignedModelSheet(baseRecord, sequenceSheet);
+                                generatedArray.push({
+                                    id: getGeneratedId(baseRecord),
+                                    typebooks_id: params.typebooks_id,
+                                    books_id: baseRecord?.books_id ?? body.books_id,
+                                    companies_id: authenticate.companies_id,
+                                    cod: codVal,
+                                    book: baseRecord?.book ?? body.book,
+                                    sheet: assignedSheetOut,
+                                    side: assignedSide,
+                                    approximate_term: overwriteIfValid(bodyApprox, baseRecord?.approximate_term),
+                                    indexbook: overwriteIfValid(bodyIndexbook, baseRecord?.indexbook),
+                                    year: overwriteIfValid(bodyYear, baseRecord?.year),
+                                    letter: overwriteIfValid(bodyLetter, baseRecord?.letter),
+                                    obs: overwriteIfValid(bodyObs, baseRecord?.obs),
+                                });
+                                const next = modelBookNext(body.model_book, sequenceSide, sequenceSheet);
+                                sequenceSide = next.side;
+                                sequenceSheet = next.sheet ?? sequenceSheet;
+                            }
+                        }
+                    }
+                }
+            }
+            if (shouldRenumerate) {
+                let newCod = body.sheet ?? body.start_cod;
+                const sideRank = (s) => (s === "F" ? 0 : s === "V" ? 1 : 2);
+                generatedArray.sort((a, b) => {
+                    if (a.sheet !== b.sheet)
+                        return a.sheet - b.sheet;
+                    const sa = sideRank(a.side);
+                    const sb = sideRank(b.side);
+                    if (sa !== sb)
+                        return sa - sb;
+                    return (a.id ?? 0) - (b.id ?? 0);
+                });
+                for (const rec of generatedArray) {
+                    rec.cod = newCod++;
+                }
+            }
+            if (body.approximate_term !== undefined) {
+                let newApprox = bodyApprox ?? null;
+                if (newApprox !== null) {
+                    for (const rec of generatedArray) {
+                        rec.approximate_term = newApprox++;
+                    }
+                }
+                else {
+                    for (const rec of generatedArray) {
+                        rec.approximate_term = null;
+                    }
+                }
+            }
+            const trx = await Database_1.default.transaction();
+            try {
+                for (const record of generatedArray) {
+                    if (record.id) {
+                        const updateData = {};
+                        if (shouldApplyModel) {
+                            if (!keepExistingSheetForFixedSide)
+                                updateData.sheet = record.sheet;
+                            updateData.side = record.side;
+                        }
+                        if (shouldRenumerate) {
+                            updateData.cod = record.cod;
+                        }
+                        if (body.approximate_term !== undefined)
+                            updateData.approximate_term = bodyApprox;
+                        if (indexbookWasSent) {
+                            updateData.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+                        }
+                        if (body.year !== undefined)
+                            updateData.year = bodyYear;
+                        if (body.letter !== undefined)
+                            updateData.letter = bodyLetter;
+                        if (body.obs !== undefined)
+                            updateData.obs = bodyObs;
+                        updateData.userid = authenticate.id;
+                        const finalUpdateData = Object.fromEntries(Object.entries(updateData).filter(([_, v]) => v !== undefined && v !== ""));
+                        if (Object.keys(finalUpdateData).length > 0) {
+                            await Bookrecord_1.default.query({ client: trx })
+                                .where("id", record.id)
+                                .update(finalUpdateData);
+                            const updated = await Bookrecord_1.default.query({ client: trx })
+                                .where("id", record.id)
+                                .andWhere("companies_id", authenticate.companies_id)
+                                .andWhere("typebooks_id", params.typebooks_id)
+                                .first();
+                            if (updated) {
+                                updatedBookrecords.push(updated);
+                            }
+                        }
+                    }
+                    else if (body.is_create) {
+                        const createPayload = {
+                            typebooks_id: params.typebooks_id,
+                            books_id: record.books_id,
+                            companies_id: authenticate.companies_id,
+                            cod: record.cod,
+                            book: record.book,
+                            sheet: record.sheet,
+                            side: record.side,
+                            userid: authenticate.id,
+                        };
+                        if (body.approximate_term !== undefined)
+                            createPayload.approximate_term = bodyApprox;
+                        if (indexbookWasSent) {
+                            createPayload.indexbook = forceIndexbookNull ? null : bodyIndexbook;
+                        }
+                        if (body.year !== undefined)
+                            createPayload.year = bodyYear;
+                        if (body.letter !== undefined)
+                            createPayload.letter = bodyLetter;
+                        if (body.obs !== undefined)
+                            createPayload.obs = bodyObs;
+                        const created = await Bookrecord_1.default.create(createPayload, { client: trx });
+                        updatedBookrecords.push(created);
+                    }
+                }
+                await trx.commit();
+            }
+            catch (err) {
+                await trx.rollback();
+                throw err;
+            }
+            for (const bookrecord of updatedBookrecords) {
+                await fileRename.updateFileName(bookrecord);
+            }
+            await logGenerateOrUpdate(body.is_create ? 'geração de registros' : 'alteração de registros', updatedBookrecords.length, {
+                generated_total: generatedArray.length,
+            });
+            return response.status(200).send({
+                message: "Bookrecords atualizados/criados com sucesso!",
+                data: generatedArray,
+            });
+        }
+        catch (error) {
+            console.error(error);
+            throw new BadRequestException_1.default("Bad Request", 402, error);
+        }
+    }
+    async indeximagesinitial({ auth, params, request, response }) {
+        console.log("passei aqui.........reindexação....");
+        const authenticate = await auth.use('api').authenticate();
+        const { books } = request.only(['books']);
+        console.log(">>>", books);
+        const bookNumbers = Array.isArray(books)
+            ? books
+                .map((item) => Number(item))
+                .filter((item) => Number.isInteger(item) && item > 0)
+            : [];
+        let listFiles;
+        let foldername;
+        try {
+            foldername = await Typebook_1.default
+                .query()
+                .preload('company')
+                .where("companies_id", "=", authenticate.companies_id)
+                .andWhere("id", "=", params.typebooks_id)
+                .first();
+            if (foldername) {
+                await Typebook_1.default.query()
+                    .where('companies_id', '=', authenticate.companies_id)
+                    .andWhere('id', '=', foldername?.id)
+                    .update({ dateindex: 'Indexing', totalfiles: null });
+            }
+            else {
+                throw "ERROR::SEM PASTA DE IMAGENS";
+            }
+            const query = Indeximage_1.default.query()
+                .where("companies_id", "=", authenticate.companies_id)
+                .andWhere("typebooks_id", "=", params.typebooks_id)
+                .whereNotNull('previous_file_name');
+            if (bookNumbers.length > 0) {
+                query.whereHas('bookrecord', (queryBookRecord) => {
+                    queryBookRecord.whereIn('book', bookNumbers);
+                });
+            }
+            const listFilesToModify = await query;
+            if (listFilesToModify) {
+                for (const iterator of listFilesToModify) {
+                    await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud);
+                    await Indeximage_1.default.query()
+                        .where("companies_id", "=", authenticate.companies_id)
+                        .andWhere("typebooks_id", "=", params.typebooks_id)
+                        .andWhere("bookrecords_id", iterator.bookrecords_id)
+                        .andWhere("seq", iterator.seq)
+                        .andWhere("file_name", iterator.file_name)
+                        .update({ file_name: iterator.previous_file_name, previous_file_name: null });
+                }
+            }
+            listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id, foldername.company.cloud);
+        }
+        catch (error) {
+            console.log(error);
+        }
+        for (const item of listFiles.bookRecord) {
+            try {
+                const { yeardoc, month, ...itemBook } = item;
+                const create = await Bookrecord_1.default.create(itemBook);
+                if (item.books_id == 13) {
+                    await Document_1.default.create({
+                        bookrecords_id: create.id,
+                        month: item.month,
+                        yeardoc: item.yeardoc
+                    });
+                }
+            }
+            catch (error) {
+            }
+        }
+        for (const item of listFiles.indexImages) {
+            try {
+                await Indeximage_1.default.create(item);
+            }
+            catch (error) {
+            }
+        }
+        try {
+            const typebookPayload = await Typebook_1.default.query()
+                .where('companies_id', '=', authenticate.companies_id)
+                .andWhere('id', '=', foldername.id)
+                .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length });
+            return response.status(201).send(typebookPayload);
+        }
+        catch (error) {
+            return error;
+        }
+    }
+    async bookSummary({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const typebooks_id = Number(params.typebooks_id);
+        const qs = request.qs();
+        const book = Number(qs.book || 0);
+        const bookStart = Number(qs.bookStart || 0);
+        const bookEnd = Number(qs.bookEnd || 0);
+        const countSheetNotExists = qs.countSheetNotExists;
+        const indexBook = qs.indexBook !== undefined && qs.indexBook !== null && qs.indexBook !== ''
+            ? Number(qs.indexBook)
+            : undefined;
+        const letter = qs.letter !== undefined && qs.letter !== null && String(qs.letter).trim() !== ''
+            ? String(qs.letter).trim()
+            : undefined;
+        const groupLetterCondition = (alias) => `
+    AND (
+      (${alias}.letter = bookrecords.letter)
+      OR (${alias}.letter IS NULL AND bookrecords.letter IS NULL)
+    )
+  `;
+        try {
+            const query = Database_1.default
+                .from('bookrecords')
+                .select('book', 'indexbook', 'year', 'letter')
+                .min('cod as initialCod')
+                .max('cod as finalCod')
+                .min('sheet as initialSheet')
+                .max('sheet as finalSheet')
+                .count('* as totalRows')
+                .select(Database_1.default.raw(`
+          CASE
+            -- agrupamento: book + indexbook + year + letter
+            WHEN bookrecords.year IS NOT NULL THEN
+              COALESCE(
+                (
+                  SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+                  FROM bookrecords bkr
+                  WHERE bkr.companies_id = bookrecords.companies_id
+                    AND bkr.typebooks_id = bookrecords.typebooks_id
+                    AND bkr.book = bookrecords.book
+                    AND (
+                      (bkr.indexbook = bookrecords.indexbook)
+                      OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+                    )
+                    AND (
+                      (bkr.year = bookrecords.year)
+                      OR (bkr.year IS NULL AND bookrecords.year IS NULL)
+                    )
+                    ${groupLetterCondition('bkr')}
+                    AND bkr.sheet = 1
+                    AND bkr.side = 'V'
+                  LIMIT 1
+                ),
+                (
+                  SELECT CONCAT(CAST(bkr2.sheet AS CHAR), bkr2.side)
+                  FROM bookrecords bkr2
+                  WHERE bkr2.companies_id = bookrecords.companies_id
+                    AND bkr2.typebooks_id = bookrecords.typebooks_id
+                    AND bkr2.book = bookrecords.book
+                    AND (
+                      (bkr2.indexbook = bookrecords.indexbook)
+                      OR (bkr2.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+                    )
+                    ${groupLetterCondition('bkr2')}
+                    AND bkr2.sheet = 1
+                    AND bkr2.side = 'V'
+                  LIMIT 1
+                ),
+                (
+                  SELECT CONCAT(CAST(bkr3.sheet AS CHAR), bkr3.side)
+                  FROM bookrecords bkr3
+                  WHERE bkr3.companies_id = bookrecords.companies_id
+                    AND bkr3.typebooks_id = bookrecords.typebooks_id
+                    AND bkr3.book = bookrecords.book
+                    ${groupLetterCondition('bkr3')}
+                    AND bkr3.sheet = 1
+                    AND bkr3.side = 'V'
+                  LIMIT 1
+                )
+              )
+
+            -- agrupamento: book + indexbook + letter
+            WHEN bookrecords.indexbook IS NOT NULL THEN
+              COALESCE(
+                (
+                  SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+                  FROM bookrecords bkr
+                  WHERE bkr.companies_id = bookrecords.companies_id
+                    AND bkr.typebooks_id = bookrecords.typebooks_id
+                    AND bkr.book = bookrecords.book
+                    AND (
+                      (bkr.indexbook = bookrecords.indexbook)
+                      OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+                    )
+                    ${groupLetterCondition('bkr')}
+                    AND bkr.sheet = 1
+                    AND bkr.side = 'V'
+                  LIMIT 1
+                ),
+                (
+                  SELECT CONCAT(CAST(bkr2.sheet AS CHAR), bkr2.side)
+                  FROM bookrecords bkr2
+                  WHERE bkr2.companies_id = bookrecords.companies_id
+                    AND bkr2.typebooks_id = bookrecords.typebooks_id
+                    AND bkr2.book = bookrecords.book
+                    ${groupLetterCondition('bkr2')}
+                    AND bkr2.sheet = 1
+                    AND bkr2.side = 'V'
+                  LIMIT 1
+                )
+              )
+
+            -- agrupamento: somente book + letter
+            ELSE
+              (
+                SELECT CONCAT(CAST(bkr.sheet AS CHAR), bkr.side)
+                FROM bookrecords bkr
+                WHERE bkr.companies_id = bookrecords.companies_id
+                  AND bkr.typebooks_id = bookrecords.typebooks_id
+                  AND bkr.book = bookrecords.book
+                  ${groupLetterCondition('bkr')}
+                  AND bkr.sheet = 1
+                  AND bkr.side = 'V'
+                LIMIT 1
+              )
+          END as sheetInicial
+        `))
+                .select(Database_1.default.raw(`
+          CASE
+            -- agrupamento: book + indexbook + year + letter
+            WHEN bookrecords.year IS NOT NULL THEN
+              (
+                SELECT COUNT(*)
+                FROM indeximages
+                INNER JOIN bookrecords bkr ON
+                  indeximages.bookrecords_id = bkr.id
+                  AND indeximages.companies_id = bkr.companies_id
+                  AND indeximages.typebooks_id = bkr.typebooks_id
+                WHERE bkr.companies_id = bookrecords.companies_id
+                  AND bkr.typebooks_id = bookrecords.typebooks_id
+                  AND bkr.book = bookrecords.book
+                  AND (
+                    (bkr.indexbook = bookrecords.indexbook)
+                    OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+                  )
+                  AND (
+                    (bkr.year = bookrecords.year)
+                    OR (bkr.year IS NULL AND bookrecords.year IS NULL)
+                  )
+                  ${groupLetterCondition('bkr')}
+                  AND indeximages.companies_id = ${authenticate.companies_id}
+                  AND indeximages.typebooks_id = ${typebooks_id}
+              )
+
+            -- agrupamento: book + indexbook + letter
+            WHEN bookrecords.indexbook IS NOT NULL THEN
+              (
+                SELECT COUNT(*)
+                FROM indeximages
+                INNER JOIN bookrecords bkr ON
+                  indeximages.bookrecords_id = bkr.id
+                  AND indeximages.companies_id = bkr.companies_id
+                  AND indeximages.typebooks_id = bkr.typebooks_id
+                WHERE bkr.companies_id = bookrecords.companies_id
+                  AND bkr.typebooks_id = bookrecords.typebooks_id
+                  AND bkr.book = bookrecords.book
+                  AND (
+                    (bkr.indexbook = bookrecords.indexbook)
+                    OR (bkr.indexbook IS NULL AND bookrecords.indexbook IS NULL)
+                  )
+                  ${groupLetterCondition('bkr')}
+                  AND indeximages.companies_id = ${authenticate.companies_id}
+                  AND indeximages.typebooks_id = ${typebooks_id}
+              )
+
+            -- agrupamento: somente book + letter
+            ELSE
+              (
+                SELECT COUNT(*)
+                FROM indeximages
+                INNER JOIN bookrecords bkr ON
+                  indeximages.bookrecords_id = bkr.id
+                  AND indeximages.companies_id = bkr.companies_id
+                  AND indeximages.typebooks_id = bkr.typebooks_id
+                WHERE bkr.companies_id = bookrecords.companies_id
+                  AND bkr.typebooks_id = bookrecords.typebooks_id
+                  AND bkr.book = bookrecords.book
+                  ${groupLetterCondition('bkr')}
+                  AND indeximages.companies_id = ${authenticate.companies_id}
+                  AND indeximages.typebooks_id = ${typebooks_id}
+              )
+          END as totalFiles
+        `))
+                .where('companies_id', authenticate.companies_id)
+                .andWhere('typebooks_id', typebooks_id)
+                .andWhere('sheet', '>', 0);
+            if (book > 0) {
+                query.andWhere('book', book);
+            }
+            else if (bookStart > 0 || bookEnd > 0) {
+                if (bookStart > 0)
+                    query.andWhere('book', '>=', bookStart);
+                if (bookEnd > 0)
+                    query.andWhere('book', '<=', bookEnd);
+            }
+            if (typeof indexBook === 'number' && indexBook > 0) {
+                query.andWhere('indexbook', indexBook);
+            }
+            else if (indexBook === 0) {
+                query.andWhereNull('indexbook');
+            }
+            if (letter !== undefined && letter !== '0') {
+                query.andWhere('letter', letter);
+            }
+            else if (letter === '0') {
+                query.andWhereNull('letter');
+            }
+            query.groupBy('book', 'indexbook', 'year', 'letter');
+            query.orderBy('bookrecords.book');
+            query.orderBy('bookrecords.indexbook');
+            query.orderBy('bookrecords.year');
+            query.orderBy('bookrecords.letter');
+            const bookSummaryPayload = await query;
+            async function verifySide(bookNum, indexbookGroup, yearGroup, letterGroup) {
+                const generateSequence = (start, end) => Array.from({ length: end - start + 1 }, (_, i) => start + i);
+                const findMissingItems = (completeList, currentList, keyFn) => {
+                    const currentSet = new Set(currentList.map(keyFn));
+                    return completeList.filter(item => !currentSet.has(keyFn(item)));
+                };
+                const sheetWithSideQuery = Bookrecord_1.default.query()
+                    .where('companies_id', authenticate.companies_id)
+                    .andWhere('typebooks_id', typebooks_id)
+                    .andWhere('book', bookNum);
+                if (yearGroup !== null) {
+                    if (indexbookGroup === null) {
+                        sheetWithSideQuery.andWhereNull('indexbook');
+                    }
+                    else {
+                        sheetWithSideQuery.andWhere('indexbook', indexbookGroup);
+                    }
+                    sheetWithSideQuery.andWhere('year', yearGroup);
+                }
+                else if (indexbookGroup !== null) {
+                    sheetWithSideQuery.andWhere('indexbook', indexbookGroup);
+                    sheetWithSideQuery.whereNull('year');
+                }
+                else {
+                    sheetWithSideQuery.whereNull('indexbook').whereNull('year');
+                }
+                if (letterGroup === null) {
+                    sheetWithSideQuery.andWhereNull('letter');
+                }
+                else {
+                    sheetWithSideQuery.andWhere('letter', letterGroup);
+                }
+                const sheetWithSide = await sheetWithSideQuery;
+                const sheetCount = sheetWithSide.map(item => ({
+                    sheet: Number(item.sheet),
+                    side: item.side,
+                }));
+                const maxSheet = Math.max(0, ...sheetCount.map(item => item.sheet));
+                if (!maxSheet)
+                    return '';
+                if (countSheetNotExists === 'P') {
+                    const completeSheetList = generateSequence(1, maxSheet);
+                    const currentSheetSet = new Set(sheetCount.map(item => item.sheet));
+                    const missingSheets = completeSheetList.filter(s => !currentSheetSet.has(s));
+                    return missingSheets.join(', ');
+                }
+                const sides = countSheetNotExists === 'V'
+                    ? ['V']
+                    : countSheetNotExists === 'F'
+                        ? ['F']
+                        : ['F', 'V'];
+                const completeList = generateSequence(1, maxSheet).flatMap(sheet => sides.map(side => ({ sheet, side })));
+                const missingItems = findMissingItems(completeList, sheetCount, item => `${item.sheet}-${item.side}`);
+                if (countSheetNotExists === 'I') {
+                    const oddItens = missingItems.filter(item => item.sheet % 2 !== 0 && item.side === 'F');
+                    return oddItens.map(item => `${item.sheet}${item.side}`).join(', ');
+                }
+                if (countSheetNotExists === 'PA') {
+                    const pairItens = missingItems.filter(item => item.sheet % 2 === 0 && item.side === 'V');
+                    return pairItens.map(item => `${item.sheet}${item.side}`).join(', ');
+                }
+                return missingItems.map(item => `${item.sheet}${item.side}`).join(', ');
+            }
+            if (countSheetNotExists) {
+                const bookSumaryList = [];
+                for (const item of bookSummaryPayload) {
+                    const idx = item.indexbook === null || item.indexbook === undefined
+                        ? null
+                        : Number(item.indexbook);
+                    const yearGroup = item.year === null || item.year === undefined
+                        ? null
+                        : Number(item.year);
+                    const letterGroup = item.letter === null || item.letter === undefined
+                        ? null
+                        : String(item.letter);
+                    item.side = await verifySide(Number(item.book), idx, yearGroup, letterGroup);
+                    bookSumaryList.push(item);
+                }
+                return response.status(200).send(bookSumaryList);
+            }
+            return response.status(200).send(bookSummaryPayload);
+        }
+        catch (error) {
+            return error;
+        }
+    }
+    async sheetWithSide({ auth, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const { typebooks_id, book } = params;
+        const query = `WITH RECURSIVE NumberList AS (
+        SELECT 1 AS sheet
+        UNION ALL
+        SELECT sheet + 1
+        FROM NumberList
+        WHERE sheet < (select max(sheet)from bookrecords where companies_id=${authenticate.companies_id} and typebooks_id=${typebooks_id} and book=${book})
+      ),
+      Sides AS (
+        SELECT 'V' AS side
+        UNION ALL
+        SELECT 'F' AS side
+      ),
+      PossibleCombinations AS (
+        SELECT nl.sheet, s.side
+        FROM NumberList nl
+        CROSS JOIN Sides s
+      )
+      SELECT pc.sheet, pc.side
+      FROM PossibleCombinations pc
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM bookrecords br
+        WHERE br.sheet = pc.sheet
+          AND br.side = pc.side
+          AND br.companies_id = ${authenticate.companies_id}
+        AND br.typebooks_id =  ${typebooks_id}
+        and br.book = ${book}
+      );`;
+        const result = await Database_1.default.rawQuery(query);
+        const data = result[0] || [];
+        const values = data.map(row => `${row.sheet}${row.side}`);
+        const valuesString = values.join(', ');
+        return response.status(200).send(valuesString);
+    }
+    async updatedFiles({ auth, request, response }) {
+        const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side, typebooks_id } = request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side']);
+        let query = '1=1';
+        if (companies_id == undefined || companies_id == null) {
+            throw new BadRequestException_1.default('Bad Request', 401, "Sem empresa Selecionada");
+        }
+        if (typebooks_id)
+            query += ` and bookrecords.typebooks_id=${typebooks_id}`;
+        if (bookstart != undefined && bookend == undefined)
+            query += ` and book =${bookstart} `;
+        else if (bookstart != undefined && bookend != undefined)
+            query += ` and book >=${bookstart} `;
+        if (bookend != undefined)
+            query += ` and book <= ${bookend}`;
+        if (sheetstart != undefined && sheetend == undefined)
+            query += ` and sheet =${sheetstart} `;
+        else if (sheetstart != undefined && sheetend != undefined)
+            query += ` and sheet >=${sheetstart} `;
+        if (sheetend != undefined)
+            query += ` and sheet <= ${sheetend}`;
+        if (side != undefined)
+            query += ` and side = '${side}' `;
+        try {
+            const payLoad = await Database_1.default.from('bookrecords')
+                .innerJoin('indeximages', (queryImages) => {
+                queryImages.on('indeximages.bookrecords_id', 'bookrecords.id')
+                    .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
+                    .andOn('indeximages.companies_id', 'bookrecords.companies_id');
+            })
+                .select('bookrecords.*')
+                .select('indeximages.file_name', 'indeximages.date_atualization')
+                .whereBetween('indeximages.date_atualization', [datestart, dateend])
+                .andWhere('bookrecords.companies_id', companies_id)
+                .whereRaw(query);
+            return response.status(200).send(payLoad);
+        }
+        catch (error) {
+            return error;
+        }
+    }
+    async generateOrUpdateBookrecordsDocument({ auth, request, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        let { startCod, endCod, year, month, box, prot, box_replace } = request.requestData;
+        let bookRecord = {};
+        let document = {};
+        let cod = startCod;
+        if (year == -1)
+            document.yeardoc = null;
+        else if (year)
+            document.yeardoc = year;
+        if (month == -1)
+            document.month = null;
+        else if (month)
+            document.month = month;
+        if (startCod > endCod)
+            throw new BadRequestException_1.default("erro: codigo inicial maior que o final");
+        while (startCod <= endCod) {
+            try {
+                bookRecord = {
+                    cod: startCod,
+                    typebooks_id: params.typebooks_id,
+                    books_id: 13,
+                    book: box,
+                    companies_id: authenticate.companies_id,
+                    userid: authenticate.id,
+                };
+                const verifyBookRecord = await Bookrecord_1.default.query()
+                    .where('cod', bookRecord.cod)
+                    .andWhere('companies_id', authenticate.companies_id)
+                    .andWhere('typebooks_id', bookRecord.typebooks_id)
+                    .andWhere('books_id', 13)
+                    .andWhere('book', bookRecord.book).first();
+                if (verifyBookRecord) {
+                    if (box_replace)
+                        bookRecord.book = box_replace;
+                    const bookRecordId = await Bookrecord_1.default.query()
+                        .where('id', verifyBookRecord.id)
+                        .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
+                        .andWhere('companies_id', verifyBookRecord.companies_id)
+                        .andWhere('books_id', 13)
+                        .update(bookRecord);
+                    document.bookrecords_id = verifyBookRecord.id;
+                    if (prot)
+                        document.prot = prot++;
+                    const documentUpdate = await Document_1.default.query()
+                        .where('bookrecords_id', verifyBookRecord.id)
+                        .andWhere('typebooks_id', verifyBookRecord.typebooks_id)
+                        .andWhere('companies_id', verifyBookRecord.companies_id)
+                        .andWhere('books_id', 13)
+                        .update(document);
+                }
+                else {
+                    const bookRecordId = await Bookrecord_1.default.create(bookRecord);
+                    document.bookrecords_id = bookRecordId.id;
+                    document.typebooks_id = bookRecord.typebooks_id;
+                    document.books_id = 13;
+                    document.companies_id = bookRecord.companies_id;
+                    if (prot)
+                        document.prot = prot++;
+                    await Document_1.default.create(document);
+                }
+                startCod++;
+            }
+            catch (error) {
+                throw new BadRequestException_1.default("Bad Request", 402, error);
+            }
+        }
+        let successValidation = await new validations_1.default('bookrecord_success_100');
+        return response.status(201).send(successValidation.code);
+    }
+    async maxBookRecord({ auth, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const { typebooks_id, book } = request.only(['typebooks_id', 'book']);
+        if (typebooks_id == undefined)
+            return;
+        console.log("PASSO 1");
+        const bookNumber = book !== undefined && book !== null && book !== '' ? Number(book) : null;
+        const maxBook = await Bookrecord_1.default.query()
+            .where('typebooks_id', typebooks_id)
+            .andWhere('companies_id', authenticate.companies_id)
+            .max('book as max_book')
+            .first();
+        let maxSheet;
+        let maxCod;
+        if (maxBook) {
+            const maxSheetQuery = Bookrecord_1.default.query()
+                .where('typebooks_id', typebooks_id)
+                .andWhere('companies_id', authenticate.companies_id)
+                .max('sheet as max_sheet');
+            if (bookNumber !== null && Number.isFinite(bookNumber))
+                maxSheetQuery.andWhere('book', bookNumber);
+            else
+                maxSheetQuery.andWhere('book', maxBook?.$extras.max_book);
+            maxSheet = await maxSheetQuery
+                .first();
+            maxCod = await Bookrecord_1.default.query()
+                .where('typebooks_id', typebooks_id)
+                .andWhere('companies_id', authenticate.companies_id)
+                .max('cod as max_cod')
+                .first();
+        }
+        const query = Bookrecord_1.default.query()
+            .where('books_id', 13)
+            .andWhere('companies_id', authenticate.companies_id)
+            .max('cod as max_cod');
+        const maxCodDocument = await query.first();
+        return response.status(200).send({
+            max_book: maxBook?.$extras.max_book,
+            max_sheet: maxSheet?.$extras.max_sheet,
+            max_cod_document: maxCodDocument?.$extras.max_cod,
+            max_cod: maxCod?.$extras.max_cod
+        });
+    }
+    async visionOcrIndeximages(ctx) {
+        const { auth, params, request, response } = ctx;
+        console.log("PASSO 1 - INÍCIO DA ROTA");
+        const authenticate = await auth.use('api').authenticate();
+        const typebooksId = Number(params.typebooks_id);
+        const { books, typeLayout, fileName, bookrecords_id, seq, manualExtract } = request.only([
+            'books',
+            'typeLayout',
+            'fileName',
+            'bookrecords_id',
+            'seq',
+            'manualExtract',
+        ]);
+        const extractionLayout = this.resolveExtractionLayout(typeLayout);
+        const singleFileName = String(fileName || '').trim();
+        const bookrecordsId = Number(bookrecords_id);
+        const sequence = Number(seq);
+        const bookNumbers = Array.isArray(books)
+            ? books.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+            : [];
+        if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+            return response.status(400).send({
+                message: 'typebooks_id inválido',
+            });
+        }
+        if (typeLayout !== undefined && typeLayout !== null && typeLayout !== '' && !extractionLayout) {
+            return response.status(400).send({
+                message: 'typeLayout inválido',
+            });
+        }
+        if (books !== undefined && books !== null && !Array.isArray(books)) {
+            return response.status(400).send({
+                message: 'books deve ser um array',
+            });
+        }
+        if (Array.isArray(books) && books.length > 0 && bookNumbers.length !== books.length) {
+            return response.status(400).send({
+                message: 'books contém valores inválidos',
+            });
+        }
+        if (bookrecords_id !== undefined && (!Number.isInteger(bookrecordsId) || bookrecordsId <= 0)) {
+            return response.status(400).send({
+                message: 'bookrecords_id inválido',
+            });
+        }
+        if (seq !== undefined && (!Number.isInteger(sequence) || sequence < 0)) {
+            return response.status(400).send({
+                message: 'seq inválido',
+            });
+        }
+        const typebook = await Typebook_1.default
+            .query()
+            .preload('company')
+            .where('companies_id', authenticate.companies_id)
+            .andWhere('id', typebooksId)
+            .first();
+        if (!typebook) {
+            return response.status(404).send({
+                message: 'Typebook não encontrado',
+            });
+        }
+        if (!typebook.path) {
+            return response.status(422).send({
+                message: 'Typebook sem caminho da pasta configurado',
+            });
+        }
+        if (!typebook.company || !typebook.company.cloud) {
+            return response.status(422).send({
+                message: 'Empresa sem configuração de cloud',
+            });
+        }
+        console.log("PASSO 4 - BUSCANDO ARQUIVOS NA PASTA DO GOOGLE DRIVE");
+        const folder = await (0, googledrive_1.sendSearchFile)(typebook.path, typebook.company.cloud);
+        if (!Array.isArray(folder) || !folder[0]?.id) {
+            return response.status(404).send({
+                message: 'Pasta do Google Drive não encontrada',
+                path: typebook.path,
+            });
+        }
+        const query = Indeximage_1.default
+            .query()
+            .preload('bookrecord')
+            .where('companies_id', authenticate.companies_id)
+            .andWhere('typebooks_id', typebooksId)
+            .whereHas('bookrecord', (queryBookRecord) => {
+            queryBookRecord
+                .where('companies_id', authenticate.companies_id)
+                .andWhere('typebooks_id', typebooksId);
+            if (bookNumbers.length) {
+                queryBookRecord.whereIn('book', bookNumbers);
+            }
+        });
+        if (singleFileName) {
+            query.andWhere('file_name', singleFileName);
+        }
+        else {
+            query.andWhere((queryReady) => {
+                queryReady.where('ready', false).orWhereNull('ready');
+            });
+        }
+        if (Number.isInteger(bookrecordsId) && bookrecordsId > 0) {
+            query.andWhere('bookrecords_id', bookrecordsId);
+        }
+        if (Number.isInteger(sequence) && sequence >= 0) {
+            query.andWhere('seq', sequence);
+        }
+        const indeximages = await query;
+        const effectiveBookNumbers = bookNumbers.length
+            ? bookNumbers
+            : this.uniqueValues(indeximages.map((item) => String(item.bookrecord?.book || item.book || '')))
+                .map((item) => Number(item))
+                .filter((item) => Number.isInteger(item) && item > 0);
+        const driveFiles = singleFileName
+            ? await (0, googledrive_1.sendSearchFile)(singleFileName, typebook.company.cloud, folder[0].id)
+            : await (0, googledrive_1.sendListAllFilesMetadata)(typebook.company.cloud, folder, effectiveBookNumbers);
+        const driveFilesByName = new Map();
+        for (const file of driveFiles || []) {
+            if (file?.name) {
+                driveFilesByName.set(this.normalizeDriveFileName(file.name), file);
+            }
+        }
+        const result = {
+            processed: 0,
+            skipped: 0,
+            errors: [],
+            images: [],
+        };
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.webp'];
+        for (const indeximage of indeximages) {
+            try {
+                console.log("passo 7", indeximage.file_name);
+                const alreadyExtractedText = Boolean(String(indeximage.index_text || '').trim());
+                const driveFile = driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name));
+                console.log("passo 7.1", driveFile);
+                if (!driveFile?.id) {
+                    result.skipped++;
+                    result.errors.push({
+                        file_name: indeximage.file_name,
+                        message: 'Arquivo não encontrado na pasta do Google Drive',
+                    });
+                    continue;
+                }
+                const extension = String(indeximage.ext || indeximage.file_name || '').toLowerCase();
+                const hasAllowedExtension = allowedExtensions.some((item) => extension.endsWith(item));
+                if (!hasAllowedExtension) {
+                    result.skipped++;
+                    result.errors.push({
+                        file_name: indeximage.file_name,
+                        message: 'Extensão não suportada no OCR síncrono',
+                    });
+                    continue;
+                }
+                console.log("PASSO 8");
+                const imageBuffer = await (0, googledrive_1.sendDownloadFileBuffer)(driveFile.id, typebook.company.cloud);
+                console.log("PASSO 9");
+                const indexText = await (0, googleVision_1.extractDocumentTextFromBuffer)(imageBuffer);
+                const cpfs = this.extractCpfs(indexText);
+                const names = this.extractNames(indexText);
+                const { book, sheet, register } = extractionLayout === 'personal_indicator'
+                    ? this.extractPersonalIndicatorFields(indexText, indeximage.file_name)
+                    : this.extractBookSheetRegister(indexText, indeximage.file_name);
+                console.log("PASSO 10", { book, sheet, register, cpfs, names });
+                try {
+                    console.log("PASSO 10.1 - ATUALIZANDO INDEXIMAGE");
+                    const updatedIndeximage = await Indeximage_1.default
+                        .query()
+                        .where('companies_id', indeximage.companies_id)
+                        .andWhere('typebooks_id', indeximage.typebooks_id)
+                        .andWhere('bookrecords_id', indeximage.bookrecords_id)
+                        .andWhere('seq', indeximage.seq)
+                        .update({
+                        name: names.length ? names.join(' - ') : null,
+                        cpf: cpfs.length ? cpfs.join(' - ') : null,
+                        index_text: indexText,
+                        book,
+                        sheet,
+                        register,
+                        ready: true,
+                    });
+                    result.processed++;
+                    result.images.push({
+                        file_name: indeximage.file_name,
+                        bookrecords_id: indeximage.bookrecords_id,
+                        seq: indeximage.seq,
+                        index_text: indexText,
+                        name: names.length ? names.join(' - ') : null,
+                        cpf: cpfs.length ? cpfs.join(' - ') : null,
+                        book,
+                        sheet,
+                        register,
+                        ready: true,
+                    });
+                    if (!manualExtract || !alreadyExtractedText) {
+                        await AuditLogger_1.default.record(ctx, {
+                            companiesId: authenticate.companies_id,
+                            userId: authenticate.id,
+                            action: manualExtract ? 'indeximage_extract_text_manual' : 'indeximage_extract_text',
+                            entityTable: 'indeximages',
+                            resourceKey: `indeximages:${indeximage.typebooks_id}:${indeximage.bookrecords_id}:${indeximage.seq}:${indeximage.file_name}`,
+                            entityKey: {
+                                typebooks_id: indeximage.typebooks_id,
+                                bookrecords_id: indeximage.bookrecords_id,
+                                seq: indeximage.seq,
+                                file_name: indeximage.file_name,
+                            },
+                            description: `Usuário ${authenticate.name || authenticate.username} extraiu texto da imagem ${indeximage.file_name}`,
+                            metadata: {
+                                file_name: indeximage.file_name,
+                                text_length: indexText?.length || 0,
+                                extracted_names: names.length,
+                                extracted_documents: cpfs.length,
+                                book,
+                                sheet,
+                                register,
+                                ready: true,
+                            },
+                        });
+                    }
+                }
+                catch (error) {
+                    console.error("Erro ao atualizar indeximage:", error);
+                }
+            }
+            catch (error) {
+                result.skipped++;
+                result.errors.push({
+                    file_name: indeximage.file_name,
+                    message: error.message || error,
+                });
+            }
+        }
+        return response.status(201).send({
+            message: 'OCR concluído',
+            typebooks_id: typebooksId,
+            typeLayout: typeLayout || null,
+            extractionLayout,
+            books: effectiveBookNumbers,
+            fileName: singleFileName || null,
+            total: indeximages.length,
+            ...result,
+        });
+    }
+    async imagesForItem({ auth, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const body = request.only([
+            'book',
+            'sheet',
+            'side',
+            'parity',
+            'approximate_term',
+            'indexbook',
+            'total_images',
+            'typebooks_id',
+        ]);
+        const book = Number(body.book);
+        const sheet = Number(body.sheet);
+        const approximateTerm = Number(body.approximate_term);
+        const typebooksId = Number(body.typebooks_id);
+        const side = String(body.side || '').trim().toUpperCase();
+        const hasSide = side !== '';
+        const generateFrontAndBack = side === 'FV';
+        const hasIndexbook = body.indexbook !== undefined && body.indexbook !== null && body.indexbook !== '';
+        const indexbook = hasIndexbook ? Number(body.indexbook) : null;
+        const totalImagesParts = String(body.total_images || '')
+            .split('-')
+            .map((item) => item.trim());
+        const totalImagesIncrements = totalImagesParts.map((item) => Number(item));
+        if (isNaN(book) ||
+            isNaN(sheet) ||
+            isNaN(approximateTerm) ||
+            isNaN(typebooksId) ||
+            (hasIndexbook && isNaN(Number(indexbook))) ||
+            !totalImagesIncrements.length ||
+            totalImagesParts.some((item) => item === '') ||
+            totalImagesIncrements.some((item) => isNaN(item)) ||
+            totalImagesIncrements.some((item) => item <= 0) ||
+            (hasSide && side !== 'F' && side !== 'V' && side !== 'FV')) {
+            return response.status(400).send({
+                message: 'book, sheet, side, approximate_term, indexbook, typebooks_id e total_images devem ser válidos',
+            });
+        }
+        const parity = String(body.parity || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+        const expectedSheetRemainder = parity === 'par' ? 0 : parity === 'impar' ? 1 : null;
+        const firstApproximateTerm = expectedSheetRemainder === null || Math.abs(approximateTerm % 2) === expectedSheetRemainder
+            ? approximateTerm
+            : approximateTerm + 1;
+        const approximateTermIncrement = expectedSheetRemainder === null ? 1 : 2;
+        const generateSingleSide = side === 'F' || side === 'V';
+        const oppositeSide = side === 'F' ? 'V' : 'F';
+        let currentApproximateTerm = firstApproximateTerm;
+        const buildTerms = (quantity) => {
+            const terms = [];
+            for (let i = 0; i < quantity; i++) {
+                terms.push(currentApproximateTerm);
+                currentApproximateTerm += approximateTermIncrement;
+            }
+            return terms.join('-');
+        };
+        const buildSequentialBookrecords = () => {
+            const generatedBookrecords = [];
+            let currentSheet = sheet;
+            let currentSide = generateFrontAndBack ? 'F' : side;
+            currentApproximateTerm = firstApproximateTerm;
+            totalImagesIncrements.forEach((quantity, index) => {
+                const positionSide = generateSingleSide
+                    ? index % 2 === 0 ? side : oppositeSide
+                    : currentSide;
+                if (generateSingleSide && positionSide !== side) {
+                    currentSheet++;
+                    return;
+                }
+                generatedBookrecords.push({
+                    book,
+                    sheet: currentSheet,
+                    side: hasSide ? positionSide : null,
+                    approximate_term: buildTerms(quantity),
+                    typebooks_id: typebooksId,
+                    companies_id: authenticate.companies_id,
+                });
+                if (generateFrontAndBack) {
+                    currentSheet++;
+                    currentSide = currentSide === 'F' ? 'V' : 'F';
+                }
+                else {
+                    currentSheet++;
+                }
+            });
+            return generatedBookrecords;
+        };
+        let bookrecords;
+        if (hasSide) {
+            const sideRank = (value) => value === 'F' ? 0 : value === 'V' ? 1 : 2;
+            const firstSide = generateFrontAndBack ? 'F' : side;
+            const existingRecordsQuery = Bookrecord_1.default.query()
+                .where('typebooks_id', typebooksId)
+                .andWhere('companies_id', authenticate.companies_id)
+                .andWhere('book', book)
+                .andWhere('sheet', '>=', sheet)
+                .whereIn('side', ['F', 'V'])
+                .orderBy('sheet', 'asc')
+                .orderBy('id', 'asc');
+            if (hasIndexbook) {
+                existingRecordsQuery.andWhere('indexbook', indexbook);
+            }
+            else {
+                existingRecordsQuery.whereNull('indexbook');
+            }
+            const existingRecords = await existingRecordsQuery;
+            const orderedRecords = existingRecords.slice().sort((a, b) => {
+                if (a.sheet !== b.sheet)
+                    return a.sheet - b.sheet;
+                const sideDifference = sideRank(a.side) - sideRank(b.side);
+                if (sideDifference !== 0)
+                    return sideDifference;
+                return a.id - b.id;
+            }).filter((record) => {
+                const recordSideRank = sideRank(record.side);
+                return record.sheet > sheet || (record.sheet === sheet && recordSideRank >= sideRank(firstSide));
+            });
+            if (orderedRecords.length >= totalImagesIncrements.length) {
+                currentApproximateTerm = firstApproximateTerm;
+                bookrecords = orderedRecords.slice(0, totalImagesIncrements.length).reduce((records, record, index) => {
+                    const positionSide = String(record.side || '').trim().toUpperCase();
+                    if (generateSingleSide && positionSide !== side) {
+                        return records;
+                    }
+                    records.push({
+                        book,
+                        sheet: record.sheet,
+                        side: positionSide,
+                        approximate_term: buildTerms(totalImagesIncrements[index]),
+                        typebooks_id: typebooksId,
+                        companies_id: authenticate.companies_id,
+                    });
+                    return records;
+                }, []);
+            }
+            else {
+                bookrecords = buildSequentialBookrecords();
+            }
+        }
+        else {
+            bookrecords = buildSequentialBookrecords();
+        }
+        const trx = await Database_1.default.transaction();
+        try {
+            const updatedBookrecords = [];
+            for (const item of bookrecords) {
+                const query = Bookrecord_1.default.query({ client: trx })
+                    .where('typebooks_id', item.typebooks_id)
+                    .andWhere('companies_id', item.companies_id)
+                    .andWhere('book', item.book)
+                    .andWhere('sheet', item.sheet);
+                if (hasSide) {
+                    query.andWhere('side', item.side);
+                }
+                else {
+                    query.whereNull('side');
+                }
+                if (hasIndexbook) {
+                    query.andWhere('indexbook', indexbook);
+                }
+                else {
+                    query.whereNull('indexbook');
+                }
+                const bookrecord = await query.first();
+                if (!bookrecord)
+                    continue;
+                bookrecord.approximate_term = item.approximate_term;
+                await bookrecord.save();
+                updatedBookrecords.push(bookrecord);
+            }
+            await trx.commit();
+            return response.status(200).send({
+                message: 'Bookrecords atualizados com sucesso',
+                total: updatedBookrecords.length,
+                ignored: bookrecords.length - updatedBookrecords.length,
+                data: updatedBookrecords,
+            });
+        }
+        catch (error) {
+            await trx.rollback();
+            return response.status(500).send({
+                message: 'Erro ao atualizar Bookrecords',
+                error: error.message,
+            });
+        }
+    }
+    async fullReprocessing({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const typebooksId = Number(params.typebooks_id);
+        const { books } = request.only(['books']);
+        const bookNumbers = Array.isArray(books)
+            ? books.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+            : [];
+        if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+            return response.status(400).send({
+                message: 'typebooks_id inválido',
+            });
+        }
+        if (books !== undefined && books !== null && !Array.isArray(books)) {
+            return response.status(400).send({
+                message: 'books deve ser um array',
+            });
+        }
+        if (Array.isArray(books) && books.length > 0 && bookNumbers.length !== books.length) {
+            return response.status(400).send({
+                message: 'books contém valores inválidos',
+            });
+        }
+        let foldername = null;
+        let listFiles = null;
+        try {
+            foldername = await Typebook_1.default
+                .query()
+                .preload('company')
+                .where('companies_id', authenticate.companies_id)
+                .andWhere('id', typebooksId)
+                .first();
+            if (!foldername) {
+                return response.status(404).send({
+                    message: 'Typebook não encontrado',
+                });
+            }
+            if (!foldername.path) {
+                return response.status(422).send({
+                    message: 'Typebook sem caminho da pasta configurado',
+                });
+            }
+            if (!foldername.company || !foldername.company.cloud) {
+                return response.status(422).send({
+                    message: 'Empresa sem configuração de cloud',
+                });
+            }
+            await Typebook_1.default
+                .query()
+                .where('companies_id', authenticate.companies_id)
+                .andWhere('id', foldername.id)
+                .update({
+                dateindex: 'Indexing',
+                totalfiles: null,
+            });
+            const query = Indeximage_1.default
+                .query()
+                .preload('bookrecord', (query) => {
+                query.where('companies_id', authenticate.companies_id);
+                query.andWhere('typebooks_id', typebooksId);
+            })
+                .where('companies_id', authenticate.companies_id)
+                .andWhere('typebooks_id', typebooksId);
+            if (bookNumbers.length) {
+                query.whereHas('bookrecord', (queryBookRecord) => {
+                    queryBookRecord.whereIn('book', bookNumbers);
+                });
+            }
+            const indeximages = await query;
+            for (const item of indeximages) {
+                if (!item.bookrecord?.$original)
+                    continue;
+                const bookrecordInstance = new Bookrecord_1.default();
+                bookrecordInstance.fill(item.bookrecord.$original);
+                await fileRename.updateFileName(bookrecordInstance);
+            }
+            const querylistFilesToModify = Indeximage_1.default
+                .query()
+                .where('companies_id', authenticate.companies_id)
+                .andWhere('typebooks_id', typebooksId)
+                .whereNotNull('previous_file_name');
+            if (bookNumbers.length) {
+                querylistFilesToModify.whereHas('bookrecord', (queryBookRecord) => {
+                    queryBookRecord.whereIn('book', bookNumbers);
+                });
+            }
+            const listFilesToModify = await querylistFilesToModify;
+            const listFilesImages = [];
+            for (const iterator of listFilesToModify) {
+                if (!iterator.file_name || !iterator.previous_file_name)
+                    continue;
+                await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud);
+                listFilesImages.push(iterator.file_name);
+                const resultIndeximage = await Indeximage_1.default
+                    .query()
+                    .where('companies_id', authenticate.companies_id)
+                    .andWhere('typebooks_id', typebooksId)
+                    .andWhere('bookrecords_id', iterator.bookrecords_id)
+                    .andWhere('seq', iterator.seq)
+                    .andWhere('file_name', iterator.file_name)
+                    .update({
+                    file_name: iterator.previous_file_name,
+                    previous_file_name: null,
+                });
+            }
+            listFiles = await fileRename.indeximagesinitial(foldername, authenticate.companies_id, foldername.company.cloud, [], bookNumbers);
+            if (!listFiles || !Array.isArray(listFiles.bookRecord) || !Array.isArray(listFiles.indexImages)) {
+                throw new Error('Falha ao gerar lista de reindexação');
+            }
+            const trx = await Database_1.default.transaction();
+            console.log("@@passo 7");
+            try {
+                for (const item of listFiles.bookRecord) {
+                    const existingBookrecord = await Bookrecord_1.default
+                        .query({ client: trx })
+                        .where('id', item.id)
+                        .andWhere('typebooks_id', item.typebooks_id)
+                        .andWhere('books_id', item.books_id)
+                        .andWhere('companies_id', item.companies_id)
+                        .first();
+                    let createdBookrecord = existingBookrecord;
+                    if (!existingBookrecord) {
+                        const { yeardoc, month, ...itemBook } = item;
+                        createdBookrecord = await Bookrecord_1.default.create(itemBook, { client: trx });
+                    }
+                    if (item.books_id === 13 && createdBookrecord) {
+                        const existingDocument = await Document_1.default
+                            .query({ client: trx })
+                            .where('bookrecords_id', createdBookrecord.id)
+                            .first();
+                        if (!existingDocument) {
+                            await Document_1.default.create({
+                                bookrecords_id: createdBookrecord.id,
+                                month: item.month,
+                                yeardoc: item.yeardoc,
+                            }, { client: trx });
+                        }
+                    }
+                }
+                console.log("@@passo 8");
+                for (const item of listFiles.indexImages) {
+                    try {
+                        await Indeximage_1.default.create(item, { client: trx });
+                    }
+                    catch (error) {
+                        if (error.code !== 'ER_DUP_ENTRY') {
+                            throw error;
+                        }
+                    }
+                }
+                console.log("@@passo 9");
+                await Typebook_1.default
+                    .query({ client: trx })
+                    .where('companies_id', authenticate.companies_id)
+                    .andWhere('id', foldername.id)
+                    .update({
+                    dateindex: new Date(),
+                    totalfiles: listFiles.indexImages.length,
+                });
+                await trx.commit();
+                console.log("@@passo 10");
+            }
+            catch (error) {
+                await trx.rollback();
+                throw error;
+            }
+            return response.status(201).send({
+                message: 'Reprocessamento concluído com sucesso',
+                totalfiles: listFiles.indexImages.length,
+                typebooks_id: foldername.id,
+            });
+        }
+        catch (error) {
+            console.error('Erro em fullReprocessing:', error);
+            console.log("@@passo 11");
+            if (foldername?.id) {
+                try {
+                    await Typebook_1.default
+                        .query()
+                        .where('companies_id', authenticate.companies_id)
+                        .andWhere('id', foldername.id)
+                        .update({
+                        dateindex: null,
+                    });
+                }
+                catch (updateError) {
+                    console.error('Erro ao restaurar status do typebook:', updateError);
+                }
+            }
+            if (error.code === 'ER_DUP_ENTRY') {
+                return response.status(409).send({
+                    message: 'Registro duplicado encontrado durante o reprocessamento',
+                    error: error.sqlMessage || error.message || error,
+                });
+            }
+            console.log("@@passo 12");
+            return response.status(500).send({
+                message: 'Erro ao executar reprocessamento completo',
+                error: error.message || error,
+            });
+        }
+    }
+}
+exports.default = BookrecordsController;
+//# sourceMappingURL=BookrecordsController.js.map
