@@ -3248,12 +3248,13 @@ export default class BookrecordsController {
     console.log("PASSO 1 - INÍCIO DA ROTA")
     const authenticate = await auth.use('api').authenticate()
     const typebooksId = Number(params.typebooks_id)
-    const { books, typeLayout, fileName, bookrecords_id, seq } = request.only([
+    const { books, typeLayout, fileName, bookrecords_id, seq, manualExtract } = request.only([
       'books',
       'typeLayout',
       'fileName',
       'bookrecords_id',
       'seq',
+      'manualExtract',
     ])
     const extractionLayout = this.resolveExtractionLayout(typeLayout)
     const singleFileName = String(fileName || '').trim()
@@ -3400,6 +3401,7 @@ export default class BookrecordsController {
     for (const indeximage of indeximages) {
       try {
         console.log("passo 7", indeximage.file_name)
+        const alreadyExtractedText = Boolean(String(indeximage.index_text || '').trim())
 
         const driveFile = driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name))
 
@@ -3473,30 +3475,32 @@ export default class BookrecordsController {
             ready: true,
           })
 
-          await AuditLogger.record(ctx, {
-            companiesId: authenticate.companies_id,
-            userId: authenticate.id,
-            action: 'indeximage_extract_text',
-            entityTable: 'indeximages',
-            resourceKey: `indeximages:${indeximage.typebooks_id}:${indeximage.bookrecords_id}:${indeximage.seq}:${indeximage.file_name}`,
-            entityKey: {
-              typebooks_id: indeximage.typebooks_id,
-              bookrecords_id: indeximage.bookrecords_id,
-              seq: indeximage.seq,
-              file_name: indeximage.file_name,
-            },
-            description: `Usuário ${authenticate.name || authenticate.username} extraiu texto da imagem ${indeximage.file_name}`,
-            metadata: {
-              file_name: indeximage.file_name,
-              text_length: indexText?.length || 0,
-              extracted_names: names.length,
-              extracted_documents: cpfs.length,
-              book,
-              sheet,
-              register,
-              ready: true,
-            },
-          })
+          if (!manualExtract || !alreadyExtractedText) {
+            await AuditLogger.record(ctx, {
+              companiesId: authenticate.companies_id,
+              userId: authenticate.id,
+              action: manualExtract ? 'indeximage_extract_text_manual' : 'indeximage_extract_text',
+              entityTable: 'indeximages',
+              resourceKey: `indeximages:${indeximage.typebooks_id}:${indeximage.bookrecords_id}:${indeximage.seq}:${indeximage.file_name}`,
+              entityKey: {
+                typebooks_id: indeximage.typebooks_id,
+                bookrecords_id: indeximage.bookrecords_id,
+                seq: indeximage.seq,
+                file_name: indeximage.file_name,
+              },
+              description: `Usuário ${authenticate.name || authenticate.username} extraiu texto da imagem ${indeximage.file_name}`,
+              metadata: {
+                file_name: indeximage.file_name,
+                text_length: indexText?.length || 0,
+                extracted_names: names.length,
+                extracted_documents: cpfs.length,
+                book,
+                sheet,
+                register,
+                ready: true,
+              },
+            })
+          }
         } catch (error) {
           console.error("Erro ao atualizar indeximage:", error)
         }
