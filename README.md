@@ -239,3 +239,10 @@ docker run -d \
   -e MYSQL_DATABASE='digi3Web' \
   -v mysql8-digi3-data:/var/lib/mysql \
   mysql:8.0
+
+
+## RODAR GIT TUDO DE UMA VEZ
+git checkout main
+git pull
+git merge development
+git push origin main
