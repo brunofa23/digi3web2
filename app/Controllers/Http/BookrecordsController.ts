@@ -412,13 +412,29 @@ export default class BookrecordsController {
 
 
     //SHEET **********************************************
-    if (sheetstart != undefined && sheetend == undefined)
-      queryExecute.where('sheet', sheetstart)
-    else
-      if (sheetstart != undefined && sheetend != undefined)
-        queryExecute.where('sheet', '>=', sheetstart)
-    if (sheetend != undefined)
-      queryExecute.where('sheet', '<=', sheetend)
+    const includeNullSheetFromZero = sheetstart !== undefined && Number(sheetstart) === 0
+
+    if (includeNullSheetFromZero) {
+      queryExecute.where((sheetQuery) => {
+        sheetQuery.whereNull('sheet')
+
+        if (sheetend != undefined) {
+          sheetQuery.orWhere((rangeQuery) => {
+            rangeQuery.where('sheet', '>=', sheetstart).andWhere('sheet', '<=', sheetend)
+          })
+        } else {
+          sheetQuery.orWhere('sheet', sheetstart)
+        }
+      })
+    } else {
+      if (sheetstart != undefined && sheetend == undefined)
+        queryExecute.where('sheet', sheetstart)
+      else
+        if (sheetstart != undefined && sheetend != undefined)
+          queryExecute.where('sheet', '>=', sheetstart)
+      if (sheetend != undefined)
+        queryExecute.where('sheet', '<=', sheetend)
+    }
 
     //SHEET FOR DOCUMENTS IN BOOKS
     if (sheet_number && document != 'true')
@@ -482,7 +498,7 @@ export default class BookrecordsController {
       queryExecute.where('letter', letter)
     //sheetzero*****************************************
     if (document != 'true')
-      if (!sheetzero || (sheetzero == 'false'))
+      if (!includeNullSheetFromZero && (!sheetzero || (sheetzero == 'false')))
         queryExecute.where('sheet', '>', 0)
 
     if (nameField || cpfField || indexImageField) {
