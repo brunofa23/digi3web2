@@ -1540,6 +1540,8 @@ export default class BookrecordsController {
 
       switch (model_book) {
         case "C": return { side: null, sheet: 0 };
+        case "FF": return { side: "F", sheet: (sheet ?? 0) + 1 };
+        case "VV": return { side: "V", sheet: (sheet ?? 0) + 1 };
         case "F": return { side: "F", sheet: (sheet ?? 0) + 1 };
         case "V": return { side: "V", sheet: (sheet ?? 0) + 1 };
         case "FV": return { side: side === "F" ? "V" : "F", sheet: (sheet ?? 0) + 1 };
@@ -1640,8 +1642,10 @@ export default class BookrecordsController {
       let sequenceSheet = body.sheet ?? body.start_cod;
       const defaultSideForModel = (() => {
         switch (body.model_book) {
+          case "FF":
           case "F":
           case "F-IMPAR": return "F";
+          case "VV":
           case "V":
           case "V-PAR": return "V";
           case "FV":
