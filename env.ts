@@ -27,5 +27,9 @@ export default Env.rules({
   DEVICE_COOKIE_SECURE: Env.schema.boolean.optional(),
   DRIVE_DISK: Env.schema.enum(['local'] as const),
   GOOGLE_APPLICATION_CREDENTIALS: Env.schema.string.optional(),
+  SMTP_HOST: Env.schema.string.optional(),
+  SMTP_PORT: Env.schema.number.optional(),
+  SMTP_USERNAME: Env.schema.string.optional(),
+  SMTP_PASSWORD: Env.schema.string.optional(),
 	NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
 })

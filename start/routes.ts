@@ -162,6 +162,8 @@ Route.group(() => {
   Route.resource("/finpaymentmethods", 'FinPaymentMethodsController').apiOnly()
 
   //ENTITIES
+  Route.get("/finentities/document-emails/history", 'FinEntitiesController.documentEmailHistory')
+  Route.post("/finentities/document-emails/send", 'FinEntitiesController.sendDocumentEmails')
   Route.resource("/finentities", 'FinEntitiesController').apiOnly()
 
   // STATUS

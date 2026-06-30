@@ -11,6 +11,8 @@ public static table = 'fin_entities'  // Define a tabela correta
       'companies_id',
       'fin_class_id',
       'description',
+      'cpf_cnpj',
+      'email',
       'responsible',
       'phone',
       'limit_amount',
@@ -34,6 +36,10 @@ public static table = 'fin_entities'  // Define a tabela correta
   public finclass: BelongsTo<typeof FinClass>
   @column()
   public description: string
+  @column()
+  public cpf_cnpj: string
+  @column()
+  public email: string
   @column()
   public responsible: string
   @column()
