@@ -21,7 +21,11 @@ export default class CompanyValidator {
     status: schema.boolean(),
     cloud:schema.number(),
     use_device_control: schema.boolean.optional(),
-    use_device_cookie_control: schema.boolean.optional()
+    use_device_cookie_control: schema.boolean.optional(),
+    module_books: schema.boolean.optional(),
+    module_financial: schema.boolean.optional(),
+    module_lgpd: schema.boolean.optional(),
+    obs: schema.string.nullableAndOptional({}, [rules.maxLength(255)])
   })
 
 

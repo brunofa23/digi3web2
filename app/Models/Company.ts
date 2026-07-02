@@ -29,6 +29,10 @@ export default class Company extends BaseModel {
       'cloud',
       'use_device_control',
       'use_device_cookie_control',
+      'module_books',
+      'module_financial',
+      'module_lgpd',
+      'obs',
       'created_at',
       'updated_at'
     ]
@@ -104,6 +108,18 @@ export default class Company extends BaseModel {
   @column()
   public use_device_cookie_control: boolean
 
+  @column()
+  public module_books: boolean
+
+  @column()
+  public module_financial: boolean
+
+  @column()
+  public module_lgpd: boolean
+
+  @column()
+  public obs: string
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
@@ -118,4 +134,3 @@ export default class Company extends BaseModel {
   }
 
 }
-
