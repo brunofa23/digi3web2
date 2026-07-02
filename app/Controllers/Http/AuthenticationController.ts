@@ -84,6 +84,7 @@ export default class AuthenticationController {
           'foldername',
           'cloud',
           'responsablename',
+          'status',
           'use_device_control',
           'use_device_cookie_control'
         )
@@ -101,6 +102,11 @@ export default class AuthenticationController {
 
     if (!user) {
       const errorValidation: any = await new validations('user_error_205')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
+
+    if (!user.company?.status) {
+      const errorValidation: any = await new validations('user_error_204')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
@@ -293,7 +299,7 @@ export default class AuthenticationController {
 
       const challengeUser = await User.query()
         .preload('company', query => {
-          query.select('id', 'use_device_cookie_control')
+          query.select('id', 'status', 'use_device_cookie_control')
         })
         .where('id', challenge.userId)
         .first()
@@ -301,6 +307,15 @@ export default class AuthenticationController {
       if (!challengeUser) {
         return response.status(404).send({
           message: 'Usuário não encontrado',
+        })
+      }
+
+      if (!challengeUser.company?.status) {
+        const errorValidation: any = await new validations('user_error_204')
+        return response.status(errorValidation.status).send({
+          message: errorValidation.messages,
+          code: errorValidation.code,
+          status: errorValidation.status,
         })
       }
 
@@ -344,6 +359,7 @@ export default class AuthenticationController {
             'foldername',
             'cloud',
             'responsablename',
+            'status',
             'use_device_control',
             'use_device_cookie_control'
           )
@@ -359,6 +375,15 @@ export default class AuthenticationController {
       if (!user) {
         return response.status(404).send({
           message: 'Usuário não encontrado',
+        })
+      }
+
+      if (!user.company?.status) {
+        const errorValidation: any = await new validations('user_error_204')
+        return response.status(errorValidation.status).send({
+          message: errorValidation.messages,
+          code: errorValidation.code,
+          status: errorValidation.status,
         })
       }
 
