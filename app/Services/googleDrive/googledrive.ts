@@ -1,6 +1,7 @@
 import Application from '@ioc:Adonis/Core/Application'
 import Token from 'App/Models/Token';
 import { types } from '@ioc:Adonis/Core/Helpers'
+import sharp from 'sharp'
 
 const fsPromises = require('fs').promises;
 const fs = require('fs')
@@ -539,18 +540,24 @@ async function downloadFile(authClient, fileId, extension) {
 
     );
 
-    var imageType
-    if (extension.toLowerCase() == ".jpeg" || extension.toLowerCase() == ".jpg"
-      || extension.toLowerCase() == ".gif" || extension.toLowerCase() == ".bmp"
-      || extension.toLowerCase() == ".png" || extension.toLowerCase() == ".jfif"
-    )
-      imageType = file.headers['content-type'];
-    else if (extension == ".pdf")
-      imageType = "application/pdf"
+    const normalizedExtension = String(extension || '').toLowerCase()
+    let fileBuffer = Buffer.from(file.data)
+    let imageType
 
-    const base64 = Buffer.from(file.data, "utf8").toString("base64")
+    if (normalizedExtension === ".tif" || normalizedExtension === ".tiff") {
+      fileBuffer = await sharp(fileBuffer).png().toBuffer()
+      imageType = "image/png"
+    } else if ([".jpeg", ".jpg", ".gif", ".bmp", ".png", ".jfif", ".webp"].includes(normalizedExtension)) {
+      imageType = file.headers['content-type'];
+    } else if (normalizedExtension == ".pdf") {
+      imageType = "application/pdf"
+    } else {
+      imageType = file.headers['content-type'] || 'application/octet-stream'
+    }
+
+    const base64 = fileBuffer.toString("base64")
     var dataURI = 'data:' + imageType + ';base64,' + base64;
-    const fileDownload = { dataURI, size: file.data.byteLength }
+    const fileDownload = { dataURI, size: fileBuffer.length }
     return fileDownload
   } catch (err) {
     // TODO(developer) - Handle error
