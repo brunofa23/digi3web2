@@ -252,7 +252,7 @@ export default class IndeximagesController {
     // Arquivos sempre vêm por multipart
     let images: any[] = request.files('images', {
       size: '100mb',
-      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF'],
+      extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF', 'tiff', 'TIFF', 'bmp', 'BMP'],
     })
     
     /**
