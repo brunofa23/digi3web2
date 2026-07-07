@@ -25,7 +25,12 @@ export default class CompanyValidator {
     module_books: schema.boolean.optional(),
     module_financial: schema.boolean.optional(),
     module_lgpd: schema.boolean.optional(),
-    obs: schema.string.nullableAndOptional({}, [rules.maxLength(255)])
+    obs: schema.string.nullableAndOptional({}, [rules.maxLength(255)]),
+    situation_ids: schema.array.optional().members(
+      schema.number([
+        rules.exists({ table: 'situation', column: 'id' }),
+      ])
+    )
   })
 
 

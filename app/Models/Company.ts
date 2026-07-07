@@ -1,9 +1,8 @@
 import { DateTime } from 'luxon'
-import { afterSave, BaseModel, column, HasMany, hasMany, belongsTo, BelongsTo } from '@ioc:Adonis/Lucid/Orm'
+import { afterCreate, BaseModel, column, HasMany, hasMany, manyToMany, ManyToMany } from '@ioc:Adonis/Lucid/Orm'
 import Typebook from './Typebook'
 import User from './User'
-import Bookrecord from './Bookrecord'
-import Indeximage from './Indeximage'
+import Situation from './Situation'
 
 
 export default class Company extends BaseModel {
@@ -50,6 +49,14 @@ export default class Company extends BaseModel {
   })
   public user: HasMany<typeof User>
 
+  @manyToMany(() => Situation, {
+    localKey: 'id',
+    relatedKey: 'id',
+    pivotTable: 'company_situation',
+    pivotForeignKey: 'companies_id',
+    pivotRelatedForeignKey: 'situation_id',
+  })
+  public situations: ManyToMany<typeof Situation>
 
   @column({ isPrimary: true })
   public id: number
@@ -127,10 +134,14 @@ export default class Company extends BaseModel {
   public updatedAt: DateTime
 
 
-  @afterSave()
-  public static async afterSaveHook(company: Company) {
-    company.foldername = `Client_${company.id.toString()}`
-    await company.save()
+  @afterCreate()
+  public static async afterCreateHook(company: Company) {
+    const foldername = `Client_${company.id.toString()}`
+
+    if (company.foldername !== foldername) {
+      company.foldername = foldername
+      await company.save()
+    }
   }
 
 }

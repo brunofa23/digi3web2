@@ -13,7 +13,7 @@ export default class CompaniesController {
 
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
-      let errorValidation = await new validations('company_error_100')
+      let errorValidation: any = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
@@ -26,6 +26,7 @@ export default class CompaniesController {
       const data = await Company
         .query()
         .preload('typebooks')
+        .preload('situations')
         .whereRaw(query)
       return response.status(200).send(data)
     } catch (error) {
@@ -39,27 +40,30 @@ export default class CompaniesController {
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
-      let errorValidation = await new validations('company_error_100')
+      let errorValidation: any = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
     const body = await request.validate(CompanyValidator)
-    const companyByName = await Company.findBy('name', body.name)
+    const { situation_ids: situationIds, ...companyPayload } = body
+    const companyByName = await Company.findBy('name', companyPayload.name)
 
     if (companyByName) {
-      let errorValidation = await new validations('company_error_101')
+      let errorValidation: any = await new validations('company_error_101')
       throw new BadRequest(errorValidation['messages'], errorValidation.status, errorValidation.code)
     }
 
 
-    const companyByShortname = await Company.findBy('shortname', body.shortname)
+    const companyByShortname = await Company.findBy('shortname', companyPayload.shortname)
     if (companyByShortname) {
-      let errorValidation = await new validations('company_error_102')
+      let errorValidation: any = await new validations('company_error_102')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
     try {
-      const data = await Company.create(body)
+      const data = await Company.create(companyPayload as any)
+      await data.related('situations').sync(situationIds || [])
+      await data.load('situations')
       let parent = await sendSearchOrCreateFolder(data.foldername, data.cloud)
-      let successValidation = await new validations('company_success_100')
+      let successValidation: any = await new validations('company_success_100')
       return response.status(201).send({ data, idfoder: parent, successValidation: successValidation.code })
 
     } catch (error) {
@@ -71,49 +75,90 @@ export default class CompaniesController {
 
   //retorna um registro
   public async show({ params, response }: HttpContextContract) {
-    const data = await Company.find(params.id)
+    const data = await Company
+      .query()
+      .preload('situations')
+      .where('id', params.id)
+      .first()
     return response.send(data)
   }
 
   //patch ou put
-  public async update({ auth, request, params, response }: HttpContextContract) {
+  public async update({ auth, request, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
     if (!authenticate.superuser) {
-      let errorValidation = await new validations('company_error_100')
+      let errorValidation: any = await new validations('company_error_100')
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
-    const body = await request.validate(CompanyValidator)
-
-    try {
-      body['id'] = params.id
-      const data = await Company.findOrFail(body.id)
-      const { use_device_control, use_device_cookie_control } = request.only([
-        'use_device_control',
-        'use_device_cookie_control',
-      ])
-
-      if (use_device_control !== undefined) {
-        body.use_device_control = use_device_control === true || use_device_control === 1 || use_device_control === '1' || use_device_control === 'true'
-      }
-
-      if (use_device_cookie_control !== undefined) {
-        body.use_device_cookie_control = use_device_cookie_control === true || use_device_cookie_control === 1 || use_device_cookie_control === '1' || use_device_cookie_control === 'true'
-      }
-
-      body.foldername = data.foldername
-      await data.fill(body).save()
-      let successValidation = await new validations('company_success_101')
-      return response.status(201).send({
-        data,
-        params: params.id,
-        successValidation: successValidation.code
-      })
-    } catch (error) {
-      throw new BadRequest('Bad Request update', 401, 'company_error_102')
+    const companyId = Number(request.param('id'))
+    if (!companyId) {
+      throw new BadRequest('Empresa inválida', 400, 'company_error_update')
     }
 
+    const body = await request.validate(CompanyValidator)
+    const situationIds = body.situation_ids || []
+    const data = await Company.findOrFail(companyId)
+
+    if (body.name !== data.name) {
+      const companyByName = await Company.query()
+        .where('name', body.name)
+        .andWhereNot('id', companyId)
+        .first()
+
+      if (companyByName) {
+        let errorValidation: any = await new validations('company_error_101')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
+    }
+
+    if (body.shortname !== data.shortname) {
+      const companyByShortname = await Company.query()
+        .where('shortname', body.shortname)
+        .andWhereNot('id', companyId)
+        .first()
+
+      if (companyByShortname) {
+        let errorValidation: any = await new validations('company_error_102')
+        throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+      }
+    }
+
+    data.merge({
+      name: body.name,
+      shortname: body.shortname,
+      address: body.address,
+      number: body.number,
+      complement: body.complement,
+      postalcode: body.postalcode,
+      district: body.district,
+      city: body.city,
+      state: body.state,
+      cnpj: body.cnpj,
+      responsablename: body.responsablename,
+      phoneresponsable: body.phoneresponsable,
+      email: body.email,
+      status: body.status,
+      cloud: body.cloud,
+      use_device_control: body.use_device_control || false,
+      use_device_cookie_control: body.use_device_cookie_control || false,
+      module_books: body.module_books || false,
+      module_financial: body.module_financial || false,
+      module_lgpd: body.module_lgpd || false,
+      obs: body.obs || '',
+    })
+
+    await data.save()
+    await data.related('situations').sync(situationIds)
+    await data.load('situations')
+
+    let successValidation: any = await new validations('company_success_101')
+    return response.status(201).send({
+      data,
+      params: companyId,
+      successValidation: successValidation.code
+    })
 
 
   }
