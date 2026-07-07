@@ -3,6 +3,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import Company from 'App/Models/Company'
 import validations from 'App/Services/Validations/validations'
 import CompanyValidator from 'App/Validators/CompanyValidator'
+import Database from '@ioc:Adonis/Lucid/Database'
 import { sendSearchOrCreateFolder } from "App/Services/googleDrive/googledrive"
 
 //const authorize = require('App/Services/googleDrive/googledrive')
@@ -28,7 +29,44 @@ export default class CompaniesController {
         .preload('typebooks')
         .preload('situations')
         .whereRaw(query)
-      return response.status(200).send(data)
+
+      const activityResult = await Database.rawQuery(`
+        SELECT
+          companies_id,
+          MAX(last_activity_at) AS last_activity_at
+        FROM (
+          SELECT
+            companies_id,
+            GREATEST(
+              COALESCE(created_at, '1000-01-01 00:00:00'),
+              COALESCE(updated_at, created_at, '1000-01-01 00:00:00')
+            ) AS last_activity_at
+          FROM bookrecords
+          UNION ALL
+          SELECT
+            companies_id,
+            GREATEST(
+              COALESCE(created_at, '1000-01-01 00:00:00'),
+              COALESCE(updated_at, created_at, '1000-01-01 00:00:00')
+            ) AS last_activity_at
+          FROM indeximages
+        ) company_activity
+        GROUP BY companies_id
+      `)
+
+      const activities = new Map(
+        (activityResult[0] || []).map((activity) => [
+          Number(activity.companies_id),
+          activity.last_activity_at,
+        ])
+      )
+
+      const companies = data.map((company) => ({
+        ...company.serialize(),
+        lastActivityAt: activities.get(company.id) || null,
+      }))
+
+      return response.status(200).send(companies)
     } catch (error) {
       throw new BadRequest('Bad Request', 401, 'erro')
     }
