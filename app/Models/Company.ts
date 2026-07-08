@@ -32,6 +32,8 @@ export default class Company extends BaseModel {
       'module_financial',
       'module_lgpd',
       'obs',
+      'licence_value',
+      'due_date',
       'created_at',
       'updated_at'
     ]
@@ -126,6 +128,12 @@ export default class Company extends BaseModel {
 
   @column()
   public obs: string
+
+  @column()
+  public licence_value: number
+
+  @column()
+  public due_date: string
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

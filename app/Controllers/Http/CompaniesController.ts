@@ -148,6 +148,8 @@ export default class CompaniesController {
       module_financial: body.module_financial || false,
       module_lgpd: body.module_lgpd || false,
       obs: body.obs || '',
+      licence_value: body.licence_value || null,
+      due_date: body.due_date || null,
     })
 
     await data.save()
