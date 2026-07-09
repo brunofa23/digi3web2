@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, BelongsTo, column } from '@ioc:Adonis/Lucid/Orm'
+import { BaseModel, belongsTo, BelongsTo, column, hasOne, HasOne } from '@ioc:Adonis/Lucid/Orm'
 import FinClass from './FinClass'
+import Company from './Company'
 
 export default class Entity extends BaseModel {
 public static table = 'fin_entities'  // Define a tabela correta
@@ -34,6 +35,11 @@ public static table = 'fin_entities'  // Define a tabela correta
     foreignKey: 'fin_class_id',
   })
   public finclass: BelongsTo<typeof FinClass>
+  @hasOne(() => Company, {
+    foreignKey: 'fin_entity_id',
+    localKey: 'id'
+  })
+  public company: HasOne<typeof Company>
   @column()
   public description: string
   @column()

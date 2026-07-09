@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon'
-import { afterCreate, BaseModel, column, HasMany, hasMany, manyToMany, ManyToMany } from '@ioc:Adonis/Lucid/Orm'
+import { afterCreate, BaseModel, belongsTo, BelongsTo, column, HasMany, hasMany, manyToMany, ManyToMany } from '@ioc:Adonis/Lucid/Orm'
 import Typebook from './Typebook'
 import User from './User'
 import Situation from './Situation'
+import Entity from './Entity'
 
 
 export default class Company extends BaseModel {
@@ -34,6 +35,7 @@ export default class Company extends BaseModel {
       'obs',
       'licence_value',
       'due_date',
+      'fin_entity_id',
       'created_at',
       'updated_at'
     ]
@@ -59,6 +61,11 @@ export default class Company extends BaseModel {
     pivotRelatedForeignKey: 'situation_id',
   })
   public situations: ManyToMany<typeof Situation>
+
+  @belongsTo(() => Entity, {
+    foreignKey: 'fin_entity_id',
+  })
+  public finentity: BelongsTo<typeof Entity>
 
   @column({ isPrimary: true })
   public id: number
@@ -130,10 +137,13 @@ export default class Company extends BaseModel {
   public obs: string
 
   @column()
-  public licence_value: number
+  public licence_value: number | null
 
   @column()
-  public due_date: string
+  public due_date: string | null
+
+  @column()
+  public fin_entity_id: number | null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

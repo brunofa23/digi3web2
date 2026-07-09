@@ -6,7 +6,7 @@ export default class extends BaseSchema {
   public async up () {
     this.schema.alterTable(this.tableName, (table) => {
       table.decimal('licence_value', 10, 2).nullable()
-      table.string('due_date', 10).nullable()
+      table.integer('due_date').nullable()
     })
   }
 

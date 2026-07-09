@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import Company from 'App/Models/Company'
+import Entity from 'App/Models/Entity'
 import validations from 'App/Services/Validations/validations'
 import CompanyValidator from 'App/Validators/CompanyValidator'
 import { sendSearchOrCreateFolder } from "App/Services/googleDrive/googledrive"
@@ -8,6 +9,31 @@ import { sendSearchOrCreateFolder } from "App/Services/googleDrive/googledrive"
 //const authorize = require('App/Services/googleDrive/googledrive')
 
 export default class CompaniesController {
+  private async validateFinEntityLink(authenticate: any, finEntityId?: number | null, companyId?: number) {
+    if (!finEntityId) return
+
+    const entity = await Entity
+      .query()
+      .where('id', finEntityId)
+      .where('companies_id', authenticate.companies_id)
+      .first()
+
+    if (!entity) {
+      throw new BadRequest('Entidade financeira inválida para a empresa logada', 400, 'company_error_fin_entity')
+    }
+
+    const linkedCompany = await Company
+      .query()
+      .where('fin_entity_id', finEntityId)
+      .if(companyId, query => {
+        query.andWhereNot('id', companyId!)
+      })
+      .first()
+
+    if (linkedCompany) {
+      throw new BadRequest('Entidade financeira já vinculada a outra empresa', 400, 'company_error_fin_entity_linked')
+    }
+  }
 
   public async index({ auth, response, request }: HttpContextContract) {
 
@@ -27,6 +53,7 @@ export default class CompaniesController {
         .query()
         .preload('typebooks')
         .preload('situations')
+        .preload('finentity')
         .whereRaw(query)
 
       return response.status(200).send(data)
@@ -46,6 +73,7 @@ export default class CompaniesController {
     }
     const body = await request.validate(CompanyValidator)
     const { situation_ids: situationIds, ...companyPayload } = body
+    await this.validateFinEntityLink(authenticate, companyPayload.fin_entity_id)
     const companyByName = await Company.findBy('name', companyPayload.name)
 
     if (companyByName) {
@@ -63,6 +91,7 @@ export default class CompaniesController {
       const data = await Company.create(companyPayload as any)
       await data.related('situations').sync(situationIds || [])
       await data.load('situations')
+      await data.load('finentity')
       let parent = await sendSearchOrCreateFolder(data.foldername, data.cloud)
       let successValidation: any = await new validations('company_success_100')
       return response.status(201).send({ data, idfoder: parent, successValidation: successValidation.code })
@@ -79,6 +108,7 @@ export default class CompaniesController {
     const data = await Company
       .query()
       .preload('situations')
+      .preload('finentity')
       .where('id', params.id)
       .first()
     return response.send(data)
@@ -101,6 +131,7 @@ export default class CompaniesController {
     const body = await request.validate(CompanyValidator)
     const situationIds = body.situation_ids || []
     const data = await Company.findOrFail(companyId)
+    await this.validateFinEntityLink(authenticate, body.fin_entity_id, companyId)
 
     if (body.name !== data.name) {
       const companyByName = await Company.query()
@@ -150,11 +181,13 @@ export default class CompaniesController {
       obs: body.obs || '',
       licence_value: body.licence_value || null,
       due_date: body.due_date || null,
+      fin_entity_id: body.fin_entity_id || null,
     })
 
     await data.save()
     await data.related('situations').sync(situationIds)
     await data.load('situations')
+    await data.load('finentity')
 
     let successValidation: any = await new validations('company_success_101')
     return response.status(201).send({

@@ -9,3 +9,5 @@ O agente nunca deve alterar `.env`, credenciais, tokens, certificados ou configu
 Ao alterar filtros, listagens, consultas ou regras de banco de dados, deve considerar performance, índices e compatibilidade com MySQL 8. Ao alterar endpoints, responses, requests ou validações, deve verificar possível impacto no frontend `digi3web2`.
 
 Antes de alterar código, deve explicar o fluxo atual encontrado, listar os arquivos que serão analisados, apresentar um plano, apontar riscos e indicar como testar. Após alterar, deve resumir os arquivos modificados, o que mudou, os trechos principais e possíveis impactos.
+
+Sempre que criar uma migration e incluir um novo atributo, verificar sempre se existe os campos created_at, se existir esses atributos devem sempre serem criados antes desse campo.
