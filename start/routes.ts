@@ -126,6 +126,9 @@ Route.group(() => {
   //EMPLOYEE VERIFICATION X RECEIPTS
   Route.resource("employeeverificationxreceipts", "EmployeeVerificationXReceiptsController").apiOnly()
 
+  //EMPLOYEE VERIFICATION X CERTIFICATES
+  Route.resource("employeeverificationxcertificates", "EmployeeVerificationXCertificatesController").apiOnly()
+
   //EVENTS
   Route.resource("events", "EventsController").apiOnly()
 

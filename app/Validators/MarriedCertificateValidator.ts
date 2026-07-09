@@ -56,6 +56,7 @@ export default class MarriedCertificateValidator {
     bookRegistryOfficePrenup: schema.number.nullableAndOptional([rules.unsigned()]),
     sheetRegistryOfficePrenup: schema.number.nullableAndOptional([rules.unsigned()]),
     dthrPrenup: schema.date.optional({ format: 'yyyy-MM-dd' }),
+    documentScheduleDate: schema.date.optional({ format: 'yyyy-MM-dd' }),
 
     // === Local da cerimônia ===
     cerimonyLocation: schema.string.optional({ trim: true }),
@@ -79,6 +80,7 @@ export default class MarriedCertificateValidator {
     'dthrSchedule.date.format': 'dthrSchedule deve estar no formato yyyy-MM-dd HH:mm:ss.',
     'dthrMarriage.date.format': 'dthrMarriage deve estar no formato yyyy-MM-dd HH:mm:ss.',
     'dthrPrenup.date.format': 'dthrPrenup deve estar no formato yyyy-MM-dd.',
+    'documentScheduleDate.date.format': 'documentScheduleDate deve estar no formato yyyy-MM-dd.',
     'dthrDivorceSpouse.date.format': 'dthrDivorceSpouse deve estar no formato yyyy-MM-dd.',
     'dthrDivorceSpouse2.date.format': 'dthrDivorceSpouse2 deve estar no formato yyyy-MM-dd.',
   }

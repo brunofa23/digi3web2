@@ -26,6 +26,9 @@ export default class EmployeeVerification extends BaseModel {
   public description: string
 
   @column()
+  public local: 'receipt' | 'certificate'
+
+  @column()
   public inactive: boolean
 
   @column.dateTime({ autoCreate: true })

@@ -1,110 +1,103 @@
-// app/Controllers/Http/EmployeeVerificationXReceiptsController.ts
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { DateTime } from 'luxon'
 
 import EmployeeVerification from 'App/Models/EmployeeVerification'
-import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
-import EmployeeVerificationXReceiptValidator from 'App/Validators/EmployeeVerificationXReceiptValidator'
+import EmployeeVerificationXCertificate from 'App/Models/EmployeeVerificationXCertificate'
+import MarriedCertificate from 'App/Models/MarriedCertificate'
+import EmployeeVerificationXCertificateValidator from 'App/Validators/EmployeeVerificationXCertificateValidator'
 
-export default class EmployeeVerificationXReceiptsController {
-  /**
-   * GET /employee-verification-x-receipts
-   * Filtros opcionais: ?receipt_id=&employee_verification_id=
-   * Sempre filtrando por companiesId do usuário autenticado
-   */
+export default class EmployeeVerificationXCertificatesController {
   public async index({ auth, request }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const companiesId = authenticate.companies_id
 
-    const { receipt_id, employee_verification_id } = request.qs()
+    const { married_certificate_id, employee_verification_id } = request.qs()
 
-    const query = EmployeeVerificationXReceipt.query()
+    const query = EmployeeVerificationXCertificate.query()
       .where('companiesId', companiesId)
 
-    if (receipt_id) {
-      query.where('receiptId', Number(receipt_id))
+    if (married_certificate_id) {
+      query.where('marriedCertificateId', Number(married_certificate_id))
     }
 
     if (employee_verification_id) {
       query.where('employeeVerificationId', Number(employee_verification_id))
     }
 
-    query
-      .preload('receipt')
+    return query
+      .preload('marriedCertificate')
       .preload('employeeVerification')
       .preload('company')
       .preload('user')
-
-    const items = await query
-    return items
   }
 
-  /**
-   * POST /employee-verification-x-receipts
-   * Cria o vínculo entre receipt e employee_verification
-   * companiesId e userId vêm do auth
-   */
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const companiesId = authenticate.companies_id
     const userId = authenticate.id
 
     const payload = await request.validate({
-      schema: EmployeeVerificationXReceiptValidator.createSchema,
-      messages: EmployeeVerificationXReceiptValidator.messages,
+      schema: EmployeeVerificationXCertificateValidator.createSchema,
+      messages: EmployeeVerificationXCertificateValidator.messages,
     })
+
+    const certificate = await MarriedCertificate.query()
+      .where('id', payload.marriedCertificateId)
+      .where('companiesId', companiesId)
+      .first()
+
+    if (!certificate) {
+      return response.status(422).json({
+        message: 'O certificado de casamento informado não pertence a esta empresa',
+      })
+    }
 
     const verification = await EmployeeVerification.query()
       .where('id', payload.employeeVerificationId)
       .where('companiesId', companiesId)
-      .where('local', 'receipt')
+      .where('local', 'certificate')
       .where('inactive', false)
       .first()
 
     if (!verification) {
       return response.status(422).json({
-        message: 'A conferência de funcionário informada não está disponível para recibos nesta empresa',
+        message: 'A conferência de funcionário informada não está disponível para certificados nesta empresa',
       })
     }
 
-    // garante unique (receiptId + employeeVerificationId)
-    const alreadyExists = await EmployeeVerificationXReceipt.query()
-      .where('receiptId', payload.receiptId)
+    const alreadyExists = await EmployeeVerificationXCertificate.query()
+      .where('marriedCertificateId', payload.marriedCertificateId)
       .where('employeeVerificationId', payload.employeeVerificationId)
-      .where('companiesId', companiesId) // garante por empresa
+      .where('companiesId', companiesId)
       .first()
 
     if (alreadyExists) {
       return response.status(409).json({
-        message: 'Já existe um vínculo para este recibo e conferência de funcionário nesta empresa',
+        message: 'Já existe um vínculo para este certificado e conferência de funcionário nesta empresa',
       })
     }
 
-    const item = await EmployeeVerificationXReceipt.create({
-      receiptId: payload.receiptId,
+    const item = await EmployeeVerificationXCertificate.create({
+      marriedCertificateId: payload.marriedCertificateId,
       companiesId,
       employeeVerificationId: payload.employeeVerificationId,
       userId,
+      status: payload.status,
       date: payload.date as DateTime,
     })
 
     await item.refresh()
-
     return item
   }
 
-  /**
-   * GET /employee-verification-x-receipts/:id
-   * Sempre respeitando companiesId
-   */
   public async show({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const companiesId = authenticate.companies_id
 
-    const item = await EmployeeVerificationXReceipt.query()
+    const item = await EmployeeVerificationXCertificate.query()
       .where('id', params.id)
       .where('companiesId', companiesId)
-      .preload('receipt')
+      .preload('marriedCertificate')
       .preload('employeeVerification')
       .preload('company')
       .preload('user')
@@ -119,15 +112,11 @@ export default class EmployeeVerificationXReceiptsController {
     return item
   }
 
-  /**
-   * PUT/PATCH /employee-verification-x-receipts/:id
-   * Atualiza dados respeitando companiesId do auth
-   */
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const companiesId = authenticate.companies_id
 
-    const item = await EmployeeVerificationXReceipt.query()
+    const item = await EmployeeVerificationXCertificate.query()
       .where('id', params.id)
       .where('companiesId', companiesId)
       .first()
@@ -139,28 +128,43 @@ export default class EmployeeVerificationXReceiptsController {
     }
 
     const payload = await request.validate({
-      schema: EmployeeVerificationXReceiptValidator.updateSchema,
-      messages: EmployeeVerificationXReceiptValidator.messages,
+      schema: EmployeeVerificationXCertificateValidator.updateSchema,
+      messages: EmployeeVerificationXCertificateValidator.messages,
     })
 
-    if (payload.receiptId !== undefined) {
-      item.receiptId = payload.receiptId
-    }
     if (payload.employeeVerificationId !== undefined) {
       const verification = await EmployeeVerification.query()
         .where('id', payload.employeeVerificationId)
         .where('companiesId', companiesId)
-        .where('local', 'receipt')
+        .where('local', 'certificate')
         .where('inactive', false)
         .first()
 
       if (!verification) {
         return response.status(422).json({
-          message: 'A conferência de funcionário informada não está disponível para recibos nesta empresa',
+          message: 'A conferência de funcionário informada não está disponível para certificados nesta empresa',
         })
       }
 
       item.employeeVerificationId = payload.employeeVerificationId
+    }
+
+    if (payload.marriedCertificateId !== undefined) {
+      const certificate = await MarriedCertificate.query()
+        .where('id', payload.marriedCertificateId)
+        .where('companiesId', companiesId)
+        .first()
+
+      if (!certificate) {
+        return response.status(422).json({
+          message: 'O certificado de casamento informado não pertence a esta empresa',
+        })
+      }
+
+      item.marriedCertificateId = payload.marriedCertificateId
+    }
+    if (payload.status !== undefined) {
+      item.status = payload.status
     }
     if (payload.date !== undefined) {
       item.date = payload.date as DateTime
@@ -172,15 +176,11 @@ export default class EmployeeVerificationXReceiptsController {
     return item
   }
 
-  /**
-   * DELETE /employee-verification-x-receipts/:id
-   * Respeitando companiesId
-   */
   public async destroy({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const companiesId = authenticate.companies_id
 
-    const item = await EmployeeVerificationXReceipt.query()
+    const item = await EmployeeVerificationXCertificate.query()
       .where('id', params.id)
       .where('companiesId', companiesId)
       .first()
@@ -192,7 +192,6 @@ export default class EmployeeVerificationXReceiptsController {
     }
 
     await item.delete()
-
     return response.status(204)
   }
 }

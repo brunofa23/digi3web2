@@ -211,6 +211,7 @@ export default class OrderCertificatesController {
           bookRegistryOfficePrenup: marriedData.bookRegistryOfficePrenup ?? null,
           sheetRegistryOfficePrenup: marriedData.sheetRegistryOfficePrenup ?? null,
           dthrPrenup: marriedData.dthrPrenup ?? null,
+          documentScheduleDate: marriedData.documentScheduleDate ?? null,
 
           cerimonyLocation: marriedData.cerimonyLocation ?? '',
           otherCerimonyLocation: marriedData.otherCerimonyLocation ?? '',

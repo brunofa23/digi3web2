@@ -4,6 +4,8 @@ import {
   column,
   belongsTo,
   BelongsTo,
+  hasMany,
+  HasMany,
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
@@ -11,6 +13,7 @@ import User from 'App/Models/User'
 import Status from 'App/Models/Status'
 import Person from 'App/Models/Person'
 import Typebook from 'App/Models/Typebook' // ✅ ajuste o nome/caminho conforme seu projeto
+import EmployeeVerificationXCertificate from 'App/Models/EmployeeVerificationXCertificate'
 
 export default class MarriedCertificate extends BaseModel {
   public static table = 'married_certificates'
@@ -168,6 +171,12 @@ export default class MarriedCertificate extends BaseModel {
   })
   public dthrPrenup: DateTime | null
 
+  @column.date({
+    columnName: 'document_schedule_date',
+    serializeAs: 'documentScheduleDate',
+  })
+  public documentScheduleDate: DateTime | null
+
   // === Local da cerimônia ===
   @column({
     columnName: 'cerimony_location',
@@ -317,6 +326,9 @@ export default class MarriedCertificate extends BaseModel {
     foreignKey: 'typebookId2',
   })
   public typebook2: BelongsTo<typeof Typebook>
+
+  @hasMany(() => EmployeeVerificationXCertificate, { foreignKey: 'marriedCertificateId' })
+  public employeeVerificationXCertificates: HasMany<typeof EmployeeVerificationXCertificate>
 
   // === Timestamps ===
   @column.dateTime({
