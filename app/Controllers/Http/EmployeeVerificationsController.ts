@@ -58,10 +58,6 @@ export default class EmployeeVerificationsController {
 
     const payload = await request.validate(EmployeeVerificationValidator)
 
-    if (!payload.id) {
-      return response.status(422).json({ message: 'Código é obrigatório' })
-    }
-
     const item = await EmployeeVerification.create({
       ...payload,
       companiesId: authenticate.companies_id,

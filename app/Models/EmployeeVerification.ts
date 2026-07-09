@@ -12,10 +12,6 @@ export default class EmployeeVerification extends BaseModel {
   // Nome da tabela
   public static table = 'employee_verifications'
 
-  // Chave primária não é auto-incremento
-  public static primaryKey = 'id'
-  public static incrementing = false
-
   @column({ isPrimary: true })
   public id: number
 

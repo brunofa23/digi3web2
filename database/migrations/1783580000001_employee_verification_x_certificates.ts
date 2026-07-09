@@ -11,6 +11,9 @@ export default class EmployeeVerificationXCertificates extends BaseSchema {
         .integer('married_certificate_id')
         .unsigned()
         .notNullable()
+
+      table
+        .foreign('married_certificate_id', 'fk_empver_x_cert_married')
         .references('id')
         .inTable('married_certificates')
         .onUpdate('RESTRICT')
@@ -20,6 +23,9 @@ export default class EmployeeVerificationXCertificates extends BaseSchema {
         .integer('companies_id')
         .unsigned()
         .notNullable()
+
+      table
+        .foreign('companies_id', 'fk_empver_x_cert_company')
         .references('id')
         .inTable('companies')
         .onUpdate('RESTRICT')
@@ -41,6 +47,9 @@ export default class EmployeeVerificationXCertificates extends BaseSchema {
         .integer('user_id')
         .unsigned()
         .notNullable()
+
+      table
+        .foreign('user_id', 'fk_empver_x_cert_user')
         .references('id')
         .inTable('users')
         .onUpdate('RESTRICT')
