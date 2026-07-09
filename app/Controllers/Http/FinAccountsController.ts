@@ -34,6 +34,8 @@ export default class FinAccountsController {
       isReconciled: schema.enum.optional(['C', 'N']),
       date_start: schema.string.optional(),
       date_end: schema.string.optional(),
+      includePreviousOpen: schema.boolean.optional(),
+      previousOpenStartDate: schema.string.optional(),
       typeDate: schema.enum.optional(['DATE', 'DATE_DUE', 'DATE_CONCILIATION']),
       allocation: schema.string.optional(),
       fin_paymentmethod: schema.string.optional(),
@@ -146,8 +148,11 @@ export default class FinAccountsController {
 
       // Data inicial e final em UTC
       if (body.date_start && body.date_end && body.typeDate) {
-        const start = DateTime.fromISO(body.date_start).toUTC().startOf('day').toISO()
-        const end = DateTime.fromISO(body.date_end).toUTC().endOf('day').toISO()
+        const start = DateTime.fromISO(body.date_start).toUTC().startOf('day').toFormat('yyyy-MM-dd HH:mm:ss')
+        const end = DateTime.fromISO(body.date_end).toUTC().endOf('day').toFormat('yyyy-MM-dd HH:mm:ss')
+        const previousOpenStart = body.previousOpenStartDate
+          ? DateTime.fromISO(body.previousOpenStartDate).toUTC().startOf('day').toFormat('yyyy-MM-dd HH:mm:ss')
+          : null
 
         const dateColumnMap = {
           DATE: 'DATE',
@@ -157,7 +162,24 @@ export default class FinAccountsController {
 
         const dateColumn = dateColumnMap[body.typeDate]
         if (dateColumn) {
-          query.where(dateColumn, '>=', start).where(dateColumn, '<=', end)
+          if (body.includePreviousOpen && previousOpenStart) {
+            query.where((dateQuery) => {
+              dateQuery
+                .where((currentMonthQuery) => {
+                  currentMonthQuery
+                    .where(dateColumn, '>=', start)
+                    .where(dateColumn, '<=', end)
+                })
+                .orWhere((previousOpenQuery) => {
+                  previousOpenQuery
+                    .where(dateColumn, '>=', previousOpenStart)
+                    .where(dateColumn, '<', start)
+                    .whereNull('date_conciliation')
+                })
+            })
+          } else {
+            query.where(dateColumn, '>=', start).where(dateColumn, '<=', end)
+          }
         }
       }
 
