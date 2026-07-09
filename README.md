@@ -247,10 +247,9 @@ git pull
 git add .
 git commit -m 'adjusting'
 git push
-
-
 git checkout main
 git pull
 git merge development
 git push origin main
+git checkout development
 

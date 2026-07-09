@@ -317,7 +317,7 @@ export default class FinAccountsController {
 
 
   public async replicate({ auth, request, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
     const { idList } = request.only(['idList'])
     if (!Array.isArray(idList) || idList.length === 0) {
       throw new BadRequestException('Lista de IDs inválida ou vazia', 400)
@@ -327,20 +327,22 @@ export default class FinAccountsController {
       // Busca todos os registros de uma vez só
       const originalAccounts = await FinAccount.query()
         .whereIn('id', idList)
+        .where('companies_id', authenticate.companies_id)
         .exec()
 
-      const today = DateTime.now().toISODate()
-      const accountList = originalAccounts.map((account) => {
-        const payload = { ...account.$original }
+      const accountList: any[] = originalAccounts.map((account) => {
+        const payload: any = { ...account.$original }
         const id_replication = account.id
         delete payload.id // remove o ID original
-        delete payload.date_conciliation
-        const dueDate = DateTime.fromISO(account.date_due.toISO()).plus({ months: 1 }).toISODate()
+        const dueDate = account.date_due ? account.date_due.plus({ months: 1 }).toISODate() : null
         return {
           ...payload,
-          date: today,
           date_due: dueDate,
-          id_replication: id_replication
+          date_conciliation: null,
+          amount_paid: null,
+          obs: null,
+          id_replication: id_replication,
+          replicate: true
         }
 
       })
