@@ -73,6 +73,25 @@ export default class OrderCertificatesController {
     return person
   }
 
+  private normalizeDateBoundary(value: any, boundary: 'start' | 'end'): string | null {
+    if (value === null || value === undefined || value === '') return null
+
+    const raw = String(value).trim()
+    let date = DateTime.fromISO(raw, { zone: 'America/Sao_Paulo' })
+
+    if (!date.isValid) {
+      date = DateTime.fromFormat(raw, 'dd/MM/yyyy', { zone: 'America/Sao_Paulo' })
+    }
+
+    if (!date.isValid) return raw
+
+    const normalized = boundary === 'start'
+      ? date.startOf('day')
+      : date.endOf('day')
+
+    return normalized.toFormat('yyyy-LL-dd HH:mm:ss')
+  }
+
   //********************************* */
   // 🔹 Helper para salvar/atualizar Person com TODOS os campos do model
   private async upsertPerson(
@@ -322,8 +341,14 @@ export default class OrderCertificatesController {
   public async index({ auth, request }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
-    const dateStartOrderCertificate = request.input('dateStartOrderCertificate')
-    const dateEndtOrderCertificate = request.input('dateEndOrderCertificate')
+    const dateStartOrderCertificate = this.normalizeDateBoundary(
+      request.input('dateStartOrderCertificate'),
+      'start'
+    )
+    const dateEndOrderCertificate = this.normalizeDateBoundary(
+      request.input('dateEndOrderCertificate'),
+      'end'
+    )
 
     //TIPO DE CERTIDÃO
     const bookId = request.input('bookId') || null
@@ -356,24 +381,34 @@ export default class OrderCertificatesController {
     const freeReceipt = request.input('freeReceipt')
 
     // FILTER FOR DATE RECEIPT
-    const dateStartReceipt = request.input('dateStartReceipt') || null
-    const dateEndReceipt = request.input('dateEndReceipt') || null
+    const dateStartReceipt = this.normalizeDateBoundary(request.input('dateStartReceipt'), 'start')
+    const dateEndReceipt = this.normalizeDateBoundary(request.input('dateEndReceipt'), 'end')
 
     // dateProtocol
-    const dateStartProtocol = request.input('dateStartProtocol') || null
-    const dateEndProtocol = request.input('dateEndProtocol') || null
+    const dateStartProtocol = this.normalizeDateBoundary(request.input('dateStartProtocol'), 'start')
+    const dateEndProtocol = this.normalizeDateBoundary(request.input('dateEndProtocol'), 'end')
 
     // dateStamp
-    const dateStartStamp = request.input('dateStartStamp') || null
-    const dateEndStamp = request.input('dateEndStamp') || null
+    const dateStartStamp = this.normalizeDateBoundary(request.input('dateStartStamp'), 'start')
+    const dateEndStamp = this.normalizeDateBoundary(request.input('dateEndStamp'), 'end')
 
     // datePrevision
-    const dateStartPrevision = request.input('dateStartPrevision') || null
-    const dateEndPrevision = request.input('dateEndPrevision') || null
+    const dateStartPrevision = this.normalizeDateBoundary(request.input('dateStartPrevision'), 'start')
+    const dateEndPrevision = this.normalizeDateBoundary(request.input('dateEndPrevision'), 'end')
 
     // dateMarriage
-    const dateStartMarriage = request.input('dateStartMarriage') || null
-    const dateEndMarriage = request.input('dateEndMarriage') || null
+    const dateStartMarriage = this.normalizeDateBoundary(request.input('dateStartMarriage'), 'start')
+    const dateEndMarriage = this.normalizeDateBoundary(request.input('dateEndMarriage'), 'end')
+
+    // documentScheduleDate
+    const dateStartDocumentSchedule = this.normalizeDateBoundary(
+      request.input('dateStartDocumentSchedule'),
+      'start'
+    )
+    const dateEndDocumentSchedule = this.normalizeDateBoundary(
+      request.input('dateEndDocumentSchedule'),
+      'end'
+    )
 
     //TRIBUTATION LIST
     const tributationList = (request.input('tributationIds', []) || [])
@@ -397,7 +432,7 @@ export default class OrderCertificatesController {
     const query = OrderCertificate.query()
       .preload('book', (query) => query.select('id', 'name'))
       .preload('marriedCertificate', (query) => {
-        query.select('id', 'groomPersonId', 'bridePersonId')
+        query.select('id', 'groomPersonId', 'bridePersonId', 'documentScheduleDate')
         query.preload('groom', (q) => q.select('name', 'cpf'))
         query.preload('bride', (q) => q.select('name', 'cpf'))
       })
@@ -445,8 +480,8 @@ export default class OrderCertificatesController {
     if (dateStartOrderCertificate)
       query.andWhere('created_at', '>=', dateStartOrderCertificate)
 
-    if (dateEndtOrderCertificate) {
-      query.andWhere('created_at', '<=', dateEndtOrderCertificate)
+    if (dateEndOrderCertificate) {
+      query.andWhere('created_at', '<=', dateEndOrderCertificate)
     }
 
     if (bookId)
@@ -550,7 +585,7 @@ export default class OrderCertificatesController {
     // 🔍 Filtro por data de MARRIED
     if (dateStartMarriage || dateEndMarriage) {
       query.whereHas('receipt', (r) => {
-        if (dateStartPrevision) {
+        if (dateStartMarriage) {
           r.where('date_marriage', '>=', dateStartMarriage)
         }
         if (dateEndMarriage) {
@@ -559,13 +594,34 @@ export default class OrderCertificatesController {
       })
     }
 
-    // ✅ Filtro por employee_verification_id na pivot employee_verification_x_receipts
+    // 🔍 Filtro por data agendada dos documentos em married_certificates
+    if (dateStartDocumentSchedule || dateEndDocumentSchedule) {
+      query.whereHas('marriedCertificate', (mc) => {
+        if (dateStartDocumentSchedule) {
+          mc.where('documentScheduleDate', '>=', dateStartDocumentSchedule)
+        }
+        if (dateEndDocumentSchedule) {
+          mc.where('documentScheduleDate', '<=', dateEndDocumentSchedule)
+        }
+      })
+    }
+
+    // ✅ Filtro por employee_verification_id nas pivots de recibo ou certificado
     if (employeeVerificationId) {
-      query.whereHas('receipt', (r) => {
-        r.whereHas('employeeVerificationXReceipts', (evxr) => {
-          evxr
-            .where('employeeVerificationId', employeeVerificationId)
-            .where('companiesId', authenticate.companies_id)
+      query.where((q) => {
+        q.whereHas('receipt', (r) => {
+          r.whereHas('employeeVerificationXReceipts', (evxr) => {
+            evxr
+              .where('employeeVerificationId', employeeVerificationId)
+              .where('companiesId', authenticate.companies_id)
+          })
+        })
+        q.orWhereHas('marriedCertificate', (mc) => {
+          mc.whereHas('employeeVerificationXCertificates', (evxc) => {
+            evxc
+              .where('employeeVerificationId', employeeVerificationId)
+              .where('companiesId', authenticate.companies_id)
+          })
         })
       })
     }
