@@ -39,6 +39,15 @@ export default class ImageCertificate extends BaseModel {
   @column()
   public path: string | null
 
+  @column({ columnName: 'index_text' })
+  public indexText: string | null
+
+  @column({ columnName: 'extracted_data' })
+  public extractedData: any | null
+
+  @column()
+  public ready: boolean | null
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 

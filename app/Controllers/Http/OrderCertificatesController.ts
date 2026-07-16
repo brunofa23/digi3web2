@@ -428,6 +428,7 @@ export default class OrderCertificatesController {
 
     // emolument code (para filtrar por código de emolumento)
     const emolumentCode = request.input('emolumentCode') || null
+    const origin = request.input('origin') || null
 
     const query = OrderCertificate.query()
       .preload('book', (query) => query.select('id', 'name'))
@@ -486,6 +487,10 @@ export default class OrderCertificatesController {
 
     if (bookId)
       query.andWhere('book_id', bookId)
+
+    if (origin && ['internal', 'public'].includes(origin)) {
+      query.andWhere('origin', origin)
+    }
 
     // RECEIPT***************************************************
     // RECEIPT ID

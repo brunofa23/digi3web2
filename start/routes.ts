@@ -197,12 +197,18 @@ Route.group(() => {
   //.middleware('*', ['auth'])
 
   //ORDER CERTIFICATES
+  Route.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth')
+  Route.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth')
   Route.get('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.showMarriage')
+  Route.post('/public/order-certificates/marriage/:token/visionocr', 'PublicOrderCertificatesController.visionOcrMarriageDocument')
   Route.post('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.storeMarriage')
   Route.resource('/order-certificates', 'OrderCertificatesController').apiOnly()
 
 
   //IMAGE CERTIFICATES
+  Route.get('/imagecertificates/married/:marriedCertificateId', 'ImageCertificatesController.index').middleware('auth')
+  Route.get('/imagecertificates/:id/open', 'ImageCertificatesController.show').middleware('auth')
+  Route.post('/imagecertificates/:id/visionocr', 'ImageCertificatesController.visionOcr').middleware('auth')
   Route.post('/imagecertificates/uploads', 'ImageCertificatesController.store')
 
   //SERVICES

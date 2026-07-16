@@ -77,11 +77,11 @@ async function uploadImage({
   }
 
   await ImageCertificate.create({
-    companies_id: companiesId,
-    book_id: bookId,
-    married_certificate_id: marriedCertificateId,
+    companiesId,
+    bookId,
+    marriedCertificateId,
     ext: file.extname,
-    file_name: clientName,
+    fileName: clientName,
     description: description,
     seq: newSeq,
     path: `${company.foldername}.CERTIFICATES`,

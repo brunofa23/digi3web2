@@ -27,6 +27,39 @@ export default class OrderCertificate extends BaseModel {
   public typeCertificate: number
 
   @column()
+  public origin: string
+
+  @column({
+    columnName: 'public_order_certificate_link_id',
+    serializeAs: 'publicOrderCertificateLinkId',
+  })
+  public publicOrderCertificateLinkId: number | null
+
+  @column({
+    columnName: 'lgpd_consent_accepted',
+    serializeAs: 'lgpdConsentAccepted',
+  })
+  public lgpdConsentAccepted: boolean
+
+  @column.dateTime({
+    columnName: 'lgpd_consent_accepted_at',
+    serializeAs: 'lgpdConsentAcceptedAt',
+  })
+  public lgpdConsentAcceptedAt: DateTime | null
+
+  @column({
+    columnName: 'public_request_ip',
+    serializeAs: 'publicRequestIp',
+  })
+  public publicRequestIp: string | null
+
+  @column({
+    columnName: 'public_request_user_agent',
+    serializeAs: 'publicRequestUserAgent',
+  })
+  public publicRequestUserAgent: string | null
+
+  @column()
   public certificateId: number
 
   @column()

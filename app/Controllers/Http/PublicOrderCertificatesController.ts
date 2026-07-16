@@ -3,6 +3,7 @@ import type { TransactionClientContract } from '@ioc:Adonis/Lucid/Database'
 import { schema, rules, validator } from '@ioc:Adonis/Core/Validator'
 import Database from '@ioc:Adonis/Lucid/Database'
 import { DateTime } from 'luxon'
+import crypto from 'crypto'
 
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import OrderCertificate from 'App/Models/OrderCertificate'
@@ -10,10 +11,305 @@ import Person from 'App/Models/Person'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
 import PublicOrderCertificateLink from 'App/Models/PublicOrderCertificateLink'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
+import { extractDocumentTextFromBuffer } from 'App/Services/ocr/googleVision'
 
 const MARRIAGE_LINK_TYPE = 'marriage'
+const PUBLIC_SUBMIT_RATE_LIMIT_MAX = 5
+const PUBLIC_SUBMIT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
+const PUBLIC_OCR_RATE_LIMIT_MAX = 20
+const PUBLIC_OCR_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
+const PUBLIC_DUPLICATE_WINDOW_MINUTES = 10
+const publicSubmitAttempts = new Map<string, number[]>()
+const publicOcrAttempts = new Map<string, number[]>()
 
 export default class PublicOrderCertificatesController {
+  private normalizeText(value: string) {
+    return String(value || '')
+      .replace(/\r/g, '\n')
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  }
+
+  private onlyDigits(value: any) {
+    return String(value || '').replace(/\D/g, '')
+  }
+
+  private cleanValue(value: any) {
+    return String(value || '')
+      .replace(/^[\s:.-]+/, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+  }
+
+  private normalizeName(value: any) {
+    const cleaned = this.cleanValue(value)
+      .replace(/^(?:\d+[A-Z]?\s*)?(?:NOME\s*\/\s*NAME|NOME\s+E\s+SOBRENOME|NOME\s+CIVIL|NOME\s+COMPLETO|NOME|NAME|FILIA[CÇ][AÃ]O|PAI|M[ÃA]E)\b\s*[:\-]?/i, '')
+      .replace(/\b(CPF|RG|REGISTRO|NASCIMENTO|DATA|SEXO|FILIA[CÇ][AÃ]O|VALIDADE)\b.*$/i, '')
+      .replace(/[^A-Za-zÀ-ÖØ-öø-ÿ'\s]/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+
+    if (cleaned.length < 3) return null
+    return cleaned.toUpperCase()
+  }
+
+  private getLines(text: string) {
+    return this.normalizeText(text)
+      .split('\n')
+      .map((line) => this.cleanValue(line))
+      .filter(Boolean)
+  }
+
+  private extractByLineLabel(lines: string[], labels: RegExp[]) {
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index]
+
+      for (const label of labels) {
+        if (!label.test(line)) continue
+
+        const sameLine = this.cleanValue(line.replace(label, ''))
+        if (sameLine) return sameLine
+
+        for (let nextIndex = index + 1; nextIndex < Math.min(lines.length, index + 4); nextIndex++) {
+          const nextLine = this.cleanValue(lines[nextIndex])
+          if (nextLine && !labels.some((item) => item.test(nextLine))) return nextLine
+        }
+      }
+    }
+
+    return null
+  }
+
+  private formatDateToIso(value: any) {
+    const raw = String(value || '').trim()
+    const match = raw.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})\b/)
+    if (!match) return null
+    return `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`
+  }
+
+  private extractCpf(text: string) {
+    const match = text.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/)
+    return match ? this.onlyDigits(match[0]) : null
+  }
+
+  private extractDateBirth(lines: string[], text: string) {
+    const labeled = this.extractByLineLabel(lines, [
+      /(?:DATA\s+DE\s+NASCIMENTO|NASCIMENTO|DATA\s+NASC\.?|DT\.?\s*NASC\.?)/i,
+    ])
+    const labeledDate = this.formatDateToIso(labeled)
+    if (labeledDate) return labeledDate
+
+    const match = text.match(/\b\d{1,2}[\/.-]\d{1,2}[\/.-]\d{4}\b/)
+    return match ? this.formatDateToIso(match[0]) : null
+  }
+
+  private extractGender(lines: string[]) {
+    const labeled = this.extractByLineLabel(lines, [/(?:SEXO|G[ÊE]NERO)/i])
+    const value = String(labeled || '').toUpperCase()
+
+    if (/\b(M|MASC|MASCULINO)\b/.test(value)) return 'M'
+    if (/\b(F|FEM|FEMININO)\b/.test(value)) return 'F'
+
+    return null
+  }
+
+  private extractParents(lines: string[]) {
+    let father: string | null = this.normalizeName(this.extractByLineLabel(lines, [/\bPAI\b/i]))
+    let mother: string | null = this.normalizeName(this.extractByLineLabel(lines, [/\bM[ÃA]E\b/i]))
+
+    const filiationIndex = lines.findIndex((line) => /FILIA[CÇ][AÃ]O/i.test(line))
+    if (filiationIndex >= 0) {
+      const stopLabels = /(NATURALIDADE|DATA|DOC\.?\s*ORIGEM|CPF|PIS|ASSINATURA|LEI|REGISTRO|VALIDADE|EXPEDI[CÇ][AÃ]O|NACIONALIDADE)/i
+      const sameLine = this.normalizeName(lines[filiationIndex].replace(/.*FILIA[CÇ][AÃ]O\s*[:\-]?/i, ''))
+      const candidates: string[] = []
+
+      if (sameLine) candidates.push(sameLine)
+
+      for (const line of lines.slice(filiationIndex + 1, filiationIndex + 7)) {
+        if (stopLabels.test(line)) break
+
+        const name = this.normalizeName(line)
+        if (name) candidates.push(name)
+      }
+
+      if (!father && candidates[0]) father = candidates[0]
+      if (!mother && candidates[1]) mother = candidates[1]
+    }
+
+    return { father, mother }
+  }
+
+  private extractDocumentNumber(lines: string[], text: string) {
+    const labeled = this.extractByLineLabel(lines, [
+      /\b(?:RG|REGISTRO\s+GERAL|DOC\.?\s*IDENTIDADE|DOC(?:UMENTO)?\.?\s+DE\s+IDENTIDADE|IDENTIDADE)\b/i,
+    ])
+    const cleaned = this.cleanValue(labeled)
+
+    if (cleaned && /\d/.test(cleaned)) {
+      const identityMatch = cleaned.match(/\b[A-Z]{1,3}[-\s]?\d[\d.]{4,}[-\w]?\b/i)
+      if (identityMatch) return identityMatch[0].replace(/\s/g, '')
+
+      const cpfMatch = cleaned.match(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/)
+      if (cpfMatch) return this.onlyDigits(cpfMatch[0])
+
+      const numericMatch = cleaned.match(/\b\d{1,2}\.?\d{3}\.?\d{3}[-\w]?\b/)
+      if (numericMatch) return numericMatch[0]
+    }
+
+    const rgMatch = text.match(/\b(?:[A-Z]{1,3}[-\s]?)?\d{1,2}\.?\d{3}\.?\d{3}[-\w]?\b/)
+    return rgMatch ? rgMatch[0] : null
+  }
+
+  private extractNameByExactLabel(lines: string[]) {
+    const nameLabel = /^\s*(?:\d+[A-Z]?\s*)?(?:NOME\s*\/\s*NAME|NOME\s+E\s+SOBRENOME|NOME\s+CIVIL|NOME\s+COMPLETO|NOME|NAME)\s*[:\-]?\s*(.+)$/i
+    const isolatedNameLabel = /^\s*(?:\d+[A-Z]?\s*)?(?:NOME\s*\/\s*NAME|NOME\s+E\s+SOBRENOME|NOME\s+CIVIL|NOME\s+COMPLETO|NOME|NAME)\s*$/i
+    const stopLabels = /(CPF|REGISTRO|DATA|NASCIMENTO|NACIONALIDADE|NATURALIDADE|FILIA[CÇ][AÃ]O|DOC\.?|VALIDADE|EXPEDI[CÇ][AÃ]O|ASSINATURA|CARTEIRA|REP[ÚU]BLICA)/i
+
+    for (let index = 0; index < lines.length; index++) {
+      const line = lines[index]
+      const sameLine = line.match(nameLabel)
+      const sameLineName = this.normalizeName(sameLine?.[1])
+
+      if (sameLineName) return sameLineName
+      if (!isolatedNameLabel.test(line)) continue
+
+      for (let nextIndex = index + 1; nextIndex < Math.min(lines.length, index + 4); nextIndex++) {
+        if (stopLabels.test(lines[nextIndex])) break
+
+        const nextLineName = this.normalizeName(lines[nextIndex])
+        if (nextLineName) return nextLineName
+      }
+    }
+
+    return null
+  }
+
+  private resolveDocumentType(text: string, documentKind: string) {
+    if (documentKind !== 'identity_document') return null
+
+    if (/HABILITA[CÇ][AÃ]O|DRIVER\s*LICENSE|PERMISO\s+DE\s+CONDUCCI[ÓO]N|CARTEIRA\s+NACIONAL/i.test(text)) {
+      return 'CNH'
+    }
+
+    return 'RG'
+  }
+
+  private extractName(lines: string[]) {
+    const name = this.extractNameByExactLabel(lines)
+    if (name) return name
+
+    const ignored = /(REP[ÚU]BLICA|CARTEIRA|IDENTIDADE|HABILITA[CÇ][AÃ]O|CPF|REGISTRO|NASCIMENTO|VALIDADE|FILIA[CÇ][AÃ]O)/i
+    return lines.map((line) => this.normalizeName(line)).find((line) => line && !ignored.test(line)) || null
+  }
+
+  private extractAddress(lines: string[], text: string) {
+    const zipMatch = text.match(/\b\d{5}-?\d{3}\b/)
+    const zipCode = zipMatch ? this.onlyDigits(zipMatch[0]) : null
+    const address = this.extractByLineLabel(lines, [
+      /\b(?:ENDERE[CÇ]O|LOGRADOURO|RUA|AVENIDA|AV\.?)\b/i,
+    ])
+    const district = this.extractByLineLabel(lines, [/\b(?:BAIRRO)\b/i])
+    const cityState = this.extractByLineLabel(lines, [/\b(?:CIDADE|MUNIC[IÍ]PIO)\b/i])
+    const stateMatch = text.match(/\b(?:UF|ESTADO)\s*:?\s*([A-Z]{2})\b/i)
+
+    return {
+      zipCode,
+      address: address ? this.cleanValue(address) : null,
+      district: district ? this.cleanValue(district) : null,
+      city: cityState ? this.cleanValue(cityState).replace(/\s*[-/]\s*[A-Z]{2}$/i, '') : null,
+      state: stateMatch ? stateMatch[1].toUpperCase() : null,
+    }
+  }
+
+  private resolveTarget(description: string | null) {
+    const key = String(description || '').toLowerCase()
+
+    if (key.includes('groom')) return 'groom'
+    if (key.includes('bride')) return 'bride'
+    if (key.includes('witness1')) return 'witness1'
+    if (key.includes('witness2')) return 'witness2'
+
+    return null
+  }
+
+  private resolveDocumentKind(description: string | null) {
+    const key = String(description || '').toLowerCase()
+
+    if (key.includes('proofresidence')) return 'proof_residence'
+    if (key.includes('birthcertificate')) return 'birth_certificate'
+    if (key.includes('marriagecertificate')) return 'marriage_certificate'
+    if (key.includes('document')) return 'identity_document'
+
+    return 'unknown'
+  }
+
+  private extractCertificateImageData(text: string, description: string | null) {
+    const normalizedText = this.normalizeText(text)
+    const lines = this.getLines(normalizedText)
+    const documentKind = this.resolveDocumentKind(description)
+    const targetPerson = this.resolveTarget(description)
+    const { father, mother } = this.extractParents(lines)
+    const address = this.extractAddress(lines, normalizedText)
+
+    return {
+      targetPerson,
+      documentKind,
+      person: {
+        cpf: this.extractCpf(normalizedText),
+        name: this.extractName(lines),
+        dateBirth: this.extractDateBirth(lines, normalizedText),
+        gender: this.extractGender(lines),
+        father,
+        mother,
+        documentType: this.resolveDocumentType(normalizedText, documentKind),
+        documentNumber: this.extractDocumentNumber(lines, normalizedText),
+        ...address,
+      },
+    }
+  }
+
+  private async assertSuperuser(auth: HttpContextContract['auth'], response: HttpContextContract['response']) {
+    const authenticate = await auth.use('api').authenticate()
+
+    if (!authenticate.superuser) {
+      response.forbidden({ message: 'Acesso permitido apenas para superusuário' })
+      return null
+    }
+
+    return authenticate
+  }
+
+  private serializeManageLink(link: PublicOrderCertificateLink) {
+    return {
+      id: link.id,
+      companiesId: link.companiesId,
+      type: link.type,
+      token: link.token,
+      active: Boolean(link.active),
+      createdAt: link.createdAt,
+      updatedAt: link.updatedAt,
+    }
+  }
+
+  private async getOrCreateMarriageLink(companiesId: number) {
+    let link = await PublicOrderCertificateLink.query()
+      .where('companies_id', companiesId)
+      .where('type', MARRIAGE_LINK_TYPE)
+      .first()
+
+    if (!link) {
+      link = await PublicOrderCertificateLink.create({
+        companiesId,
+        type: MARRIAGE_LINK_TYPE,
+        token: crypto.randomBytes(32).toString('hex'),
+        active: true,
+      })
+    }
+
+    return link
+  }
+
   private toNumber(v: any): number | null {
     if (v === null || v === undefined || v === '') return null
     const n = Number(v)
@@ -78,6 +374,104 @@ export default class PublicOrderCertificatesController {
     if (secondCheck === 10 || secondCheck === 11) secondCheck = 0
 
     return secondCheck === Number(cpf[10])
+  }
+
+  private isTruthy(value: any): boolean {
+    if (value === true || value === 1) return true
+
+    const normalized = String(value ?? '').trim().toLowerCase()
+    return ['true', '1', 'yes', 'sim'].includes(normalized)
+  }
+
+  private getPublicRequestIp(request: HttpContextContract['request']): string {
+    return request.header('x-forwarded-for')?.split(',')?.[0]?.trim() || request.ip()
+  }
+
+  private assertPublicSubmitRateLimit(token: string, ip: string) {
+    const now = Date.now()
+    const windowStart = now - PUBLIC_SUBMIT_RATE_LIMIT_WINDOW_MS
+    const key = `${token}:${ip}`
+    const recentAttempts = (publicSubmitAttempts.get(key) || []).filter((attemptAt) => attemptAt > windowStart)
+
+    if (recentAttempts.length >= PUBLIC_SUBMIT_RATE_LIMIT_MAX) {
+      throw new BadRequestException(
+        'Muitas tentativas em pouco tempo. Aguarde alguns minutos antes de tentar novamente.',
+        429
+      )
+    }
+
+    recentAttempts.push(now)
+    publicSubmitAttempts.set(key, recentAttempts)
+
+    if (publicSubmitAttempts.size > 1000) {
+      for (const [attemptKey, attempts] of publicSubmitAttempts.entries()) {
+        const activeAttempts = attempts.filter((attemptAt) => attemptAt > windowStart)
+        if (activeAttempts.length) {
+          publicSubmitAttempts.set(attemptKey, activeAttempts)
+        } else {
+          publicSubmitAttempts.delete(attemptKey)
+        }
+      }
+    }
+  }
+
+  private assertPublicOcrRateLimit(token: string, ip: string) {
+    const now = Date.now()
+    const windowStart = now - PUBLIC_OCR_RATE_LIMIT_WINDOW_MS
+    const key = `${token}:${ip}`
+    const recentAttempts = (publicOcrAttempts.get(key) || []).filter((attemptAt) => attemptAt > windowStart)
+
+    if (recentAttempts.length >= PUBLIC_OCR_RATE_LIMIT_MAX) {
+      throw new BadRequestException(
+        'Muitas tentativas de leitura de documentos em pouco tempo. Aguarde alguns minutos antes de tentar novamente.',
+        429
+      )
+    }
+
+    recentAttempts.push(now)
+    publicOcrAttempts.set(key, recentAttempts)
+
+    if (publicOcrAttempts.size > 1000) {
+      for (const [attemptKey, attempts] of publicOcrAttempts.entries()) {
+        const activeAttempts = attempts.filter((attemptAt) => attemptAt > windowStart)
+        if (activeAttempts.length) {
+          publicOcrAttempts.set(attemptKey, activeAttempts)
+        } else {
+          publicOcrAttempts.delete(attemptKey)
+        }
+      }
+    }
+  }
+
+  private async assertNoRecentDuplicateMarriageSubmission(
+    linkId: number,
+    groomCpf: string,
+    brideCpf: string
+  ) {
+    const since = DateTime.now()
+      .minus({ minutes: PUBLIC_DUPLICATE_WINDOW_MINUTES })
+      .toFormat('yyyy-MM-dd HH:mm:ss')
+
+    const duplicate = await Database
+      .from('order_certificates as oc')
+      .join('married_certificates as mc', 'mc.id', 'oc.certificate_id')
+      .join('people as groom', 'groom.id', 'mc.groom_person_id')
+      .join('people as bride', 'bride.id', 'mc.bride_person_id')
+      .where('oc.origin', 'public')
+      .where('oc.public_order_certificate_link_id', linkId)
+      .where('oc.book_id', 2)
+      .where('oc.type_certificate', 2)
+      .where('oc.created_at', '>=', since)
+      .where('groom.cpf', groomCpf)
+      .where('bride.cpf', brideCpf)
+      .first()
+
+    if (duplicate) {
+      throw new BadRequestException(
+        'Já existe uma solicitação recente para esses contraentes. Aguarde alguns minutos antes de enviar novamente.',
+        409
+      )
+    }
   }
 
   private hasAnyPersonData(personData: any | null | undefined) {
@@ -315,6 +709,73 @@ export default class PublicOrderCertificatesController {
     }
   }
 
+  public async manageMarriageLink({ auth, response }: HttpContextContract) {
+    const authenticate = await this.assertSuperuser(auth, response)
+    if (!authenticate) return
+
+    const link = await this.getOrCreateMarriageLink(authenticate.companies_id)
+    return response.status(200).send(this.serializeManageLink(link))
+  }
+
+  public async toggleMarriageLink({ auth, request, response }: HttpContextContract) {
+    const authenticate = await this.assertSuperuser(auth, response)
+    if (!authenticate) return
+
+    const payload = await request.validate({
+      schema: schema.create({
+        active: schema.boolean(),
+      }),
+    })
+
+    const link = await this.getOrCreateMarriageLink(authenticate.companies_id)
+    link.active = payload.active
+    await link.save()
+
+    return response.status(200).send(this.serializeManageLink(link))
+  }
+
+  public async visionOcrMarriageDocument({ params, request, response }: HttpContextContract) {
+    const link = await this.getActiveMarriageLink(params.token)
+
+    if (!link || !link.company) {
+      return response.notFound({ message: 'Formulário público não encontrado ou inativo' })
+    }
+
+    try {
+      const requestIp = this.getPublicRequestIp(request)
+      this.assertPublicOcrRateLimit(params.token, requestIp)
+
+      const description = String(request.input('description') || '')
+      const file = request.file('file', {
+        size: '8mb',
+        extnames: ['jpg', 'png', 'jpeg', 'bmp', 'gif', 'tif', 'tiff', 'webp', 'JPG', 'PNG', 'JPEG', 'BMP', 'GIF', 'TIF', 'TIFF', 'WEBP'],
+      })
+
+      if (!file || !file.tmpPath) {
+        throw new BadRequestException('Arquivo inválido ou não enviado', 422)
+      }
+
+      const fs = await import('fs/promises')
+      const imageBuffer = await fs.readFile(file.tmpPath)
+      const indexText = await extractDocumentTextFromBuffer(imageBuffer)
+      const extractedData = this.extractCertificateImageData(indexText, description)
+
+      return response.ok({
+        indexText,
+        index_text: indexText,
+        extractedData,
+        extracted_data: extractedData,
+      })
+    } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        return response.status(error.status).send({ message: error.message })
+      }
+
+      console.error('ERRO PUBLIC MARRIAGE OCR:', error)
+      return response.internalServerError({ message: 'Erro ao ler os dados do documento anexado' })
+    }
+  }
+
   public async storeMarriage({ params, request, response }: HttpContextContract) {
     const link = await this.getActiveMarriageLink(params.token)
 
@@ -322,11 +783,21 @@ export default class PublicOrderCertificatesController {
       return response.notFound({ message: 'Formulário público não encontrado ou inativo' })
     }
 
-    const body = request.body()
-    const parsedMarriage = this.parseJsonFieldOrFail(response, body.marriedCertificate, 'marriedCertificate')
-    if (!parsedMarriage) return
-
     try {
+      const requestIp = this.getPublicRequestIp(request)
+      this.assertPublicSubmitRateLimit(params.token, requestIp)
+
+      const body = request.body()
+      const parsedMarriage = this.parseJsonFieldOrFail(response, body.marriedCertificate, 'marriedCertificate')
+      if (!parsedMarriage) return
+
+      if (!this.isTruthy(body.lgpdConsentAccepted)) {
+        throw new BadRequestException(
+          'É necessário aceitar o uso dos dados pessoais e documentos para enviar a solicitação.',
+          422
+        )
+      }
+
       const groom = {
         ...parsedMarriage?.groom,
         cpf: this.normalizeCpf(parsedMarriage?.groom?.cpf),
@@ -374,8 +845,12 @@ export default class PublicOrderCertificatesController {
         throw new BadRequestException('CPF do segundo contraente inválido', 422)
       }
 
+      await this.assertNoRecentDuplicateMarriageSubmission(link.id, groom.cpf, bride.cpf)
+
       parsedMarriage.groom = groom
       parsedMarriage.bride = bride
+
+      const requestUserAgent = String(request.header('user-agent') ?? '').slice(0, 500) || null
 
       const orderCertificate = await Database.transaction(async (trx) => {
         const marriedCertificateId = await this.saveMarriagePublic(
@@ -391,6 +866,12 @@ export default class PublicOrderCertificatesController {
           bookId: 2,
           companiesId: link.companiesId,
           typeCertificate: 2,
+          origin: 'public',
+          publicOrderCertificateLinkId: link.id,
+          lgpdConsentAccepted: true,
+          lgpdConsentAcceptedAt: DateTime.now(),
+          publicRequestIp: requestIp,
+          publicRequestUserAgent: requestUserAgent,
         })
         await oc.save()
 
