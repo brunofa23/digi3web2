@@ -197,6 +197,8 @@ Route.group(() => {
   //.middleware('*', ['auth'])
 
   //ORDER CERTIFICATES
+  Route.get('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.showMarriage')
+  Route.post('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.storeMarriage')
   Route.resource('/order-certificates', 'OrderCertificatesController').apiOnly()
 
 
