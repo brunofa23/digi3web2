@@ -9,7 +9,7 @@ import {
   sendSearchFile,
 } from 'App/Services/googleDrive/googledrive'
 import AuditLogger from 'App/Services/Audit/AuditLogger'
-import { extractDocumentTextFromBuffer } from 'App/Services/ocr/googleVision'
+import { extractTextFromFileBuffer } from 'App/Services/ocr/googleVision'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
 export default class ImageCertificatesController {
@@ -41,7 +41,15 @@ export default class ImageCertificatesController {
       .trim()
 
     if (cleaned.length < 3) return null
-    return cleaned.toUpperCase()
+
+    const normalized = cleaned.toUpperCase()
+    const ignoredCandidate = /(ATUALIZADO|VERIFIQUE|AUTENTICIDADE|QR\s*CODE|APP\s*VIO|HABILITA[CÇ][AÃ]O|CARTEIRA\s+NACIONAL|REP[ÚU]BLICA|MINIST[ÉE]RIO|SECRETARIA|V[ÁA]LIDA|TERRIT[ÓO]RIO|ASSINATURA|PORTADOR|HIST[ÓO]RICO|EMISS[ÕO]ES)/i
+
+    if (ignoredCandidate.test(normalized)) return null
+    if (/^(?:E\s+)?SOBRENOME$|^(?:E\s+)?NOME\s+E\s+SOBRENOME$|^NAME$|^NOME$/i.test(normalized)) return null
+    if (normalized.split(/\s+/).length < 2) return null
+
+    return normalized
   }
 
   private getLines(text: string) {
@@ -151,8 +159,23 @@ export default class ImageCertificatesController {
     return rgMatch ? rgMatch[0] : null
   }
 
+  private extractCnhDocumentNumber(lines: string[], text: string) {
+    const docIdentityIndex = lines.findIndex((line) =>
+      /DOC\.?\s*IDENTIDADE|DOC(?:UMENTO)?\.?\s+DE\s+IDENTIDADE/i.test(line)
+    )
+
+    if (docIdentityIndex >= 0) {
+      for (const line of lines.slice(docIdentityIndex, Math.min(lines.length, docIdentityIndex + 4))) {
+        const identityMatch = line.match(/\b[A-Z]{1,3}[-\s]?\d[\d.]{4,}[-\w]?\b/i)
+        if (identityMatch) return identityMatch[0].replace(/\s/g, '')
+      }
+    }
+
+    return this.extractDocumentNumber(lines, text)
+  }
+
   private extractNameByExactLabel(lines: string[]) {
-    const nameLabel = /^\s*(?:\d+[A-Z]?\s*)?(?:NOME\s*\/\s*NAME|NOME\s+E\s+SOBRENOME|NOME\s+CIVIL|NOME\s+COMPLETO|NOME|NAME)\s*[:\-]?\s*(.+)$/i
+    const nameLabel = /(?:^|\b)(?:\d+[A-Z]?\s*)?(?:NOME\s*\/\s*NAME|NOME\s+E\s+SOBRENOME|NOME\s+CIVIL|NOME\s+COMPLETO|NAME|NOME(?!\s+E\s+SOBRENOME))\s*[:\-]?\s*(.+)$/i
     const isolatedNameLabel = /^\s*(?:\d+[A-Z]?\s*)?(?:NOME\s*\/\s*NAME|NOME\s+E\s+SOBRENOME|NOME\s+CIVIL|NOME\s+COMPLETO|NOME|NAME)\s*$/i
     const stopLabels = /(CPF|REGISTRO|DATA|NASCIMENTO|NACIONALIDADE|NATURALIDADE|FILIA[CÇ][AÃ]O|DOC\.?|VALIDADE|EXPEDI[CÇ][AÃ]O|ASSINATURA|CARTEIRA|REP[ÚU]BLICA)/i
 
@@ -175,12 +198,30 @@ export default class ImageCertificatesController {
     return null
   }
 
-  private resolveDocumentType(text: string, documentKind: string) {
+  private extractCnhName(lines: string[]) {
+    const nameLabelIndex = lines.findIndex((line) => /\bNOME\s+E\s+SOBRENOME\b/i.test(line))
+    if (nameLabelIndex < 0) return null
+
+    const stopLabels = /(CPF|DATA|NASCIMENTO|VALIDADE|DOC\.?|IDENTIDADE|REGISTRO|FILIA[CÇ][AÃ]O|NACIONALIDADE|CAT\.?\s*HAB|ACC|LOCAL|EMISS[ÃA]O)/i
+
+    for (let nextIndex = nameLabelIndex + 1; nextIndex < Math.min(lines.length, nameLabelIndex + 6); nextIndex++) {
+      if (stopLabels.test(lines[nextIndex])) break
+
+      const nextLineName = this.normalizeName(lines[nextIndex])
+      if (nextLineName) return nextLineName
+    }
+
+    return null
+  }
+
+  private isCnhDocument(text: string, documentKind: string) {
     if (documentKind !== 'identity_document') return null
 
-    if (/HABILITA[CÇ][AÃ]O|DRIVER\s*LICENSE|PERMISO\s+DE\s+CONDUCCI[ÓO]N|CARTEIRA\s+NACIONAL/i.test(text)) {
-      return 'CNH'
-    }
+    return /HABILITA[CÇ][AÃ]O|DRIVER\s*LICENSE|PERMISO\s+DE\s+CONDUCCI[ÓO]N|CARTEIRA\s+NACIONAL/i.test(text)
+  }
+
+  private resolveDocumentType(_text: string, documentKind: string) {
+    if (documentKind !== 'identity_document') return null
 
     return 'RG'
   }
@@ -189,8 +230,25 @@ export default class ImageCertificatesController {
     const name = this.extractNameByExactLabel(lines)
     if (name) return name
 
-    const ignored = /(REP[ÚU]BLICA|CARTEIRA|IDENTIDADE|HABILITA[CÇ][AÃ]O|CPF|REGISTRO|NASCIMENTO|VALIDADE|FILIA[CÇ][AÃ]O)/i
+    const ignored = /(ATUALIZADO|VERIFIQUE|AUTENTICIDADE|QR\s*CODE|APP\s*VIO|REP[ÚU]BLICA|CARTEIRA|IDENTIDADE|HABILITA[CÇ][AÃ]O|CPF|REGISTRO|NASCIMENTO|VALIDADE|FILIA[CÇ][AÃ]O)/i
     return lines.map((line) => this.normalizeName(line)).find((line) => line && !ignored.test(line)) || null
+  }
+
+  private extractNationality(lines: string[]) {
+    const labeled = this.extractByLineLabel(lines, [/\bNACIONALIDADE\b/i])
+    const normalized = this.normalizeName(labeled)
+
+    if (normalized) return normalized
+
+    const nationalityIndex = lines.findIndex((line) => /\bNACIONALIDADE\b/i.test(line))
+    if (nationalityIndex < 0) return null
+
+    for (const line of lines.slice(nationalityIndex + 1, nationalityIndex + 4)) {
+      const nationality = this.normalizeName(line)
+      if (nationality) return nationality
+    }
+
+    return null
   }
 
   private extractAddress(lines: string[], text: string) {
@@ -241,19 +299,24 @@ export default class ImageCertificatesController {
     const targetPerson = this.resolveTarget(description)
     const { father, mother } = this.extractParents(lines)
     const address = this.extractAddress(lines, normalizedText)
+    const isCnh = this.isCnhDocument(normalizedText, documentKind)
+    const documentType = this.resolveDocumentType(normalizedText, documentKind)
 
     return {
       targetPerson,
       documentKind,
       person: {
         cpf: this.extractCpf(normalizedText),
-        name: this.extractName(lines),
+        name: isCnh ? this.extractCnhName(lines) || this.extractName(lines) : this.extractName(lines),
         dateBirth: this.extractDateBirth(lines, normalizedText),
         gender: this.extractGender(lines),
+        nationality: this.extractNationality(lines),
         father,
         mother,
-        documentType: this.resolveDocumentType(normalizedText, documentKind),
-        documentNumber: this.extractDocumentNumber(lines, normalizedText),
+        documentType,
+        documentNumber: isCnh
+          ? this.extractCnhDocumentNumber(lines, normalizedText)
+          : this.extractDocumentNumber(lines, normalizedText),
         ...address,
       },
     }
@@ -359,7 +422,7 @@ export default class ImageCertificatesController {
       return response.notFound({ error: 'Anexo não encontrado' })
     }
 
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.webp']
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.webp', '.pdf']
     const extension = path.extname(image.fileName).toLowerCase()
 
     if (!allowedExtensions.includes(extension)) {
@@ -383,7 +446,14 @@ export default class ImageCertificatesController {
     }
 
     const imageBuffer = await sendDownloadFileBuffer(driveFile[0].id, company.cloud)
-    const indexText = await extractDocumentTextFromBuffer(imageBuffer)
+    const indexText = await extractTextFromFileBuffer(imageBuffer, image.fileName)
+
+    if (extension === '.pdf' && !String(indexText || '').trim()) {
+      return response.badRequest({
+        error: 'PDF sem texto pesquisável disponível para extração',
+      })
+    }
+
     const extractedData = this.extractCertificateImageData(indexText, image.description)
 
     image.indexText = indexText

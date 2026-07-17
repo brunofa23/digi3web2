@@ -11,7 +11,7 @@ import Document from 'App/Models/Document'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
 import { DateTime } from 'luxon'
-import { extractDocumentTextFromBuffer } from 'App/Services/ocr/googleVision'
+import { extractTextFromFileBuffer } from 'App/Services/ocr/googleVision'
 import {
   sendDownloadFileBuffer,
   sendListAllFilesMetadata,
@@ -3423,7 +3423,7 @@ export default class BookrecordsController {
       images: [] as any[],
     }
 
-    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.webp']
+    const allowedExtensions = ['.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff', '.webp', '.pdf']
 
     for (const indeximage of indeximages) {
       try {
@@ -3461,7 +3461,17 @@ export default class BookrecordsController {
 
         const imageBuffer = await sendDownloadFileBuffer(driveFile.id, typebook.company.cloud)
          console.log("PASSO 9")
-        const indexText = await extractDocumentTextFromBuffer(imageBuffer)
+        const indexText = await extractTextFromFileBuffer(imageBuffer, indeximage.file_name)
+
+        if (extension.endsWith('.pdf') && !String(indexText || '').trim()) {
+          result.skipped++
+          result.errors.push({
+            file_name: indeximage.file_name,
+            message: 'PDF sem texto pesquisável disponível para extração',
+          })
+          continue
+        }
+
         const cpfs = this.extractCpfs(indexText)
         const names = this.extractNames(indexText)
         const { book, sheet, register } = extractionLayout === 'personal_indicator'
