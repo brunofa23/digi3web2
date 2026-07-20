@@ -1,0 +1,1925 @@
+# Spedy API - llms.txt
+
+Fonte oficial:
+https://api.spedy.com.br/llms.txt
+
+Snapshot salvo em: 2026-07-20
+
+---
+
+# Spedy API — Documentação para Integração
+
+> Documentação otimizada para uso por assistentes de IA e ferramentas de desenvolvimento.
+> Idioma: Português (pt-BR)
+> Base URL: https://api.spedy.com.br/v1
+
+---
+
+## O que é a Spedy API
+
+A Spedy é uma plataforma SaaS de automação fiscal brasileira. A API REST permite emitir e gerenciar notas fiscais de produto (NF-e), serviço (NFS-e) e consumidor (NFC-e) em todo o Brasil, integrando diretamente com a SEFAZ estadual e prefeituras municipais.
+
+Casos de uso principais:
+- SaaS e infoprodutores que precisam emitir NFS-e automaticamente após cada venda
+- E-commerces e varejistas que emitem NF-e por pedido
+- ERPs que precisam de emissão programática com controle tributário completo
+- Contabilidades gerenciando múltiplos CNPJs
+
+---
+
+## Ambientes
+
+| Ambiente | API Base URL | Backoffice |
+|---|---|---|
+| Produção | https://api.spedy.com.br/v1 | https://app.spedy.com.br |
+| Sandbox | https://sandbox-api.spedy.com.br/v1 | https://sandbox-app.spedy.com.br |
+
+Sandbox é completamente isolado: banco de dados independente, exige novo cadastro com Plano Desenvolvedor (gratuito). Uma chave de produção **não** funciona no sandbox e vice-versa.
+
+---
+
+## Autenticação
+
+Toda requisição deve incluir o header:
+
+```
+X-Api-Key: SUA_CHAVE_AQUI
+```
+
+A autenticação é por empresa (CNPJ). Cada empresa cadastrada possui sua própria chave de API.
+
+### Hierarquia de Permissões
+
+- **Empresa Owner** (empresa principal da conta): pode criar, editar e excluir outras empresas, além de emitir notas.
+- **Empresas secundárias**: podem apenas emitir notas. Não gerenciam outras empresas.
+
+A chave da nova empresa é retornada no campo `apiCredentials.apiKey` ao criar via `POST /v1/companies`.
+
+---
+
+## Rate Limit
+
+- **60 requisições por minuto**
+- **5 requisições por segundo**
+- Aplicado por chave de API (por empresa)
+- Contas com múltiplos CNPJs têm limite independente por chave
+
+Se ultrapassado: `429 Too Many Requests`
+
+Headers retornados em cada requisição:
+
+| Header | Descrição |
+|---|---|
+| `x-rate-limit-limit` | Janela de tempo usada (ex: `1m`) |
+| `x-rate-limit-remaining` | Requisições restantes |
+| `x-rate-limit-reset` | Data/hora UTC em que o limite reseta |
+
+---
+
+## Formato de Resposta
+
+A API retorna os objetos **diretamente**, sem envelope de wrapper.
+
+Para objetos simples:
+```json
+{
+  "id": "uuid",
+  "status": "authorized",
+  ...
+}
+```
+
+Para listas paginadas:
+```json
+{
+  "items": [...],
+  "totalCount": 150,
+  "pageCount": 8,
+  "pageSize": 20,
+  "hasNext": true
+}
+```
+
+Para operações que retornam booleano (cancelar, excluir):
+```json
+{ "success": true }
+```
+
+Parâmetros de paginação: `?page=1&pageSize=20`
+
+---
+
+## Erros
+
+### 400 — Validação ou Regra de Negócio
+
+```json
+{
+  "errors": [
+    { "message": "Campo inválido: receiver.federalTaxNumber", "path": null }
+  ]
+}
+```
+
+Erros retornados como HTTP 400 são validações realizadas pela Spedy **antes** de criar a nota (ex: campos obrigatórios ausentes, formato inválido). A nota não chega a ser criada.
+
+### 403 — Chave de API inválida ou permissão insuficiente
+
+### 429 — Rate limit atingido (ver headers acima)
+
+---
+
+## Status e processingDetail
+
+### status
+
+O campo `status` representa o estado atual da nota fiscal e é controlado exclusivamente pela Spedy. **Não deve ser enviado nas requisições.** Use-o para acompanhar o resultado das operações.
+
+Valores: `enqueued`, `authorized`, `rejected`, `canceled`, `denied`, etc. (ver tabela InvoiceStatus na seção de referência).
+
+### processingDetail
+
+O objeto `processingDetail` contém o resultado do **último processamento** executado na nota. Toda operação (emissão, cancelamento, carta de correção) atualiza esse objeto. Os campos são:
+
+| Campo | Descrição |
+|---|---|
+| `status` | `success`, `processing` ou `failed` |
+| `message` | Mensagem descritiva do resultado |
+| `code` | Código retornado pela autoridade fiscal |
+
+Quando uma nota é rejeitada (`status: "rejected"`), os detalhes da rejeição ficam em `processingDetail.message` e `processingDetail.code`. Rejeições podem vir diretamente da SEFAZ/Prefeitura ou da validação prévia da Spedy — que utiliza o schema fornecido pela autoridade fiscal para validar os dados antes do envio. Quando a rejeição é da Spedy, o código em `processingDetail.code` inicia com o prefixo `SPD`. Em ambos os casos, o formato é idêntico: nota com `status: "rejected"` e detalhes em `processingDetail`.
+
+**Exemplo de nota rejeitada:**
+```json
+{
+  "status": "rejected",
+  "processingDetail": {
+    "status": "success",
+    "message": "Código do município do prestador não encontrado",
+    "code": "E125"
+  }
+}
+```
+
+**Nota sobre `processingDetail.status`:** O valor `success` indica que o processamento assíncrono foi executado com sucesso — **não** que a nota foi autorizada. Mesmo uma nota rejeitada terá `processingDetail.status: "success"` porque o evento na fila foi processado corretamente. O valor `failed` ocorre apenas quando há falha interna no processamento do evento na fila (erro de infraestrutura, timeout interno, etc.), independentemente do resultado fiscal.
+
+---
+
+## Fluxo de Emissão (Assíncrono)
+
+A emissão é **assíncrona**. O cliente envia a requisição, a nota entra em fila e é processada em background.
+
+```
+Você → POST /v1/orders (ou /product-invoices ou /service-invoices)
+         ↓
+     status: enqueued
+         ↓
+     Spedy transmite para SEFAZ / Prefeitura
+         ↓
+     Autoridade fiscal processa
+         ↓
+     Spedy atualiza status da nota
+         ↓
+     Webhook notifica seu sistema
+```
+
+Tempo médio de autorização: menos de 10 segundos em condições normais.
+
+**Emissão por venda (`/orders`):** o enfileiramento depende do `autoIssueMode` da venda. A nota só entra na fila quando o modo permite a emissão — `immediately` (ao criar a venda), `afterPayment` (quando a venda muda para `approved`) ou `afterWarrency` (no dia seguinte ao fim da garantia). Com `disabled`, a venda é registrada mas nenhuma nota é emitida automaticamente. Ver seção "Gatilhos de Emissão (autoIssueMode)".
+
+**Recomendação:** use Webhooks para receber atualizações de status. Evite polling.
+
+### Polling como Alternativa
+
+Quando webhooks não forem viáveis, use polling:
+
+1. Após emitir, consulte `GET /v1/service-invoices/{id}` ou `GET /v1/product-invoices/{id}`
+2. Verifique o campo `status` — `created` significa que a nota aguarda o disparo da emissão; `enqueued` indica que está na fila de processamento. Ambos são estados intermediários antes da autorização ou rejeição
+3. Intervalo recomendado: 5 a 10 segundos entre consultas
+4. Tempo médio de autorização: menos de 10 segundos
+5. Pare quando `status` mudar para um estado final: `authorized`, `rejected`, `canceled` ou `denied`
+
+**Para polling, use sempre o `GET`** — ele retorna o `status` atual sem acionar a autoridade fiscal. **Não** use o `POST .../check-status` para acompanhar a emissão: ele faz uma consulta síncrona ao fisco, é reservado para reconciliação/destrave de notas já enviadas, e retorna **400** enquanto a nota está `enqueued` ou `created`.
+
+---
+
+## Contingência
+
+Quando a **SEFAZ está temporariamente indisponível** (instabilidade, pico de demanda ou manutenção), a Spedy emite por um caminho de contingência previsto na legislação, mantendo a operação. Aplica-se a **NF-e** e **NFC-e** (SEFAZ); não se aplica a NFS-e.
+
+**A contingência é automática.** A Spedy monitora a disponibilidade da SEFAZ e decide sozinha quando entrar e sair. Não há como forçá-la por requisição nem escolher o modo por nota — sua chamada de emissão não muda.
+
+**NF-e (SVC):** a autorização passa a um ambiente alternativo da própria SEFAZ (SVC — Sistema Virtual de Contingência). É síncrona e transparente — o `status` segue normalmente para `authorized` e a DANFE sai identificada como emitida em contingência.
+
+**NFC-e (offline):** a nota é **válida no momento da emissão** (`status: inContingent`), com DANFCE e XML já disponíveis. Quando a SEFAZ volta, a Spedy transmite a nota automaticamente para autorização definitiva (`authorized`) ou rejeição (`rejected`). Enquanto estiver `inContingent`, o cancelamento fica indisponível.
+
+> **Pré-requisito da NFC-e offline:** exige `consumerInvoice.allowOfflineContingency = true` nas configurações da empresa (`PUT /v1/companies/{id}/settings`), com `tokenId`/`csc` válidos. Sem essa habilitação, a NFC-e segue o fluxo normal de retentativa. A habilitação apenas autoriza o uso da contingência offline — quando entrar em contingência continua sendo automático da Spedy.
+
+Acompanhe pelo `status` (ver InvoiceStatus) e pelos webhooks: `invoice.contingency` na entrada em contingência, e `invoice.authorized`/`invoice.rejected` na regularização.
+
+---
+
+## Modos de Emissão
+
+### Modo Simplificado — POST /v1/orders
+
+Ideal para SaaS, infoprodutores, e-commerce com tributação padronizada.
+
+Vantagens:
+- Não requer CFOP, NCM nem cálculo de impostos
+- Cliente e produto são criados automaticamente se não existirem
+- Toda a configuração tributária fica no backoffice da Spedy
+
+Use quando: tributação é uniforme e o cliente final não precisa controlar detalhes fiscais por produto.
+
+### Modo Completo — POST /v1/product-invoices, /v1/service-invoices ou /v1/consumer-invoices
+
+Indicado para:
+- Tributação que varia por produto (diferentes CFOPs, NCMs, alíquotas)
+- ERPs e sistemas de varejo
+- Cenários em que o cliente não usa o backoffice da Spedy para configuração
+
+Requer envio completo dos dados tributários (ICMS, PIS, COFINS para NF-e/NFC-e; ISS, retenções para NFS-e).
+
+---
+
+## integrationId — Identificador de Integração
+
+Campo **fortemente recomendado** disponível nos endpoints `POST /v1/product-invoices`, `POST /v1/service-invoices` e `POST /v1/consumer-invoices` (máx. 36 caracteres).
+
+| Função | Descrição |
+|---|---|
+| **Associação** | Vincula a nota gerada pela Spedy a um ID do sistema do cliente (ex: ID do pedido) |
+| **Idempotência** | Um segundo POST com o mesmo `integrationId` atualiza a nota existente em vez de criar uma nova — protege contra duplicidade por timeout ou retry |
+| **Correção de rejeitada** | Para corrigir uma nota rejeitada, reenvie o POST com os dados corrigidos e o mesmo `integrationId` — o sistema atualiza a nota, sem necessidade de deletar |
+
+**Fortemente recomendado** em todas as integrações. Use o ID natural da transação no sistema de origem (ex: ID do pedido, ID da ordem de serviço, número da venda). Além de evitar duplicidade, facilita rastreamento e correção de notas rejeitadas.
+
+---
+
+## Gatilhos de Emissão (autoIssueMode)
+
+Campo do endpoint `/v1/orders` que controla quando a nota é emitida.
+
+| Valor | Comportamento |
+|---|---|
+| `immediately` | Emite ao criar a venda (padrão) |
+| `disabled` | Não emite automaticamente |
+| `afterPayment` | Emite ao status da venda mudar para `approved` |
+| `afterWarrency` | Emite no dia seguinte ao fim da garantia (`warrantyDate`) |
+
+### Exemplo prático: boleto bancário
+
+```
+1. POST /v1/orders
+   → status: "awaitingPayment"
+   → autoIssueMode: "afterPayment"
+
+   A nota é criada internamente mas NÃO enfileirada.
+
+2. Boleto compensado → PUT /v1/orders/{id}/status
+   → { "status": "approved" }
+
+   Spedy detecta o gatilho e emite automaticamente.
+   Nenhuma outra chamada é necessária.
+```
+
+---
+
+## Conceitos Importantes
+
+### Venda ≠ Nota
+
+A venda (Order) é usada como gatilho para emissão da nota fiscal. Uma venda pode gerar uma ou mais notas. O `autoIssueMode` define quando a emissão acontece.
+
+### Split Fiscal
+
+Uma venda pode gerar NF-e + NFS-e simultaneamente (ex: produto físico + instalação). Requer habilitação no backoffice.
+
+### Cálculo de Valores
+
+```
+amount da venda = soma(item.amount) + freightAmount - discountAmount
+item.amount     = quantity × price - item.discountAmount
+```
+
+A soma dos `item.amount` deve ser igual ao `amount` da venda.
+
+### Cancelamento
+
+`DELETE /v1/orders/{id}/cancel` tenta cancelar a venda e as notas associadas.
+
+- NF-e dentro do prazo legal → cancela normalmente
+- NF-e fora do prazo → pode gerar NF-e de devolução automática
+- NFS-e fora do prazo → depende da prefeitura, em geral não é possível
+
+**Importante:** cancelar a venda não garante cancelamento da nota. Sempre verifique o status da nota após o cancelamento.
+
+---
+
+## Preenchimento de Objetos de Cidade
+
+Todos os objetos de cidade na API (endereço do cliente, localização do serviço, etc.) podem ser preenchidos de duas formas:
+
+### Opção 1 — Por código IBGE (recomendado quando disponível)
+
+```json
+{
+  "city": {
+    "code": "3550308"
+  }
+}
+```
+
+Mais assertivo: não depende de matching de nome. Use quando o código IBGE estiver disponível no sistema de origem.
+
+### Opção 2 — Por nome e estado
+
+```json
+{
+  "city": {
+    "name": "São Paulo",
+    "state": "SP"
+  }
+}
+```
+
+Alternativa quando o código IBGE não está disponível. A Spedy resolve automaticamente o município pelo nome e estado.
+
+**Nota:** não é necessário enviar os três campos juntos. Basta código IBGE **ou** nome + estado.
+
+### Códigos IBGE de Cidades Principais
+
+| Cidade | UF | Código IBGE |
+|---|---|---|
+| São Paulo | SP | 3550308 |
+| Rio de Janeiro | RJ | 3304557 |
+| Belo Horizonte | MG | 3106200 |
+| Brasília | DF | 5300108 |
+| Curitiba | PR | 4106902 |
+| Porto Alegre | RS | 4314902 |
+| Salvador | BA | 2927408 |
+| Fortaleza | CE | 2304400 |
+| Manaus | AM | 1302603 |
+| Recife | PE | 2611606 |
+| Goiânia | GO | 5208707 |
+| Campinas | SP | 3509502 |
+
+---
+
+## Webhooks
+
+A Spedy envia HTTP POST para sua URL quando eventos ocorrem nas notas fiscais.
+
+### Eventos Disponíveis
+
+| Evento | Descrição |
+|---|---|
+| `invoice.authorized` | Nota fiscal autorizada |
+| `invoice.canceled` | Nota fiscal cancelada |
+| `invoice.contingency` | Nota fiscal emitida em contingência, aguardando autorização definitiva |
+| `invoice.rejected` | Nota fiscal rejeitada |
+| `invoice.status_changed` | Status alterado (qualquer mudança) |
+
+### Schema do Payload
+
+```json
+{
+  "id": "uuid-do-evento",
+  "event": "invoice.status_changed",
+  "data": { ... }
+}
+```
+
+### Exemplo de Payload Completo — invoice.status_changed
+
+```json
+{
+  "id": "caaf34ab-6c65-4ca6-b6bf-b2d8f497c721",
+  "event": "invoice.status_changed",
+  "data": {
+    "id": "833e8e0e-3bda-4394-ab70-5edf4ee70988",
+    "status": "authorized",
+    "model": "serviceInvoice",
+    "environmentType": "production",
+    "issuedOn": "2024-11-08T18:35:37",
+    "amount": 3000.00,
+    "number": 42,
+    "receiver": {
+      "name": "Empresa Contratante Ltda",
+      "federalTaxNumber": "98765432000100",
+      "email": "fiscal@contratante.com.br",
+      "address": {
+        "street": "Av. dos Negócios",
+        "district": "Itaim Bibi",
+        "city": { "name": "São Paulo", "state": "SP" }
+      }
+    },
+    "company": {
+      "name": "Minha Empresa",
+      "federalTaxNumber": "12345678000195"
+    },
+    "order": {
+      "id": "fa15d7af-991d-467d-961a-f564b76d771c",
+      "date": "2024-11-08T09:00:00",
+      "transactionId": "TXN-001"
+    },
+    "authorization": {
+      "date": "2024-11-08T18:35:38",
+      "protocol": "202411080000001"
+    },
+    "processingDetail": {
+      "status": "success",
+      "message": "NFS-e autorizada com sucesso",
+      "code": "100"
+    }
+  }
+}
+```
+
+### Política de Retry
+
+Quando a entrega de um webhook falha (endpoint indisponível, timeout, HTTP 5xx), a Spedy reenvia automaticamente com intervalos crescentes:
+
+| Tentativa | Intervalo |
+|---|---|
+| 1ª | 5 minutos |
+| 2ª | 30 minutos |
+| 3ª | 1 hora |
+| 4ª | 4 horas |
+| 5ª | 16 horas |
+
+Após 5 falhas consecutivas, o webhook é **desabilitado automaticamente**. Para reativá-lo, use o endpoint `PUT /v1/webhooks/{id}/enable`.
+
+**Dica:** monitore seus webhooks e implemente logs para identificar falhas de entrega rapidamente.
+
+---
+
+## Referência de Endpoints
+
+---
+
+### Empresas
+
+#### POST /v1/companies — Criar Empresa
+
+Requer chave de API da empresa Owner. Retorna a chave de API da nova empresa em `apiCredentials.apiKey`.
+
+**Request:**
+```json
+{
+  "name": "Minha Empresa",
+  "legalName": "Minha Empresa Ltda",
+  "federalTaxNumber": "12345678000195",
+  "stateTaxNumber": "123456789",
+  "cityTaxNumber": "12345",
+  "email": "contato@minhaempresa.com.br",
+  "phone": "11999999999",
+  "address": {
+    "street": "Av. Paulista",
+    "number": "1000",
+    "district": "Bela Vista",
+    "postalCode": "01310100",
+    "additionalInformation": "Sala 10",
+    "city": {
+      "code": "3550308",
+      "name": "São Paulo",
+      "state": "SP"
+    }
+  },
+  "taxRegime": "simplesNacional",
+  "economicActivities": [
+    { "code": "6201500", "isMain": true }
+  ]
+}
+```
+
+**Response (200):**
+```json
+{
+  "id": "uuid-da-empresa",
+  "name": "Minha Empresa",
+  "legalName": "Minha Empresa Ltda",
+  "federalTaxNumber": "12345678000195",
+  "taxRegime": "simplesNacional",
+  "apiCredentials": {
+    "apiKey": "CHAVE-API-DA-NOVA-EMPRESA"
+  }
+}
+```
+
+#### GET /v1/companies — Listar Empresas
+
+`GET /v1/companies?page=1&pageSize=20`
+
+#### GET /v1/companies/{id} — Obter Empresa
+
+#### PUT /v1/companies/{id} — Atualizar Empresa
+
+Mesma estrutura do POST.
+
+#### DELETE /v1/companies/{id} — Remover Empresa
+
+#### POST /v1/companies/{id}/certificates — Enviar Certificado Digital
+
+Certificado A1 (arquivo `.pfx`). Enviar como `multipart/form-data`.
+
+Campos:
+- `file`: arquivo `.pfx`
+- `password`: senha do certificado
+
+#### PUT /v1/companies/{id}/settings — Configurar Empresa
+
+Configurações de emissão: série padrão, número inicial de NF-e/NFC-e, sequência de RPS para NFS-e, ambiente (produção/homologação), configurações tributárias padrão.
+
+O corpo inclui os objetos `productInvoice` (NF-e), `consumerInvoice` (NFC-e) e `serviceInvoice` (NFS-e). Para habilitar NFC-e, configure `consumerInvoice.enabled = true` e forneça `consumerInvoice.tokenId` e `consumerInvoice.csc` (obtidos no portal da SEFAZ do estado). Para permitir a emissão em contingência offline da NFC-e quando a SEFAZ estiver indisponível, defina `consumerInvoice.allowOfflineContingency = true` (exige `tokenId`/`csc` válidos) — ver seção "Contingência".
+
+O objeto `general` inclui o **responsável técnico** (`technicalResponsible`) da NF-e/NFC-e. Quem não configurar continua com a Spedy como responsável técnico (comportamento padrão). Configurado na empresa principal (owner), vale para todas as empresas da conta; pode ser sobrescrito em uma empresa específica.
+
+```json
+{
+  "general": {
+    "technicalResponsible": {
+      "federalTaxNumber": "12ABC34501DE35",
+      "contactName": "ACME Software",
+      "email": "contato@acme.com.br",
+      "phone": "11999998888",
+      "csrts": [
+        { "state": "PR", "environmentType": "production", "idCsrt": 1, "csrt": "SEU-CODIGO-CSRT" }
+      ]
+    }
+  }
+}
+```
+
+`federalTaxNumber` (CNPJ, sem máscara), `contactName`, `email` e `phone` são obrigatórios em conjunto. O `csrts` (Código de Segurança do Responsável Técnico) só é aceito para estados que o exigem — hoje apenas o Paraná (`PR`); em PR com responsável próprio mas sem CSRT cadastrado, a nota sai com a Spedy como responsável (a emissão nunca trava). O `csrt` é **write-only**: aceito na configuração, nunca retornado em consultas.
+
+#### GET /v1/companies/{id}/settings — Obter Configurações da Empresa
+
+Retorna as configurações da empresa na mesma estrutura aceita pelo PUT. Segredos são **write-only** e nunca retornam: `serviceInvoice.password`, `consumerInvoice.csc` e `technicalResponsible.csrts[].csrt`.
+
+---
+
+### Clientes
+
+Ao integrar via `/v1/orders`, não é necessário pré-cadastrar clientes — a plataforma os cria e vincula automaticamente. Use estes endpoints caso queira gerenciar o cadastro de clientes de forma independente.
+
+#### POST /v1/customers — Criar Cliente
+
+```json
+{
+  "name": "João Silva",
+  "legalName": "João Silva ME",
+  "federalTaxNumber": "12345678901",
+  "email": "joao@email.com.br",
+  "phone": "11999999999",
+  "address": {
+    "street": "Rua das Flores",
+    "number": "123",
+    "district": "Centro",
+    "postalCode": "01001000",
+    "city": {
+      "code": "3550308",
+      "name": "São Paulo",
+      "state": "SP"
+    }
+  }
+}
+```
+
+`federalTaxNumber`: CPF (11 dígitos), CNPJ (14 dígitos) ou documento estrangeiro. Enviar apenas números, sem máscara.
+
+#### GET /v1/customers — Listar Clientes
+
+`GET /v1/customers?page=1&pageSize=20`
+
+#### GET /v1/customers/{id} — Obter Cliente
+
+#### PUT /v1/customers/{id} — Atualizar Cliente
+
+#### DELETE /v1/customers/{id} — Remover Cliente
+
+---
+
+### Produtos
+
+Ao integrar via `/v1/orders`, não é necessário pré-cadastrar produtos — a plataforma os cria e vincula automaticamente. Use estes endpoints caso queira gerenciar o cadastro de produtos de forma independente.
+
+#### POST /v1/products — Criar Produto
+
+```json
+{
+  "name": "Curso de Marketing Digital",
+  "code": "CURSO-MKT-001",
+  "price": 297.00,
+  "invoiceModel": "serviceInvoice"
+}
+```
+
+`invoiceModel`: `productInvoice` (NF-e) ou `serviceInvoice` (NFS-e).
+
+#### GET /v1/products — Listar Produtos
+
+#### GET /v1/products/{id} — Obter Produto
+
+#### PUT /v1/products/{id} — Atualizar Produto
+
+#### DELETE /v1/products/{id} — Remover Produto
+
+---
+
+### Vendas — Fluxo Simplificado
+
+Use `/v1/orders` quando a tributação é padronizada e configurada no backoffice da Spedy. A nota é emitida automaticamente com os dados cadastrais da empresa.
+
+> **Origem dos dados tributários (Orders):** Neste modo, toda a configuração tributária (códigos de serviço, alíquotas, CFOP, NCM) é gerenciada pelo backoffice da Spedy. O sistema do cliente não precisa enviar dados tributários na API — apenas os dados comerciais da venda (cliente, itens, valores).
+
+#### POST /v1/orders — Criar Venda
+
+**Exemplo 1: NFS-e, emissão imediata, pagamento por PIX**
+
+```json
+{
+  "transactionId": "TXN-20240115-001",
+  "date": "2024-01-15T10:00:00",
+  "amount": 297.00,
+  "autoIssueMode": "immediately",
+  "status": "approved",
+  "paymentMethod": "pix",
+  "sendEmailToCustomer": true,
+  "customer": {
+    "name": "Maria Souza",
+    "federalTaxNumber": "12345678901",
+    "email": "maria@email.com.br",
+    "address": {
+      "street": "Rua das Palmeiras",
+      "number": "45",
+      "district": "Jardins",
+      "postalCode": "01452000",
+      "city": {
+        "code": "3550308",
+        "name": "São Paulo",
+        "state": "SP"
+      }
+    }
+  },
+  "items": [
+    {
+      "quantity": 1,
+      "price": 297.00,
+      "amount": 297.00,
+      "discountAmount": 0,
+      "product": {
+        "name": "Curso de Marketing Digital",
+        "code": "CURSO-MKT-001",
+        "price": 297.00
+      }
+    }
+  ]
+}
+```
+
+**Exemplo 2: múltiplos itens, com desconto e frete**
+
+```json
+{
+  "transactionId": "TXN-20240115-002",
+  "date": "2024-01-15T14:00:00",
+  "amount": 550.00,
+  "discountAmount": 50.00,
+  "freightAmount": 30.00,
+  "autoIssueMode": "immediately",
+  "status": "approved",
+  "paymentMethod": "creditCard",
+  "customer": {
+    "name": "Pedro Costa",
+    "federalTaxNumber": "98765432100",
+    "email": "pedro@email.com.br"
+  },
+  "items": [
+    {
+      "quantity": 2,
+      "price": 250.00,
+      "amount": 500.00,
+      "discountAmount": 50.00,
+      "product": {
+        "name": "Produto Físico A",
+        "code": "PROD-001",
+        "price": 250.00
+      }
+    },
+    {
+      "quantity": 1,
+      "price": 70.00,
+      "amount": 70.00,
+      "freightAmount": 30.00,
+      "product": {
+        "name": "Produto Físico B",
+        "code": "PROD-002",
+        "price": 70.00
+      }
+    }
+  ]
+}
+```
+
+**Exemplo 3: boleto bancário, emitir após pagamento confirmado**
+
+```json
+{
+  "transactionId": "TXN-20240115-003",
+  "date": "2024-01-15T10:00:00",
+  "amount": 497.00,
+  "autoIssueMode": "afterPayment",
+  "status": "awaitingPayment",
+  "paymentMethod": "billetBank",
+  "customer": {
+    "name": "Ana Lima",
+    "federalTaxNumber": "11122233344",
+    "email": "ana@email.com.br"
+  },
+  "items": [
+    {
+      "quantity": 1,
+      "price": 497.00,
+      "amount": 497.00,
+      "product": {
+        "name": "Mentoria Individual",
+        "code": "MENTORIA-001",
+        "price": 497.00
+      }
+    }
+  ]
+}
+```
+
+Quando o boleto for compensado:
+
+```
+PUT /v1/orders/{id}/status
+{ "status": "approved" }
+```
+
+A Spedy emite a nota automaticamente. Nenhuma chamada adicional é necessária.
+
+**Response de criação de venda (200):**
+```json
+{
+  "id": "uuid-da-venda",
+  "transactionId": "TXN-20240115-001",
+  "status": "approved",
+  "date": "2024-01-15T10:00:00",
+  "amount": 297.00,
+  "invoices": [
+    {
+      "id": "uuid-da-nota",
+      "status": "enqueued",
+      "model": "serviceInvoice"
+    }
+  ]
+}
+```
+
+#### GET /v1/orders — Listar Vendas
+
+```
+GET /v1/orders?page=1&pageSize=20&transactionId=TXN-001&initialDate=2024-01-01&endDate=2024-01-31
+```
+
+#### PUT /v1/orders/{id}/status — Atualizar Status da Venda
+
+```json
+{ "status": "approved" }
+```
+
+Transições de status que disparam emissão: ver tabela `OrderStatus` na seção de Enums.
+
+#### DELETE /v1/orders/{id}/cancel — Cancelar Venda
+
+Cancela a venda e tenta cancelar as notas associadas. Ver seção "Cancelamento".
+
+#### POST /v1/orders/{id}/invoices/issue — Forçar Emissão
+
+Emite a nota manualmente, independente do `autoIssueMode`.
+
+---
+
+### NF-e — Nota Fiscal de Produto
+
+Use `/v1/product-invoices` quando precisar controlar explicitamente a tributação (CFOP, NCM, ICMS, PIS, COFINS).
+
+Consulte os campos do item com `[tag_xml]` para referência cruzada com o leiaute SEFAZ.
+
+> **Origem dos dados tributários (NF-e):** Os campos tributários (`cfop`, `ncm`, `cst`, alíquotas de ICMS/PIS/COFINS) devem ser enviados pelo sistema do cliente. Em integrações reais, esses dados tipicamente vêm de:
+> - **Cadastro de produtos**: cada produto tem NCM, CFOP e CST próprios
+> - **Regras específicas**: alíquotas e outros campos variando por natureza de operação, tipo do cliente (física/jurídica), etc. — nesse caso, implemente uma tabela de regras tributárias
+> - **Configuração fixa da empresa**: quando toda a operação usa a mesma tributação
+>
+> Defina a abordagem antes de implementar. Para impostos calculados (ICMS, PIS, COFINS), é possível informar apenas a alíquota (`rate`) — o sistema calcula o valor automaticamente. Se preferir, o valor calculado também pode ser enviado.
+
+O campo `integrationId` (máx. 36 chars) é recomendado em todas as integrações: garante idempotência (evita duplicatas em retries) e permite corrigir nota rejeitada reenviando o POST com o mesmo `integrationId` e os dados corrigidos — sem necessidade de deletar a nota anterior.
+
+#### POST /v1/product-invoices — Criar NF-e
+
+---
+
+**Exemplo A — Simples Nacional (CSOSN 400), venda interna**
+
+Cenário: empresa no Simples Nacional vendendo produto físico para pessoa jurídica no mesmo estado. ICMS: CSOSN 400 (tributada pelo Simples sem crédito). PIS/COFINS: CST 07 (isento).
+
+```json
+{
+	"isFinalCustomer": true,
+  "operationType": "outgoing",
+  "destination": "internal",
+  "presenceType": "presence",
+  "operationNature": "Venda de Mercadoria",
+  "sendEmailToCustomer": false,
+  "receiver": {
+		"federalTaxNumber": "12345678901",
+    "name": "Consumidor Final",
+    "address": {
+      "street": "Rua das Flores",
+      "number": "100",
+      "district": "Centro",
+      "postalCode": "01001000",
+      "city": {
+        "code": "3550308",
+        "name": "São Paulo",
+        "state": "SP"
+      }
+    }
+  },
+  "items": [
+    {
+      "code": "PROD-001",
+      "description": "Produto Físico Exemplo",
+      "ncm": "84713012",
+      "cfop": 5102,
+      "unit": "UN",
+      "quantity": 2,
+      "unitAmount": 500.00,
+      "totalAmount": 1000.00,
+      "unitTax": "UN",
+      "quantityTax": 2,
+      "unitTaxAmount": 500.00,
+      "makeupTotal": true,
+      "taxes": {
+        "icms": {
+          "origin": 0,
+          "csosn": 400
+        },
+        "pis": {
+          "cst": 7
+        },
+        "cofins": {
+          "cst": 7
+        }
+      }
+    }
+  ],
+  "payments": [
+    {
+      "method": "pix",
+      "amount": 1000.00
+    }
+  ],
+  "total": {
+    "invoiceAmount": 1000.00,
+    "productAmount": 1000.00
+  }
+}
+```
+
+Notas sobre CSOSN para Simples Nacional:
+- `400` = tributada pelo Simples sem permissão de crédito (mais comum)
+- `101` = tributada com permissão de crédito → preencher `snCreditRate` e `snCreditAmount` no icms
+- `500` = ICMS cobrado por ST anteriormente → preencher `stRetentionAmount` e `baseStRetentionAmount`
+- `900` = outros (operações não previstas nos demais CSOSN)
+
+Notas sobre PIS/COFINS CST para Simples Nacional:
+- `7` = operação isenta da contribuição (padrão para Simples Nacional)
+
+---
+
+**Exemplo B — Regime Normal / Lucro Presumido (CST 00), venda interestadual**
+
+Cenário: empresa no Regime Normal (Lucro Presumido) vendendo para outro estado. ICMS: CST 00 (tributada integralmente), alíquota 12% interestadual. PIS: CST 01, 0,65%. COFINS: CST 01, 3%.
+
+```json
+{
+	"isFinalCustomer": true,
+	"issuedOn": "2026-04-10T13:46:04.411357",
+	"operationType": "outgoing",
+	"destination": "internal",
+	"presenceType": "presence",
+	"operationNature": "Venda de Mercadoria",
+	"sendEmailToCustomer": true,
+	"receiver": {
+		"name": "João Silva",
+		"federalTaxNumber": "12345678901",
+		"email": "joao@email.com.br",
+		"address": {
+			"street": "Rua das Flores",
+			"number": "100",
+			"district": "Centro",
+			"postalCode": "01001000",
+			"city": {
+				"code": "3550308",
+				"name": "São Paulo",
+				"state": "SP"
+			}
+		}
+	},
+	"items": [
+		{
+			"code": "PROD-002",
+			"description": "Produto Físico Regime Normal",
+			"ncm": "84713012",
+			"cfop": 5102,
+			"unit": "UN",
+			"quantity": 5,
+			"unitAmount": 200.00,
+			"totalAmount": 1000.00,
+			"unitTax": "UN",
+			"quantityTax": 5,
+			"unitTaxAmount": 200.00,
+			"makeupTotal": true,
+			"taxes": {
+				"icms": {
+					"origin": 0,
+					"cst": 0,
+					"baseTaxModality": 3,
+					"baseTax": 1000.00,
+					"baseTaxReduction": 0,
+					"rate": 18.0,
+					"amount": 180.00
+				},
+				"pis": {
+					"cst": 1,
+					"baseTax": 1000.00,
+					"rate": 0.065,
+					"amount": 6.50
+				},
+				"cofins": {
+					"cst": 1,
+					"baseTax": 1000.00,
+					"rate": 0.03,
+					"amount": 30.00
+				}
+			}
+		}
+	],
+	"payments": [
+		{
+			"method": "pix",
+			"amount": 1000.00
+		}
+	],
+	"total": {
+		"invoiceAmount": 1000.00,
+		"productAmount": 1000.00,
+		"icmsBaseTax": 1000.00,
+		"icmsAmount": 180.00,
+		"pisAmount": 6.50,
+		"cofinsAmount": 30.00
+	}
+}
+```
+
+Notas sobre CST do ICMS para Regime Normal:
+- `0` = tributada integralmente
+- `20` = com redução de base de cálculo → preencher `baseTaxReduction` (ex: 0.3333 para redução de 33,33%)
+- `40` = isenta
+- `41` = não tributada
+- `50` = suspensão
+- `60` = ICMS cobrado anteriormente por ST → preencher `stRetentionAmount` e `baseStRetentionAmount`
+- `70` = com redução de BC e cobrança do ICMS por ST
+
+Notas sobre ICMS:
+- `origin: 0` = produto nacional
+- `origin: 1` = produto estrangeiro — importação direta
+- `origin: 2` = produto estrangeiro — adquirido no mercado interno
+- `baseTaxModality: 3` = valor da operação (modalidade mais comum)
+- Alíquotas internas variam por UF (SP: 18%, RJ: 20%, MG: 18%)
+- Alíquotas interestaduais: 12% (SP→RJ, SP→MG etc.), 7% (SP→regiões Norte/Nordeste/CO exceto ES)
+
+Notas sobre PIS/COFINS CST para Regime Normal:
+- `1` = operação tributável à alíquota básica (Lucro Presumido: PIS 0,65%, COFINS 3%)
+- `2` = operação tributável à alíquota diferenciada
+- `49` = outras operações de saída
+- `70` = operação de aquisição vinculada a receita não cumulativa (Lucro Real: PIS 1,65%, COFINS 7,6%)
+
+CFOPs mais comuns:
+- `5102` = venda de mercadoria adquirida de terceiros (interna)
+- `5403` = venda de mercadoria sujeita a ST (interna)
+- `6102` = venda de mercadoria adquirida de terceiros (interestadual)
+- `5949` / `6949` = outras saídas
+
+---
+
+#### GET /v1/product-invoices — Listar NF-e
+
+```
+GET /v1/product-invoices?page=1&pageSize=20&effectiveDateStart=2024-01-01&effectiveDateEnd=2024-01-31&transactionId=TXN-001&receiverFederalTaxNumber=12345678000195
+```
+
+#### GET /v1/product-invoices/{id} — Consultar NF-e
+
+**Response (200):**
+```json
+{
+  "id": "uuid-da-nota",
+  "status": "authorized",
+  "model": "productInvoice",
+  "environmentType": "production",
+  "number": 42,
+  "series": "1",
+  "accessKey": "35240112345678000195550010000000421000000000",
+  "issuedOn": "2024-01-15T10:00:42",
+  "amount": 1000.00,
+  "authorization": {
+    "date": "2024-01-15T10:00:45",
+    "protocol": "135240000000001"
+  },
+  "processingDetail": {
+    "status": "success",
+    "message": "Autorizado o uso da NF-e",
+    "code": "100"
+  }
+}
+```
+
+Quando `status: "rejected"`, verificar `processingDetail.message` e `processingDetail.code` para identificar a rejeição da SEFAZ.
+
+#### DELETE /v1/product-invoices/{id} — Cancelar NF-e
+
+```json
+{ "justification": "Emitida com dados incorretos do destinatário" }
+```
+
+Justificativa deve ter no mínimo 15 caracteres. Cancelamento tem prazo legal (geralmente 24h após autorização; verifique por UF).
+
+#### POST /v1/product-invoices/{id}/corrections — Carta de Correção (CC-e)
+
+```json
+{
+  "description": "Correção: Informação complementar incluída no campo de dados adicionais conforme solicitado pelo destinatário"
+}
+```
+
+Limitações: CC-e **não** corrige dados do emitente, destinatário, valor, impostos, itens ou qualquer informação que influencie o valor do imposto.
+
+#### POST /v1/product-invoices/{id}/issue — Reemitir NF-e
+
+Reprocessa uma nota rejeitada após correção dos dados.
+
+#### POST /v1/product-invoices/{id}/check-status — Consultar Status na SEFAZ
+
+Consulta síncrona do status na SEFAZ, usada para **reconciliar/destravar** uma nota **já enviada**: reconcilia uma nota marcada como rejeitada na Spedy mas autorizada na SEFAZ, ou destrava uma nota cujo acompanhamento automático esgotou as tentativas. **Não** serve para furar a fila de emissão — enquanto a nota está `enqueued` ou `created` (ainda não enviada à SEFAZ), retorna **400**. Para apenas acompanhar o status (polling), use `GET /v1/product-invoices/{id}`.
+
+#### POST /v1/product-invoices/{id}/resend-email — Reenviar E-mail
+
+#### GET /v1/product-invoices/{id}/xml — Download do XML
+
+Não requer X-Api-Key. Retorna o arquivo XML diretamente (`application/xml`).
+
+#### GET /v1/product-invoices/{id}/pdf — Download do PDF (DANFE)
+
+Não requer X-Api-Key. Retorna o arquivo PDF diretamente (`application/pdf`).
+
+#### GET /v1/product-invoices/disablement — Listar Inutilizações
+
+#### POST /v1/product-invoices/disablement — Inutilizar Numeração
+
+```json
+{
+  "serie": "1",
+  "numberStart": 10,
+  "numberEnd": 15,
+  "justification": "Números não utilizados em virtude de erro no sistema emissor"
+}
+```
+
+Justificativa mínima de 15 caracteres.
+
+---
+
+### NFS-e — Nota Fiscal de Serviço
+
+Use `/v1/service-invoices` para emissão de notas de serviço (prefeitura). Antes de emitir, verifique se o município está integrado via `GET /v1/service-invoices/cities`.
+
+> **Origem dos dados tributários (NFS-e):** Os campos `federalServiceCode`, `cityServiceCode`, `nbsCode` e `taxationType` devem ser enviados pelo sistema do cliente. Em integrações reais, esses dados tipicamente vêm de:
+> - **Cadastro de serviços**: cada serviço tem código LC 116/03, código NBS e alíquota ISS próprios
+> - **Regras específicas**: alíquotas e outros campos variando por localidade do cliente, tipo de pessoa (física/jurídica), valor da NF, etc. — nesse caso, implemente uma tabela de regras tributárias
+> - **Configuração fixa da empresa**: quando toda a operação usa a mesma tributação (ex: empresa de TI que emite apenas NFS-e com código 1.07 e ISS 5%)
+>
+> **Importante:** Antes de integrar, consulte `GET /v1/service-invoices/cities` para verificar quais campos são obrigatórios no município da empresa emissora. Cada cidade retorna um objeto `provider.options` que indica se o município exige `federalServiceCode`, `nbsCode`, numeração de RPS, série, lote, entre outros. Esse endpoint é essencial para montar corretamente o request de emissão.
+>
+> Defina a abordagem antes de implementar. Para o ISS e demais impostos (PIS, COFINS, IR, CSLL, INSS), é possível informar apenas a alíquota (`rate`) — o sistema calcula o valor automaticamente. Se preferir, o valor calculado também pode ser enviado.
+
+#### GET /v1/service-invoices/cities — Municípios Integrados
+
+Retorna a lista de municípios disponíveis para emissão de NFS-e com as configurações técnicas do provedor de cada cidade. **Consulte este endpoint antes de integrar um novo município** para identificar os campos obrigatórios e o tipo de autenticação exigido.
+
+Parâmetros de query: `code` (código IBGE), `state` (UF), `page`, `pageSize`.
+
+**Response (200):**
+```json
+{
+  "totalCount": 1302,
+  "pageCount": 131,
+  "pageSize": 10,
+  "hasNext": true,
+  "items": [
+    {
+      "id": "fe94377c-a5d5-4d06-bc16-004073726944",
+      "code": "5200100",
+      "name": "Abadiânia",
+      "state": "GO",
+      "provider": {
+        "name": "Mega Soft",
+        "options": {
+          "rps": true,
+          "series": true,
+          "batchNumber": true,
+          "invoiceNumber": false,
+          "requiresNumberInSequence": false,
+          "federalServiceCode": true,
+          "nbsCode": true,
+          "newBatchNumberForEachAttempt": false,
+          "removeAccents": false,
+          "supportsTaxReform": false,
+          "useNationalLayout": false,
+          "authentication": "certificate"
+        }
+      },
+      "nationalServiceInvoiceRegimes": "simplesNacional"
+    }
+  ]
+}
+```
+
+**Campos de `provider.options`:**
+
+| Campo | Descrição |
+|---|---|
+| `rps` | Exige numeração de RPS configurada no backoffice |
+| `series` | Exige série de RPS |
+| `batchNumber` | Exige número de lote |
+| `invoiceNumber` | Envia o número da NF na emissão |
+| `requiresNumberInSequence` | RPS deve ser enviado em ordem rigorosa (sem gaps) |
+| `federalServiceCode` | Exige código do item da lista de serviços LC 116/03 |
+| `nbsCode` | Exige código NBS (Nomenclatura Brasileira de Serviços) |
+| `supportsTaxReform` | Aceita campos de IBS/CBS da Reforma Tributária |
+| `useNationalLayout` | Utiliza o Ambiente Nacional da NFS-e |
+| `authentication` | Tipo de autenticação: `certificate` (A1/A3), `userName` (usuário/senha), `token` |
+
+**`nationalServiceInvoiceRegimes`**: quando não nulo, indica para quais regimes tributários o município adotou o Emissor Nacional (`none`, `all`, `MEI`, `simplesNacional`, `regimeNormal`).
+
+#### POST /v1/service-invoices — Criar NFS-e
+
+---
+
+**Exemplo A — Simples Nacional, ISS tributado no município, sem retenção**
+
+Cenário: prestador no Simples Nacional emitindo NFS-e de consultoria em TI para pessoa jurídica. ISS: 5%, tributado no município do prestador, não retido na fonte.
+
+```json
+{
+  "effectiveDate": "2024-01-15T10:00:00",
+  "status": "enqueued",
+  "sendEmailToCustomer": true,
+  "description": "Prestação de serviços de consultoria em tecnologia da informação conforme proposta comercial nº 001/2024",
+  "federalServiceCode": "1.07",
+  "cityServiceCode": "0107",
+  "taxationType": "taxationInMunicipality",
+  "receiver": {
+    "name": "Empresa Contratante Ltda",
+    "federalTaxNumber": "98765432000100",
+    "email": "fiscal@contratante.com.br",
+    "address": {
+      "street": "Av. dos Negócios",
+      "number": "300",
+      "district": "Itaim Bibi",
+      "postalCode": "04538133",
+      "city": {
+        "code": "3550308",
+        "name": "São Paulo",
+        "state": "SP"
+      }
+    }
+  },
+  "total": {
+    "invoiceAmount": 3000.00,
+    "issRate": 0.05,
+    "issAmount": 150.00,
+    "issWithheld": false
+  }
+}
+```
+
+---
+
+**Exemplo B — Regime Normal (Lucro Presumido), ISS retido pelo tomador, com outras retenções**
+
+Cenário: prestadora no Regime Normal (Lucro Presumido) com contrato de desenvolvimento de software. ISS retido pelo tomador. IR, PIS e COFINS não retidos.
+
+```json
+{
+  "effectiveDate": "2024-01-15T10:00:00",
+  "status": "enqueued",
+  "sendEmailToCustomer": false,
+  "description": "Desenvolvimento de software sob demanda conforme proposta comercial nº 042/2024. Referente ao mês de janeiro/2024.",
+  "federalServiceCode": "1.05",
+  "cityServiceCode": "0105",
+  "taxationType": "taxationInMunicipality",
+  "receiver": {
+    "name": "Grande Empresa S/A",
+    "federalTaxNumber": "11223344000155",
+    "email": "nf@grandeempresa.com.br",
+    "address": {
+      "street": "Av. Faria Lima",
+      "number": "1500",
+      "district": "Pinheiros",
+      "postalCode": "01451001",
+      "city": {
+        "code": "3550308",
+        "name": "São Paulo",
+        "state": "SP"
+      }
+    }
+  },
+  "total": {
+    "invoiceAmount": 10000.00,
+    "issRate": 0.05,
+    "issAmount": 500.00,
+    "issWithheld": true,
+    "pisRate": 0.0065,
+    "pisAmount": 65.00,
+    "pisWithheld": false,
+    "cofinsRate": 0.03,
+    "cofinsAmount": 300.00,
+    "cofinsWithheld": false,
+    "irRate": 0.015,
+    "irAmount": 150.00,
+    "irWithheld": false,
+    "netAmount": 9500.00
+  }
+}
+```
+
+**Response do POST /v1/service-invoices (200):**
+```json
+{
+  "id": "uuid-da-nota",
+  "integrationId": "OS-0001",
+  "status": "enqueued",
+  "model": "serviceInvoice",
+  "environmentType": "development",
+  "number": null,
+  "issuedOn": null,
+  "amount": 3000.00,
+  "description": "Prestação de serviços de consultoria...",
+  "rps": {
+    "number": 15,
+    "series": "1"
+  },
+  "processingDetail": {
+    "status": "processing",
+    "message": null,
+    "code": null
+  },
+  "receiver": {
+    "name": "Empresa Contratante Ltda",
+    "federalTaxNumber": "98765432000100",
+    "email": "fiscal@contratante.com.br"
+  },
+  "company": {
+    "name": "Minha Empresa",
+    "federalTaxNumber": "12345678000195"
+  },
+  "totals": {
+    "invoiceAmount": 3000.00,
+    "issRate": 0.05,
+    "issAmount": 150.00,
+    "issWithheld": false
+  }
+}
+```
+
+Campos relevantes do response:
+- `id`: UUID da nota — use para consultas subsequentes (`GET`, `DELETE`, `/pdf`, `/xml`)
+- `status`: estado inicial (geralmente `enqueued`)
+- `number`: `null` até a nota ser autorizada pela prefeitura
+- `processingDetail.status`: `processing` enquanto em fila
+- `rps`: número e série do RPS (Recibo Provisório de Serviço)
+
+Notas sobre NFS-e:
+- `integrationId`: ver seção dedicada acima. **Fortemente recomendado** — use o ID da ordem de serviço ou pedido do seu sistema.
+- `federalServiceCode`: código da Lista de Serviços da LC 116/03. Exemplos: `1.05` (licenciamento de software), `1.07` (suporte técnico em informática), `17.01` (assessoria/consultoria)
+- `cityServiceCode`: código de serviço específico do município — consultar tabela da prefeitura. **Atenção:** o formato varia por município (pode ter 4, 6 ou 7 dígitos). Não assuma que é o `federalServiceCode` sem o ponto.
+- `description`: discriminação dos serviços. Ser descritivo; muitos municípios exigem detalhamento
+- **Dica para composição do `description`:** Componha a descrição a partir dos itens do pedido/OS. Exemplo:
+  ```
+  Ref. OS #0001
+  - Manutenção Preventiva (Qtd: 2)
+  - Consultoria Técnica (Qtd: 1)
+  ```
+- `issWithheld: true`: ISS retido na fonte pelo tomador. Obrigatório para alguns municípios quando o tomador é pessoa jurídica estabelecida no mesmo município
+- Alíquota de ISS varia por município e tipo de serviço (geralmente entre 2% e 5%)
+- Para Simples Nacional: campos de PIS, COFINS, CSLL, IR geralmente são omitidos pois já estão cobertos pelo Simples
+
+Notas sobre `taxationType`:
+- `taxationInMunicipality`: ISS tributado no município onde o serviço é prestado (prestador) — caso mais comum
+- `taxationOutsideMunicipality`: ISS tributado no município do tomador (casos especiais da LC 116/03, art. 3º)
+- `exemption`: isento de ISS
+- `exportation`: exportação de serviços para o exterior
+
+---
+
+#### GET /v1/service-invoices — Listar NFS-e
+
+```
+GET /v1/service-invoices?page=1&pageSize=20&effectiveDateStart=2024-01-01&effectiveDateEnd=2024-01-31
+```
+
+#### GET /v1/service-invoices/{id} — Consultar NFS-e
+
+**Response (200):**
+```json
+{
+  "id": "uuid-da-nota",
+  "status": "authorized",
+  "model": "serviceInvoice",
+  "environmentType": "production",
+  "number": 15,
+  "issuedOn": "2024-01-15T10:02:00",
+  "amount": 3000.00,
+  "description": "Prestação de serviços de consultoria...",
+  "rps": {
+    "number": 15,
+    "series": "1"
+  },
+  "authorization": {
+    "date": "2024-01-15T10:02:05",
+    "protocol": "NF202401150001"
+  },
+  "processingDetail": {
+    "status": "success",
+    "message": "NFS-e autorizada com sucesso",
+    "code": "100"
+  }
+}
+```
+
+**Sobre o campo `number`:** O número da NFS-e é atribuído pela prefeitura somente quando a nota é autorizada. Enquanto a nota estiver em processamento (`enqueued`, `created`), o campo `number` será `null`. Use-o para exibição apenas após confirmar que `status` é `authorized`.
+
+#### DELETE /v1/service-invoices/{id} — Cancelar NFS-e
+
+```json
+{ "justification": "Serviço não prestado conforme acordado" }
+```
+
+Cancelamento de NFS-e depende da prefeitura. Muitos municípios não permitem cancelamento após determinado prazo. Sempre consulte as regras do município.
+
+#### POST /v1/service-invoices/{id}/issue — Reemitir NFS-e
+
+#### POST /v1/service-invoices/{id}/check-status — Consultar Status na Prefeitura
+
+Consulta síncrona do status na prefeitura, usada para **reconciliar/destravar** uma nota **já enviada**: reconcilia uma nota marcada como rejeitada na Spedy mas autorizada na prefeitura, ou destrava uma nota cujo acompanhamento automático esgotou as tentativas. **Não** serve para furar a fila de emissão — enquanto a nota está `enqueued` ou `created` (ainda não enviada à prefeitura), retorna **400**. Para apenas acompanhar o status (polling), use `GET /v1/service-invoices/{id}`.
+
+#### POST /v1/service-invoices/{id}/resend-email — Reenviar E-mail
+
+#### GET /v1/service-invoices/{id}/xml — Download do XML
+
+Não requer X-Api-Key. Retorna o XML da NFS-e.
+
+#### GET /v1/service-invoices/{id}/pdf — Download do PDF
+
+Não requer X-Api-Key. Retorna o PDF da NFS-e.
+
+---
+
+### NFC-e — Nota Fiscal ao Consumidor
+
+Use `/v1/consumer-invoices` para emitir NFC-e (cupom fiscal eletrônico, modelo 65). Destinado a varejo presencial e operações com consumidor final.
+
+Consulte os campos do item com `[tag_xml]` para referência cruzada com o leiaute SEFAZ.
+
+**Pré-requisitos:** NFC-e deve estar com `tokenId` e `csc` configurados em (`PUT /v1/companies/{id}/settings`) (obtidos no portal da SEFAZ do estado).
+
+> **NFC-e — todos os dados devem ser enviados via API.** Diferentemente de NF-e e NFS-e, a NFC-e não possui configuração de tributação padrão via backoffice. Todos os campos tributários (`cfop`, `ncm`, `cst`, alíquotas de ICMS/PIS/COFINS) devem ser enviados na requisição. Isso inclui:
+> - `cfop`, `ncm`, `unit` e tributação completa em cada item
+> - Alíquotas e bases de ICMS, PIS e COFINS
+> - Forma de pagamento no campo `payments`
+>
+> Defina a abordagem no seu sistema antes de integrar. Para impostos calculados (ICMS, PIS, COFINS), é possível informar apenas a alíquota (`rate`) — o sistema calcula o valor automaticamente. Se preferir, o valor calculado também pode ser enviado.
+
+O campo `integrationId` (máx. 36 chars) é recomendado em todas as integrações: garante idempotência (evita duplicatas em retries) e permite corrigir nota rejeitada reenviando o POST com o mesmo `integrationId` e os dados corrigidos — sem necessidade de deletar a nota anterior.
+
+#### POST /v1/consumer-invoices — Criar NFC-e
+
+Mesmos campos base da NF-e. Diferenças principais:
+- `isFinalCustomer` deve ser `true` (NFC-e é sempre para consumidor final)
+- `destination` é sempre `internal` (NFC-e não permite operação interestadual)
+- `presenceType` deve ser `presential` (venda presencial) ou `internet` (venda online)
+- `receiver.federalTaxNumber` é opcional (CPF do consumidor) — pode ser omitido para vendas anônimas
+- Não há carta de correção após emissão
+- QR Code é gerado automaticamente com base no `tokenId` e `csc` configurados na empresa
+
+---
+
+**Exemplo A — Simples Nacional (CSOSN 400), venda presencial anônima**
+
+Cenário: empresa no Simples Nacional, venda presencial em loja física para consumidor final sem identificação. ICMS: CSOSN 400 (tributada pelo Simples sem crédito). PIS/COFINS: CST 07 (isento).
+
+```json
+{
+	"isFinalCustomer": true,
+  "operationType": "outgoing",
+  "destination": "internal",
+  "presenceType": "presence",
+  "operationNature": "Venda de Mercadoria",
+  "sendEmailToCustomer": false,
+  "receiver": {
+		"federalTaxNumber": "12345678901",
+    "name": "Consumidor Final",
+    "address": {
+      "street": "Rua das Flores",
+      "number": "100",
+      "district": "Centro",
+      "postalCode": "01001000",
+      "city": {
+        "code": "3550308",
+        "name": "São Paulo",
+        "state": "SP"
+      }
+    }
+  },
+  "items": [
+    {
+      "code": "PROD-001",
+      "description": "Produto Físico Exemplo",
+      "ncm": "84713012",
+      "cfop": 5102,
+      "unit": "UN",
+      "quantity": 2,
+      "unitAmount": 500.00,
+      "totalAmount": 1000.00,
+      "unitTax": "UN",
+      "quantityTax": 2,
+      "unitTaxAmount": 500.00,
+      "makeupTotal": true,
+      "taxes": {
+        "icms": {
+          "origin": 0,
+          "csosn": 400
+        },
+        "pis": {
+          "cst": 7
+        },
+        "cofins": {
+          "cst": 7
+        }
+      }
+    }
+  ],
+  "payments": [
+    {
+      "method": "pix",
+      "amount": 1000.00
+    }
+  ],
+  "total": {
+    "invoiceAmount": 1000.00,
+    "productAmount": 1000.00
+  }
+}
+```
+
+Notas sobre CSOSN para Simples Nacional:
+- `400` = tributada pelo Simples sem permissão de crédito (mais comum)
+- `101` = tributada com permissão de crédito → preencher `snCreditRate` e `snCreditAmount` no icms
+- `500` = ICMS cobrado por ST anteriormente → preencher `stRetentionAmount` e `baseStRetentionAmount`
+- `900` = outros (operações não previstas nos demais CSOSN)
+
+Notas sobre PIS/COFINS CST para Simples Nacional:
+- `7` = operação isenta da contribuição (padrão para Simples Nacional)
+
+---
+
+**Exemplo B — Regime Normal / Lucro Presumido (CST 00), venda online com CPF do consumidor**
+
+Cenário: empresa no Regime Normal (Lucro Presumido), venda online com identificação do consumidor via CPF. ICMS: CST 00 (tributada integralmente), alíquota interna. PIS: CST 01, 0,65%. COFINS: CST 01, 3%. NFC-e é sempre interna (mesmo estado).
+
+```json
+{
+	"isFinalCustomer": true,
+	"issuedOn": "2026-04-10T13:46:04.411357",
+	"operationType": "outgoing",
+	"destination": "internal",
+	"presenceType": "presence",
+	"operationNature": "Venda de Mercadoria",
+	"sendEmailToCustomer": true,
+	"receiver": {
+		"name": "João Silva",
+		"federalTaxNumber": "12345678901",
+		"email": "joao@email.com.br",
+		"address": {
+			"street": "Rua das Flores",
+			"number": "100",
+			"district": "Centro",
+			"postalCode": "01001000",
+			"city": {
+				"code": "3550308",
+				"name": "São Paulo",
+				"state": "SP"
+			}
+		}
+	},
+	"items": [
+		{
+			"code": "PROD-002",
+			"description": "Produto Físico Regime Normal",
+			"ncm": "84713012",
+			"cfop": 5102,
+			"unit": "UN",
+			"quantity": 5,
+			"unitAmount": 200.00,
+			"totalAmount": 1000.00,
+			"unitTax": "UN",
+			"quantityTax": 5,
+			"unitTaxAmount": 200.00,
+			"makeupTotal": true,
+			"taxes": {
+				"icms": {
+					"origin": 0,
+					"cst": 0,
+					"baseTaxModality": 3,
+					"baseTax": 1000.00,
+					"baseTaxReduction": 0,
+					"rate": 18.0,
+					"amount": 180.00
+				},
+				"pis": {
+					"cst": 1,
+					"baseTax": 1000.00,
+					"rate": 0.065,
+					"amount": 6.50
+				},
+				"cofins": {
+					"cst": 1,
+					"baseTax": 1000.00,
+					"rate": 0.03,
+					"amount": 30.00
+				}
+			}
+		}
+	],
+	"payments": [
+		{
+			"method": "pix",
+			"amount": 1000.00
+		}
+	],
+	"total": {
+		"invoiceAmount": 1000.00,
+		"productAmount": 1000.00,
+		"icmsBaseTax": 1000.00,
+		"icmsAmount": 180.00,
+		"pisAmount": 6.50,
+		"cofinsAmount": 30.00
+	}
+}
+```
+
+Notas sobre CST do ICMS para Regime Normal:
+- `0` = tributada integralmente
+- `20` = com redução de base de cálculo → preencher `baseTaxReduction` (ex: 0.3333 para redução de 33,33%)
+- `40` = isenta
+- `41` = não tributada
+- `50` = suspensão
+- `60` = ICMS cobrado anteriormente por ST → preencher `stRetentionAmount` e `baseStRetentionAmount`
+- `70` = com redução de BC e cobrança do ICMS por ST
+
+Notas sobre ICMS (NFC-e):
+- `origin: 0` = produto nacional
+- `origin: 1` = produto estrangeiro — importação direta
+- `origin: 2` = produto estrangeiro — adquirido no mercado interno
+- `baseTaxModality: 3` = valor da operação (modalidade mais comum)
+- NFC-e é sempre operação interna — usar alíquota interna do estado do emitente (SP: 18%, RJ: 20%, MG: 18%)
+- CFOP para NFC-e é sempre `5102` (venda interna ao consumidor final) ou `5405` (ST)
+
+Notas sobre PIS/COFINS CST para Regime Normal:
+- `1` = operação tributável à alíquota básica (Lucro Presumido: PIS 0,65%, COFINS 3%)
+- `2` = operação tributável à alíquota diferenciada
+- `49` = outras operações de saída
+- `70` = operação de aquisição vinculada a receita não cumulativa (Lucro Real: PIS 1,65%, COFINS 7,6%)
+
+CFOPs para NFC-e (sempre internos):
+- `5102` = venda de mercadoria adquirida de terceiros ao consumidor final
+- `5405` = venda de mercadoria sujeita a ST ao consumidor final
+- `5949` = outras saídas
+
+---
+
+#### GET /v1/consumer-invoices — Listar NFC-e
+
+```
+GET /v1/consumer-invoices?page=1&pageSize=20&effectiveDateStart=2024-01-01&effectiveDateEnd=2024-01-31&transactionId=TXN-001&receiverFederalTaxNumber=12345678901
+```
+
+#### GET /v1/consumer-invoices/{id} — Consultar NFC-e
+
+**Response (200):**
+```json
+{
+  "id": "uuid-da-nota",
+  "status": "authorized",
+  "model": "consumerInvoice",
+  "environmentType": "production",
+  "number": 42,
+  "series": "1",
+  "accessKey": "35240112345678000195650010000000421000000000",
+  "issuedOn": "2024-01-15T10:00:42",
+  "amount": 1000.00,
+  "authorization": {
+    "date": "2024-01-15T10:00:45",
+    "protocol": "135240000000001"
+  },
+  "processingDetail": {
+    "status": "success",
+    "message": "Autorizado o uso da NFC-e",
+    "code": "100"
+  }
+}
+```
+
+Quando `status: "rejected"`, verificar `processingDetail.message` e `processingDetail.code` para identificar a rejeição da SEFAZ.
+
+#### DELETE /v1/consumer-invoices/{id} — Cancelar NFC-e
+
+```json
+{ "justification": "Emitida com dados incorretos do destinatário" }
+```
+
+Justificativa deve ter no mínimo 15 caracteres. Cancelamento tem prazo legal (geralmente 30 minutos após autorização para NFC-e; verifique por UF).
+
+#### POST /v1/consumer-invoices/{id}/issue — Reemitir NFC-e
+
+Reprocessa uma nota rejeitada após correção dos dados. NFC-e não possui carta de correção — para corrigir, use `integrationId` e reenvie o POST com os dados corretos.
+
+#### POST /v1/consumer-invoices/{id}/check-status — Consultar Status na SEFAZ
+
+Consulta síncrona do status na SEFAZ, usada para **reconciliar/destravar** uma nota **já enviada**: reconcilia uma nota marcada como rejeitada na Spedy mas autorizada na SEFAZ, ou destrava uma nota cujo acompanhamento automático esgotou as tentativas. **Não** serve para furar a fila de emissão — enquanto a nota está `enqueued` ou `created` (ainda não enviada à SEFAZ), retorna **400**. Para apenas acompanhar o status (polling), use `GET /v1/consumer-invoices/{id}`.
+
+#### POST /v1/consumer-invoices/{id}/resend-email — Reenviar E-mail
+
+#### GET /v1/consumer-invoices/{id}/xml — Download do XML
+
+Não requer X-Api-Key. Retorna o arquivo XML diretamente (`application/xml`).
+
+#### GET /v1/consumer-invoices/{id}/pdf — Download do PDF (DANFE NFC-e)
+
+Não requer X-Api-Key. Retorna o arquivo PDF diretamente (`application/pdf`).
+
+#### GET /v1/consumer-invoices/disablements — Listar Inutilizações
+
+#### POST /v1/consumer-invoices/disablements — Inutilizar Numeração
+
+```json
+{
+  "serie": "1",
+  "numberStart": 10,
+  "numberEnd": 15,
+  "justification": "Números não utilizados em virtude de erro no sistema emissor"
+}
+```
+
+Justificativa mínima de 15 caracteres.
+
+---
+
+### Webhooks
+
+**Escopo: conta, não empresa.** Um webhook recebe eventos de todas as empresas da conta. Use o objeto `company` no payload para identificar qual empresa gerou o evento.
+
+#### Eventos disponíveis
+
+| Evento | Descrição |
+|---|---|
+| `invoice.status_changed` | Qualquer alteração de status da nota — cobre criação, autorização, rejeição, cancelamento etc. |
+| `invoice.authorized` | Nota fiscal autorizada |
+| `invoice.rejected` | Nota fiscal rejeitada |
+| `invoice.canceled` | Nota fiscal cancelada |
+
+Na maioria dos casos, assinar apenas `invoice.status_changed` é suficiente para cobrir todo o ciclo de vida da nota.
+
+#### POST /v1/webhooks — Criar Webhook
+
+```json
+{
+  "event": "invoice.status_changed",
+  "url": "https://meusite.com.br/webhooks/spedy"
+}
+```
+
+Crie um registro por evento. Para receber múltiplos eventos, crie um webhook para cada um.
+
+#### GET /v1/webhooks — Listar Webhooks
+
+#### GET /v1/webhooks/{id} — Obter Webhook
+
+#### PUT /v1/webhooks/{id} — Atualizar Webhook
+
+#### DELETE /v1/webhooks/{id} — Remover Webhook
+
+#### PUT /v1/webhooks/{id}/enable — Habilitar Webhook
+
+#### PUT /v1/webhooks/{id}/disable — Desabilitar Webhook
+
+---
+
+## Referência de Enums
+
+### TaxRegime — Regime Tributário
+
+| Valor | Descrição |
+|---|---|
+| `simplesNacional` | Simples Nacional |
+| `simplesNacionalExcessoSublimite` | Simples Nacional com excesso de sublimite |
+| `simplesNacionalMEI` | MEI (Microempreendedor Individual) |
+| `regimeNormal` | Regime Normal (Lucro Presumido ou Lucro Real) |
+
+### InvoiceStatus — Status da Nota Fiscal
+
+| Valor | Descrição |
+|---|---|
+| `created` | Criada — aguarda emissão explícita via `/{id}/issue` ou gatilho automático (ex: `afterPayment`) |
+| `enqueued` | Enfileirada para envio |
+| `received` | Recebida pela autoridade fiscal |
+| `authorized` | **Autorizada — nota válida** |
+| `inContingent` | Em contingência — NFC-e emitida offline, aguarda autorização definitiva |
+| `rejected` | Rejeitada pela SEFAZ/Prefeitura |
+| `canceled` | Cancelada |
+| `denied` | Denegada |
+| `disabled` | Inutilizada |
+| `removed` | Removida |
+
+### InvoiceProcessingStatus — Status do Processamento
+
+| Valor | Descrição |
+|---|---|
+| `processing` | Em processamento |
+| `success` | Processado com sucesso |
+| `failed` | Falha no processamento |
+
+### ServiceInvoiceTaxationType — Tipo de Tributação ISS
+
+| Valor | Descrição |
+|---|---|
+| `taxationInMunicipality` | Tributada no município do prestador (mais comum) |
+| `taxationOutsideMunicipality` | Tributada no município do tomador |
+| `exemption` | Isento |
+| `immune` | Imune |
+| `suspendedByCourt` | Suspensa por decisão judicial |
+| `suspendedByAdministrativeProcedure` | Suspensa por procedimento administrativo |
+| `exportation` | Exportação de serviços |
+| `nonIncidence` | Não incidência |
+
+### OrderStatus — Status da Venda
+
+| Valor | Descrição |
+|---|---|
+| `created` | Criada |
+| `awaitingPayment` | Aguardando pagamento |
+| `approved` | Aprovada / Paga → dispara `afterPayment` |
+| `refundRequested` | Reembolso solicitado |
+| `completed` | Concluída |
+| `chargeback` | Chargeback |
+| `canceled` | Cancelada |
+| `refunded` | Reembolsada |
+| `expired` | Expirada |
+| `refused` | Recusada |
+| `deleted` | Excluída |
+
+### OrderIssueInvoiceMode — Gatilho de Emissão
+
+| Valor | Comportamento |
+|---|---|
+| `immediately` | Emite ao criar a venda |
+| `disabled` | Não emite automaticamente |
+| `afterPayment` | Emite ao mudar status para `approved` |
+| `afterWarrency` | Emite no dia seguinte ao `warrantyDate` |
+
+### InvoiceOperationType — Tipo de Operação (NF-e)
+
+| Valor | Descrição |
+|---|---|
+| `incoming` | Entrada |
+| `outgoing` | Saída |
+
+### SefazInvoiceDestinationType — Destino (NF-e)
+
+| Valor | Descrição |
+|---|---|
+| `internal` | Operação interna (mesmo estado) |
+| `interstate` | Operação interestadual |
+| `international` | Exportação |
+
+### SefazInvoicePresenceType — Indicador de Presença (NF-e)
+
+| Valor | Descrição |
+|---|---|
+| `none` | Não se aplica |
+| `presence` | Operação presencial |
+| `internet` | Via internet |
+| `telephone` | Via telefone |
+| `delivery` | Entrega a domicílio |
+| `othersNonPresenceOperation` | Outros não presenciais |
+
+### SefazInvoicePurposeType — Finalidade da NF-e
+
+| Valor | Descrição |
+|---|---|
+| `normal` | NF-e normal |
+| `complement` | NF-e complementar |
+| `adjustment` | NF-e de ajuste |
+| `devolution` | NF-e de devolução |
+| `credit` | Nota de crédito |
+| `debit` | Nota de débito |
+
+### OrderPaymentMethod — Forma de Pagamento (Orders)
+
+`billetBank`, `creditCard`, `debitCard`, `pix`, `paypal`, `bankTransfer`, `balanceWallets`, `cash`, `other`
+
+### SefazInvoicePaymentMethod — Método de Pagamento (NF-e)
+
+Segue tabela SEFAZ: `01` (Dinheiro), `02` (Cheque), `03` (Cartão de Crédito), `04` (Cartão de Débito), `15` (Boleto Bancário), `17` (PIX), `90` (Sem Pagamento), `99` (Outros).
+
+### InvoiceModel — Modelo da Nota
+
+| Valor | Descrição |
+|---|---|
+| `productInvoice` | NF-e (produto, SEFAZ) |
+| `consumerInvoice` | NFC-e (consumidor, SEFAZ) |
+| `serviceInvoice` | NFS-e (serviço, prefeitura) |
+
+### EnvironmentType — Ambiente
+
+| Valor | Descrição |
+|---|---|
+| `production` | Produção |
+| `development` | Homologação / Sandbox |
+
+---
+
+## Guia de Integração Rápida
+
+### Checklist de Setup
+
+1. Criar conta no sandbox: https://sandbox-app.spedy.com.br (Plano Desenvolvedor, gratuito)
+2. Configurar empresa no backoffice (regime tributário, certificado digital, série NF)
+3. Obter chave de API: Perfil → Minha Empresa → Credenciais da API
+4. Criar webhook: `POST /v1/webhooks` com `event: "invoice.status_changed"`
+5. Testar emissão com `POST /v1/orders` (fluxo simplificado)
+6. Ao validar, migrar para produção com nova conta e chave
+
+### Qual Endpoint Usar?
+
+```
+Preciso emitir nota fiscal automaticamente
+│
+├─ Tributação uniforme (mesmo ISS/ICMS para todos os produtos)?
+│   └─ SIM → POST /v1/orders
+│           (configurar tributação no backoffice, sem enviar impostos na API)
+│
+└─ Tributação varia por produto/operação, ou cliente não usa backoffice?
+    ├─ Produto físico (NF-e)           → POST /v1/product-invoices
+    ├─ Serviço (NFS-e)                 → POST /v1/service-invoices
+    └─ Varejo / consumidor final (NFC-e) → POST /v1/consumer-invoices
+```
+
+### Códigos LC 116/03 (federalServiceCode) Mais Comuns
+
+| Código | Descrição |
+|---|---|
+| 1.01 | Análise e desenvolvimento de sistemas |
+| 1.05 | Licenciamento ou cessão de direito de uso de programas de computação |
+| 1.07 | Suporte técnico em informática (instalação, configuração, manutenção) |
+| 1.08 | Planejamento, confecção, manutenção e atualização de páginas eletrônicas |
+| 17.01 | Assessoria ou consultoria de qualquer natureza |
+| 17.06 | Serviços de assessoria e consultoria técnica |
+| 10.05 | Agenciamento, corretagem ou intermediação de bens móveis |
+
+### Diagnóstico de Erros Comuns
+
+| Situação | O que verificar |
+|---|---|
+| Nota rejeitada (status: rejected) | Verificar `processingDetail.message` e `.code` — rejeição vem da SEFAZ ou Prefeitura |
+| Nota rejeitada com código SPD | Validação da Spedy usando schema da autoridade fiscal, antes do envio — verificar `processingDetail.message` |
+| Nota não emitida após criar venda | Verificar `autoIssueMode` e `status` da venda |
+| NFS-e não aceita pelo município | Confirmar que o município está na lista via `GET /v1/service-invoices/cities` |
+| ICMS calculado errado | Conferir `baseTaxModality` (use `3` para valor da operação) e `destination` (internal/interstate) |
+| ISS não calculado corretamente | Confirmar `taxationType` e se `issWithheld` corresponde ao que o município exige |
