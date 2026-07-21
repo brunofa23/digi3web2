@@ -4,14 +4,21 @@ import type { GuardsList } from '@ioc:Adonis/Addons/Auth'
 
 export default class BookRecordPermission {
   public async handle(
-    { auth, response }: HttpContextContract,
+    { auth, request, response }: HttpContextContract,
     next: () => Promise<void>,
     customGuards: (keyof GuardsList)[]
   ) {
     const user = await auth.use('api').authenticate()
     const permissions = auth.use('api').token?.meta.payload.permissions || []
 
-    if (!user.superuser && verifyPermission(user.superuser, permissions, 37)) {
+    const isMaxBookRecordGuard = customGuards.some((guard) => guard === 'maxbookrecord')
+    const hasBookRecordBlock = !user.superuser && verifyPermission(user.superuser, permissions, 37)
+    const isCaptureMaxBookRecord =
+      isMaxBookRecordGuard &&
+      request.input('capture') === 'true' &&
+      verifyPermission(user.superuser, permissions, 17)
+
+    if (hasBookRecordBlock && !isCaptureMaxBookRecord) {
       return response.unauthorized({
         error: 'Você não tem permissão para acessar a tela de livros.',
       })
@@ -21,6 +28,11 @@ export default class BookRecordPermission {
 
     for (const guard of customGuards) {
       if (guard === 'get') {
+        allowed = true
+        break
+      }
+
+      if (guard === 'maxbookrecord') {
         allowed = true
         break
       }
