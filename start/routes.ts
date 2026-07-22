@@ -218,24 +218,6 @@ Route.group(() => {
   //RECEIPTS
   Route.resource('/receipts', 'ReceiptsController').apiOnly()
 
-  //FISCAL NFS-E
-  Route.get('/fiscal/nfse/config', 'Fiscal/NfseConfigsController.show')
-  Route.patch('/fiscal/nfse/config', 'Fiscal/NfseConfigsController.update')
-  Route.get('/fiscal/nfse/service-configs', 'Fiscal/NfseServiceConfigsController.index')
-  Route.post('/fiscal/nfse/service-configs', 'Fiscal/NfseServiceConfigsController.store')
-  Route.patch('/fiscal/nfse/service-configs/:id', 'Fiscal/NfseServiceConfigsController.update')
-  Route.get('/fiscal/nfse/cities', 'Fiscal/NfseCitiesController.index')
-  Route.get('/fiscal/nfse', 'Fiscal/NfseInvoicesController.index')
-  Route.post('/fiscal/nfse', 'Fiscal/NfseInvoicesController.store')
-  Route.post('/fiscal/nfse/from-receipt/:receiptId', 'Fiscal/NfseInvoicesController.fromReceipt')
-  Route.get('/fiscal/nfse/:id', 'Fiscal/NfseInvoicesController.show')
-  Route.post('/fiscal/nfse/:id/status', 'Fiscal/NfseInvoicesController.checkStatus')
-  Route.post('/fiscal/nfse/:id/check-status', 'Fiscal/NfseInvoicesController.reconcileStatus')
-  Route.delete('/fiscal/nfse/:id/cancel', 'Fiscal/NfseInvoicesController.cancel')
-  Route.get('/fiscal/nfse/:id/xml', 'Fiscal/NfseInvoicesController.xml')
-  Route.get('/fiscal/nfse/:id/pdf', 'Fiscal/NfseInvoicesController.pdf')
-  Route.post('/fiscal/webhooks/spedy', 'Fiscal/SpedyWebhooksController.store')
-
 
   //TRIBUTATION
   //Route.resource('tributations', 'TributationsController').apiOnly()
