@@ -10,6 +10,9 @@ import Document from 'App/Models/Document'
 import ImageUploadJob from 'App/Models/ImageUploadJob'
 import Database from '@ioc:Adonis/Lucid/Database'
 import AuditLogger from 'App/Services/Audit/AuditLogger'
+import Tokentoimage from 'App/Models/Tokentoimage'
+import { DateTime } from 'luxon'
+import crypto from 'crypto'
 
 import sharp from 'sharp'
 
@@ -128,6 +131,60 @@ async function buildImageFromBase64Upload(payload: {
 
 
 export default class IndeximagesController {
+  private imageDeviceCookieName = 'digi3_image_device_token'
+
+  private hashImageDeviceCookie(token: string) {
+    return crypto.createHash('sha256').update(token).digest('hex')
+  }
+
+  private parseAccessImageDate(accessImage: any) {
+    if (DateTime.isDateTime(accessImage)) {
+      return accessImage
+    }
+
+    if (accessImage instanceof Date) {
+      return DateTime.fromJSDate(accessImage)
+    }
+
+    const accessImageText = String(accessImage)
+    const accessImageSql = DateTime.fromSQL(accessImageText)
+
+    return accessImageSql.isValid ? accessImageSql : DateTime.fromISO(accessImageText)
+  }
+
+  private async hasConfirmedImageDevice(
+    request: HttpContextContract['request'],
+    companyId: number,
+    userId: number
+  ) {
+    const cookieToken = request.plainCookie(this.imageDeviceCookieName, null, true)
+
+    if (!cookieToken) {
+      return false
+    }
+
+    const data = await Tokentoimage.query()
+      .where('companies_id', companyId)
+      .andWhere('users_id', userId)
+      .andWhere('token', this.hashImageDeviceCookie(cookieToken))
+      .first()
+
+    return Boolean(data?.expires_at && data.expires_at >= DateTime.now())
+  }
+
+  private async canViewImages(request: HttpContextContract['request'], user: any) {
+    if (!user?.access_image) {
+      return false
+    }
+
+    const accessImage = this.parseAccessImageDate(user.access_image)
+
+    if (!accessImage.isValid || accessImage < DateTime.now()) {
+      return false
+    }
+
+    return this.hasConfirmedImageDevice(request, user.companies_id, user.id)
+  }
 
   public async store({ request, response }: HttpContextContract) {
     const body = request.only(Indeximage.fillable)
@@ -631,8 +688,15 @@ export default class IndeximagesController {
   }
 
   public async download(ctx: HttpContextContract) {
-    const { auth, params, request } = ctx
+    const { auth, params, request, response } = ctx
     const authenticate = await auth.use('api').authenticate()
+
+    if (!(await this.canViewImages(request, authenticate))) {
+      return response.unauthorized({
+        message: 'Acesso às imagens não autorizado para este usuário/dispositivo',
+      })
+    }
+
     const { typebook_id } = request.only(['typebook_id'])
     const body = request.only(Indeximage.fillable)
     const fileName = params.id
