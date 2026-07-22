@@ -26,6 +26,19 @@ Route.group(() => {
   Route.post("/companies", 'CompaniesController.store')//.middleware('company_permission:post')
   Route.patch("/companies/:id", 'CompaniesController.update')//.middleware('company_permission:patch')
 
+  //SPEDY COMPANIES
+  Route.get('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.showIntegration')
+  Route.put('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.saveIntegration')
+  Route.post('/spedy/companies/local/:companyId/sync', 'Spedy/CompaniesController.syncIntegration')
+  Route.get('/spedy/companies', 'Spedy/CompaniesController.list')
+  Route.post('/spedy/companies', 'Spedy/CompaniesController.create')
+  Route.get('/spedy/companies/:id', 'Spedy/CompaniesController.show')
+  Route.put('/spedy/companies/:id', 'Spedy/CompaniesController.update')
+  Route.delete('/spedy/companies/:id', 'Spedy/CompaniesController.destroy')
+  Route.get('/spedy/companies/:id/settings', 'Spedy/CompaniesController.settings')
+  Route.put('/spedy/companies/:id/settings', 'Spedy/CompaniesController.updateSettings')
+  Route.post('/spedy/companies/:id/certificates', 'Spedy/CompaniesController.uploadCertificate')
+
   //SITUATIONS
   Route.get("/situations", 'SituationsController.index')
 
