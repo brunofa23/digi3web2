@@ -6,6 +6,20 @@ import UserValidator from 'App/Validators/UserValidator'
 import { DateTime } from 'luxon'
 
 export default class UsersController {
+  private parseAccessImageDate(accessImage: any) {
+    if (DateTime.isDateTime(accessImage)) {
+      return accessImage
+    }
+
+    if (accessImage instanceof Date) {
+      return DateTime.fromJSDate(accessImage)
+    }
+
+    const accessImageText = String(accessImage)
+    const accessImageSql = DateTime.fromSQL(accessImageText)
+
+    return accessImageSql.isValid ? accessImageSql : DateTime.fromISO(accessImageText)
+  }
 
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
@@ -143,10 +157,10 @@ export default class UsersController {
 
       return response.status(200).send(false)
     }
-    const dataaccess = DateTime.fromJSDate(data?.access_image)
+    const dataaccess = this.parseAccessImageDate(data?.access_image)
     const dateNow = DateTime.now()
     // Comparação
-    if (dataaccess >= dateNow) {
+    if (dataaccess.isValid && dataaccess >= dateNow) {
       //console.log('A data de entrada é maior que a data atual', dataaccess.toFormat("yyyy-MM-dd"), dateNow.toFormat("yyyy-MM-dd"))
       return response.status(200).send(true)
     } else {
@@ -155,20 +169,16 @@ export default class UsersController {
     }
   }
 
-  public async closeAccesImage({ auth, params, request, response }: HttpContextContract) {
+  public async closeAccesImage({ auth, params, response }: HttpContextContract) {
 
-    // const authenticate = await auth.use('api').authenticate()
-    const body = await User.find(params.id)
-    if (body && body?.access_images_permanent == 1) {
-      return //response.status(201).send(body)
-    }
-
-
+    const authenticate = await auth.use('api').authenticate()
+    const accessImageClosed = '2000-01-01 00:00'
     const data = await User.query()
+      .where('companies_id', authenticate.companies_id)
       .where('id', params.id)
-      .update({ 'access_image': '2000-01-01' })
+      .update({ 'access_image': accessImageClosed })
 
-    return response.status(201).send(data)
+    return response.status(201).send({ valor: false, access_image: accessImageClosed, affectedRows: data })
 
 
 

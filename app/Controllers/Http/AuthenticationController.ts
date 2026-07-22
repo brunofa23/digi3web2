@@ -423,7 +423,8 @@ export default class AuthenticationController {
     const { companies_id, username } = await auth.use('api').authenticate()
     const usernameAutorization = request.input('username')
     const password = request.input('password')
-    const accessImage = request.input('accessimage')
+    const accessImage = Number(request.input('accessimage'))
+    const accessImageDays = Number.isFinite(accessImage) ? accessImage : -1
 
     try {
       // 1. Buscar o usuário que está sendo autorizado
@@ -463,7 +464,9 @@ export default class AuthenticationController {
       }
 
       // 4. Atualizar o acesso à imagem do usuário autenticado
-      const limitDataAccess = DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm')
+      const limitDataAccess = DateTime.local()
+        .plus(accessImageDays > 0 ? { days: accessImageDays } : { minutes: 7 })
+        .toFormat('yyyy-MM-dd HH:mm')
 
       const authenticatedUser = await User
         .query()
@@ -474,7 +477,11 @@ export default class AuthenticationController {
       if (authenticatedUser) {
         ;(authenticatedUser as any).access_image = limitDataAccess
         await authenticatedUser.save()
-        return response.status(201).send({ valor: true, tempo: accessImage })
+        return response.status(201).send({
+          valor: true,
+          tempo: accessImageDays,
+          access_image: limitDataAccess,
+        })
       } else {
         throw new BadRequest("Usuário autenticado não encontrado.")
       }
