@@ -11,8 +11,66 @@ import {
 import AuditLogger from 'App/Services/Audit/AuditLogger'
 import { extractTextFromFileBuffer } from 'App/Services/ocr/googleVision'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
+import Tokentoimage from 'App/Models/Tokentoimage'
+import { DateTime } from 'luxon'
+import crypto from 'crypto'
 
 export default class ImageCertificatesController {
+  private imageDeviceCookieName = 'digi3_image_device_token'
+
+  private hashImageDeviceCookie(token: string) {
+    return crypto.createHash('sha256').update(token).digest('hex')
+  }
+
+  private parseAccessImageDate(accessImage: any) {
+    if (DateTime.isDateTime(accessImage)) {
+      return accessImage
+    }
+
+    if (accessImage instanceof Date) {
+      return DateTime.fromJSDate(accessImage)
+    }
+
+    const accessImageText = String(accessImage)
+    const accessImageSql = DateTime.fromSQL(accessImageText)
+
+    return accessImageSql.isValid ? accessImageSql : DateTime.fromISO(accessImageText)
+  }
+
+  private async hasConfirmedImageDevice(
+    request: HttpContextContract['request'],
+    companyId: number,
+    userId: number
+  ) {
+    const cookieToken = request.plainCookie(this.imageDeviceCookieName, null, true)
+
+    if (!cookieToken) {
+      return false
+    }
+
+    const data = await Tokentoimage.query()
+      .where('companies_id', companyId)
+      .andWhere('users_id', userId)
+      .andWhere('token', this.hashImageDeviceCookie(cookieToken))
+      .first()
+
+    return Boolean(data?.expires_at && data.expires_at >= DateTime.now())
+  }
+
+  private async canViewImages(request: HttpContextContract['request'], user: any) {
+    if (!user?.access_image) {
+      return false
+    }
+
+    const accessImage = this.parseAccessImageDate(user.access_image)
+
+    if (!accessImage.isValid || accessImage < DateTime.now()) {
+      return false
+    }
+
+    return this.hasConfirmedImageDevice(request, user.companies_id, user.id)
+  }
+
   private normalizeText(value: string) {
     return String(value || '')
       .replace(/\r/g, '\n')
@@ -322,8 +380,15 @@ export default class ImageCertificatesController {
     }
   }
 
-  public async index({ auth, params, response }: HttpContextContract) {
+  public async index({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
+    if (!(await this.canViewImages(request, authenticate))) {
+      return response.unauthorized({
+        message: 'Acesso aos anexos não autorizado para este usuário/dispositivo',
+      })
+    }
+
     const marriedCertificateId = Number(params.marriedCertificateId)
 
     if (!Number.isFinite(marriedCertificateId)) {
@@ -356,8 +421,15 @@ export default class ImageCertificatesController {
     })
   }
 
-  public async show({ auth, params, response }: HttpContextContract) {
+  public async show({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+
+    if (!(await this.canViewImages(request, authenticate))) {
+      return response.unauthorized({
+        message: 'Acesso aos anexos não autorizado para este usuário/dispositivo',
+      })
+    }
+
     const id = Number(params.id)
 
     if (!Number.isFinite(id)) {
@@ -405,8 +477,15 @@ export default class ImageCertificatesController {
   }
 
   public async visionOcr(ctx: HttpContextContract) {
-    const { auth, params, response } = ctx
+    const { auth, params, request, response } = ctx
     const authenticate = await auth.use('api').authenticate()
+
+    if (!(await this.canViewImages(request, authenticate))) {
+      return response.unauthorized({
+        message: 'Acesso aos anexos não autorizado para este usuário/dispositivo',
+      })
+    }
+
     const id = Number(params.id)
 
     if (!Number.isFinite(id)) {
