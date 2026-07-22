@@ -17,6 +17,7 @@ import AuthorizedDevice from 'App/Models/AuthorizedDevice'
 import WebauthnCredential from 'App/Models/WebauthnCredential'
 import WebauthnChallenge from 'App/Models/WebauthnChallenge'
 import AuditLogger from 'App/Services/Audit/AuditLogger'
+import Tokentoimage from 'App/Models/Tokentoimage'
 
 
 //import Groupxpermission from 'App/Models/Groupxpermission'
@@ -24,6 +25,7 @@ import AuditLogger from 'App/Services/Audit/AuditLogger'
 
 export default class AuthenticationController {
   private deviceCookieName = 'digi3_device_token'
+  private imageDeviceCookieName = 'digi3_image_device_token'
 
   private getWebauthnConfig(request: HttpContextContract['request']) {
     const origin = Env.get('WEBAUTHN_ORIGIN') || request.header('origin') || `${request.protocol()}://${request.host()}`
@@ -37,6 +39,44 @@ export default class AuthenticationController {
 
   private hashDeviceCookie(token: string) {
     return crypto.createHash('sha256').update(token).digest('hex')
+  }
+
+  private getImageDeviceCookieOptions() {
+    const domain = Env.get('DEVICE_COOKIE_DOMAIN', '')
+    const secure = Env.get('DEVICE_COOKIE_SECURE', Env.get('NODE_ENV') === 'production')
+    const options: any = {
+      httpOnly: true,
+      secure,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: '365 days',
+    }
+
+    if (domain) {
+      options.domain = domain
+    }
+
+    return options
+  }
+
+  private async setImageDeviceCookie(
+    response: HttpContextContract['response'],
+    companyId: number,
+    userId: number
+  ) {
+    const cookieToken = crypto.randomBytes(32).toString('base64url')
+    const cookieHash = this.hashDeviceCookie(cookieToken)
+    const expiresAt = DateTime.now().plus({ days: 365 })
+    const tokenToImages = await Tokentoimage.create({
+      companies_id: companyId,
+      users_id: userId,
+      token: cookieHash,
+      expires_at: expiresAt,
+    })
+
+    response.plainCookie(this.imageDeviceCookieName, cookieToken, this.getImageDeviceCookieOptions())
+
+    return tokenToImages
   }
 
   private async findDeviceByCookie(request: HttpContextContract['request'], companyId: number) {
@@ -423,7 +463,8 @@ export default class AuthenticationController {
     const { companies_id, username } = await auth.use('api').authenticate()
     const usernameAutorization = request.input('username')
     const password = request.input('password')
-    const accessImage = request.input('accessimage')
+    const accessImage = Number(request.input('accessimage'))
+    const accessImageDays = Number.isFinite(accessImage) ? accessImage : -1
 
     try {
       // 1. Buscar o usuário que está sendo autorizado
@@ -463,7 +504,9 @@ export default class AuthenticationController {
       }
 
       // 4. Atualizar o acesso à imagem do usuário autenticado
-      const limitDataAccess = DateTime.local().plus(accessImage > 0 ? { days: accessImage } : { minutes: 7 }).toFormat('yyyy-MM-dd HH:mm')
+      const limitDataAccess = DateTime.local()
+        .plus(accessImageDays > 0 ? { days: accessImageDays } : { minutes: 7 })
+        .toFormat('yyyy-MM-dd HH:mm')
 
       const authenticatedUser = await User
         .query()
@@ -474,7 +517,20 @@ export default class AuthenticationController {
       if (authenticatedUser) {
         ;(authenticatedUser as any).access_image = limitDataAccess
         await authenticatedUser.save()
-        return response.status(201).send({ valor: true, tempo: accessImage })
+        const imageDevice = await this.setImageDeviceCookie(response, companies_id, authenticatedUser.id)
+
+        return response.status(201).send({
+          valor: true,
+          tempo: accessImageDays,
+          access_image: limitDataAccess,
+          image_device: {
+            id: imageDevice.id,
+            companies_id: imageDevice.companies_id,
+            users_id: imageDevice.users_id,
+            expires_at: imageDevice.expires_at,
+            confirmed: true,
+          },
+        })
       } else {
         throw new BadRequest("Usuário autenticado não encontrado.")
       }
