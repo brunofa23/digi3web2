@@ -32,12 +32,18 @@ Route.group(() => {
   Route.post('/spedy/companies/local/:companyId/sync', 'Spedy/CompaniesController.syncIntegration')
   Route.get('/spedy/companies', 'Spedy/CompaniesController.list')
   Route.post('/spedy/companies', 'Spedy/CompaniesController.create')
+  Route.get('/spedy/service-invoices/cities', 'Spedy/CompaniesController.serviceInvoiceCities')
   Route.get('/spedy/companies/:id', 'Spedy/CompaniesController.show')
   Route.put('/spedy/companies/:id', 'Spedy/CompaniesController.update')
   Route.delete('/spedy/companies/:id', 'Spedy/CompaniesController.destroy')
   Route.get('/spedy/companies/:id/settings', 'Spedy/CompaniesController.settings')
   Route.put('/spedy/companies/:id/settings', 'Spedy/CompaniesController.updateSettings')
+  Route.get('/spedy/companies/:id/certificates', 'Spedy/CompaniesController.certificates')
   Route.post('/spedy/companies/:id/certificates', 'Spedy/CompaniesController.uploadCertificate')
+  Route.get('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.index')
+  Route.post('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.store')
+  Route.get('/spedy/service-invoices/:id', 'Spedy/ServiceInvoicesController.show')
+  Route.post('/spedy/service-invoices/:id/sync', 'Spedy/ServiceInvoicesController.sync')
 
   //SITUATIONS
   Route.get("/situations", 'SituationsController.index')

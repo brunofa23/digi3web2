@@ -102,7 +102,7 @@ export default class SpedyCompaniesService {
 
     const parts = [
       Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="password"\r\n\r\n${password}\r\n`),
-      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${fileName}"\r\nContent-Type: application/x-pkcs12\r\n\r\n`),
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="certificateFile"; filename="${fileName}"\r\nContent-Type: application/x-pkcs12\r\n\r\n`),
       fileBuffer,
       Buffer.from(`\r\n--${boundary}--\r\n`),
     ]
@@ -185,8 +185,35 @@ export default class SpedyCompaniesService {
     return response.body
   }
 
+  public async listServiceInvoiceCities(integration: CompanySpedyIntegration, query: any = {}) {
+    const params = new URLSearchParams()
+    if (query.code) params.append('code', query.code)
+    if (query.state) params.append('state', query.state)
+    if (query.filterText) params.append('filterText', query.filterText)
+    if (query.page) params.append('page', query.page)
+    if (query.pageSize) params.append('pageSize', query.pageSize)
+
+    const response = await this.request(integration.environment, integration.spedyApiKey!, 'GET', `/service-invoices/cities${params.toString() ? `?${params.toString()}` : ''}`)
+    return response.body
+  }
+
+  public async getCertificates(integration: CompanySpedyIntegration, spedyCompanyId: string) {
+    const response = await this.request(integration.environment, integration.spedyApiKey!, 'GET', `/companies/${spedyCompanyId}/certificates`)
+    return response.body
+  }
+
   public async uploadCertificate(integration: CompanySpedyIntegration, spedyCompanyId: string, file: any, password: string) {
     const response = await this.multipartRequest(integration.environment, integration.spedyApiKey!, 'POST', `/companies/${spedyCompanyId}/certificates`, file, password)
+    return response.body
+  }
+
+  public async createServiceInvoice(integration: CompanySpedyIntegration, payload: any) {
+    const response = await this.request(integration.environment, integration.spedyApiKey!, 'POST', '/service-invoices', payload)
+    return response.body
+  }
+
+  public async getServiceInvoice(integration: CompanySpedyIntegration, spedyInvoiceId: string) {
+    const response = await this.request(integration.environment, integration.spedyApiKey!, 'GET', `/service-invoices/${spedyInvoiceId}`)
     return response.body
   }
 }

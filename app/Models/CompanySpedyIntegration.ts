@@ -4,6 +4,12 @@ import { afterFetch, afterFind, BaseModel, beforeSave, belongsTo, BelongsTo, col
 import { types } from '@ioc:Adonis/Core/Helpers'
 import Company from './Company'
 
+function parseJson(value: any) {
+  if (!value) return null
+  if (typeof value === 'string') return JSON.parse(value)
+  return value
+}
+
 export default class CompanySpedyIntegration extends BaseModel {
   public static table = 'company_spedy_integrations'
 
@@ -31,7 +37,10 @@ export default class CompanySpedyIntegration extends BaseModel {
   @column.dateTime()
   public lastSyncAt?: DateTime | null
 
-  @column()
+  @column({
+    prepare: (value: any) => value === undefined ? null : JSON.stringify(value),
+    consume: parseJson,
+  })
   public lastCompanySnapshot?: any
 
   @belongsTo(() => Company, {

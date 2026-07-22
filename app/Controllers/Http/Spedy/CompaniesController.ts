@@ -111,12 +111,31 @@ export default class CompaniesController {
     return this.spedy.updateSettings(owner, params.id, payload)
   }
 
+  public async serviceInvoiceCities({ auth, request }: HttpContextContract) {
+    await this.requireSuperuser(auth)
+    const environment = request.input('environment', 'sandbox')
+    const owner = await this.getOwnerIntegration(environment)
+
+    return this.spedy.listServiceInvoiceCities(owner, request.qs())
+  }
+
+  public async certificates({ auth, params, request }: HttpContextContract) {
+    await this.requireSuperuser(auth)
+    const environment = request.input('environment', 'sandbox')
+    const owner = await this.getOwnerIntegration(environment)
+
+    return this.spedy.getCertificates(owner, params.id)
+  }
+
   public async uploadCertificate({ auth, params, request }: HttpContextContract) {
     await this.requireSuperuser(auth)
     const environment = request.input('environment', 'sandbox')
     const owner = await this.getOwnerIntegration(environment)
     const password = request.input('password')
-    const file = request.file('file', {
+    const file = request.file('certificateFile', {
+      extnames: ['pfx', 'p12'],
+      size: '10mb',
+    }) || request.file('file', {
       extnames: ['pfx', 'p12'],
       size: '10mb',
     })
