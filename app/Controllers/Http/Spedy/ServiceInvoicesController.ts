@@ -80,6 +80,7 @@ export default class ServiceInvoicesController {
       cnaeCode: payload.cnaeCode || null,
       federalServiceCode: payload.federalServiceCode || null,
       cityServiceCode: payload.cityServiceCode || null,
+      nbsCode: payload.nbsCode || null,
       taxationType: payload.taxationType || 'taxationInMunicipality',
       taxLocation: payload.taxLocation || 'companyMunicipality',
       receiver: payload.receiver || null,

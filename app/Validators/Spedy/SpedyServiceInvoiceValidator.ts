@@ -13,6 +13,7 @@ export default class SpedyServiceInvoiceValidator {
     cnaeCode: schema.string.nullableAndOptional({ trim: true }),
     federalServiceCode: schema.string.nullableAndOptional({ trim: true }),
     cityServiceCode: schema.string.nullableAndOptional({ trim: true }),
+    nbsCode: schema.string.nullableAndOptional({ trim: true }),
     taxationType: schema.string.nullableAndOptional({ trim: true }),
     taxLocation: schema.string.nullableAndOptional({ trim: true }),
     issRate: schema.number.nullableAndOptional(),
