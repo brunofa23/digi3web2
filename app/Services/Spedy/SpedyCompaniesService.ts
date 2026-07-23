@@ -216,4 +216,16 @@ export default class SpedyCompaniesService {
     const response = await this.request(integration.environment, integration.spedyApiKey!, 'GET', `/service-invoices/${spedyInvoiceId}`)
     return response.body
   }
+
+  public async getServiceInvoiceXml(integration: CompanySpedyIntegration, spedyInvoiceId: string) {
+    return this.request(integration.environment, integration.spedyApiKey!, 'GET', `/service-invoices/${spedyInvoiceId}/xml`, undefined, {
+      Accept: 'application/xml,text/xml,*/*',
+    })
+  }
+
+  public async getServiceInvoicePdf(integration: CompanySpedyIntegration, spedyInvoiceId: string) {
+    return this.request(integration.environment, integration.spedyApiKey!, 'GET', `/service-invoices/${spedyInvoiceId}/pdf`, undefined, {
+      Accept: 'application/pdf,*/*',
+    })
+  }
 }

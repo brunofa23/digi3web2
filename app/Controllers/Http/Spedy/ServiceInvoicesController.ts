@@ -57,6 +57,30 @@ export default class ServiceInvoicesController {
     }
   }
 
+  private async getLocalInvoice(user: any, id: number | string) {
+    const query = SpedyServiceInvoice.query().where('id', id)
+
+    if (!user.superuser) query.where('companies_id', user.companies_id)
+
+    return query.firstOrFail()
+  }
+
+  private async getDownloadContext(user: any, id: number | string) {
+    const local = await this.getLocalInvoice(user, id)
+
+    if (!local.spedyInvoiceId) {
+      throw new BadRequestException('Nota sem ID na Spedy', 400, 'spedy_invoice_missing')
+    }
+
+    const integration = await this.getCompanyIntegration(local.companiesId, local.environment)
+
+    return { local, integration }
+  }
+
+  private getFileBaseName(local: SpedyServiceInvoice) {
+    return `nfse-${local.number || local.id}`
+  }
+
   private buildPayload(payload: any, integrationId: string) {
     const amount = Number(payload.amount || 0)
     const total: any = {
@@ -131,28 +155,36 @@ export default class ServiceInvoicesController {
 
   public async show({ auth, params }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
-    const query = SpedyServiceInvoice.query().where('id', params.id)
-
-    if (!user.superuser) query.where('companies_id', user.companies_id)
-
-    return query.firstOrFail()
+    return this.getLocalInvoice(user, params.id)
   }
 
   public async sync({ auth, params }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
-    const query = SpedyServiceInvoice.query().where('id', params.id)
-    if (!user.superuser) query.where('companies_id', user.companies_id)
-    const local = await query.firstOrFail()
-
-    if (!local.spedyInvoiceId) {
-      throw new BadRequestException('Nota sem ID na Spedy', 400, 'spedy_invoice_missing')
-    }
-
-    const integration = await this.getCompanyIntegration(local.companiesId, local.environment)
+    const { local, integration } = await this.getDownloadContext(user, params.id)
     const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId)
     local.merge(this.normalizeInvoice(remote))
     await local.save()
 
     return local
+  }
+
+  public async xml({ auth, params, response }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
+    const { local, integration } = await this.getDownloadContext(user, params.id)
+    const remote = await this.spedy.getServiceInvoiceXml(integration, local.spedyInvoiceId!)
+
+    response.header('Content-Type', String(remote.headers['content-type'] || 'application/xml'))
+    response.header('Content-Disposition', `attachment; filename="${this.getFileBaseName(local)}.xml"`)
+    return response.send(remote.rawBody)
+  }
+
+  public async pdf({ auth, params, response }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
+    const { local, integration } = await this.getDownloadContext(user, params.id)
+    const remote = await this.spedy.getServiceInvoicePdf(integration, local.spedyInvoiceId!)
+
+    response.header('Content-Type', String(remote.headers['content-type'] || 'application/pdf'))
+    response.header('Content-Disposition', `inline; filename="${this.getFileBaseName(local)}.pdf"`)
+    return response.send(remote.rawBody)
   }
 }

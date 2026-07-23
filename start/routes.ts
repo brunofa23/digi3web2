@@ -42,6 +42,8 @@ Route.group(() => {
   Route.post('/spedy/companies/:id/certificates', 'Spedy/CompaniesController.uploadCertificate')
   Route.get('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.index')
   Route.post('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.store')
+  Route.get('/spedy/service-invoices/:id/xml', 'Spedy/ServiceInvoicesController.xml')
+  Route.get('/spedy/service-invoices/:id/pdf', 'Spedy/ServiceInvoicesController.pdf')
   Route.get('/spedy/service-invoices/:id', 'Spedy/ServiceInvoicesController.show')
   Route.post('/spedy/service-invoices/:id/sync', 'Spedy/ServiceInvoicesController.sync')
 
