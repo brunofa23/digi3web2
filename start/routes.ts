@@ -40,11 +40,15 @@ Route.group(() => {
   Route.put('/spedy/companies/:id/settings', 'Spedy/CompaniesController.updateSettings')
   Route.get('/spedy/companies/:id/certificates', 'Spedy/CompaniesController.certificates')
   Route.post('/spedy/companies/:id/certificates', 'Spedy/CompaniesController.uploadCertificate')
+  Route.get('/spedy/service-invoices/defaults', 'Spedy/ServiceInvoicesController.defaults')
+  Route.put('/spedy/service-invoices/defaults', 'Spedy/ServiceInvoicesController.saveDefaults')
   Route.get('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.index')
   Route.post('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.store')
   Route.get('/spedy/service-invoices/:id/xml', 'Spedy/ServiceInvoicesController.xml')
   Route.get('/spedy/service-invoices/:id/pdf', 'Spedy/ServiceInvoicesController.pdf')
   Route.get('/spedy/service-invoices/:id', 'Spedy/ServiceInvoicesController.show')
+  Route.post('/spedy/service-invoices/:id/cancel', 'Spedy/ServiceInvoicesController.cancel')
+  Route.post('/spedy/service-invoices/:id/issue', 'Spedy/ServiceInvoicesController.issue')
   Route.post('/spedy/service-invoices/:id/sync', 'Spedy/ServiceInvoicesController.sync')
 
   //SITUATIONS

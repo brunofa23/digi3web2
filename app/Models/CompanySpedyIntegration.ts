@@ -43,6 +43,12 @@ export default class CompanySpedyIntegration extends BaseModel {
   })
   public lastCompanySnapshot?: any
 
+  @column({
+    prepare: (value: any) => value === undefined ? null : JSON.stringify(value),
+    consume: parseJson,
+  })
+  public serviceInvoiceDefaults?: any
+
   @belongsTo(() => Company, {
     foreignKey: 'companiesId',
   })

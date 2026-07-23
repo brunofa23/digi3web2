@@ -4,10 +4,24 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import CompanySpedyIntegration from 'App/Models/CompanySpedyIntegration'
 import SpedyServiceInvoice from 'App/Models/SpedyServiceInvoice'
 import SpedyCompaniesService from 'App/Services/Spedy/SpedyCompaniesService'
+import SpedyServiceInvoiceDefaultsValidator from 'App/Validators/Spedy/SpedyServiceInvoiceDefaultsValidator'
 import SpedyServiceInvoiceValidator from 'App/Validators/Spedy/SpedyServiceInvoiceValidator'
+import { verifyPermission } from 'App/Services/util'
 
 export default class ServiceInvoicesController {
   private spedy = new SpedyCompaniesService()
+  private serviceInvoicePermissiongroupId = 41
+
+  private async authenticateWithPermission(auth: HttpContextContract['auth']) {
+    const user = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
+
+    if (!verifyPermission(Boolean(user.superuser), permissions, this.serviceInvoicePermissiongroupId)) {
+      throw new BadRequestException('Usuario sem permissao para acessar NFS-e Spedy.', 403, 'spedy_service_invoice_forbidden')
+    }
+
+    return user
+  }
 
   private getIssuerCompanyId(user: any, request: HttpContextContract['request']) {
     const companyId = Number(request.input('companyId') || user.companies_id)
@@ -29,6 +43,20 @@ export default class ServiceInvoicesController {
 
     if (!integration?.spedyCompanyId || !integration.spedyApiKey) {
       throw new BadRequestException('Empresa sem integração Spedy ativa ou token salvo', 400, 'spedy_company_token_missing')
+    }
+
+    return integration
+  }
+
+  private async getCompanyIntegrationRecord(companiesId: number, environment: string = 'sandbox') {
+    const integration = await CompanySpedyIntegration
+      .query()
+      .where('companies_id', companiesId)
+      .where('environment', environment)
+      .first()
+
+    if (!integration) {
+      throw new BadRequestException('Empresa sem vínculo Spedy para este ambiente', 400, 'spedy_company_integration_missing')
     }
 
     return integration
@@ -113,8 +141,30 @@ export default class ServiceInvoicesController {
     }
   }
 
+  public async defaults({ auth, request }: HttpContextContract) {
+    const user = await this.authenticateWithPermission(auth)
+    const companiesId = this.getIssuerCompanyId(user, request)
+    const environment = request.input('environment', 'sandbox')
+    const integration = await this.getCompanyIntegrationRecord(companiesId, environment)
+
+    return integration.serviceInvoiceDefaults || {}
+  }
+
+  public async saveDefaults({ auth, request }: HttpContextContract) {
+    const user = await this.authenticateWithPermission(auth)
+    const companiesId = this.getIssuerCompanyId(user, request)
+    const environment = request.input('environment', 'sandbox')
+    const payload = await request.validate(SpedyServiceInvoiceDefaultsValidator)
+    const integration = await this.getCompanyIntegrationRecord(companiesId, environment)
+
+    integration.serviceInvoiceDefaults = payload
+    await integration.save()
+
+    return integration.serviceInvoiceDefaults || {}
+  }
+
   public async index({ auth, request }: HttpContextContract) {
-    const user = await auth.use('api').authenticate()
+    const user = await this.authenticateWithPermission(auth)
     const companiesId = this.getIssuerCompanyId(user, request)
     const query = SpedyServiceInvoice
       .query()
@@ -124,11 +174,25 @@ export default class ServiceInvoicesController {
     const status = request.input('status')
     if (status) query.where('status', status)
 
+    const receiverName = String(request.input('receiverName') || request.input('receiver') || '').trim()
+    if (receiverName) {
+      query.where('receiver_name', 'like', `%${receiverName}%`)
+    }
+
+    const returnText = String(request.input('returnText') || request.input('processingDetail') || '').trim()
+    if (returnText) {
+      query.where((builder) => {
+        builder
+          .whereRaw('LOWER(CAST(processing_detail AS CHAR)) LIKE ?', [`%${returnText.toLowerCase()}%`])
+          .orWhereRaw('LOWER(CAST(response_payload AS CHAR)) LIKE ?', [`%${returnText.toLowerCase()}%`])
+      })
+    }
+
     return query.paginate(Number(request.input('page', 1)), Number(request.input('perPage', 20)))
   }
 
   public async store({ auth, request }: HttpContextContract) {
-    const user = await auth.use('api').authenticate()
+    const user = await this.authenticateWithPermission(auth)
     const payload = await request.validate(SpedyServiceInvoiceValidator)
     const environment = request.input('environment', 'sandbox')
     const companiesId = this.getIssuerCompanyId(user, request)
@@ -154,14 +218,42 @@ export default class ServiceInvoicesController {
   }
 
   public async show({ auth, params }: HttpContextContract) {
-    const user = await auth.use('api').authenticate()
+    const user = await this.authenticateWithPermission(auth)
     return this.getLocalInvoice(user, params.id)
   }
 
   public async sync({ auth, params }: HttpContextContract) {
-    const user = await auth.use('api').authenticate()
+    const user = await this.authenticateWithPermission(auth)
     const { local, integration } = await this.getDownloadContext(user, params.id)
-    const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId)
+    const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId!)
+    local.merge(this.normalizeInvoice(remote))
+    await local.save()
+
+    return local
+  }
+
+  public async cancel({ auth, params, request }: HttpContextContract) {
+    const user = await this.authenticateWithPermission(auth)
+    const justification = String(request.input('justification') || '').trim()
+
+    if (!justification) {
+      throw new BadRequestException('Informe a justificativa do cancelamento', 400, 'spedy_cancel_justification_required')
+    }
+
+    const { local, integration } = await this.getDownloadContext(user, params.id)
+    await this.spedy.cancelServiceInvoice(integration, local.spedyInvoiceId!, justification)
+    const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId!)
+    local.merge(this.normalizeInvoice(remote))
+    await local.save()
+
+    return local
+  }
+
+  public async issue({ auth, params }: HttpContextContract) {
+    const user = await this.authenticateWithPermission(auth)
+    const { local, integration } = await this.getDownloadContext(user, params.id)
+    await this.spedy.issueServiceInvoice(integration, local.spedyInvoiceId!)
+    const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId!)
     local.merge(this.normalizeInvoice(remote))
     await local.save()
 
@@ -169,7 +261,7 @@ export default class ServiceInvoicesController {
   }
 
   public async xml({ auth, params, response }: HttpContextContract) {
-    const user = await auth.use('api').authenticate()
+    const user = await this.authenticateWithPermission(auth)
     const { local, integration } = await this.getDownloadContext(user, params.id)
     const remote = await this.spedy.getServiceInvoiceXml(integration, local.spedyInvoiceId!)
 
@@ -179,7 +271,7 @@ export default class ServiceInvoicesController {
   }
 
   public async pdf({ auth, params, response }: HttpContextContract) {
-    const user = await auth.use('api').authenticate()
+    const user = await this.authenticateWithPermission(auth)
     const { local, integration } = await this.getDownloadContext(user, params.id)
     const remote = await this.spedy.getServiceInvoicePdf(integration, local.spedyInvoiceId!)
 
