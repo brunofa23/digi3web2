@@ -11,6 +11,11 @@ export default class extends BaseSeeder {
           name: "Lançamentos Tabulados",
           desc: "Permite o acesso a lançamentos tabulados."
         },
+        {
+          id: 41,
+          name: "Acesso app android",
+          desc: "Permite acesso ao app Android digi3Capture."
+        },
       ]
     )
     // Write your database queries inside the run method
