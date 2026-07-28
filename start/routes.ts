@@ -107,6 +107,7 @@ Route.group(() => {
   //AUTHENTICATION
   Route.post("/login", "AuthenticationController.login")//.middleware('authentication_permission:free_time')
   Route.get("/digi3capture/access", "AuthenticationController.verifyDigi3CaptureAccess").middleware('auth')
+  Route.post("/digi3capture/access", "AuthenticationController.verifyDigi3CaptureAccess").middleware('auth')
   Route.post("/login/webauthn", "AuthenticationController.verifyWebauthnLogin")
   Route.post("/logout", "AuthenticationController.logout")
   Route.post("/authorizeaccessimages", "AuthenticationController.authorizeAccessImages")//.middleware('user_permission:authorizeAccessImages')
