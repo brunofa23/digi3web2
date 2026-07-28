@@ -108,9 +108,9 @@ export default class AuthenticationController {
     })
   }
 
-  private hasDigi3CaptureAccess(user: User, permissions: any[]) {
+  private hasDigi3CaptureAccess(permissions: any[]) {
     return verifyPermission(
-      Boolean(user.superuser),
+      false,
       permissions,
       DIGI3_CAPTURE_ACCESS_PERMISSION_ID
     )
@@ -169,7 +169,7 @@ export default class AuthenticationController {
     const permissions = (user as any)?.$preloaded?.usergroup?.$preloaded?.groupxpermission || []
     const canBypassDeviceControl = verifyPermission(Boolean(user.superuser), permissions, 39)
 
-    if (clientType === 'digi3_capture_mobile' && !this.hasDigi3CaptureAccess(user, permissions)) {
+    if (clientType === 'digi3_capture_mobile' && !this.hasDigi3CaptureAccess(permissions)) {
       return response.status(403).send({
         code: 'digi3_capture_access_denied',
         message: 'Usuário sem permissão para acessar o app Android digi3Capture.',
@@ -312,7 +312,7 @@ export default class AuthenticationController {
 
     const permissions = (user as any)?.$preloaded?.usergroup?.$preloaded?.groupxpermission || []
 
-    if (!user || !this.hasDigi3CaptureAccess(user, permissions)) {
+    if (!user || !this.hasDigi3CaptureAccess(permissions)) {
       return response.status(403).send({
         code: 'digi3_capture_access_denied',
         message: 'Usuário sem permissão para acessar o app Android digi3Capture.',
