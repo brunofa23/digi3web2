@@ -8,6 +8,7 @@ export default class Permissiongroup extends BaseModel {
       'name',
       'desc',
       'inactive',
+      'status',
     ]
   }
 
@@ -23,6 +24,9 @@ export default class Permissiongroup extends BaseModel {
 
   @column()
   public inactive: boolean
+
+  @column()
+  public status: boolean
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
