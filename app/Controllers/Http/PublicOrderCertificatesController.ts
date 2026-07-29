@@ -777,6 +777,10 @@ export default class PublicOrderCertificatesController {
         marriedData.dthrSchedule && String(marriedData.dthrSchedule).trim() !== ''
           ? DateTime.fromISO(marriedData.dthrSchedule, { zone: 'America/Sao_Paulo' })
           : null,
+      dateMarriedReal:
+        marriedData.dateMarriedReal && String(marriedData.dateMarriedReal).trim() !== ''
+          ? DateTime.fromISO(marriedData.dateMarriedReal, { zone: 'America/Sao_Paulo' })
+          : null,
       dthrMarriage: marriedData.dthrMarriage ? DateTime.fromISO(marriedData.dthrMarriage) : null,
 
       type: marriedData.type ?? '',

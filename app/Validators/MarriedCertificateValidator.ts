@@ -36,6 +36,7 @@ export default class MarriedCertificateValidator {
 
     // === Datas principais ===
     dthrSchedule: schema.date.optional({ format: 'yyyy-MM-dd HH:mm:ss' }),
+    dateMarriedReal: schema.date.optional({ format: 'yyyy-MM-dd HH:mm:ss' }),
     dthrMarriage: schema.date.optional({ format: 'yyyy-MM-dd HH:mm:ss' }),
 
     // === Tipo e observação ===
@@ -78,6 +79,7 @@ export default class MarriedCertificateValidator {
     'groomPersonId.required': 'O noivo é obrigatório.',
     'bridePersonId.required': 'A noiva é obrigatória.',
     'dthrSchedule.date.format': 'dthrSchedule deve estar no formato yyyy-MM-dd HH:mm:ss.',
+    'dateMarriedReal.date.format': 'dateMarriedReal deve estar no formato yyyy-MM-dd HH:mm:ss.',
     'dthrMarriage.date.format': 'dthrMarriage deve estar no formato yyyy-MM-dd HH:mm:ss.',
     'dthrPrenup.date.format': 'dthrPrenup deve estar no formato yyyy-MM-dd.',
     'documentScheduleDate.date.format': 'documentScheduleDate deve estar no formato yyyy-MM-dd.',

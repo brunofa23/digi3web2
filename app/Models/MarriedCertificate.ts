@@ -104,6 +104,16 @@ export default class MarriedCertificate extends BaseModel {
   public dthrSchedule: DateTime | null
 
   @column.dateTime({
+    columnName: 'date_married_real',
+    serializeAs: 'dateMarriedReal',
+    serialize: (value: DateTime | null) => {
+      if (!value) return null
+      return value.setZone('America/Sao_Paulo').toFormat("yyyy-LL-dd'T'HH:mm")
+    },
+  })
+  public dateMarriedReal: DateTime | null
+
+  @column.dateTime({
     columnName: 'dthr_marriage',
     serializeAs: 'dthrMarriage',
     serialize: (value: DateTime | null) => (value ? value.toISODate() : null),
