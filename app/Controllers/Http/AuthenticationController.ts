@@ -23,6 +23,8 @@ import Tokentoimage from 'App/Models/Tokentoimage'
 //import Groupxpermission from 'App/Models/Groupxpermission'
 //teste
 
+const DIGI3_CAPTURE_ACCESS_PERMISSION_ID = 41
+
 export default class AuthenticationController {
   private deviceCookieName = 'digi3_device_token'
   private imageDeviceCookieName = 'digi3_image_device_token'
@@ -106,6 +108,14 @@ export default class AuthenticationController {
     })
   }
 
+  private hasDigi3CaptureAccess(permissions: any[]) {
+    return verifyPermission(
+      false,
+      permissions,
+      DIGI3_CAPTURE_ACCESS_PERMISSION_ID
+    )
+  }
+
   public async login(ctx: HttpContextContract) {
     const { auth, request, response } = ctx
 
@@ -156,8 +166,16 @@ export default class AuthenticationController {
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
-    const permissions = (user as any)?.$preloaded.usergroup.$preloaded.groupxpermission || []
+    const permissions = (user as any)?.$preloaded?.usergroup?.$preloaded?.groupxpermission || []
     const canBypassDeviceControl = verifyPermission(Boolean(user.superuser), permissions, 39)
+
+    if (clientType === 'digi3_capture_mobile' && !this.hasDigi3CaptureAccess(permissions)) {
+      return response.status(403).send({
+        code: 'digi3_capture_access_denied',
+        message: 'Usuário sem permissão para acessar o app Android digi3Capture.',
+        status: 403,
+      })
+    }
 
     // VERIFICAR HORARIO DISPONÍVEL
     if (!verifyPermission(Boolean(user.superuser), permissions, 31)) {
@@ -277,6 +295,32 @@ export default class AuthenticationController {
     await AuditLogger.login(ctx, user)
 
     return response.status(200).send({ token, user })
+  }
+
+  public async verifyDigi3CaptureAccess({ auth, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const user = await User
+      .query()
+      .preload('usergroup', query => {
+        query.preload('groupxpermission', query => {
+          query.select('usergroup_id', 'permissiongroup_id')
+        })
+      })
+      .where('id', authenticate.id)
+      .first()
+
+    const permissions = (user as any)?.$preloaded?.usergroup?.$preloaded?.groupxpermission || []
+
+    if (!user || !this.hasDigi3CaptureAccess(permissions)) {
+      return response.status(403).send({
+        code: 'digi3_capture_access_denied',
+        message: 'Usuário sem permissão para acessar o app Android digi3Capture.',
+        status: 403,
+      })
+    }
+
+    return response.status(200).send({ authorized: true })
   }
 
   public async verifyWebauthnLogin(ctx: HttpContextContract) {

@@ -214,6 +214,11 @@ export default class OrderCertificatesController {
               ? DateTime.fromISO(marriedData.dthrSchedule, { zone: 'America/Sao_Paulo' })
               : null,
 
+          dateMarriedReal:
+            marriedData.dateMarriedReal && String(marriedData.dateMarriedReal).trim() !== ''
+              ? DateTime.fromISO(marriedData.dateMarriedReal, { zone: 'America/Sao_Paulo' })
+              : null,
+
           dthrMarriage: marriedData.dthrMarriage ? DateTime.fromISO(marriedData.dthrMarriage) : null,
 
           type: marriedData.type ?? '',
@@ -433,7 +438,7 @@ export default class OrderCertificatesController {
     const query = OrderCertificate.query()
       .preload('book', (query) => query.select('id', 'name'))
       .preload('marriedCertificate', (query) => {
-        query.select('id', 'groomPersonId', 'bridePersonId', 'documentScheduleDate')
+        query.select('id', 'groomPersonId', 'bridePersonId', 'documentScheduleDate', 'dateMarriedReal')
         query.preload('groom', (q) => q.select('name', 'cpf'))
         query.preload('bride', (q) => q.select('name', 'cpf'))
       })
@@ -587,14 +592,14 @@ export default class OrderCertificatesController {
       })
     }
 
-    // 🔍 Filtro por data de MARRIED
+    // 🔍 Filtro por data real do casamento em married_certificates
     if (dateStartMarriage || dateEndMarriage) {
-      query.whereHas('receipt', (r) => {
+      query.whereHas('marriedCertificate', (mc) => {
         if (dateStartMarriage) {
-          r.where('date_marriage', '>=', dateStartMarriage)
+          mc.where('dateMarriedReal', '>=', dateStartMarriage)
         }
         if (dateEndMarriage) {
-          r.where('date_marriage', '<=', dateEndMarriage)
+          mc.where('dateMarriedReal', '<=', dateEndMarriage)
         }
       })
     }

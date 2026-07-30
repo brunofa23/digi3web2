@@ -647,10 +647,6 @@ export default class BookrecordsController {
 
     const query = Bookrecord.query()
       .where("bookrecords.companies_id", authenticate.companies_id)
-      .preload('indeximage', (subQuery) => {
-        subQuery.select('indeximages.*'); // Se necessário, ajuste os campos a serem carregados
-        subQuery.where('companies_id', authenticate.companies_id)
-      })
       .preload('typebooks', (subQuery) => {
         subQuery.select('typebooks.*'); // Se necessário, ajuste os campos a serem carregados
         subQuery.where('companies_id', authenticate.companies_id)
@@ -666,14 +662,60 @@ export default class BookrecordsController {
       .orderBy('bookrecords.cod', 'asc')
       .orderBy('bookrecords.sheet', 'asc');
     const data = await query
+    const serializedData = data.map((bookrecord) => bookrecord.serialize())
 
-    return response.status(200).send(data)
+    if (!serializedData.length) {
+      return response.status(200).send(serializedData)
+    }
+
+    const imagesQuery = Indeximage.query()
+      .where('companies_id', authenticate.companies_id)
+      .where((imageQuery) => {
+        for (const bookrecord of serializedData) {
+          imageQuery.orWhere((recordImageQuery) => {
+            recordImageQuery
+              .where('bookrecords_id', bookrecord.id)
+              .andWhere('typebooks_id', bookrecord.typebooks_id)
+          })
+        }
+      })
+      .orderBy('seq', 'asc')
+
+    const images = await imagesQuery
+    const imagesByRecord = new Map<string, any[]>()
+
+    for (const image of images) {
+      const serializedImage = image.serialize()
+      const key = `${serializedImage.bookrecords_id}:${serializedImage.typebooks_id}`
+      const recordImages = imagesByRecord.get(key) || []
+
+      recordImages.push(serializedImage)
+      imagesByRecord.set(key, recordImages)
+    }
+
+    for (const bookrecord of serializedData) {
+      const key = `${bookrecord.id}:${bookrecord.typebooks_id}`
+      bookrecord.indeximage = imagesByRecord.get(key) || []
+    }
+
+    return response.status(200).send(serializedData)
   }
 
   public async fastFindDocuments({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const { prot, dateStart, dateEnd, book_number, book_name, sheet_number, obs }
-      = request.only(['prot', 'dateStart', 'dateEnd', 'book_number', 'book_name', 'sheet_number', 'avert_anot', 'typebook', 'obs'])
+    const {
+      prot,
+      typebook,
+      book_number,
+      book_name,
+      sheet_number,
+      document_type_book_id,
+      obs,
+      obs_document,
+    } = request.qs()
+    const dateStart = request.input('created_atStart') || request.input('created_atstart') || request.input('dateStart')
+    const dateEnd = request.input('created_atEnd') || request.input('created_atend') || request.input('dateEnd')
+    const obsDocument = obs_document || obs
     const query = Bookrecord.query()
       .select('bookrecords.*')
       .innerJoin('documents', (join) => {
@@ -687,7 +729,6 @@ export default class BookrecordsController {
           .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id')
       })
       .preload('document')
-      .preload('indeximage')
       .preload('typebooks', (subQuery) => {
         subQuery.select('typebooks.name'); // Se necessário, ajuste os campos a serem carregados
         subQuery.where('companies_id', authenticate.companies_id)
@@ -705,12 +746,14 @@ export default class BookrecordsController {
       query.where('documents.book_number', book_number);
     if (sheet_number)
       query.where('documents.sheet_number', sheet_number);
-    //  if (typebook)
-    //     query.where('bookrecords.typebooks_id', typebook);
+    if (typebook)
+      query.where('bookrecords.typebooks_id', typebook);
     if (book_name)
       query.where('documents.book_name', book_name)
-    if (obs)
-      query.where('documents.obs', 'like', `%${obs}%`)
+    if (document_type_book_id)
+      query.where('documents.document_type_book_id', document_type_book_id)
+    if (obsDocument)
+      query.where('documents.obs', 'like', `%${obsDocument}%`)
 
     query.groupBy(
       'bookrecords.id',
@@ -732,7 +775,43 @@ export default class BookrecordsController {
       .orderBy('bookrecords.cod', 'asc')
       .orderBy('bookrecords.sheet', 'asc');
     const data = await query
-    return response.status(200).send(data)
+    const serializedData = data.map((bookrecord) => bookrecord.serialize())
+
+    if (!serializedData.length) {
+      return response.status(200).send(serializedData)
+    }
+
+    const imagesQuery = Indeximage.query()
+      .where('companies_id', authenticate.companies_id)
+      .where((imageQuery) => {
+        for (const bookrecord of serializedData) {
+          imageQuery.orWhere((recordImageQuery) => {
+            recordImageQuery
+              .where('bookrecords_id', bookrecord.id)
+              .andWhere('typebooks_id', bookrecord.typebooks_id)
+          })
+        }
+      })
+      .orderBy('seq', 'asc')
+
+    const images = await imagesQuery
+    const imagesByRecord = new Map<string, any[]>()
+
+    for (const image of images) {
+      const serializedImage = image.serialize()
+      const key = `${serializedImage.bookrecords_id}:${serializedImage.typebooks_id}`
+      const recordImages = imagesByRecord.get(key) || []
+
+      recordImages.push(serializedImage)
+      imagesByRecord.set(key, recordImages)
+    }
+
+    for (const bookrecord of serializedData) {
+      const key = `${bookrecord.id}:${bookrecord.typebooks_id}`
+      bookrecord.indeximage = imagesByRecord.get(key) || []
+    }
+
+    return response.status(200).send(serializedData)
   }
 
   public async show({ params }: HttpContextContract) {

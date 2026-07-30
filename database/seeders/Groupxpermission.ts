@@ -35,6 +35,7 @@ export default class extends BaseSeeder {
         { usergroup_id: 1, permissiongroup_id: 28 },
         { usergroup_id: 1, permissiongroup_id: 29 },
         { usergroup_id: 1, permissiongroup_id: 40 },
+        { usergroup_id: 1, permissiongroup_id: 41 },
         //4 - TITULAR
         { usergroup_id: 2, permissiongroup_id: 1 },
         { usergroup_id: 2, permissiongroup_id: 5 },
