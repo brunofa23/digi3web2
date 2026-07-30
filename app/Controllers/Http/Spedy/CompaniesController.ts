@@ -36,6 +36,27 @@ export default class CompaniesController {
     return integration
   }
 
+  private async getCompanyCredential(environment: string, spedyCompanyId: string) {
+    const integration = await CompanySpedyIntegration
+      .query()
+      .where('environment', environment)
+      .where('spedy_company_id', spedyCompanyId)
+      .where('active', true)
+      .first()
+
+    if (integration?.spedyApiKey) {
+      return {
+        integration,
+        source: integration.isOwner ? 'owner' : 'company',
+      }
+    }
+
+    return {
+      integration: await this.getOwnerIntegration(environment),
+      source: 'owner_fallback',
+    }
+  }
+
   private serializeIntegration(integration: CompanySpedyIntegration | null) {
     if (!integration) return null
 
@@ -122,20 +143,20 @@ export default class CompaniesController {
   public async certificates({ auth, params, request }: HttpContextContract) {
     await this.requireSuperuser(auth)
     const environment = request.input('environment', 'sandbox')
-    const owner = await this.getOwnerIntegration(environment)
+    const credential = await this.getCompanyCredential(environment, params.id)
 
-    return this.spedy.getCertificates(owner, params.id)
+    return this.spedy.getCertificates(credential.integration, params.id)
   }
 
   public async uploadCertificate({ auth, params, request }: HttpContextContract) {
     await this.requireSuperuser(auth)
     const environment = request.input('environment', 'sandbox')
-    const owner = await this.getOwnerIntegration(environment)
+    const credential = await this.getCompanyCredential(environment, params.id)
     const password = request.input('password')
-    const file = request.file('certificateFile', {
+    const file = request.file('file', {
       extnames: ['pfx', 'p12'],
       size: '10mb',
-    }) || request.file('file', {
+    }) || request.file('certificateFile', {
       extnames: ['pfx', 'p12'],
       size: '10mb',
     })
@@ -144,7 +165,22 @@ export default class CompaniesController {
       throw new BadRequestException('Informe a senha do certificado', 400, 'spedy_certificate_password_missing')
     }
 
-    return this.spedy.uploadCertificate(owner, params.id, file, password)
+    if (!file) {
+      throw new BadRequestException('Informe o arquivo do certificado digital', 400, 'spedy_certificate_file_missing')
+    }
+
+    if (!file.isValid) {
+      throw new BadRequestException(file.errors?.[0]?.message || 'Arquivo do certificado digital inválido', 400, 'spedy_certificate_file_invalid')
+    }
+
+    const uploadResponse = await this.spedy.uploadCertificate(credential.integration, params.id, file, password)
+    const certificates = await this.spedy.getCertificates(credential.integration, params.id)
+
+    return {
+      uploadResponse,
+      certificates,
+      credentialSource: credential.source,
+    }
   }
 
   public async showIntegration({ auth, params, request }: HttpContextContract) {

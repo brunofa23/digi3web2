@@ -102,7 +102,8 @@ export default class SpedyCompaniesService {
 
     const parts = [
       Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="password"\r\n\r\n${password}\r\n`),
-      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="certificateFile"; filename="${fileName}"\r\nContent-Type: application/x-pkcs12\r\n\r\n`),
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="Password"\r\n\r\n${password}\r\n`),
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="CertificateFile"; filename="${fileName}"\r\nContent-Type: application/x-pkcs12\r\n\r\n`),
       fileBuffer,
       Buffer.from(`\r\n--${boundary}--\r\n`),
     ]
