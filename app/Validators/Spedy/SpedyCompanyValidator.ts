@@ -30,6 +30,8 @@ export default class SpedyCompanyValidator {
       'simplesNacionalMEI',
       'regimeNormal',
     ] as const),
+    simplesNacionalTaxRegime: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(80)]),
+    specialTaxRegime: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(80)]),
     economicActivities: schema.array.optional().members(
       schema.object().members({
         code: schema.string({ trim: true }),
