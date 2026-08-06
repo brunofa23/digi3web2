@@ -200,9 +200,12 @@ class ServiceInvoicesController {
     }
     async cancel({ auth, params, request }) {
         const user = await this.authenticateWithPermission(auth);
-        const justification = String(request.input('justification') || '').trim();
+        const justification = String(request.input('justification') || request.input('reason') || request.input('Reason') || '').trim();
         if (!justification) {
             throw new BadRequestException_1.default('Informe a justificativa do cancelamento', 400, 'spedy_cancel_justification_required');
+        }
+        if (justification.length < 15) {
+            throw new BadRequestException_1.default('A justificativa do cancelamento deve ter pelo menos 15 caracteres', 400, 'spedy_cancel_justification_min_length');
         }
         const { local, integration } = await this.getDownloadContext(user, params.id);
         await this.spedy.cancelServiceInvoice(integration, local.spedyInvoiceId, justification);

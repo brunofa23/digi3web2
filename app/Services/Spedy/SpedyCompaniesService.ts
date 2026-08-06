@@ -219,7 +219,11 @@ export default class SpedyCompaniesService {
   }
 
   public async cancelServiceInvoice(integration: CompanySpedyIntegration, spedyInvoiceId: string, justification: string) {
-    const response = await this.request(integration.environment, integration.spedyApiKey!, 'DELETE', `/service-invoices/${spedyInvoiceId}`, { justification })
+    const response = await this.request(integration.environment, integration.spedyApiKey!, 'DELETE', `/service-invoices/${spedyInvoiceId}`, {
+      justification,
+      reason: justification,
+      Reason: justification,
+    })
     return response.body
   }
 

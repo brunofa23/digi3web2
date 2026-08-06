@@ -189,7 +189,11 @@ class SpedyCompaniesService {
         return response.body;
     }
     async cancelServiceInvoice(integration, spedyInvoiceId, justification) {
-        const response = await this.request(integration.environment, integration.spedyApiKey, 'DELETE', `/service-invoices/${spedyInvoiceId}`, { justification });
+        const response = await this.request(integration.environment, integration.spedyApiKey, 'DELETE', `/service-invoices/${spedyInvoiceId}`, {
+            justification,
+            reason: justification,
+            Reason: justification,
+        });
         return response.body;
     }
     async issueServiceInvoice(integration, spedyInvoiceId) {
