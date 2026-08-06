@@ -23,7 +23,7 @@ class SpedyServiceInvoiceValidator {
                 cityTaxNumber: Validator_1.schema.string.nullableAndOptional({ trim: true }),
                 email: Validator_1.schema.string.nullableAndOptional({ trim: true }, [Validator_1.rules.email()]),
                 phoneNumber: Validator_1.schema.string.nullableAndOptional({ trim: true }),
-                address: Validator_1.schema.object.optional().members({
+                address: Validator_1.schema.object.nullableAndOptional().members({
                     street: Validator_1.schema.string.nullableAndOptional({ trim: true }),
                     number: Validator_1.schema.string.nullableAndOptional({ trim: true }),
                     district: Validator_1.schema.string.nullableAndOptional({ trim: true }),

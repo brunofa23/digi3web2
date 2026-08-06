@@ -92,6 +92,50 @@ class ServiceInvoicesController {
     getFileBaseName(local) {
         return `nfse-${local.number || local.id}`;
     }
+    hasValue(value) {
+        return String(value ?? '').trim() !== '';
+    }
+    onlyDigits(value) {
+        return String(value ?? '').replace(/\D/g, '');
+    }
+    sanitizeReceiver(receiver) {
+        if (!receiver)
+            return null;
+        const address = receiver.address || null;
+        const city = address?.city || null;
+        const postalCode = this.onlyDigits(address?.postalCode);
+        const cityCode = this.onlyDigits(city?.code);
+        const hasAddress = [
+            address?.street,
+            address?.number,
+            address?.district,
+            address?.additionalInformation,
+            postalCode,
+            cityCode,
+            city?.name,
+            city?.state,
+        ].some((value) => this.hasValue(value));
+        if (hasAddress && !postalCode) {
+            throw new BadRequestException_1.default('Informe o CEP do tomador ou deixe todos os campos de endereço em branco.', 400, 'spedy_receiver_postal_code_required');
+        }
+        if (postalCode && !cityCode && (!this.hasValue(city?.name) || !this.hasValue(city?.state))) {
+            throw new BadRequestException_1.default('Informe a cidade do tomador pelo código IBGE ou por cidade e UF.', 400, 'spedy_receiver_city_required');
+        }
+        return {
+            ...receiver,
+            address: hasAddress
+                ? {
+                    ...address,
+                    postalCode,
+                    city: {
+                        ...city,
+                        code: cityCode ? Number(cityCode) : null,
+                        state: city?.state ? String(city.state).toUpperCase() : null,
+                    },
+                }
+                : undefined,
+        };
+    }
     buildPayload(payload, integrationId) {
         const amount = Number(payload.amount || 0);
         const total = {
@@ -116,7 +160,7 @@ class ServiceInvoicesController {
             nbsCode: payload.nbsCode || null,
             taxationType: payload.taxationType || 'taxationInMunicipality',
             taxLocation: payload.taxLocation || 'companyMunicipality',
-            receiver: payload.receiver || null,
+            receiver: this.sanitizeReceiver(payload.receiver),
             location: payload.location || null,
             total,
         };
@@ -170,8 +214,31 @@ class ServiceInvoicesController {
         const integration = await this.getCompanyIntegration(companiesId, environment);
         const integrationId = payload.integrationId || `digi3-nfse-${companiesId}-${Date.now()}`;
         const requestPayload = this.buildPayload(payload, integrationId);
+        const existing = await SpedyServiceInvoice_1.default
+            .query()
+            .where('companies_id', companiesId)
+            .where('integration_id', integrationId)
+            .first();
+        if (existing && existing.environment !== environment) {
+            throw new BadRequestException_1.default('A NFS-e original pertence a outro ambiente.', 400, 'spedy_service_invoice_environment_mismatch');
+        }
         const remote = await this.spedy.createServiceInvoice(integration, requestPayload);
         const normalized = this.normalizeInvoice(remote);
+        if (existing) {
+            existing.merge({
+                environment,
+                spedyCompanyId: integration.spedyCompanyId,
+                amount: payload.amount,
+                receiverName: payload.receiver?.name || null,
+                receiverFederalTaxNumber: payload.receiver?.federalTaxNumber || null,
+                description: payload.description,
+                effectiveDate: requestPayload.effectiveDate ? luxon_1.DateTime.fromISO(requestPayload.effectiveDate) : null,
+                requestPayload,
+                ...normalized,
+            });
+            await existing.save();
+            return existing;
+        }
         return SpedyServiceInvoice_1.default.create({
             companiesId,
             environment,

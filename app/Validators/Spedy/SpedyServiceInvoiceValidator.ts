@@ -23,7 +23,7 @@ export default class SpedyServiceInvoiceValidator {
       cityTaxNumber: schema.string.nullableAndOptional({ trim: true }),
       email: schema.string.nullableAndOptional({ trim: true }, [rules.email()]),
       phoneNumber: schema.string.nullableAndOptional({ trim: true }),
-      address: schema.object.optional().members({
+      address: schema.object.nullableAndOptional().members({
         street: schema.string.nullableAndOptional({ trim: true }),
         number: schema.string.nullableAndOptional({ trim: true }),
         district: schema.string.nullableAndOptional({ trim: true }),
