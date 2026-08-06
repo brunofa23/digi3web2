@@ -229,6 +229,13 @@ export default class ServiceInvoicesController {
       query.where('receiver_name', 'like', `%${receiverName}%`)
     }
 
+    const receiverFederalTaxNumber = this.onlyDigits(
+      request.input('receiverFederalTaxNumber') || request.input('federalTaxNumber') || request.input('cpfCnpj')
+    )
+    if (receiverFederalTaxNumber) {
+      query.where('receiver_federal_tax_number', 'like', `%${receiverFederalTaxNumber}%`)
+    }
+
     const returnText = String(request.input('returnText') || request.input('processingDetail') || '').trim()
     if (returnText) {
       query.where((builder) => {
