@@ -7,4 +7,5 @@ coverage
 .history
 config/tokens
 config/credentials/*.json
+_build/config/credentials/*.json
 docker_volumes
