@@ -216,8 +216,8 @@ export default class CompaniesController {
     }
 
     integration.spedyCompanyId = payload.spedyCompanyId || null
-    integration.isOwner = payload.isOwner || false
-    integration.active = payload.active !== undefined ? payload.active : true
+    integration.isOwner = payload.isOwner === true
+    integration.active = payload.active !== undefined ? payload.active === true : true
 
     if (payload.spedyApiKey !== undefined) {
       integration.spedyApiKey = payload.spedyApiKey || null
