@@ -55,11 +55,11 @@ Route.group(() => {
   Route.get("/situations", 'SituationsController.index')
 
   //USERS
-  Route.get("/users", "UsersController.index")
-  Route.get("/users/:id", "UsersController.show")
+  Route.get("/users", "UsersController.index").middleware('user_permission:get')
+  Route.get("/users/:id", "UsersController.show").middleware('user_permission:get')
   Route.get("/accessimage/:id", "UsersController.accessImage")
-  Route.post("/users", "UsersController.store")//.middleware('user_permission:post')
-  Route.patch("/users/:id", "UsersController.update")//.middleware('user_permission:patch')
+  Route.post("/users", "UsersController.store").middleware('user_permission:post')
+  Route.patch("/users/:id", "UsersController.update").middleware('user_permission:patch')
   Route.post("/closeaccesimage/:id", "UsersController.closeAccesImage")//.middleware('user_permission:patch')
 
   //SUPPORT TICKETS

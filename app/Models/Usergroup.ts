@@ -9,6 +9,7 @@ export default class Usergroup extends BaseModel {
       'companies_id',
       'name',
       'inactive',
+      'available_for_user_creation',
     ]
   }
 
@@ -29,6 +30,9 @@ export default class Usergroup extends BaseModel {
 
   @column()
   public inactive: boolean
+
+  @column()
+  public available_for_user_creation: boolean
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

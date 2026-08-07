@@ -4,32 +4,33 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import { verifyPermission } from 'App/Services/util'
 
 export default class UserPermission {
-  public async handle({ auth }: HttpContextContract, next: () => Promise<void>, customGuards: (keyof GuardsList)[]) {
+  private usersPermissiongroupId = 5
+
+  public async handle({ auth }: HttpContextContract, next: () => Promise<void>, customGuards: string[]) {
 
     const authenticate = await auth.use('api').authenticate()
     const permissions = auth.use('api').token?.meta.payload.permissions
 
     for (const guard of customGuards) {
 
-      if (guard === 'get') {
+      if (guard === 'get' && verifyPermission(Boolean(authenticate.superuser), permissions, this.usersPermissiongroupId)) {
         await next()
         return
       }
-      else if (guard === 'post' && authenticate.superuser) {
+      else if (guard === 'post' && verifyPermission(Boolean(authenticate.superuser), permissions, this.usersPermissiongroupId)) {
         await next()
         return
       }
-      else if (guard === 'patch' && authenticate.superuser) {
+      else if (guard === 'patch' && verifyPermission(Boolean(authenticate.superuser), permissions, this.usersPermissiongroupId)) {
         await next()
         return
       }
      
       else {
-        let errorValidation = await new validations('error_10')
+        let errorValidation: any = await new validations('error_10')
         throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
       }
     }
 
   }
 }
-
