@@ -9,6 +9,9 @@ export default class GroupxpermissionsController {
 
   public async index({ auth, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    if (!authenticate.superuser)
+      throw new BadRequestException('not superuser', 402, 'error_10')
+
     try {
       const data = await Groupxpermission.query()
         .where('excluded', false)
@@ -20,7 +23,10 @@ export default class GroupxpermissionsController {
 
 
   public async update({ auth, params, request, response }: HttpContextContract) {
-    await auth.use('api').authenticate()
+    const authenticate = await auth.use('api').authenticate()
+    if (!authenticate.superuser)
+      throw new BadRequestException('not superuser', 402, 'error_10')
+
     try {
 
       const updateSchema = schema.create({
@@ -54,9 +60,11 @@ export default class GroupxpermissionsController {
 
 
   public async PermissiongroupXUsergroup({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    if (!authenticate.superuser)
+      throw new BadRequestException('not superuser', 402, 'error_10')
+
     try {
-      
-      await auth.use('api').authenticate()
       const data = await Database
         .from('permissiongroups as p')
         .leftJoin('groupxpermissions as gp', function () {
