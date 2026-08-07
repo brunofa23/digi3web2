@@ -4,6 +4,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import validations from 'App/Services/Validations/validations'
 import UserValidator from 'App/Validators/UserValidator'
 import { DateTime } from 'luxon'
+import Usergroup from 'App/Models/Usergroup'
 
 export default class UsersController {
   private parseAccessImageDate(accessImage: any) {
@@ -27,6 +28,7 @@ export default class UsersController {
     try {
       const query = User.query()
         .preload('company')
+        .preload('usergroup')
       if (authenticate.superuser) {
         if (findCompany)
           query.where('companies_id', findCompany)
@@ -42,6 +44,14 @@ export default class UsersController {
       if (authenticate.superuser && findSuperuser !== undefined)
         query.where('superuser', ['1', 'true', true, 1].includes(findSuperuser) ? 1 : 0)
       const data = await query
+      if (!authenticate.superuser) {
+        const users = data.map((user) => {
+          const payload: any = user.serialize()
+          delete payload.superuser
+          return payload
+        })
+        return response.status(200).send(users)
+      }
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequest('Bad Request', 401, error)
@@ -66,6 +76,11 @@ export default class UsersController {
     })
 
     const data = await query.first()
+    if (!authenticate.superuser && data) {
+      const payload: any = data.serialize()
+      delete payload.superuser
+      return response.status(200).send(payload)
+    }
     return response.status(200).send(data)
 
     // let query = ""
@@ -80,13 +95,28 @@ export default class UsersController {
 
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    if (!authenticate.superuser) {
+      request.updateBody({
+        ...request.all(),
+        companies_id: authenticate.companies_id,
+        superuser: false,
+      })
+    }
     const body = await request.validate(UserValidator)
     body.permission_level=1
 
     // Apenas superusuário pode criar outro usuário com privilégio de superusuário.
     if (!authenticate.superuser) {
+      const usergroup = await Usergroup.query()
+        .where('id', body.usergroup_id)
+        .where('inactive', false)
+        .where('available_for_user_creation', true)
+        .first()
+
+      if (!usergroup)
+        throw new BadRequest('Grupo não permitido para cadastro de usuários', 402, 'user_error_201')
+
       body.companies_id = authenticate.companies_id
-      body.usergroup_id = authenticate.usergroup_id
       body.superuser = false
     }
 
@@ -111,6 +141,13 @@ export default class UsersController {
 
   public async update({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    if (!authenticate.superuser) {
+      request.updateBody({
+        ...request.all(),
+        companies_id: authenticate.companies_id,
+        superuser: false,
+      })
+    }
     const body = await request.validate(UserValidator)
     const userId = Number(request.param('id'))
     body.id = userId
@@ -120,8 +157,16 @@ export default class UsersController {
       if (user.companies_id !== authenticate.companies_id) {
         return response.forbidden({ message: 'Acesso permitido apenas para usuários da própria empresa' })
       }
+      const usergroup = await Usergroup.query()
+        .where('id', body.usergroup_id)
+        .where('inactive', false)
+        .where('available_for_user_creation', true)
+        .first()
+
+      if (!usergroup)
+        throw new BadRequest('Grupo não permitido para cadastro de usuários', 402, 'user_error_201')
+
       body.companies_id = authenticate.companies_id
-      body.usergroup_id = authenticate.usergroup_id
       body.superuser = Boolean(user.superuser)
     }
 
