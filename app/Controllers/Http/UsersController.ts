@@ -34,8 +34,6 @@ export default class UsersController {
           query.where('companies_id', findCompany)
         else if (companies_id)
           query.where('companies_id', companies_id)
-        else
-          query.where('companies_id', authenticate.companies_id)
       } else {
         query.where('companies_id', authenticate.companies_id)
       }
