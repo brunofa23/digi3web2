@@ -106,6 +106,8 @@ export default class OrderCertificatesController {
       String(personData?.name ?? '').trim() !== '' ||
       String(personData?.cpf ?? '').trim() !== '' ||
       String(personData?.occupation ?? '').trim() !== '' ||
+      String(personData?.dateDeath ?? '').trim() !== '' ||
+      personData?.deceased === true ||
       this.toNumber(personData?.id) !== null
 
     if (!hasAny) return null
@@ -134,6 +136,9 @@ export default class OrderCertificatesController {
 
       dateBirth: personData.dateBirth
         ? DateTime.fromISO(String(personData.dateBirth))
+        : null,
+      dateDeath: personData.dateDeath
+        ? DateTime.fromISO(String(personData.dateDeath))
         : null,
 
       maritalStatus: personData.maritalStatus ?? '',

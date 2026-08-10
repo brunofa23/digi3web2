@@ -46,6 +46,12 @@ export default class Person extends BaseModel {
   })
   public dateBirth: DateTime
 
+  @column.date({
+    columnName: 'date_death',
+    serializeAs: 'dateDeath',
+  })
+  public dateDeath: DateTime | null
+
   @column({
     columnName: 'marital_status',
     serializeAs: 'maritalStatus',
