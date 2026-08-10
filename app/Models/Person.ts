@@ -74,6 +74,9 @@ export default class Person extends BaseModel {
   })
   public occupationId: number | null
 
+  @column()
+  public occupation: string
+
   //NAMES OF PARENTS
   @column()
   public mother: string
@@ -147,7 +150,7 @@ export default class Person extends BaseModel {
   @belongsTo(() => Occupation, {
     foreignKey: 'occupationId', // propriedade do model
   })
-  public occupation: BelongsTo<typeof Occupation>
+  public occupationRecord: BelongsTo<typeof Occupation>
 
   // === Datas ===
   @column.dateTime({

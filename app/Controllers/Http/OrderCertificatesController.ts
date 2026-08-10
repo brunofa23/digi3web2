@@ -105,6 +105,7 @@ export default class OrderCertificatesController {
     const hasAny =
       String(personData?.name ?? '').trim() !== '' ||
       String(personData?.cpf ?? '').trim() !== '' ||
+      String(personData?.occupation ?? '').trim() !== '' ||
       this.toNumber(personData?.id) !== null
 
     if (!hasAny) return null
@@ -121,7 +122,7 @@ export default class OrderCertificatesController {
 
     person.useTransaction(trx)
 
-    person.merge({
+    const payload: any = {
       companiesId,
 
       name: personData.name ?? '',
@@ -161,7 +162,13 @@ export default class OrderCertificatesController {
       father: personData.father ?? '',
 
       inactive: personData.inactive ?? false,
-    })
+    }
+
+    if (String(personData.occupation ?? '').trim() !== '') {
+      payload.occupation = personData.occupation
+    }
+
+    person.merge(payload)
 
     await person.save()
     return person
