@@ -12,6 +12,7 @@ import MarriedCertificate from 'App/Models/MarriedCertificate'
 import PublicOrderCertificateLink from 'App/Models/PublicOrderCertificateLink'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 import { extractTextFromFileBuffer } from 'App/Services/ocr/googleVision'
+import { verifyPermission } from 'App/Services/util'
 
 const MARRIAGE_LINK_TYPE = 'marriage'
 const PUBLIC_SUBMIT_RATE_LIMIT_MAX = 5
@@ -20,6 +21,7 @@ const PUBLIC_OCR_RATE_LIMIT_MAX = 20
 const PUBLIC_OCR_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const PUBLIC_DUPLICATE_WINDOW_MINUTES = 10
 const PUBLIC_CHALLENGE_TTL_MS = 50 * 60 * 1000
+const PUBLIC_MARRIAGE_LINK_PERMISSION_ID = 42
 const publicSubmitAttempts = new Map<string, number[]>()
 const publicOcrAttempts = new Map<string, number[]>()
 const publicHumanChallenges = new Map<string, { token: string; ip: string; answer: string; expiresAt: number }>()
@@ -334,11 +336,12 @@ export default class PublicOrderCertificatesController {
     }
   }
 
-  private async assertSuperuser(auth: HttpContextContract['auth'], response: HttpContextContract['response']) {
+  private async assertPublicMarriageLinkPermission(auth: HttpContextContract['auth'], response: HttpContextContract['response']) {
     const authenticate = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
 
-    if (!authenticate.superuser) {
-      response.forbidden({ message: 'Acesso permitido apenas para superusuário' })
+    if (!verifyPermission(Boolean(authenticate.superuser), permissions, PUBLIC_MARRIAGE_LINK_PERMISSION_ID)) {
+      response.forbidden({ message: 'Acesso permitido apenas para usuários com permissão de link público de casamento' })
       return null
     }
 
@@ -845,7 +848,7 @@ export default class PublicOrderCertificatesController {
   }
 
   public async manageMarriageLink({ auth, response }: HttpContextContract) {
-    const authenticate = await this.assertSuperuser(auth, response)
+    const authenticate = await this.assertPublicMarriageLinkPermission(auth, response)
     if (!authenticate) return
 
     const link = await this.getOrCreateMarriageLink(authenticate.companies_id)
@@ -853,7 +856,7 @@ export default class PublicOrderCertificatesController {
   }
 
   public async toggleMarriageLink({ auth, request, response }: HttpContextContract) {
-    const authenticate = await this.assertSuperuser(auth, response)
+    const authenticate = await this.assertPublicMarriageLinkPermission(auth, response)
     if (!authenticate) return
 
     const payload = await request.validate({
