@@ -39,6 +39,7 @@ export default class PersonValidator {
     placeBirth: schema.string.optional({ trim: true }, [rules.maxLength(100)]),
     nationality: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
     occupationId: schema.number.nullableAndOptional(),
+    occupation: schema.string.optional({ trim: true }, [rules.maxLength(100)]),
 
     // Endereço
     zipCode: schema.string.optional({ trim: true }, [rules.maxLength(15)]),

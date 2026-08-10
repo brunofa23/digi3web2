@@ -19,7 +19,7 @@ const PUBLIC_SUBMIT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const PUBLIC_OCR_RATE_LIMIT_MAX = 20
 const PUBLIC_OCR_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const PUBLIC_DUPLICATE_WINDOW_MINUTES = 10
-const PUBLIC_CHALLENGE_TTL_MS = 15 * 60 * 1000
+const PUBLIC_CHALLENGE_TTL_MS = 50 * 60 * 1000
 const publicSubmitAttempts = new Map<string, number[]>()
 const publicOcrAttempts = new Map<string, number[]>()
 const publicHumanChallenges = new Map<string, { token: string; ip: string; answer: string; expiresAt: number }>()
@@ -511,6 +511,11 @@ export default class PublicOrderCertificatesController {
     publicHumanChallenges.delete(challengeId)
   }
 
+  private isMissingOccupationColumnError(error: any): boolean {
+    const message = String(error?.message || '')
+    return error?.code === 'ER_BAD_FIELD_ERROR' && message.includes('occupation')
+  }
+
   private assertPublicSubmitRateLimit(token: string, ip: string) {
     const now = Date.now()
     const windowStart = now - PUBLIC_SUBMIT_RATE_LIMIT_WINDOW_MS
@@ -606,6 +611,7 @@ export default class PublicOrderCertificatesController {
       'cpf',
       'dateBirth',
       'gender',
+      'occupation',
       'zipCode',
       'address',
       'documentNumber',
@@ -618,7 +624,7 @@ export default class PublicOrderCertificatesController {
   }
 
   private buildPersonCreatePayload(personData: any, companiesId: number) {
-    return {
+    const payload: any = {
       companiesId,
       name: personData.name ?? '',
       nameMarried: personData.nameMarried ?? '',
@@ -647,6 +653,12 @@ export default class PublicOrderCertificatesController {
       father: personData.father ?? '',
       inactive: personData.inactive ?? false,
     }
+
+    if (String(personData.occupation ?? '').trim() !== '') {
+      payload.occupation = personData.occupation
+    }
+
+    return payload
   }
 
   private buildPersonUpdatePatch(personData: any) {
@@ -663,6 +675,7 @@ export default class PublicOrderCertificatesController {
     assignText('maritalStatus', personData.maritalStatus)
     assignText('placeBirth', personData.placeBirth)
     assignText('nationality', personData.nationality)
+    assignText('occupation', personData.occupation)
     assignText('zipCode', personData.zipCode)
     assignText('address', personData.address)
     assignText('streetNumber', personData.streetNumber)
@@ -710,13 +723,6 @@ export default class PublicOrderCertificatesController {
         .where((q) => {
           q.where('inactive', false).orWhereNull('inactive')
         })
-
-      if (matches.length > 1) {
-        throw new BadRequestException(
-          'Existe mais de uma pessoa ativa cadastrada com o mesmo CPF. Procure o cartório para concluir a solicitação.',
-          409
-        )
-      }
 
       person = matches[0] ?? null
     }
@@ -1056,6 +1062,12 @@ export default class PublicOrderCertificatesController {
 
       if (error.code === 'E_VALIDATION_FAILURE') {
         return response.status(422).send({ errors: error.messages.errors })
+      }
+
+      if (this.isMissingOccupationColumnError(error)) {
+        return response.status(500).send({
+          message: 'A coluna de ocupação ainda não existe no banco. Execute as migrations do backend antes de enviar a solicitação.',
+        })
       }
 
       console.error('ERRO PUBLIC MARRIAGE STORE:', error)
