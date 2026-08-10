@@ -4,6 +4,8 @@ import { schema, rules, validator } from '@ioc:Adonis/Core/Validator'
 import Database from '@ioc:Adonis/Lucid/Database'
 import { DateTime } from 'luxon'
 import crypto from 'crypto'
+import Env from '@ioc:Adonis/Core/Env'
+import Mail from '@ioc:Adonis/Addons/Mail'
 
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import OrderCertificate from 'App/Models/OrderCertificate'
@@ -444,6 +446,57 @@ export default class PublicOrderCertificatesController {
     return secondCheck === Number(cpf[10])
   }
 
+  private formatPublicMarriageDate(value: any) {
+    if (!value) return ''
+
+    const date = DateTime.fromISO(String(value))
+    return date.isValid ? date.toFormat('dd/MM/yyyy') : String(value)
+  }
+
+  private formatPublicMarriagePerson(label: string, person: any) {
+    return [
+      `${label}:`,
+      `Nome: ${person?.name || '-'}`,
+      `CPF: ${person?.cpf || '-'}`,
+      `Data de nascimento: ${this.formatPublicMarriageDate(person?.dateBirth) || '-'}`,
+      `Sexo: ${person?.gender || '-'}`,
+      `Estado civil: ${person?.maritalStatus || '-'}`,
+      `Naturalidade: ${person?.placeBirth || '-'}`,
+      `Nacionalidade: ${person?.nationality || '-'}`,
+      `Ocupação: ${person?.occupation || '-'}`,
+      `Telefone: ${person?.phone || '-'}`,
+      `Celular: ${person?.cellphone || '-'}`,
+      `E-mail: ${person?.email || '-'}`,
+    ].join('\n')
+  }
+
+  private buildPublicMarriageConfirmationBody(groom: any, bride: any) {
+    return [
+      'Seus dados foram enviados para Habilitação de casamento. Conferir se os dados estão corretos:',
+      '',
+      this.formatPublicMarriagePerson('Primeiro contraente', groom),
+      '',
+      this.formatPublicMarriagePerson('Segundo contraente', bride),
+    ].join('\n')
+  }
+
+  private async sendPublicMarriageConfirmationEmails(groom: any, bride: any) {
+    const body = this.buildPublicMarriageConfirmationBody(groom, bride)
+    const subject = 'Habilitação de casamento - dados enviados'
+    const from = Env.get('SMTP_USERNAME', '')
+    const recipients = Array.from(new Set([groom?.email, bride?.email].filter(Boolean)))
+
+    for (const email of recipients) {
+      await Mail.send((message) => {
+        message
+          .from(from, 'Digi3')
+          .to(email)
+          .subject(subject)
+          .text(body)
+      })
+    }
+  }
+
   private isTruthy(value: any): boolean {
     if (value === true || value === 1) return true
 
@@ -613,6 +666,7 @@ export default class PublicOrderCertificatesController {
       'name',
       'cpf',
       'dateBirth',
+      'dateDeath',
       'gender',
       'occupation',
       'zipCode',
@@ -623,7 +677,7 @@ export default class PublicOrderCertificatesController {
       'email',
       'mother',
       'father',
-    ].some((field) => String(personData?.[field] ?? '').trim() !== '')
+    ].some((field) => String(personData?.[field] ?? '').trim() !== '') || personData?.deceased === true
   }
 
   private buildPersonCreatePayload(personData: any, companiesId: number) {
@@ -635,6 +689,7 @@ export default class PublicOrderCertificatesController {
       gender: personData.gender ?? '',
       deceased: personData.deceased ?? false,
       dateBirth: personData.dateBirth ? DateTime.fromISO(String(personData.dateBirth)) : null,
+      dateDeath: personData.dateDeath ? DateTime.fromISO(String(personData.dateDeath)) : null,
       maritalStatus: personData.maritalStatus ?? '',
       illiterate: personData.illiterate ?? false,
       placeBirth: personData.placeBirth ?? '',
@@ -696,6 +751,10 @@ export default class PublicOrderCertificatesController {
 
     if (personData.dateBirth) {
       patch.dateBirth = DateTime.fromISO(String(personData.dateBirth))
+    }
+
+    if (personData.dateDeath) {
+      patch.dateDeath = DateTime.fromISO(String(personData.dateDeath))
     }
 
     if (personData.occupationId !== null && personData.occupationId !== undefined && personData.occupationId !== '') {
@@ -960,12 +1019,14 @@ export default class PublicOrderCertificatesController {
             cpf: schema.string({ trim: true }, [rules.regex(/^\d{11}$/)]),
             dateBirth: schema.date({ format: 'yyyy-MM-dd' }),
             gender: schema.enum(['M', 'F'] as const),
+            email: schema.string({ trim: true }, [rules.email()]),
           }),
           bride: schema.object().members({
             name: schema.string({ trim: true }),
             cpf: schema.string({ trim: true }, [rules.regex(/^\d{11}$/)]),
             dateBirth: schema.date({ format: 'yyyy-MM-dd' }),
             gender: schema.enum(['M', 'F'] as const),
+            email: schema.string.optional({ trim: true }, [rules.email()]),
           }),
         }),
         data: { groom, bride },
@@ -975,11 +1036,14 @@ export default class PublicOrderCertificatesController {
           'groom.cpf.regex': 'CPF do primeiro contraente inválido',
           'groom.dateBirth.required': 'Data de nascimento do primeiro contraente é obrigatória',
           'groom.gender.required': 'Sexo do primeiro contraente é obrigatório',
+          'groom.email.required': 'E-mail do primeiro contraente é obrigatório',
+          'groom.email.email': 'E-mail do primeiro contraente inválido',
           'bride.name.required': 'Nome do segundo contraente é obrigatório',
           'bride.cpf.required': 'CPF do segundo contraente é obrigatório',
           'bride.cpf.regex': 'CPF do segundo contraente inválido',
           'bride.dateBirth.required': 'Data de nascimento do segundo contraente é obrigatória',
           'bride.gender.required': 'Sexo do segundo contraente é obrigatório',
+          'bride.email.email': 'E-mail do segundo contraente inválido',
         },
       })
 
@@ -1052,6 +1116,12 @@ export default class PublicOrderCertificatesController {
           file,
           description: cfg.description,
         })
+      }
+
+      try {
+        await this.sendPublicMarriageConfirmationEmails(groom, bride)
+      } catch (emailError) {
+        console.error('ERRO PUBLIC MARRIAGE CONFIRMATION EMAIL:', emailError)
       }
 
       return response.created({

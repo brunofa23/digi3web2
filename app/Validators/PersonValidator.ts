@@ -26,6 +26,7 @@ export default class PersonValidator {
     deceased: schema.boolean.optional(),
 
     dateBirth: schema.date.optional({ format: 'yyyy-MM-dd' }),
+    dateDeath: schema.date.optional({ format: 'yyyy-MM-dd' }),
 
     maritalStatus: schema.string.optional({ trim: true }, [rules.maxLength(15)]),
     illiterate: schema.boolean.optional(),
