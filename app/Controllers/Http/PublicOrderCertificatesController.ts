@@ -446,42 +446,12 @@ export default class PublicOrderCertificatesController {
     return secondCheck === Number(cpf[10])
   }
 
-  private formatPublicMarriageDate(value: any) {
-    if (!value) return ''
-
-    const date = DateTime.fromISO(String(value))
-    return date.isValid ? date.toFormat('dd/MM/yyyy') : String(value)
-  }
-
-  private formatPublicMarriagePerson(label: string, person: any) {
-    return [
-      `${label}:`,
-      `Nome: ${person?.name || '-'}`,
-      `CPF: ${person?.cpf || '-'}`,
-      `Data de nascimento: ${this.formatPublicMarriageDate(person?.dateBirth) || '-'}`,
-      `Sexo: ${person?.gender || '-'}`,
-      `Estado civil: ${person?.maritalStatus || '-'}`,
-      `Naturalidade: ${person?.placeBirth || '-'}`,
-      `Nacionalidade: ${person?.nationality || '-'}`,
-      `Ocupação: ${person?.occupation || '-'}`,
-      `Telefone: ${person?.phone || '-'}`,
-      `Celular: ${person?.cellphone || '-'}`,
-      `E-mail: ${person?.email || '-'}`,
-    ].join('\n')
-  }
-
-  private buildPublicMarriageConfirmationBody(groom: any, bride: any) {
-    return [
-      'Seus dados foram enviados para Habilitação de casamento. Conferir se os dados estão corretos:',
-      '',
-      this.formatPublicMarriagePerson('Primeiro contraente', groom),
-      '',
-      this.formatPublicMarriagePerson('Segundo contraente', bride),
-    ].join('\n')
+  private buildPublicMarriageConfirmationBody() {
+    return 'Seus dados foram enviados para Habilitação de casamento com sucesso.'
   }
 
   private async sendPublicMarriageConfirmationEmails(groom: any, bride: any) {
-    const body = this.buildPublicMarriageConfirmationBody(groom, bride)
+    const body = this.buildPublicMarriageConfirmationBody()
     const subject = 'Habilitação de casamento - dados enviados'
     const from = Env.get('SMTP_USERNAME', '')
     const recipients = Array.from(new Set([groom?.email, bride?.email].filter(Boolean)))

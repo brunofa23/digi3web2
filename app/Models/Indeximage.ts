@@ -14,6 +14,7 @@ export default class Indeximage extends BaseModel {
       'seq',
       'ext',
       'file_name',
+      'drive_file_id',
       'previous_file_name',
       'name',
       'cpf',
@@ -69,6 +70,9 @@ export default class Indeximage extends BaseModel {
 
   @column()
   public file_name: string
+
+  @column()
+  public drive_file_id: string
 
   @column()
   public previous_file_name: string

@@ -51,6 +51,75 @@ function safeDriveSearchLog(result) {
   }
 }
 
+function hasDataImageLookup(dataImages: any) {
+  return Boolean(
+    dataImages?.id ||
+    dataImages?.book ||
+    dataImages?.sheet ||
+    dataImages?.side ||
+    dataImages?.cod ||
+    dataImages?.approximateTerm ||
+    dataImages?.indexBook
+  )
+}
+
+function invalidFileRename(fileName: string, reason: string) {
+  return {
+    isInvalidFileRename: true,
+    fileName: path.basename(fileName || ''),
+    reason,
+  }
+}
+
+function isInvalidFileRename(result: any) {
+  return !result || result.isInvalidFileRename || !result.file_name
+}
+
+function normalizeInvalidFileRename(fileName: string, result: any) {
+  if (result?.isInvalidFileRename) return result
+
+  return invalidFileRename(
+    fileName,
+    'Não foi possível identificar o registro correspondente para este arquivo.'
+  )
+}
+
+function getBookRecordNotFoundReason(objFileName: any, matchedFilePattern: string) {
+  switch (matchedFilePattern) {
+    case 'book_cod':
+      return `Nenhum bookrecord encontrado para livro ${objFileName.book} e código ${objFileName.cod}.`
+    case 'book_sheet_side':
+    case 'book_sheet_side_insert':
+      return `Nenhum bookrecord encontrado para livro ${objFileName.book}, folha ${objFileName.sheet} e lado ${objFileName.side}.`
+    case 'book_term':
+      return `Nenhum bookrecord encontrado para livro ${objFileName.book} e termo aproximado ${objFileName.approximate_term}.`
+    case 'document_prot':
+      return `Nenhum documento encontrado para livro ${objFileName.book} e protocolo ${objFileName.prot}.`
+    case 'id':
+      return `Nenhum bookrecord encontrado para id ${objFileName.id} e código ${objFileName.cod}.`
+    default:
+      return 'Nenhum bookrecord encontrado para os dados informados.'
+  }
+}
+
+const acceptedFileNameFormats = 'L1(1).jpg, L1_5_F.jpg, L1F(5)F.jpg, L1F(5)V.jpg, T1(123).jpg ou P1(123).jpg.'
+
+function throwInvalidFiles(invalidFiles: any[]) {
+  const hasInvalidFormat = invalidFiles.some((file) => String(file.reason || '').includes('Formato não aceito'))
+  const message = [
+    'Alguns arquivos não puderam ser enviados:',
+    ...invalidFiles.map((file) => {
+      if (String(file.reason || '').includes('Formato não aceito')) return `- ${file.fileName}`
+      return `- ${file.fileName}: ${file.reason}`
+    }),
+    ...(hasInvalidFormat ? ['', `Formatos aceitos: ${acceptedFileNameFormats}`] : []),
+  ].join('\n')
+
+  const error = new BadRequestException(message, 422, 'invalid_image_file_names')
+  ;(error as any).invalidFiles = invalidFiles
+  throw error
+}
+
 async function deleteImage(folderPath) {
   try {
     fs.unlink(`${folderPath}`, (err) => {
@@ -171,7 +240,16 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 
   // **imagem única (capture)**
   if (capture) {
+    const validateFileRename = await fileRename(images, params.typebooks_id, companies_id, {}, true)
+    if (isInvalidFileRename(validateFileRename)) {
+      throwInvalidFiles([normalizeInvalidFileRename(images, validateFileRename)])
+    }
+
     const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
+    if (isInvalidFileRename(_fileRename)) {
+      throwInvalidFiles([normalizeInvalidFileRename(images, _fileRename)])
+    }
+
     try {
       // IMPORTANTE: `await` aqui já garante que o upload terminou no Google
       await pushImageToGoogle(images, Application.tmpPath(`/uploads/Client_${companies_id}`), _fileRename, parentId, cloud_number, true)
@@ -184,6 +262,9 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 
   // **lote**
   const result: Object[] = []
+  const validImages: any[] = []
+  const invalidFiles: any[] = []
+
   for (const image of images) {
     if (!image) continue
     if (!image.isValid) {
@@ -191,8 +272,24 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
       continue
     }
 
-    const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages)
+    const validateFileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages, true)
+    if (isInvalidFileRename(validateFileRename)) {
+      invalidFiles.push(normalizeInvalidFileRename(image.clientName, validateFileRename))
+      continue
+    }
 
+    validImages.push(image)
+  }
+
+  if (invalidFiles.length > 0) {
+    throwInvalidFiles(invalidFiles)
+  }
+
+  for (const image of validImages) {
+    const _fileRename = await fileRename(image['clientName'], params.typebooks_id, companies_id, dataImages)
+    if (isInvalidFileRename(_fileRename)) {
+      throwInvalidFiles([normalizeInvalidFileRename(image['clientName'], _fileRename)])
+    }
 
     try {
       // ✅ `await` garante que cada upload terminou; não precisa de sleep entre eles
@@ -215,15 +312,44 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 
 }
 
+async function validateFilesNameToId(fileNames, params, companies_id, dataImages = {}) {
+  const invalidFiles: any[] = []
+  const names = Array.isArray(fileNames) ? fileNames : fileNames ? [fileNames] : []
+
+  for (const fileName of names) {
+    const validateFileRename = await fileRename(fileName, params.typebooks_id, companies_id, dataImages, true)
+
+    if (isInvalidFileRename(validateFileRename)) {
+      invalidFiles.push(normalizeInvalidFileRename(fileName, validateFileRename))
+    }
+  }
+
+  if (invalidFiles.length > 0) {
+    throwInvalidFiles(invalidFiles)
+  }
+
+  return { valid: true }
+}
 
 
-async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: number) {
+
+async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: number, driveFileId = null) {
   try {
-    const idFolderPath = await sendSearchFile(folderPath, cloud_number)
-    const idFile = await sendSearchFile(filename, cloud_number, idFolderPath[0].id)
-    const renameFile = await sendRenameFile(idFile[0].id, newTitle, cloud_number)
-  } catch (error) {
+    if (driveFileId) {
+      await sendRenameFile(driveFileId, newTitle, cloud_number)
+      return true
+    }
 
+    const idFolderPath = await sendSearchFile(folderPath, cloud_number)
+    if (!idFolderPath?.[0]?.id) return false
+
+    const idFile = await sendSearchFile(filename, cloud_number, idFolderPath[0].id)
+    if (!idFile?.[0]?.id) return false
+
+    await sendRenameFile(idFile[0].id, newTitle, cloud_number)
+    return true
+  } catch (error) {
+    return false
   }
 }
 
@@ -275,6 +401,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
     //chamar função para inserir na tabela indeximages
     if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+      objfileRename.drive_file_id = sendUpload.data?.id || null
       const date_atualization = DateTime.now()
       objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm')
       await Indeximage.create(objfileRename)
@@ -289,12 +416,13 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
 }
 
-async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
+async function fileRename(originalFileName: string, typebooks_id, companies_id, dataImages: any = {}, validateOnly = false) {
   let objFileName
   let separators
   let arrayFileName
   let isCreateBookrecord = false
   let isCreateCover = false
+  let matchedFilePattern = ''
   //Format L1(1).jpg = Livro 1 e Código 1
   const regexBookAndCod = /^L\d+\(\d+\).*$/;
   //Formato L1_1_F.jpg = Livro 1, Folha 1 e Lado Frente
@@ -335,6 +463,13 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         break
     }
 
+    if (!fileName) {
+      return invalidFileRename(
+        originalFileName,
+        'Dados insuficientes para nomear arquivo do tipo informado.'
+      )
+    }
+
     return {
       file_name: fileName,
       typebooks_id,
@@ -350,6 +485,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
   switch (true) {
     case regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase()): {
+      matchedFilePattern = 'book_cover'
       const match = originalFileName.match(regexBookCoverInsertBookrecord)
       if (match) {
         objFileName = {
@@ -365,6 +501,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
 
     case regexBookSheetSideInsertBookrecord.test(originalFileName): {
+      matchedFilePattern = 'book_sheet_side_insert'
       const match = originalFileName.match(regexBookSheetSideInsertBookrecord);
       if (match) {
         objFileName = {
@@ -389,6 +526,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
 
     case regexBookAndCod.test(originalFileName.toUpperCase()): {
+      matchedFilePattern = 'book_cod'
       separators = ["L", '\'', '(', ')', '|', '-']
       arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'))
 
@@ -404,6 +542,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
 
     case regexBookSheetSide.test(originalFileName.toUpperCase()): {
+      matchedFilePattern = 'book_sheet_side'
       separators = ["L", '_', '|', '-']
       arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'))
 
@@ -421,6 +560,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
 
     case path.basename(originalFileName).startsWith('Id'): {
+      matchedFilePattern = 'id'
       const arrayFileName = path.basename(originalFileName).split(/[_,.\s]/)
       objFileName = {
         id: arrayFileName[0].replace('Id', ''),
@@ -434,6 +574,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
 
     case regexBookAndTerm.test(originalFileName.toUpperCase()): {
+      matchedFilePattern = 'book_term'
       const arrayFileName = originalFileName.substring(1).split(/[()\.]/)
       objFileName = {
         book: arrayFileName[0],
@@ -446,6 +587,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
 
     case regexDocumentAndProt.test(originalFileName.toUpperCase()): {
+      matchedFilePattern = 'document_prot'
       const match = originalFileName.match(regexDocumentAndProt);
       if (match) {
         objFileName = {
@@ -465,6 +607,14 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
 
     default: {
+      if (!hasDataImageLookup(dataImages)) {
+        return invalidFileRename(
+          originalFileName,
+          'Formato não aceito.'
+        )
+      }
+
+      matchedFilePattern = 'data_images'
       if (dataImages.id) query.andWhere('id', dataImages.id)
       if (dataImages.book) query.andWhere('book', dataImages.book)
       if (dataImages.sheet) query.andWhere('sheet', dataImages.sheet)
@@ -486,11 +636,27 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     // *****************************************************************
     if (bookRecord === null || isCreateCover) {
       if (isCreateBookrecord || isCreateCover) {
+        if (validateOnly) {
+          const book = await Typebook.query()
+            .where('companies_id', companies_id)
+            .andWhere('id', typebooks_id)
+            .first()
+
+          if (!book) {
+            return invalidFileRename(originalFileName, 'Tipo de livro não encontrado para criação do bookrecord.')
+          }
+
+          return { file_name: originalFileName }
+        }
+
         try {
           const query = Typebook.query()
             .where('companies_id', companies_id)
             .andWhere('id', typebooks_id)//.first()
           const book = await query.first()
+          if (!book) {
+            return invalidFileRename(originalFileName, 'Tipo de livro não encontrado para criação do bookrecord.')
+          }
 
           const query2 = Bookrecord.query()
             .where('typebooks_id', typebooks_id)
@@ -523,11 +689,16 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
         } catch (error) {
           console.log("!!!!!!!", error)
+          return invalidFileRename(originalFileName, 'Não foi possível criar o bookrecord para este arquivo.')
         }
       } else {
-        return
+        return invalidFileRename(originalFileName, getBookRecordNotFoundReason(objFileName, matchedFilePattern))
       }
     } else {
+      if (validateOnly) {
+        return { file_name: originalFileName }
+      }
+
       if (bookRecord.indeximage.length == 0) {
         seq = 1
       }
@@ -558,14 +729,26 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 
 }
 
-async function mountNameFile(bookRecord: Bookrecord, seq: Number, extFile: String) {
+async function mountNameFile(bookRecord: Bookrecord, seq: number, extFile: string) {
+  return mountNameFileWithTimestamp(bookRecord, seq, extFile)
+}
+
+function getStableFileTimestamp(fileName: string, fallbackDate?: DateTime | null) {
+  const timestamp = path.basename(fileName || '').match(/_(\d{8,14})(?=\.[^.]+$)/)?.[1]
+  if (timestamp) return timestamp
+
+  if (fallbackDate?.isValid) return fallbackDate.toFormat('yyyyMMddHHmm')
+
+  return DateTime.now().toFormat('yyyyMMddHHmm')
+}
+
+async function mountNameFileWithTimestamp(bookRecord: Bookrecord, seq: number, extFile: string, fileTimestamp?: string) {
   //Id{id}_{seq}({cod})_{typebook_id}_{book}_{sheet}_{approximate_term}_{side}_{books_id}.{extensão}
   //Id{nasc_id}_{seq}({termo})_{livrotipo_reg}_{livro}_{folha}_{termoNovo}_{lado}_{tabarqbin.tabarqbin_reg}_{indice}_{anotacao}_{letra}_{ano}_{data do arquivo}{extensão}
   if (!extFile.startsWith('.'))
     extFile = path.extname(extFile).toLowerCase()
-  let dateNow: DateTime = DateTime.now()
-  dateNow = dateNow.toFormat('yyyyMMddHHmm')
-  return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`
+  const dateFile = fileTimestamp || DateTime.now().toFormat('yyyyMMddHHmm')
+  return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateFile}${extFile.toLowerCase()}`
 }
 
 async function deleteFile(listFiles: [{}], cloud_number: number) {
@@ -595,7 +778,8 @@ async function updateFileName(bookRecord: Bookrecord) {
       .andWhere('indeximages.companies_id', bookRecord.companies_id)
     if (_indexImage.length > 0) {
       for (const data of _indexImage) {
-        const newFileName = await mountNameFile(bookRecord, data?.seq, data.file_name)
+        const fileTimestamp = getStableFileTimestamp(data.file_name, data.date_atualization || data.createdAt)
+        const newFileName = await mountNameFileWithTimestamp(bookRecord, data?.seq, data.file_name, fileTimestamp)
         await Indeximage.query()
           .where('bookrecords_id', '=', data.bookrecords_id)
           .andWhere('typebooks_id', '=', data.typebooks_id)
@@ -797,4 +981,4 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
 
 
 
-export { transformFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }
+export { transformFilesNameToId, validateFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }
