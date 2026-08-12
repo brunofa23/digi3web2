@@ -10,6 +10,8 @@ const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 class GroupxpermissionsController {
     async index({ auth, response }) {
         const authenticate = await auth.use('api').authenticate();
+        if (!authenticate.superuser)
+            throw new BadRequestException_1.default('not superuser', 402, 'error_10');
         try {
             const data = await Groupxpermission_1.default.query()
                 .where('excluded', false);
@@ -20,7 +22,9 @@ class GroupxpermissionsController {
         }
     }
     async update({ auth, params, request, response }) {
-        await auth.use('api').authenticate();
+        const authenticate = await auth.use('api').authenticate();
+        if (!authenticate.superuser)
+            throw new BadRequestException_1.default('not superuser', 402, 'error_10');
         try {
             const updateSchema = Validator_1.schema.create({
                 permissions: Validator_1.schema.array().members(Validator_1.schema.number([Validator_1.rules.exists({ table: 'permissiongroups', column: 'id' })])),
@@ -44,8 +48,10 @@ class GroupxpermissionsController {
         }
     }
     async PermissiongroupXUsergroup({ auth, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        if (!authenticate.superuser)
+            throw new BadRequestException_1.default('not superuser', 402, 'error_10');
         try {
-            await auth.use('api').authenticate();
             const data = await Database_1.default
                 .from('permissiongroups as p')
                 .leftJoin('groupxpermissions as gp', function () {

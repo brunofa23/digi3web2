@@ -529,6 +529,16 @@ class IndeximagesController {
             throw error;
         }
     }
+    async validateUploads({ auth, request, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const fileNames = request.input('fileNames', []);
+        const dataImages = request.input('dataImages', {});
+        await FileRename.validateFilesNameToId(fileNames, params, authenticate.companies_id, dataImages);
+        return response.status(200).send({
+            valid: true,
+            message: 'Arquivos válidos para upload.',
+        });
+    }
     async uploadCapture({ auth, request, params }) {
         const authenticate = await auth.use('api').authenticate();
         const company = await Company_1.default.find(authenticate.companies_id);

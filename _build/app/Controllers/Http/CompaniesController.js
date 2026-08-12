@@ -87,7 +87,12 @@ class CompaniesController {
             throw new BadRequestException_1.default('Bad Request', 401);
         }
     }
-    async show({ params, response }) {
+    async show({ auth, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        if (!authenticate.superuser && Number(params.id) !== Number(authenticate.companies_id)) {
+            let errorValidation = await new validations_1.default('company_error_100');
+            throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        }
         const data = await Company_1.default
             .query()
             .preload('situations')

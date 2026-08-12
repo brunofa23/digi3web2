@@ -15,10 +15,16 @@ import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 */
 export default class BadRequestException extends Exception {
     public async handle(error: this, ctx: HttpContextContract) {
-        return ctx.response.status(error.status).send({
+        const payload: any = {
             code: error.code,
             message: error.message,
             status: error.status,
-        })
+        }
+
+        if ((error as any).invalidFiles) {
+            payload.invalidFiles = (error as any).invalidFiles
+        }
+
+        return ctx.response.status(error.status).send(payload)
     }
 }

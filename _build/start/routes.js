@@ -46,11 +46,11 @@ Route_1.default.group(() => {
     Route_1.default.post('/spedy/service-invoices/:id/issue', 'Spedy/ServiceInvoicesController.issue');
     Route_1.default.post('/spedy/service-invoices/:id/sync', 'Spedy/ServiceInvoicesController.sync');
     Route_1.default.get("/situations", 'SituationsController.index');
-    Route_1.default.get("/users", "UsersController.index");
-    Route_1.default.get("/users/:id", "UsersController.show");
+    Route_1.default.get("/users", "UsersController.index").middleware('user_permission:get');
+    Route_1.default.get("/users/:id", "UsersController.show").middleware('user_permission:get');
     Route_1.default.get("/accessimage/:id", "UsersController.accessImage");
-    Route_1.default.post("/users", "UsersController.store");
-    Route_1.default.patch("/users/:id", "UsersController.update");
+    Route_1.default.post("/users", "UsersController.store").middleware('user_permission:post');
+    Route_1.default.patch("/users/:id", "UsersController.update").middleware('user_permission:patch');
     Route_1.default.post("/closeaccesimage/:id", "UsersController.closeAccesImage");
     Route_1.default.get("/support-tickets", "SupportTicketsController.index");
     Route_1.default.post("/support-tickets", "SupportTicketsController.store");
@@ -89,6 +89,7 @@ Route_1.default.group(() => {
     Route_1.default.get("/indeximages", "IndeximagesController.index");
     Route_1.default.get("/indeximages/:id", "IndeximagesController.show");
     Route_1.default.delete("/indeximages/:typebooks_id/:bookrecords_id/:file_name", "IndeximagesController.destroy");
+    Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads/validate', 'IndeximagesController.validateUploads').as('uploads.validate');
     Route_1.default.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads');
     Route_1.default.post('/indeximages/download/:id', 'IndeximagesController.download').as('download');
     Route_1.default.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture');

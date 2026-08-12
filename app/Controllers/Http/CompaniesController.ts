@@ -104,7 +104,14 @@ export default class CompaniesController {
 
 
   //retorna um registro
-  public async show({ params, response }: HttpContextContract) {
+  public async show({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    if (!authenticate.superuser && Number(params.id) !== Number(authenticate.companies_id)) {
+      let errorValidation: any = await new validations('company_error_100')
+      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
+    }
+
     const data = await Company
       .query()
       .preload('situations')

@@ -11,6 +11,7 @@ export default class IndeximageValidator {
     seq: schema.number.optional(),
     ext: schema.string.optional({ trim: true }),
     file_name: schema.string.optional({ trim: true }),
+    drive_file_id: schema.string.nullableAndOptional({ trim: true }),
     previous_file_name: schema.string.nullableAndOptional({ trim: true }),
     name: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(500)]),
     cpf: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(300)]),

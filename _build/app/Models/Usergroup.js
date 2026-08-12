@@ -22,6 +22,7 @@ class Usergroup extends Orm_1.BaseModel {
             'companies_id',
             'name',
             'inactive',
+            'available_for_user_creation',
         ];
     }
 }
@@ -48,6 +49,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
 ], Usergroup.prototype, "inactive", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], Usergroup.prototype, "available_for_user_creation", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

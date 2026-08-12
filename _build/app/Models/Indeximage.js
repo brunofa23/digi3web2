@@ -26,6 +26,7 @@ class Indeximage extends Orm_1.BaseModel {
             'seq',
             'ext',
             'file_name',
+            'drive_file_id',
             'previous_file_name',
             'name',
             'cpf',
@@ -91,6 +92,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Indeximage.prototype, "file_name", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], Indeximage.prototype, "drive_file_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

@@ -11,6 +11,7 @@ class IndeximageValidator {
             seq: Validator_1.schema.number.optional(),
             ext: Validator_1.schema.string.optional({ trim: true }),
             file_name: Validator_1.schema.string.optional({ trim: true }),
+            drive_file_id: Validator_1.schema.string.nullableAndOptional({ trim: true }),
             previous_file_name: Validator_1.schema.string.nullableAndOptional({ trim: true }),
             name: Validator_1.schema.string.nullableAndOptional({ trim: true }, [Validator_1.rules.maxLength(500)]),
             cpf: Validator_1.schema.string.nullableAndOptional({ trim: true }, [Validator_1.rules.maxLength(300)]),

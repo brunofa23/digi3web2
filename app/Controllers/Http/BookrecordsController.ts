@@ -2259,12 +2259,15 @@ export default class BookrecordsController {
 
       if (listFilesToModify) {
         for (const iterator of listFilesToModify) {
-          await fileRename.renameFileGoogle(
+          const fileWasRenamed = await fileRename.renameFileGoogle(
             iterator.file_name,
             foldername.path,
             iterator.previous_file_name,
-            foldername.company.cloud
+            foldername.company.cloud,
+            iterator.drive_file_id
           )
+
+          if (!fileWasRenamed) continue
 
           await Indeximage.query()
             .where("companies_id", "=", authenticate.companies_id)
@@ -3975,7 +3978,7 @@ export default class BookrecordsController {
 
         const bookrecordInstance = new Bookrecord()
         bookrecordInstance.fill(item.bookrecord.$original)
-        await fileRename.updateFileName(bookrecordInstance)
+        await fileRename.updateFileName(bookrecordInstance, false)
       }
 
       const querylistFilesToModify = Indeximage
@@ -3999,12 +4002,15 @@ export default class BookrecordsController {
       for (const iterator of listFilesToModify) {
         if (!iterator.file_name || !iterator.previous_file_name) continue
 
-        await fileRename.renameFileGoogle(
+        const fileWasRenamed = await fileRename.renameFileGoogle(
           iterator.file_name,
           foldername.path,
           iterator.previous_file_name,
-          foldername.company.cloud
+          foldername.company.cloud,
+          iterator.drive_file_id
         )
+
+        if (!fileWasRenamed) continue
 
         //console.log("@@passo 5 Nome atual:", iterator.file_name, "- mudar para:", iterator.previous_file_name)
         listFilesImages.push(iterator.file_name)

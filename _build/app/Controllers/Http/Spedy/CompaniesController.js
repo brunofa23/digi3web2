@@ -11,9 +11,11 @@ const SpedyCompaniesService_1 = __importDefault(global[Symbol.for('ioc.use')]("A
 const CompanySpedyIntegrationValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/Spedy/CompanySpedyIntegrationValidator"));
 const SpedyCompanyValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/Spedy/SpedyCompanyValidator"));
 const SpedyCompanySettingsValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/Spedy/SpedyCompanySettingsValidator"));
+const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class CompaniesController {
     constructor() {
         this.spedy = new SpedyCompaniesService_1.default();
+        this.companyNfseSettingsPermissiongroupId = 43;
     }
     async requireSuperuser(auth) {
         const user = await auth.use('api').authenticate();
@@ -21,6 +23,39 @@ class CompaniesController {
             throw new BadRequestException_1.default('Acesso permitido somente para super usuário', 403, 'spedy_superuser_required');
         }
         return user;
+    }
+    async requireCompanyNfseSettingsAccess(auth, companyId) {
+        const user = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        if (user.superuser)
+            return user;
+        if (!(0, util_1.verifyPermission)(false, permissions, this.companyNfseSettingsPermissiongroupId)) {
+            throw new BadRequestException_1.default('Usuario sem permissao para configurar NFS-e da empresa.', 403, 'spedy_company_nfse_settings_forbidden');
+        }
+        if (companyId && Number(companyId) !== Number(user.companies_id)) {
+            throw new BadRequestException_1.default('Usuario sem permissao para configurar NFS-e desta empresa.', 403, 'spedy_company_nfse_settings_company_forbidden');
+        }
+        return user;
+    }
+    async getAllowedCompanyIntegration(auth, environment, spedyCompanyId) {
+        const user = await this.requireCompanyNfseSettingsAccess(auth);
+        if (user.superuser) {
+            return CompanySpedyIntegration_1.default
+                .query()
+                .where('environment', environment)
+                .where('spedy_company_id', spedyCompanyId)
+                .first();
+        }
+        const integration = await CompanySpedyIntegration_1.default
+            .query()
+            .where('companies_id', user.companies_id)
+            .where('environment', environment)
+            .where('spedy_company_id', spedyCompanyId)
+            .first();
+        if (!integration) {
+            throw new BadRequestException_1.default('Empresa NFS-e não vinculada a empresa logada.', 403, 'spedy_company_nfse_settings_link_forbidden');
+        }
+        return integration;
     }
     async getOwnerIntegration(environment = 'sandbox') {
         const integration = await CompanySpedyIntegration_1.default
@@ -81,15 +116,15 @@ class CompaniesController {
         return this.spedy.createCompany(owner, payload);
     }
     async show({ auth, params, request }) {
-        await this.requireSuperuser(auth);
         const environment = request.input('environment', 'sandbox');
-        const owner = await this.getOwnerIntegration(environment);
+        const localIntegration = await this.getAllowedCompanyIntegration(auth, environment, params.id);
+        const owner = localIntegration?.spedyApiKey ? localIntegration : await this.getOwnerIntegration(environment);
         return this.spedy.getCompany(owner, params.id);
     }
     async update({ auth, params, request }) {
-        await this.requireSuperuser(auth);
         const environment = request.input('environment', 'sandbox');
-        const owner = await this.getOwnerIntegration(environment);
+        const localIntegration = await this.getAllowedCompanyIntegration(auth, environment, params.id);
+        const owner = localIntegration?.spedyApiKey ? localIntegration : await this.getOwnerIntegration(environment);
         const payload = await request.validate(SpedyCompanyValidator_1.default);
         return this.spedy.updateCompany(owner, params.id, payload);
     }
@@ -100,33 +135,33 @@ class CompaniesController {
         return this.spedy.deleteCompany(owner, params.id);
     }
     async settings({ auth, params, request }) {
-        await this.requireSuperuser(auth);
         const environment = request.input('environment', 'sandbox');
-        const owner = await this.getOwnerIntegration(environment);
+        const localIntegration = await this.getAllowedCompanyIntegration(auth, environment, params.id);
+        const owner = localIntegration?.spedyApiKey ? localIntegration : await this.getOwnerIntegration(environment);
         return this.spedy.getSettings(owner, params.id);
     }
     async updateSettings({ auth, params, request }) {
-        await this.requireSuperuser(auth);
         const environment = request.input('environment', 'sandbox');
-        const owner = await this.getOwnerIntegration(environment);
+        const localIntegration = await this.getAllowedCompanyIntegration(auth, environment, params.id);
+        const owner = localIntegration?.spedyApiKey ? localIntegration : await this.getOwnerIntegration(environment);
         const payload = await request.validate(SpedyCompanySettingsValidator_1.default);
         return this.spedy.updateSettings(owner, params.id, payload);
     }
     async serviceInvoiceCities({ auth, request }) {
-        await this.requireSuperuser(auth);
+        await this.requireCompanyNfseSettingsAccess(auth);
         const environment = request.input('environment', 'sandbox');
         const owner = await this.getOwnerIntegration(environment);
         return this.spedy.listServiceInvoiceCities(owner, request.qs());
     }
     async certificates({ auth, params, request }) {
-        await this.requireSuperuser(auth);
         const environment = request.input('environment', 'sandbox');
+        await this.getAllowedCompanyIntegration(auth, environment, params.id);
         const credential = await this.getCompanyCredential(environment, params.id);
         return this.spedy.getCertificates(credential.integration, params.id);
     }
     async uploadCertificate({ auth, params, request }) {
-        await this.requireSuperuser(auth);
         const environment = request.input('environment', 'sandbox');
+        await this.getAllowedCompanyIntegration(auth, environment, params.id);
         const credential = await this.getCompanyCredential(environment, params.id);
         const password = request.input('password');
         const file = request.file('file', {
@@ -154,7 +189,7 @@ class CompaniesController {
         };
     }
     async showIntegration({ auth, params, request }) {
-        await this.requireSuperuser(auth);
+        await this.requireCompanyNfseSettingsAccess(auth, params.companyId);
         const environment = request.input('environment', 'sandbox');
         const integration = await CompanySpedyIntegration_1.default
             .query()
@@ -164,7 +199,7 @@ class CompaniesController {
         return this.serializeIntegration(integration);
     }
     async saveIntegration({ auth, params, request }) {
-        await this.requireSuperuser(auth);
+        const user = await this.requireCompanyNfseSettingsAccess(auth, params.companyId);
         const payload = await request.validate(CompanySpedyIntegrationValidator_1.default);
         const environment = payload.environment || 'sandbox';
         await Company_1.default.findOrFail(params.companyId);
@@ -179,7 +214,7 @@ class CompaniesController {
             integration.environment = environment;
         }
         integration.spedyCompanyId = payload.spedyCompanyId || null;
-        integration.isOwner = payload.isOwner === true;
+        integration.isOwner = user.superuser && payload.isOwner === true;
         integration.active = payload.active !== undefined ? payload.active === true : true;
         if (payload.spedyApiKey !== undefined) {
             integration.spedyApiKey = payload.spedyApiKey || null;
@@ -194,7 +229,7 @@ class CompaniesController {
         return this.serializeIntegration(integration);
     }
     async syncIntegration({ auth, params, request }) {
-        await this.requireSuperuser(auth);
+        await this.requireCompanyNfseSettingsAccess(auth, params.companyId);
         const environment = request.input('environment', 'sandbox');
         const integration = await CompanySpedyIntegration_1.default
             .query()

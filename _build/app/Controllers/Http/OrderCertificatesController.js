@@ -71,6 +71,9 @@ class OrderCertificatesController {
             return null;
         const hasAny = String(personData?.name ?? '').trim() !== '' ||
             String(personData?.cpf ?? '').trim() !== '' ||
+            String(personData?.occupation ?? '').trim() !== '' ||
+            String(personData?.dateDeath ?? '').trim() !== '' ||
+            personData?.deceased === true ||
             this.toNumber(personData?.id) !== null;
         if (!hasAny)
             return null;
@@ -83,7 +86,7 @@ class OrderCertificatesController {
             person = new Person_1.default();
         }
         person.useTransaction(trx);
-        person.merge({
+        const payload = {
             companiesId,
             name: personData.name ?? '',
             nameMarried: personData.nameMarried ?? '',
@@ -92,6 +95,9 @@ class OrderCertificatesController {
             deceased: personData.deceased ?? false,
             dateBirth: personData.dateBirth
                 ? luxon_1.DateTime.fromISO(String(personData.dateBirth))
+                : null,
+            dateDeath: personData.dateDeath
+                ? luxon_1.DateTime.fromISO(String(personData.dateDeath))
                 : null,
             maritalStatus: personData.maritalStatus ?? '',
             illiterate: personData.illiterate ?? false,
@@ -113,7 +119,11 @@ class OrderCertificatesController {
             mother: personData.mother ?? '',
             father: personData.father ?? '',
             inactive: personData.inactive ?? false,
-        });
+        };
+        if (String(personData.occupation ?? '').trim() !== '') {
+            payload.occupation = personData.occupation;
+        }
+        person.merge(payload);
         await person.save();
         return person;
     }

@@ -1720,7 +1720,9 @@ class BookrecordsController {
             const listFilesToModify = await query;
             if (listFilesToModify) {
                 for (const iterator of listFilesToModify) {
-                    await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud);
+                    const fileWasRenamed = await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud, iterator.drive_file_id);
+                    if (!fileWasRenamed)
+                        continue;
                     await Indeximage_1.default.query()
                         .where("companies_id", "=", authenticate.companies_id)
                         .andWhere("typebooks_id", "=", params.typebooks_id)
@@ -2779,7 +2781,7 @@ class BookrecordsController {
                     continue;
                 const bookrecordInstance = new Bookrecord_1.default();
                 bookrecordInstance.fill(item.bookrecord.$original);
-                await fileRename.updateFileName(bookrecordInstance);
+                await fileRename.updateFileName(bookrecordInstance, false);
             }
             const querylistFilesToModify = Indeximage_1.default
                 .query()
@@ -2796,7 +2798,9 @@ class BookrecordsController {
             for (const iterator of listFilesToModify) {
                 if (!iterator.file_name || !iterator.previous_file_name)
                     continue;
-                await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud);
+                const fileWasRenamed = await fileRename.renameFileGoogle(iterator.file_name, foldername.path, iterator.previous_file_name, foldername.company.cloud, iterator.drive_file_id);
+                if (!fileWasRenamed)
+                    continue;
                 listFilesImages.push(iterator.file_name);
                 const resultIndeximage = await Indeximage_1.default
                     .query()

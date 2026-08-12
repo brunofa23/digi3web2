@@ -124,6 +124,7 @@ Route.group(() => {
   Route.get("/indeximages", "IndeximagesController.index")
   Route.get("/indeximages/:id", "IndeximagesController.show")
   Route.delete("/indeximages/:typebooks_id/:bookrecords_id/:file_name", "IndeximagesController.destroy")
+  Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads/validate', 'IndeximagesController.validateUploads').as('uploads.validate')
   Route.post('/typebooks/:typebooks_id/bookrecords/indeximages/uploads', 'IndeximagesController.uploads').as('uploads')//.middleware('indeximage_permission:uploads')
   Route.post('/indeximages/download/:id', 'IndeximagesController.download').as('download')//.middleware('indeximage_permission:download')
   Route.post('/typebooks/:typebooks_id/indeximages/uploadcapture', 'IndeximagesController.uploadCapture')//.middleware('indeximage_permission:uploadCapture')

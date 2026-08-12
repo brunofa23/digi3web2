@@ -8,6 +8,7 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const UserValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/UserValidator"));
 const luxon_1 = require("luxon");
+const Usergroup_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Usergroup"));
 class UsersController {
     parseAccessImageDate(accessImage) {
         if (luxon_1.DateTime.isDateTime(accessImage)) {
@@ -22,24 +23,33 @@ class UsersController {
     }
     async index({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { companies_id, findCompany, findUser } = request.only(['companies_id', 'findCompany', 'findUser']);
+        const { companies_id, findCompany, findUser, findSuperuser } = request.only(['companies_id', 'findCompany', 'findUser', 'findSuperuser']);
         try {
             const query = User_1.default.query()
-                .preload('company');
+                .preload('company')
+                .preload('usergroup');
             if (authenticate.superuser) {
                 if (findCompany)
                     query.where('companies_id', findCompany);
                 else if (companies_id)
                     query.where('companies_id', companies_id);
-                else
-                    query.where('companies_id', authenticate.companies_id);
             }
             else {
                 query.where('companies_id', authenticate.companies_id);
             }
             if (findUser)
                 query.where('username', 'like', `%${findUser}%`);
+            if (authenticate.superuser && findSuperuser !== undefined)
+                query.where('superuser', ['1', 'true', true, 1].includes(findSuperuser) ? 1 : 0);
             const data = await query;
+            if (!authenticate.superuser) {
+                const users = data.map((user) => {
+                    const payload = user.serialize();
+                    delete payload.superuser;
+                    return payload;
+                });
+                return response.status(200).send(users);
+            }
             return response.status(200).send(data);
         }
         catch (error) {
@@ -58,28 +68,41 @@ class UsersController {
             query.where('companies_id', authenticate.companies_id);
         });
         const data = await query.first();
+        if (!authenticate.superuser && data) {
+            const payload = data.serialize();
+            delete payload.superuser;
+            return response.status(200).send(payload);
+        }
         return response.status(200).send(data);
     }
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        if (!authenticate.superuser) {
+            request.updateBody({
+                ...request.all(),
+                companies_id: authenticate.companies_id,
+                superuser: false,
+            });
+        }
         const body = await request.validate(UserValidator_1.default);
         body.permission_level = 1;
+        if (!authenticate.superuser) {
+            const usergroup = await Usergroup_1.default.query()
+                .where('id', body.usergroup_id)
+                .where('inactive', false)
+                .where('available_for_user_creation', true)
+                .first();
+            if (!usergroup)
+                throw new BadRequestException_1.default('Grupo não permitido para cadastro de usuários', 402, 'user_error_201');
+            body.companies_id = authenticate.companies_id;
+            body.superuser = false;
+        }
         const userByName = await User_1.default.query()
             .where('username', '=', body.username)
             .andWhere('companies_id', '=', body.companies_id).first();
         if (userByName) {
             let errorValidation = await new validations_1.default('user_error_203');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
-        }
-        if (body.email) {
-            const userByEmail = await User_1.default.findBy('email', body.email);
-            if (userByEmail) {
-                let errorValidation = await new validations_1.default('user_error_209');
-                throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
-            }
-        }
-        if (!authenticate.superuser) {
-            body.companies_id = authenticate.companies_id;
         }
         try {
             const data = await User_1.default.create(body);
@@ -92,21 +115,30 @@ class UsersController {
     }
     async update({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const body = await request.validate(UserValidator_1.default);
-        body.id = request.param('id');
-        const user = await User_1.default.findOrFail(body.id);
         if (!authenticate.superuser) {
-            body.companies_id = authenticate.companies_id;
+            request.updateBody({
+                ...request.all(),
+                companies_id: authenticate.companies_id,
+                superuser: false,
+            });
         }
-        if (body.email && body.email !== user.email) {
-            const userByEmail = await User_1.default.query()
-                .where('email', body.email)
-                .andWhereNot('id', body.id)
-                .first();
-            if (userByEmail) {
-                let errorValidation = await new validations_1.default('user_error_209');
-                throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
+        const body = await request.validate(UserValidator_1.default);
+        const userId = Number(request.param('id'));
+        body.id = userId;
+        const user = await User_1.default.findOrFail(userId);
+        if (!authenticate.superuser) {
+            if (user.companies_id !== authenticate.companies_id) {
+                return response.forbidden({ message: 'Acesso permitido apenas para usuários da própria empresa' });
             }
+            const usergroup = await Usergroup_1.default.query()
+                .where('id', body.usergroup_id)
+                .where('inactive', false)
+                .where('available_for_user_creation', true)
+                .first();
+            if (!usergroup)
+                throw new BadRequestException_1.default('Grupo não permitido para cadastro de usuários', 402, 'user_error_201');
+            body.companies_id = authenticate.companies_id;
+            body.superuser = Boolean(user.superuser);
         }
         try {
             const userUpdated = await user.merge(body).save();

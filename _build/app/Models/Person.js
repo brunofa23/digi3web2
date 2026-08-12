@@ -61,6 +61,13 @@ __decorate([
     __metadata("design:type", luxon_1.DateTime)
 ], Person.prototype, "dateBirth", void 0);
 __decorate([
+    Orm_1.column.date({
+        columnName: 'date_death',
+        serializeAs: 'dateDeath',
+    }),
+    __metadata("design:type", Object)
+], Person.prototype, "dateDeath", void 0);
+__decorate([
     (0, Orm_1.column)({
         columnName: 'marital_status',
         serializeAs: 'maritalStatus',
@@ -92,6 +99,10 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], Person.prototype, "occupationId", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", String)
+], Person.prototype, "occupation", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
@@ -178,7 +189,7 @@ __decorate([
         foreignKey: 'occupationId',
     }),
     __metadata("design:type", Object)
-], Person.prototype, "occupation", void 0);
+], Person.prototype, "occupationRecord", void 0);
 __decorate([
     Orm_1.column.dateTime({
         columnName: 'created_at',

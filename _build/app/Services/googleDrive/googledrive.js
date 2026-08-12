@@ -314,9 +314,11 @@ async function renameFile(authClient, fileId, newTitle) {
             fileId,
             resource: fileMetadata,
         });
+        return updatedFile;
     }
     catch (error) {
         console.error('Erro ao renomear o arquivo:', error);
+        throw error;
     }
 }
 async function listFiles(authClient, folderId = "") {

@@ -30,6 +30,8 @@ const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const luxon_1 = require("luxon");
 const crypto_1 = __importDefault(require("crypto"));
+const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
+const Mail_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Addons/Mail"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const OrderCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/OrderCertificate"));
 const Person_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Person"));
@@ -37,13 +39,15 @@ const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/
 const PublicOrderCertificateLink_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/PublicOrderCertificateLink"));
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
 const googleVision_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/googleVision");
+const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const MARRIAGE_LINK_TYPE = 'marriage';
 const PUBLIC_SUBMIT_RATE_LIMIT_MAX = 5;
 const PUBLIC_SUBMIT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const PUBLIC_OCR_RATE_LIMIT_MAX = 20;
 const PUBLIC_OCR_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 const PUBLIC_DUPLICATE_WINDOW_MINUTES = 10;
-const PUBLIC_CHALLENGE_TTL_MS = 15 * 60 * 1000;
+const PUBLIC_CHALLENGE_TTL_MS = 50 * 60 * 1000;
+const PUBLIC_MARRIAGE_LINK_PERMISSION_ID = 42;
 const publicSubmitAttempts = new Map();
 const publicOcrAttempts = new Map();
 const publicHumanChallenges = new Map();
@@ -328,10 +332,11 @@ class PublicOrderCertificatesController {
             },
         };
     }
-    async assertSuperuser(auth, response) {
+    async assertPublicMarriageLinkPermission(auth, response) {
         const authenticate = await auth.use('api').authenticate();
-        if (!authenticate.superuser) {
-            response.forbidden({ message: 'Acesso permitido apenas para superusuário' });
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        if (!(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, PUBLIC_MARRIAGE_LINK_PERMISSION_ID)) {
+            response.forbidden({ message: 'Acesso permitido apenas para usuários com permissão de link público de casamento' });
             return null;
         }
         return authenticate;
@@ -420,6 +425,24 @@ class PublicOrderCertificatesController {
             secondCheck = 0;
         return secondCheck === Number(cpf[10]);
     }
+    buildPublicMarriageConfirmationBody() {
+        return 'Seus dados foram enviados para Habilitação de casamento com sucesso.';
+    }
+    async sendPublicMarriageConfirmationEmails(groom, bride) {
+        const body = this.buildPublicMarriageConfirmationBody();
+        const subject = 'Habilitação de casamento - dados enviados';
+        const from = Env_1.default.get('SMTP_USERNAME', '');
+        const recipients = Array.from(new Set([groom?.email, bride?.email].filter(Boolean)));
+        for (const email of recipients) {
+            await Mail_1.default.send((message) => {
+                message
+                    .from(from, 'Digi3')
+                    .to(email)
+                    .subject(subject)
+                    .text(body);
+            });
+        }
+    }
     isTruthy(value) {
         if (value === true || value === 1)
             return true;
@@ -476,6 +499,10 @@ class PublicOrderCertificatesController {
             throw new BadRequestException_1.default('Confirme que você não é um robô antes de enviar a solicitação.', 422);
         }
         publicHumanChallenges.delete(challengeId);
+    }
+    isMissingOccupationColumnError(error) {
+        const message = String(error?.message || '');
+        return error?.code === 'ER_BAD_FIELD_ERROR' && message.includes('occupation');
     }
     assertPublicSubmitRateLimit(token, ip) {
         const now = Date.now();
@@ -549,7 +576,9 @@ class PublicOrderCertificatesController {
             'name',
             'cpf',
             'dateBirth',
+            'dateDeath',
             'gender',
+            'occupation',
             'zipCode',
             'address',
             'documentNumber',
@@ -558,10 +587,10 @@ class PublicOrderCertificatesController {
             'email',
             'mother',
             'father',
-        ].some((field) => String(personData?.[field] ?? '').trim() !== '');
+        ].some((field) => String(personData?.[field] ?? '').trim() !== '') || personData?.deceased === true;
     }
     buildPersonCreatePayload(personData, companiesId) {
-        return {
+        const payload = {
             companiesId,
             name: personData.name ?? '',
             nameMarried: personData.nameMarried ?? '',
@@ -569,6 +598,7 @@ class PublicOrderCertificatesController {
             gender: personData.gender ?? '',
             deceased: personData.deceased ?? false,
             dateBirth: personData.dateBirth ? luxon_1.DateTime.fromISO(String(personData.dateBirth)) : null,
+            dateDeath: personData.dateDeath ? luxon_1.DateTime.fromISO(String(personData.dateDeath)) : null,
             maritalStatus: personData.maritalStatus ?? '',
             illiterate: personData.illiterate ?? false,
             placeBirth: personData.placeBirth ?? '',
@@ -590,6 +620,10 @@ class PublicOrderCertificatesController {
             father: personData.father ?? '',
             inactive: personData.inactive ?? false,
         };
+        if (String(personData.occupation ?? '').trim() !== '') {
+            payload.occupation = personData.occupation;
+        }
+        return payload;
     }
     buildPersonUpdatePatch(personData) {
         const patch = {};
@@ -604,6 +638,7 @@ class PublicOrderCertificatesController {
         assignText('maritalStatus', personData.maritalStatus);
         assignText('placeBirth', personData.placeBirth);
         assignText('nationality', personData.nationality);
+        assignText('occupation', personData.occupation);
         assignText('zipCode', personData.zipCode);
         assignText('address', personData.address);
         assignText('streetNumber', personData.streetNumber);
@@ -620,6 +655,9 @@ class PublicOrderCertificatesController {
         assignText('father', personData.father);
         if (personData.dateBirth) {
             patch.dateBirth = luxon_1.DateTime.fromISO(String(personData.dateBirth));
+        }
+        if (personData.dateDeath) {
+            patch.dateDeath = luxon_1.DateTime.fromISO(String(personData.dateDeath));
         }
         if (personData.occupationId !== null && personData.occupationId !== undefined && personData.occupationId !== '') {
             patch.occupationId = personData.occupationId;
@@ -644,9 +682,6 @@ class PublicOrderCertificatesController {
                 .where((q) => {
                 q.where('inactive', false).orWhereNull('inactive');
             });
-            if (matches.length > 1) {
-                throw new BadRequestException_1.default('Existe mais de uma pessoa ativa cadastrada com o mesmo CPF. Procure o cartório para concluir a solicitação.', 409);
-            }
             person = matches[0] ?? null;
         }
         if (!person) {
@@ -745,14 +780,14 @@ class PublicOrderCertificatesController {
         };
     }
     async manageMarriageLink({ auth, response }) {
-        const authenticate = await this.assertSuperuser(auth, response);
+        const authenticate = await this.assertPublicMarriageLinkPermission(auth, response);
         if (!authenticate)
             return;
         const link = await this.getOrCreateMarriageLink(authenticate.companies_id);
         return response.status(200).send(this.serializeManageLink(link));
     }
     async toggleMarriageLink({ auth, request, response }) {
-        const authenticate = await this.assertSuperuser(auth, response);
+        const authenticate = await this.assertPublicMarriageLinkPermission(auth, response);
         if (!authenticate)
             return;
         const payload = await request.validate({
@@ -835,12 +870,14 @@ class PublicOrderCertificatesController {
                         cpf: Validator_1.schema.string({ trim: true }, [Validator_1.rules.regex(/^\d{11}$/)]),
                         dateBirth: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
                         gender: Validator_1.schema.enum(['M', 'F']),
+                        email: Validator_1.schema.string({ trim: true }, [Validator_1.rules.email()]),
                     }),
                     bride: Validator_1.schema.object().members({
                         name: Validator_1.schema.string({ trim: true }),
                         cpf: Validator_1.schema.string({ trim: true }, [Validator_1.rules.regex(/^\d{11}$/)]),
                         dateBirth: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
                         gender: Validator_1.schema.enum(['M', 'F']),
+                        email: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.email()]),
                     }),
                 }),
                 data: { groom, bride },
@@ -850,11 +887,14 @@ class PublicOrderCertificatesController {
                     'groom.cpf.regex': 'CPF do primeiro contraente inválido',
                     'groom.dateBirth.required': 'Data de nascimento do primeiro contraente é obrigatória',
                     'groom.gender.required': 'Sexo do primeiro contraente é obrigatório',
+                    'groom.email.required': 'E-mail do primeiro contraente é obrigatório',
+                    'groom.email.email': 'E-mail do primeiro contraente inválido',
                     'bride.name.required': 'Nome do segundo contraente é obrigatório',
                     'bride.cpf.required': 'CPF do segundo contraente é obrigatório',
                     'bride.cpf.regex': 'CPF do segundo contraente inválido',
                     'bride.dateBirth.required': 'Data de nascimento do segundo contraente é obrigatória',
                     'bride.gender.required': 'Sexo do segundo contraente é obrigatório',
+                    'bride.email.email': 'E-mail do segundo contraente inválido',
                 },
             });
             if (!this.isValidCpf(groom.cpf)) {
@@ -913,6 +953,12 @@ class PublicOrderCertificatesController {
                     description: cfg.description,
                 });
             }
+            try {
+                await this.sendPublicMarriageConfirmationEmails(groom, bride);
+            }
+            catch (emailError) {
+                console.error('ERRO PUBLIC MARRIAGE CONFIRMATION EMAIL:', emailError);
+            }
             return response.created({
                 id: orderCertificate.id,
                 message: 'Solicitação enviada com sucesso',
@@ -924,6 +970,11 @@ class PublicOrderCertificatesController {
             }
             if (error.code === 'E_VALIDATION_FAILURE') {
                 return response.status(422).send({ errors: error.messages.errors });
+            }
+            if (this.isMissingOccupationColumnError(error)) {
+                return response.status(500).send({
+                    message: 'A coluna de ocupação ainda não existe no banco. Execute as migrations do backend antes de enviar a solicitação.',
+                });
             }
             console.error('ERRO PUBLIC MARRIAGE STORE:', error);
             return response.internalServerError({ message: 'Erro ao enviar solicitação pública de casamento' });

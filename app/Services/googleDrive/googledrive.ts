@@ -358,8 +358,10 @@ async function renameFile(authClient, fileId: String, newTitle: String) {
       fileId,
       resource: fileMetadata,
     });
+    return updatedFile
   } catch (error) {
     console.error('Erro ao renomear o arquivo:', error);
+    throw error
   }
 }
 

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateFileName = exports.mountNameFile = exports.renameFileGoogle = exports.totalFilesInFolder = exports.indeximagesinitial = exports.deleteFile = exports.fileRename = exports.downloadImage = exports.transformFilesNameToId = void 0;
+exports.updateFileName = exports.mountNameFile = exports.renameFileGoogle = exports.totalFilesInFolder = exports.indeximagesinitial = exports.deleteFile = exports.fileRename = exports.downloadImage = exports.validateFilesNameToId = exports.transformFilesNameToId = void 0;
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
@@ -34,6 +34,69 @@ function safeDriveSearchLog(result) {
         code: result?.code,
         type: result?.type,
     };
+}
+const pendingRenameQueue = new Map();
+let pendingRenameTimer = null;
+let isPendingRenameQueueRunning = false;
+const pendingRenameBatchSize = 5;
+const pendingRenameDelayMs = 1000;
+const maxPendingRenameRoundsByTypebook = 50;
+function hasDataImageLookup(dataImages) {
+    return Boolean(dataImages?.id ||
+        dataImages?.book ||
+        dataImages?.sheet ||
+        dataImages?.side ||
+        dataImages?.cod ||
+        dataImages?.approximateTerm ||
+        dataImages?.indexBook);
+}
+function invalidFileRename(fileName, reason) {
+    return {
+        isInvalidFileRename: true,
+        fileName: path_1.default.basename(fileName || ''),
+        reason,
+    };
+}
+function isInvalidFileRename(result) {
+    return !result || result.isInvalidFileRename || !result.file_name;
+}
+function normalizeInvalidFileRename(fileName, result) {
+    if (result?.isInvalidFileRename)
+        return result;
+    return invalidFileRename(fileName, 'Não foi possível identificar o registro correspondente para este arquivo.');
+}
+function getBookRecordNotFoundReason(objFileName, matchedFilePattern) {
+    switch (matchedFilePattern) {
+        case 'book_cod':
+            return `Nenhum bookrecord encontrado para livro ${objFileName.book} e código ${objFileName.cod}.`;
+        case 'book_sheet_side':
+        case 'book_sheet_side_insert':
+            return `Nenhum bookrecord encontrado para livro ${objFileName.book}, folha ${objFileName.sheet} e lado ${objFileName.side}.`;
+        case 'book_term':
+            return `Nenhum bookrecord encontrado para livro ${objFileName.book} e termo aproximado ${objFileName.approximate_term}.`;
+        case 'document_prot':
+            return `Nenhum documento encontrado para livro ${objFileName.book} e protocolo ${objFileName.prot}.`;
+        case 'id':
+            return `Nenhum bookrecord encontrado para id ${objFileName.id} e código ${objFileName.cod}.`;
+        default:
+            return 'Nenhum bookrecord encontrado para os dados informados.';
+    }
+}
+const acceptedFileNameFormats = 'L1(1).jpg, L1_5_F.jpg, L1F(5)F.jpg, L1F(5)V.jpg, T1(123).jpg ou P1(123).jpg.';
+function throwInvalidFiles(invalidFiles) {
+    const hasInvalidFormat = invalidFiles.some((file) => String(file.reason || '').includes('Formato não aceito'));
+    const message = [
+        'Alguns arquivos não puderam ser enviados:',
+        ...invalidFiles.map((file) => {
+            if (String(file.reason || '').includes('Formato não aceito'))
+                return `- ${file.fileName}`;
+            return `- ${file.fileName}: ${file.reason}`;
+        }),
+        ...(hasInvalidFormat ? ['', `Formatos aceitos: ${acceptedFileNameFormats}`] : []),
+    ].join('\n');
+    const error = new BadRequestException_1.default(message, 422, 'invalid_image_file_names');
+    error.invalidFiles = invalidFiles;
+    throw error;
 }
 async function deleteImage(folderPath) {
     try {
@@ -120,7 +183,14 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
         throw new BadRequestException_1.default('undefined book', 409);
     const parentId = await ensureDriveFolder(directoryParent.path, cloud_number, companies_id);
     if (capture) {
+        const validateFileRename = await fileRename(images, params.typebooks_id, companies_id, {}, true);
+        if (isInvalidFileRename(validateFileRename)) {
+            throwInvalidFiles([normalizeInvalidFileRename(images, validateFileRename)]);
+        }
         const _fileRename = await fileRename(images, params.typebooks_id, companies_id);
+        if (isInvalidFileRename(_fileRename)) {
+            throwInvalidFiles([normalizeInvalidFileRename(images, _fileRename)]);
+        }
         try {
             await pushImageToGoogle(images, Application_1.default.tmpPath(`/uploads/Client_${companies_id}`), _fileRename, parentId, cloud_number, true);
             return images;
@@ -131,6 +201,8 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
         }
     }
     const result = [];
+    const validImages = [];
+    const invalidFiles = [];
     for (const image of images) {
         if (!image)
             continue;
@@ -138,7 +210,21 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
             console.log("Error", image.errors);
             continue;
         }
-        const _fileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages);
+        const validateFileRename = await fileRename(image.clientName, params.typebooks_id, companies_id, dataImages, true);
+        if (isInvalidFileRename(validateFileRename)) {
+            invalidFiles.push(normalizeInvalidFileRename(image.clientName, validateFileRename));
+            continue;
+        }
+        validImages.push(image);
+    }
+    if (invalidFiles.length > 0) {
+        throwInvalidFiles(invalidFiles);
+    }
+    for (const image of validImages) {
+        const _fileRename = await fileRename(image['clientName'], params.typebooks_id, companies_id, dataImages);
+        if (isInvalidFileRename(_fileRename)) {
+            throwInvalidFiles([normalizeInvalidFileRename(image['clientName'], _fileRename)]);
+        }
         try {
             const r = await pushImageToGoogle(image, Application_1.default.tmpPath(`/uploads/Client_${companies_id}`), _fileRename, parentId, cloud_number);
             result.push(r);
@@ -152,16 +238,118 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
     return result;
 }
 exports.transformFilesNameToId = transformFilesNameToId;
-async function renameFileGoogle(filename, folderPath, newTitle, cloud_number) {
+async function validateFilesNameToId(fileNames, params, companies_id, dataImages = {}) {
+    const invalidFiles = [];
+    const names = Array.isArray(fileNames) ? fileNames : fileNames ? [fileNames] : [];
+    for (const fileName of names) {
+        const validateFileRename = await fileRename(fileName, params.typebooks_id, companies_id, dataImages, true);
+        if (isInvalidFileRename(validateFileRename)) {
+            invalidFiles.push(normalizeInvalidFileRename(fileName, validateFileRename));
+        }
+    }
+    if (invalidFiles.length > 0) {
+        throwInvalidFiles(invalidFiles);
+    }
+    return { valid: true };
+}
+exports.validateFilesNameToId = validateFilesNameToId;
+async function renameFileGoogle(filename, folderPath, newTitle, cloud_number, driveFileId = null) {
     try {
+        if (driveFileId) {
+            await (0, googledrive_1.sendRenameFile)(driveFileId, newTitle, cloud_number);
+            return true;
+        }
         const idFolderPath = await (0, googledrive_1.sendSearchFile)(folderPath, cloud_number);
+        if (!idFolderPath?.[0]?.id)
+            return false;
         const idFile = await (0, googledrive_1.sendSearchFile)(filename, cloud_number, idFolderPath[0].id);
-        const renameFile = await (0, googledrive_1.sendRenameFile)(idFile[0].id, newTitle, cloud_number);
+        if (!idFile?.[0]?.id)
+            return false;
+        await (0, googledrive_1.sendRenameFile)(idFile[0].id, newTitle, cloud_number);
+        return true;
     }
     catch (error) {
+        return false;
     }
 }
 exports.renameFileGoogle = renameFileGoogle;
+function enqueuePendingRenameProcessing(companiesId, typebooksId) {
+    if (!companiesId || !typebooksId)
+        return;
+    const queueKey = `${companiesId}:${typebooksId}`;
+    const currentRounds = pendingRenameQueue.get(queueKey) || 0;
+    pendingRenameQueue.set(queueKey, Math.min(currentRounds + 1, maxPendingRenameRoundsByTypebook));
+    schedulePendingRenameProcessing();
+}
+function schedulePendingRenameProcessing() {
+    if (pendingRenameTimer || isPendingRenameQueueRunning)
+        return;
+    pendingRenameTimer = setTimeout(() => {
+        pendingRenameTimer = null;
+        processPendingRenameQueue();
+    }, pendingRenameDelayMs);
+}
+async function processPendingRenameQueue() {
+    if (isPendingRenameQueueRunning)
+        return;
+    isPendingRenameQueueRunning = true;
+    try {
+        while (pendingRenameQueue.size > 0) {
+            const queueKey = pendingRenameQueue.keys().next().value;
+            const rounds = pendingRenameQueue.get(queueKey) || 1;
+            if (rounds <= 1) {
+                pendingRenameQueue.delete(queueKey);
+            }
+            else {
+                pendingRenameQueue.set(queueKey, rounds - 1);
+            }
+            const [companiesId, typebooksId] = queueKey.split(':').map(Number);
+            await processPendingRenameBatch(companiesId, typebooksId);
+            await sleep(pendingRenameDelayMs);
+        }
+    }
+    catch (error) {
+        console.error('Erro ao processar fila de renomeação de imagens:', error);
+    }
+    finally {
+        isPendingRenameQueueRunning = false;
+        if (pendingRenameQueue.size > 0) {
+            schedulePendingRenameProcessing();
+        }
+    }
+}
+async function processPendingRenameBatch(companiesId, typebooksId) {
+    const typebook = await Typebook_1.default.query()
+        .preload('company')
+        .where('companies_id', companiesId)
+        .andWhere('id', typebooksId)
+        .first();
+    if (!typebook?.path || !typebook.company?.cloud)
+        return;
+    const pendingImages = await Indeximage_1.default.query()
+        .where('companies_id', companiesId)
+        .andWhere('typebooks_id', typebooksId)
+        .whereNotNull('previous_file_name')
+        .orderBy('updated_at', 'desc')
+        .limit(pendingRenameBatchSize);
+    for (const image of pendingImages) {
+        if (!image.file_name || !image.previous_file_name)
+            continue;
+        const fileWasRenamed = await renameFileGoogle(image.file_name, typebook.path, image.previous_file_name, typebook.company.cloud, image.drive_file_id);
+        if (!fileWasRenamed)
+            continue;
+        await Indeximage_1.default.query()
+            .where('companies_id', companiesId)
+            .andWhere('typebooks_id', typebooksId)
+            .andWhere('bookrecords_id', image.bookrecords_id)
+            .andWhere('seq', image.seq)
+            .andWhere('file_name', image.file_name)
+            .update({
+            file_name: image.previous_file_name,
+            previous_file_name: null,
+        });
+    }
+}
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
     try {
         if (capture) {
@@ -188,6 +376,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
             throw new BadRequestException_1.default('Falha ao enviar arquivo para o Google Drive', 409);
         }
         if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
+            objfileRename.drive_file_id = sendUpload.data?.id || null;
             const date_atualization = luxon_1.DateTime.now();
             objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm');
             await Indeximage_1.default.create(objfileRename);
@@ -199,12 +388,13 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     }
     return objfileRename.file_name;
 }
-async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}) {
+async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}, validateOnly = false) {
     let objFileName;
     let separators;
     let arrayFileName;
     let isCreateBookrecord = false;
     let isCreateCover = false;
+    let matchedFilePattern = '';
     const regexBookAndCod = /^L\d+\(\d+\).*$/;
     const regexBookSheetSide = /^L\d+_\d+_[FV].*/;
     const regexBookAndTerm = /^T\d+\(\d+\)(.*?)\.\w+$/;
@@ -232,6 +422,9 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                 fileName = `T${dataImages.book}(${dataImages.approximateTerm})-${dataImages.typeBookFile}${ext}`;
                 break;
         }
+        if (!fileName) {
+            return invalidFileRename(originalFileName, 'Dados insuficientes para nomear arquivo do tipo informado.');
+        }
         return {
             file_name: fileName,
             typebooks_id,
@@ -242,6 +435,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
     }
     switch (true) {
         case regexBookCoverInsertBookrecord.test(originalFileName.toUpperCase()): {
+            matchedFilePattern = 'book_cover';
             const match = originalFileName.match(regexBookCoverInsertBookrecord);
             if (match) {
                 objFileName = {
@@ -256,6 +450,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             break;
         }
         case regexBookSheetSideInsertBookrecord.test(originalFileName): {
+            matchedFilePattern = 'book_sheet_side_insert';
             const match = originalFileName.match(regexBookSheetSideInsertBookrecord);
             if (match) {
                 objFileName = {
@@ -277,6 +472,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             }
         }
         case regexBookAndCod.test(originalFileName.toUpperCase()): {
+            matchedFilePattern = 'book_cod';
             separators = ["L", '\'', '(', ')', '|', '-'];
             arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
             objFileName = {
@@ -290,6 +486,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             break;
         }
         case regexBookSheetSide.test(originalFileName.toUpperCase()): {
+            matchedFilePattern = 'book_sheet_side';
             separators = ["L", '_', '|', '-'];
             arrayFileName = originalFileName.split(new RegExp('([' + separators.join('') + '])'));
             objFileName = {
@@ -305,6 +502,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             break;
         }
         case path_1.default.basename(originalFileName).startsWith('Id'): {
+            matchedFilePattern = 'id';
             const arrayFileName = path_1.default.basename(originalFileName).split(/[_,.\s]/);
             objFileName = {
                 id: arrayFileName[0].replace('Id', ''),
@@ -317,6 +515,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             break;
         }
         case regexBookAndTerm.test(originalFileName.toUpperCase()): {
+            matchedFilePattern = 'book_term';
             const arrayFileName = originalFileName.substring(1).split(/[()\.]/);
             objFileName = {
                 book: arrayFileName[0],
@@ -328,6 +527,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             break;
         }
         case regexDocumentAndProt.test(originalFileName.toUpperCase()): {
+            matchedFilePattern = 'document_prot';
             const match = originalFileName.match(regexDocumentAndProt);
             if (match) {
                 objFileName = {
@@ -345,6 +545,10 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
             break;
         }
         default: {
+            if (!hasDataImageLookup(dataImages)) {
+                return invalidFileRename(originalFileName, 'Formato não aceito.');
+            }
+            matchedFilePattern = 'data_images';
             if (dataImages.id)
                 query.andWhere('id', dataImages.id);
             if (dataImages.book)
@@ -367,11 +571,24 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         let seq = 0;
         if (bookRecord === null || isCreateCover) {
             if (isCreateBookrecord || isCreateCover) {
+                if (validateOnly) {
+                    const book = await Typebook_1.default.query()
+                        .where('companies_id', companies_id)
+                        .andWhere('id', typebooks_id)
+                        .first();
+                    if (!book) {
+                        return invalidFileRename(originalFileName, 'Tipo de livro não encontrado para criação do bookrecord.');
+                    }
+                    return { file_name: originalFileName };
+                }
                 try {
                     const query = Typebook_1.default.query()
                         .where('companies_id', companies_id)
                         .andWhere('id', typebooks_id);
                     const book = await query.first();
+                    if (!book) {
+                        return invalidFileRename(originalFileName, 'Tipo de livro não encontrado para criação do bookrecord.');
+                    }
                     const query2 = Bookrecord_1.default.query()
                         .where('typebooks_id', typebooks_id)
                         .andWhere('companies_id', companies_id)
@@ -398,13 +615,17 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                 }
                 catch (error) {
                     console.log("!!!!!!!", error);
+                    return invalidFileRename(originalFileName, 'Não foi possível criar o bookrecord para este arquivo.');
                 }
             }
             else {
-                return;
+                return invalidFileRename(originalFileName, getBookRecordNotFoundReason(objFileName, matchedFilePattern));
             }
         }
         else {
+            if (validateOnly) {
+                return { file_name: originalFileName };
+            }
             if (bookRecord.indeximage.length == 0) {
                 seq = 1;
             }
@@ -434,13 +655,23 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
 }
 exports.fileRename = fileRename;
 async function mountNameFile(bookRecord, seq, extFile) {
-    if (!extFile.startsWith('.'))
-        extFile = path_1.default.extname(extFile).toLowerCase();
-    let dateNow = luxon_1.DateTime.now();
-    dateNow = dateNow.toFormat('yyyyMMddHHmm');
-    return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateNow}${extFile.toLowerCase()}`;
+    return mountNameFileWithTimestamp(bookRecord, seq, extFile);
 }
 exports.mountNameFile = mountNameFile;
+function getStableFileTimestamp(fileName, fallbackDate) {
+    const timestamp = path_1.default.basename(fileName || '').match(/_(\d{8,14})(?=\.[^.]+$)/)?.[1];
+    if (timestamp)
+        return timestamp;
+    if (fallbackDate?.isValid)
+        return fallbackDate.toFormat('yyyyMMddHHmm');
+    return luxon_1.DateTime.now().toFormat('yyyyMMddHHmm');
+}
+async function mountNameFileWithTimestamp(bookRecord, seq, extFile, fileTimestamp) {
+    if (!extFile.startsWith('.'))
+        extFile = path_1.default.extname(extFile).toLowerCase();
+    const dateFile = fileTimestamp || luxon_1.DateTime.now().toFormat('yyyyMMddHHmm');
+    return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateFile}${extFile.toLowerCase()}`;
+}
 async function deleteFile(listFiles, cloud_number) {
     try {
         const idFolder = await (0, googledrive_1.sendSearchFile)(listFiles[0]['path'], cloud_number);
@@ -456,7 +687,7 @@ async function deleteFile(listFiles, cloud_number) {
     }
 }
 exports.deleteFile = deleteFile;
-async function updateFileName(bookRecord) {
+async function updateFileName(bookRecord, schedulePendingRename = true) {
     try {
         const _indexImage = await Indeximage_1.default.query()
             .preload('typebooks', (query) => {
@@ -466,16 +697,22 @@ async function updateFileName(bookRecord) {
             .where('indeximages.bookrecords_id', bookRecord.id)
             .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
             .andWhere('indeximages.companies_id', bookRecord.companies_id);
+        let hasPendingRename = false;
         if (_indexImage.length > 0) {
             for (const data of _indexImage) {
-                const newFileName = await mountNameFile(bookRecord, data?.seq, data.file_name);
+                const fileTimestamp = getStableFileTimestamp(data.file_name, data.date_atualization || data.createdAt);
+                const newFileName = await mountNameFileWithTimestamp(bookRecord, data?.seq, data.file_name, fileTimestamp);
                 await Indeximage_1.default.query()
                     .where('bookrecords_id', '=', data.bookrecords_id)
                     .andWhere('typebooks_id', '=', data.typebooks_id)
                     .andWhere('companies_id', '=', data.companies_id)
                     .andWhere('seq', '=', data.seq)
                     .update({ previous_file_name: newFileName });
+                hasPendingRename = true;
             }
+        }
+        if (hasPendingRename && schedulePendingRename) {
+            enqueuePendingRenameProcessing(bookRecord.companies_id, bookRecord.typebooks_id);
         }
     }
     catch (error) {
