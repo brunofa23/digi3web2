@@ -2781,7 +2781,7 @@ class BookrecordsController {
                     continue;
                 const bookrecordInstance = new Bookrecord_1.default();
                 bookrecordInstance.fill(item.bookrecord.$original);
-                await fileRename.updateFileName(bookrecordInstance);
+                await fileRename.updateFileName(bookrecordInstance, false);
             }
             const querylistFilesToModify = Indeximage_1.default
                 .query()

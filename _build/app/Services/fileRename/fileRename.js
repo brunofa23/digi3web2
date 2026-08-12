@@ -35,6 +35,12 @@ function safeDriveSearchLog(result) {
         type: result?.type,
     };
 }
+const pendingRenameQueue = new Map();
+let pendingRenameTimer = null;
+let isPendingRenameQueueRunning = false;
+const pendingRenameBatchSize = 5;
+const pendingRenameDelayMs = 1000;
+const maxPendingRenameRoundsByTypebook = 50;
 function hasDataImageLookup(dataImages) {
     return Boolean(dataImages?.id ||
         dataImages?.book ||
@@ -267,6 +273,83 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number, dr
     }
 }
 exports.renameFileGoogle = renameFileGoogle;
+function enqueuePendingRenameProcessing(companiesId, typebooksId) {
+    if (!companiesId || !typebooksId)
+        return;
+    const queueKey = `${companiesId}:${typebooksId}`;
+    const currentRounds = pendingRenameQueue.get(queueKey) || 0;
+    pendingRenameQueue.set(queueKey, Math.min(currentRounds + 1, maxPendingRenameRoundsByTypebook));
+    schedulePendingRenameProcessing();
+}
+function schedulePendingRenameProcessing() {
+    if (pendingRenameTimer || isPendingRenameQueueRunning)
+        return;
+    pendingRenameTimer = setTimeout(() => {
+        pendingRenameTimer = null;
+        processPendingRenameQueue();
+    }, pendingRenameDelayMs);
+}
+async function processPendingRenameQueue() {
+    if (isPendingRenameQueueRunning)
+        return;
+    isPendingRenameQueueRunning = true;
+    try {
+        while (pendingRenameQueue.size > 0) {
+            const queueKey = pendingRenameQueue.keys().next().value;
+            const rounds = pendingRenameQueue.get(queueKey) || 1;
+            if (rounds <= 1) {
+                pendingRenameQueue.delete(queueKey);
+            }
+            else {
+                pendingRenameQueue.set(queueKey, rounds - 1);
+            }
+            const [companiesId, typebooksId] = queueKey.split(':').map(Number);
+            await processPendingRenameBatch(companiesId, typebooksId);
+            await sleep(pendingRenameDelayMs);
+        }
+    }
+    catch (error) {
+        console.error('Erro ao processar fila de renomeação de imagens:', error);
+    }
+    finally {
+        isPendingRenameQueueRunning = false;
+        if (pendingRenameQueue.size > 0) {
+            schedulePendingRenameProcessing();
+        }
+    }
+}
+async function processPendingRenameBatch(companiesId, typebooksId) {
+    const typebook = await Typebook_1.default.query()
+        .preload('company')
+        .where('companies_id', companiesId)
+        .andWhere('id', typebooksId)
+        .first();
+    if (!typebook?.path || !typebook.company?.cloud)
+        return;
+    const pendingImages = await Indeximage_1.default.query()
+        .where('companies_id', companiesId)
+        .andWhere('typebooks_id', typebooksId)
+        .whereNotNull('previous_file_name')
+        .orderBy('updated_at', 'desc')
+        .limit(pendingRenameBatchSize);
+    for (const image of pendingImages) {
+        if (!image.file_name || !image.previous_file_name)
+            continue;
+        const fileWasRenamed = await renameFileGoogle(image.file_name, typebook.path, image.previous_file_name, typebook.company.cloud, image.drive_file_id);
+        if (!fileWasRenamed)
+            continue;
+        await Indeximage_1.default.query()
+            .where('companies_id', companiesId)
+            .andWhere('typebooks_id', typebooksId)
+            .andWhere('bookrecords_id', image.bookrecords_id)
+            .andWhere('seq', image.seq)
+            .andWhere('file_name', image.file_name)
+            .update({
+            file_name: image.previous_file_name,
+            previous_file_name: null,
+        });
+    }
+}
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
     try {
         if (capture) {
@@ -604,7 +687,7 @@ async function deleteFile(listFiles, cloud_number) {
     }
 }
 exports.deleteFile = deleteFile;
-async function updateFileName(bookRecord) {
+async function updateFileName(bookRecord, schedulePendingRename = true) {
     try {
         const _indexImage = await Indeximage_1.default.query()
             .preload('typebooks', (query) => {
@@ -614,6 +697,7 @@ async function updateFileName(bookRecord) {
             .where('indeximages.bookrecords_id', bookRecord.id)
             .andWhere('indeximages.typebooks_id', bookRecord.typebooks_id)
             .andWhere('indeximages.companies_id', bookRecord.companies_id);
+        let hasPendingRename = false;
         if (_indexImage.length > 0) {
             for (const data of _indexImage) {
                 const fileTimestamp = getStableFileTimestamp(data.file_name, data.date_atualization || data.createdAt);
@@ -624,7 +708,11 @@ async function updateFileName(bookRecord) {
                     .andWhere('companies_id', '=', data.companies_id)
                     .andWhere('seq', '=', data.seq)
                     .update({ previous_file_name: newFileName });
+                hasPendingRename = true;
             }
+        }
+        if (hasPendingRename && schedulePendingRename) {
+            enqueuePendingRenameProcessing(bookRecord.companies_id, bookRecord.typebooks_id);
         }
     }
     catch (error) {

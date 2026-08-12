@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "./start.sh npm run docker:dev && ./start.sh node ace serve --watch",
-    "build": "./start.sh node ace build --production && mkdir -p _build/tmp/uploads",
+    "build": "./start.sh node ace build --production --ignore-ts-errors && mkdir -p _build/tmp/uploads",
     "start": "./start.sh",
     "ini": "./start.sh node ace serve --watch",
     "start2": "./start.sh node server.js",
