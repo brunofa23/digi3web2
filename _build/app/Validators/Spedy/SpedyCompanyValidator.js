@@ -32,6 +32,7 @@ class SpedyCompanyValidator {
             ]),
             simplesNacionalTaxRegime: Validator_1.schema.string.nullableAndOptional({ trim: true }, [Validator_1.rules.maxLength(80)]),
             specialTaxRegime: Validator_1.schema.string.nullableAndOptional({ trim: true }, [Validator_1.rules.maxLength(80)]),
+            allowNaturalPersonCompany: Validator_1.schema.boolean.optional(),
             economicActivities: Validator_1.schema.array.optional().members(Validator_1.schema.object().members({
                 code: Validator_1.schema.string({ trim: true }),
                 isMain: Validator_1.schema.boolean.optional(),
