@@ -32,7 +32,6 @@ export default class SpedyCompanyValidator {
     ] as const),
     simplesNacionalTaxRegime: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(80)]),
     specialTaxRegime: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(80)]),
-    allowNaturalPersonCompany: schema.boolean.optional(),
     economicActivities: schema.array.optional().members(
       schema.object().members({
         code: schema.string({ trim: true }),

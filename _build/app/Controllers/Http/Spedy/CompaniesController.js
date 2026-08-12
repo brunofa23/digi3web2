@@ -69,39 +69,6 @@ class CompaniesController {
         }
         return integration;
     }
-    async allowOwnerNaturalPersonCompany(owner) {
-        if (!owner.spedyCompanyId) {
-            throw new BadRequestException_1.default('Empresa owner sem ID da integração NFS-e.', 400, 'spedy_owner_company_id_missing');
-        }
-        const settings = await this.spedy.getSettings(owner, owner.spedyCompanyId);
-        if (settings?.general?.allowNaturalPersonCompany === true)
-            return;
-        await this.spedy.updateSettings(owner, owner.spedyCompanyId, {
-            ...(settings || {}),
-            general: {
-                ...(settings?.general || {}),
-                allowNaturalPersonCompany: true,
-            },
-        });
-    }
-    async getCompanyCredential(environment, spedyCompanyId) {
-        const integration = await CompanySpedyIntegration_1.default
-            .query()
-            .where('environment', environment)
-            .where('spedy_company_id', spedyCompanyId)
-            .where('active', true)
-            .first();
-        if (integration?.spedyApiKey) {
-            return {
-                integration,
-                source: integration.isOwner ? 'owner' : 'company',
-            };
-        }
-        return {
-            integration: await this.getOwnerIntegration(environment),
-            source: 'owner_fallback',
-        };
-    }
     serializeIntegration(integration) {
         if (!integration)
             return null;
@@ -128,20 +95,7 @@ class CompaniesController {
         const environment = request.input('environment', 'sandbox');
         const owner = await this.getOwnerIntegration(environment);
         const payload = await request.validate(SpedyCompanyValidator_1.default);
-        const allowNaturalPersonCompany = payload.allowNaturalPersonCompany === true;
-        delete payload.allowNaturalPersonCompany;
-        if (allowNaturalPersonCompany) {
-            await this.allowOwnerNaturalPersonCompany(owner);
-        }
-        const company = await this.spedy.createCompany(owner, payload);
-        if (allowNaturalPersonCompany && company?.id) {
-            await this.spedy.updateSettings(owner, company.id, {
-                general: {
-                    allowNaturalPersonCompany: true,
-                },
-            });
-        }
-        return company;
+        return this.spedy.createCompany(owner, payload);
     }
     async show({ auth, params, request }) {
         const environment = request.input('environment', 'sandbox');
