@@ -130,8 +130,20 @@ export default class CompaniesController {
     const environment = request.input('environment', 'sandbox')
     const owner = await this.getOwnerIntegration(environment)
     const payload = await request.validate(SpedyCompanyValidator)
+    const allowNaturalPersonCompany = payload.allowNaturalPersonCompany === true
+    delete payload.allowNaturalPersonCompany
 
-    return this.spedy.createCompany(owner, payload)
+    const company = await this.spedy.createCompany(owner, payload)
+
+    if (allowNaturalPersonCompany && company?.id) {
+      await this.spedy.updateSettings(owner, company.id, {
+        general: {
+          allowNaturalPersonCompany: true,
+        },
+      })
+    }
+
+    return company
   }
 
   public async show({ auth, params, request }: HttpContextContract) {

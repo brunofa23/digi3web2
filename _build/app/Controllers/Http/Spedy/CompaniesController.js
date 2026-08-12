@@ -113,7 +113,17 @@ class CompaniesController {
         const environment = request.input('environment', 'sandbox');
         const owner = await this.getOwnerIntegration(environment);
         const payload = await request.validate(SpedyCompanyValidator_1.default);
-        return this.spedy.createCompany(owner, payload);
+        const allowNaturalPersonCompany = payload.allowNaturalPersonCompany === true;
+        delete payload.allowNaturalPersonCompany;
+        const company = await this.spedy.createCompany(owner, payload);
+        if (allowNaturalPersonCompany && company?.id) {
+            await this.spedy.updateSettings(owner, company.id, {
+                general: {
+                    allowNaturalPersonCompany: true,
+                },
+            });
+        }
+        return company;
     }
     async show({ auth, params, request }) {
         const environment = request.input('environment', 'sandbox');
