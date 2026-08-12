@@ -69,24 +69,6 @@ class CompaniesController {
         }
         return integration;
     }
-    async getCompanyCredential(environment, spedyCompanyId) {
-        const integration = await CompanySpedyIntegration_1.default
-            .query()
-            .where('environment', environment)
-            .where('spedy_company_id', spedyCompanyId)
-            .where('active', true)
-            .first();
-        if (integration?.spedyApiKey) {
-            return {
-                integration,
-                source: integration.isOwner ? 'owner' : 'company',
-            };
-        }
-        return {
-            integration: await this.getOwnerIntegration(environment),
-            source: 'owner_fallback',
-        };
-    }
     serializeIntegration(integration) {
         if (!integration)
             return null;
@@ -113,28 +95,18 @@ class CompaniesController {
         const environment = request.input('environment', 'sandbox');
         const owner = await this.getOwnerIntegration(environment);
         const payload = await request.validate(SpedyCompanyValidator_1.default);
-        const allowNaturalPersonCompany = payload.allowNaturalPersonCompany === true;
-        delete payload.allowNaturalPersonCompany;
-        const company = await this.spedy.createCompany(owner, payload);
-        if (allowNaturalPersonCompany && company?.id) {
-            await this.spedy.updateSettings(owner, company.id, {
-                general: {
-                    allowNaturalPersonCompany: true,
-                },
-            });
-        }
-        return company;
+        return this.spedy.createCompany(owner, payload);
     }
     async show({ auth, params, request }) {
         const environment = request.input('environment', 'sandbox');
-        const localIntegration = await this.getAllowedCompanyIntegration(auth, environment, params.id);
-        const owner = localIntegration?.spedyApiKey ? localIntegration : await this.getOwnerIntegration(environment);
+        await this.getAllowedCompanyIntegration(auth, environment, params.id);
+        const owner = await this.getOwnerIntegration(environment);
         return this.spedy.getCompany(owner, params.id);
     }
     async update({ auth, params, request }) {
         const environment = request.input('environment', 'sandbox');
-        const localIntegration = await this.getAllowedCompanyIntegration(auth, environment, params.id);
-        const owner = localIntegration?.spedyApiKey ? localIntegration : await this.getOwnerIntegration(environment);
+        await this.getAllowedCompanyIntegration(auth, environment, params.id);
+        const owner = await this.getOwnerIntegration(environment);
         const payload = await request.validate(SpedyCompanyValidator_1.default);
         return this.spedy.updateCompany(owner, params.id, payload);
     }
@@ -146,14 +118,14 @@ class CompaniesController {
     }
     async settings({ auth, params, request }) {
         const environment = request.input('environment', 'sandbox');
-        const localIntegration = await this.getAllowedCompanyIntegration(auth, environment, params.id);
-        const owner = localIntegration?.spedyApiKey ? localIntegration : await this.getOwnerIntegration(environment);
+        await this.getAllowedCompanyIntegration(auth, environment, params.id);
+        const owner = await this.getOwnerIntegration(environment);
         return this.spedy.getSettings(owner, params.id);
     }
     async updateSettings({ auth, params, request }) {
         const environment = request.input('environment', 'sandbox');
-        const localIntegration = await this.getAllowedCompanyIntegration(auth, environment, params.id);
-        const owner = localIntegration?.spedyApiKey ? localIntegration : await this.getOwnerIntegration(environment);
+        await this.getAllowedCompanyIntegration(auth, environment, params.id);
+        const owner = await this.getOwnerIntegration(environment);
         const payload = await request.validate(SpedyCompanySettingsValidator_1.default);
         return this.spedy.updateSettings(owner, params.id, payload);
     }
@@ -166,13 +138,13 @@ class CompaniesController {
     async certificates({ auth, params, request }) {
         const environment = request.input('environment', 'sandbox');
         await this.getAllowedCompanyIntegration(auth, environment, params.id);
-        const credential = await this.getCompanyCredential(environment, params.id);
-        return this.spedy.getCertificates(credential.integration, params.id);
+        const owner = await this.getOwnerIntegration(environment);
+        return this.spedy.getCertificates(owner, params.id);
     }
     async uploadCertificate({ auth, params, request }) {
         const environment = request.input('environment', 'sandbox');
         await this.getAllowedCompanyIntegration(auth, environment, params.id);
-        const credential = await this.getCompanyCredential(environment, params.id);
+        const owner = await this.getOwnerIntegration(environment);
         const password = request.input('password');
         const file = request.file('file', {
             extnames: ['pfx', 'p12'],
@@ -190,12 +162,12 @@ class CompaniesController {
         if (!file.isValid) {
             throw new BadRequestException_1.default(file.errors?.[0]?.message || 'Arquivo do certificado digital inválido', 400, 'spedy_certificate_file_invalid');
         }
-        const uploadResponse = await this.spedy.uploadCertificate(credential.integration, params.id, file, password);
-        const certificates = await this.spedy.getCertificates(credential.integration, params.id);
+        const uploadResponse = await this.spedy.uploadCertificate(owner, params.id, file, password);
+        const certificates = await this.spedy.getCertificates(owner, params.id);
         return {
             uploadResponse,
             certificates,
-            credentialSource: credential.source,
+            credentialSource: 'owner',
         };
     }
     async showIntegration({ auth, params, request }) {
@@ -212,7 +184,10 @@ class CompaniesController {
         const user = await this.requireCompanyNfseSettingsAccess(auth, params.companyId);
         const payload = await request.validate(CompanySpedyIntegrationValidator_1.default);
         const environment = payload.environment || 'sandbox';
-        await Company_1.default.findOrFail(params.companyId);
+        const company = await Company_1.default.find(params.companyId);
+        if (!company) {
+            throw new BadRequestException_1.default('Empresa local não encontrada no Digi3.', 404, 'digi3_company_not_found');
+        }
         let integration = await CompanySpedyIntegration_1.default
             .query()
             .where('companies_id', params.companyId)
@@ -230,8 +205,8 @@ class CompaniesController {
             integration.spedyApiKey = payload.spedyApiKey || null;
         }
         if (payload.fetchCompany && integration.spedyCompanyId) {
-            const credential = integration.spedyApiKey ? integration : await this.getOwnerIntegration(environment);
-            const remote = await this.spedy.getCompany(credential, integration.spedyCompanyId);
+            const owner = await this.getOwnerIntegration(environment);
+            const remote = await this.spedy.getCompany(owner, integration.spedyCompanyId);
             integration.lastCompanySnapshot = remote;
             integration.lastSyncAt = luxon_1.DateTime.local();
         }
@@ -245,12 +220,15 @@ class CompaniesController {
             .query()
             .where('companies_id', params.companyId)
             .where('environment', environment)
-            .firstOrFail();
+            .first();
+        if (!integration) {
+            throw new BadRequestException_1.default('Salve o vínculo da integração NFS-e antes de sincronizar.', 400, 'spedy_company_integration_missing');
+        }
         if (!integration.spedyCompanyId) {
             throw new BadRequestException_1.default('Empresa Spedy não vinculada', 400, 'spedy_company_missing');
         }
-        const credential = integration.spedyApiKey ? integration : await this.getOwnerIntegration(environment);
-        const remote = await this.spedy.getCompany(credential, integration.spedyCompanyId);
+        const owner = await this.getOwnerIntegration(environment);
+        const remote = await this.spedy.getCompany(owner, integration.spedyCompanyId);
         integration.lastCompanySnapshot = remote;
         integration.lastSyncAt = luxon_1.DateTime.local();
         await integration.save();

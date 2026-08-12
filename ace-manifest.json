@@ -1,5 +1,35 @@
 {
   "commands": {
+    "indeximages:fill-drive-ids": {
+      "settings": {
+        "loadApp": true
+      },
+      "commandPath": "./commands/FillIndeximageDriveIds",
+      "commandName": "indeximages:fill-drive-ids",
+      "description": "Preenche drive_file_id de indeximages antigas em lotes pequenos",
+      "args": [],
+      "aliases": [],
+      "flags": [
+        {
+          "name": "typebook",
+          "propertyName": "typebook",
+          "type": "number",
+          "description": "ID do typebook que será processado"
+        },
+        {
+          "name": "limit",
+          "propertyName": "limit",
+          "type": "number",
+          "description": "Quantidade máxima de imagens para processar"
+        },
+        {
+          "name": "dry-run",
+          "propertyName": "dryRun",
+          "type": "boolean",
+          "description": "Apenas simula a busca, sem atualizar o banco"
+        }
+      ]
+    },
     "vision:test": {
       "settings": {},
       "commandPath": "./commands/VisionTest",
