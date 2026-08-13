@@ -14,7 +14,13 @@
           "name": "typebook",
           "propertyName": "typebook",
           "type": "number",
-          "description": "ID do typebook que será processado"
+          "description": "ID do typebook que será processado. Se omitido, processa os typebooks da empresa"
+        },
+        {
+          "name": "company",
+          "propertyName": "company",
+          "type": "number",
+          "description": "ID da empresa dona do typebook"
         },
         {
           "name": "limit",
@@ -27,6 +33,24 @@
           "propertyName": "dryRun",
           "type": "boolean",
           "description": "Apenas simula a busca, sem atualizar o banco"
+        },
+        {
+          "name": "repeat",
+          "propertyName": "repeat",
+          "type": "boolean",
+          "description": "Continua processando novos lotes até finalizar ou atingir max-rounds"
+        },
+        {
+          "name": "sleep",
+          "propertyName": "sleep",
+          "type": "number",
+          "description": "Pausa em segundos entre lotes quando usar repeat"
+        },
+        {
+          "name": "max-rounds",
+          "propertyName": "maxRounds",
+          "type": "number",
+          "description": "Quantidade máxima de rodadas quando usar repeat"
         }
       ]
     },
