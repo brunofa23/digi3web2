@@ -33,11 +33,12 @@ jobs:
           git config --global user.name "Bruno Favato"
           git fetch origin
 
-      # 4️⃣ Garantir que estamos exatamente no commit da main que disparou o job
-      - name: Ensure main checked out
+      # 4️⃣ Preparar main-production com o conteúdo da main que disparou o job
+      - name: Prepare main-production
         run: |
-          git checkout main
-          git pull --ff-only origin main
+          git fetch origin main main-production
+          git checkout --detach origin/main-production
+          git merge --no-edit origin/main
 
       # 5️⃣ Build do Adonis e cópias necessárias
       - name: Build Adonis
@@ -57,8 +58,4 @@ jobs:
           git add -A
           git commit -m "chore(build): publish from ${GITHUB_SHA} [skip ci]" || echo "No changes to commit"
 
-          # garante que temos a referência remota atual p/ 'with-lease'
-          git fetch origin main-production || true
-
-          # sobrescreve o histórico de main-production com o build atual
-          git push --force-with-lease origin HEAD:main-production
+          git push origin HEAD:main-production
