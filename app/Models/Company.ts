@@ -4,6 +4,7 @@ import Typebook from './Typebook'
 import User from './User'
 import Situation from './Situation'
 import Entity from './Entity'
+import CompanyAttachment from './CompanyAttachment'
 
 
 export default class Company extends BaseModel {
@@ -52,6 +53,12 @@ export default class Company extends BaseModel {
     localKey: 'id'
   })
   public user: HasMany<typeof User>
+
+  @hasMany(() => CompanyAttachment, {
+    foreignKey: 'companiesId',
+    localKey: 'id'
+  })
+  public attachments: HasMany<typeof CompanyAttachment>
 
   @manyToMany(() => Situation, {
     localKey: 'id',

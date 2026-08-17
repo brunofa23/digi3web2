@@ -22,6 +22,10 @@ Route_1.default.group(() => {
     Route_1.default.get("/companies/:id", 'CompaniesController.show');
     Route_1.default.post("/companies", 'CompaniesController.store');
     Route_1.default.patch("/companies/:id", 'CompaniesController.update');
+    Route_1.default.get("/companies/:companyId/attachments", 'CompanyAttachmentsController.index');
+    Route_1.default.post("/companies/:companyId/attachments", 'CompanyAttachmentsController.store');
+    Route_1.default.get("/companies/:companyId/attachments/:id/download", 'CompanyAttachmentsController.download');
+    Route_1.default.delete("/companies/:companyId/attachments/:id", 'CompanyAttachmentsController.destroy');
     Route_1.default.get('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.showIntegration');
     Route_1.default.put('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.saveIntegration');
     Route_1.default.post('/spedy/companies/local/:companyId/sync', 'Spedy/CompaniesController.syncIntegration');

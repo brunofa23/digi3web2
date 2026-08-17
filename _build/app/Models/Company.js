@@ -18,6 +18,7 @@ const Typebook_1 = __importDefault(require("./Typebook"));
 const User_1 = __importDefault(require("./User"));
 const Situation_1 = __importDefault(require("./Situation"));
 const Entity_1 = __importDefault(require("./Entity"));
+const CompanyAttachment_1 = __importDefault(require("./CompanyAttachment"));
 class Company extends Orm_1.BaseModel {
     static get fillable() {
         return [
@@ -73,6 +74,13 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], Company.prototype, "user", void 0);
+__decorate([
+    (0, Orm_1.hasMany)(() => CompanyAttachment_1.default, {
+        foreignKey: 'companiesId',
+        localKey: 'id'
+    }),
+    __metadata("design:type", Object)
+], Company.prototype, "attachments", void 0);
 __decorate([
     (0, Orm_1.manyToMany)(() => Situation_1.default, {
         localKey: 'id',

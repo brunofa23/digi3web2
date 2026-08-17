@@ -11,8 +11,11 @@ export default class FillIndeximageDriveIds extends BaseCommand {
     loadApp: true,
   }
 
-  @flags.number({ description: 'ID do typebook que será processado' })
+  @flags.number({ description: 'ID do typebook que será processado. Se omitido, processa os typebooks da empresa' })
   public typebook: number
+
+  @flags.number({ description: 'ID da empresa dona do typebook' })
+  public company: number
 
   @flags.number({ description: 'Quantidade máxima de imagens para processar' })
   public limit: number = 20
@@ -20,59 +23,121 @@ export default class FillIndeximageDriveIds extends BaseCommand {
   @flags.boolean({ description: 'Apenas simula a busca, sem atualizar o banco' })
   public dryRun: boolean = false
 
+  @flags.boolean({ description: 'Continua processando novos lotes até finalizar ou atingir max-rounds' })
+  public repeat: boolean = false
+
+  @flags.number({ description: 'Pausa em segundos entre lotes quando usar repeat' })
+  public sleep: number = 15
+
+  @flags.number({ description: 'Quantidade máxima de rodadas quando usar repeat' })
+  public maxRounds: number = 50
+
+  private ignoredImageKeys = new Set<string>()
+
   public async run() {
     const typebooksId = Number(this.typebook)
+    const companiesId = Number(this.company)
     const limit = Number(this.limit || 20)
+    const sleepSeconds = Number(this.sleep || 15)
+    const maxRounds = Number(this.maxRounds || 50)
 
-    if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
-      this.logger.error('Informe um typebook válido. Exemplo: --typebook=236')
+    if (!Number.isInteger(companiesId) || companiesId <= 0) {
+      this.logger.error('Informe uma empresa válida. Exemplo: --typebook=236 --company=10')
       return
     }
+
+    const hasTypebookFilter = Number.isInteger(typebooksId) && typebooksId > 0
 
     if (!Number.isInteger(limit) || limit <= 0 || limit > 200) {
       this.logger.error('Informe um limite entre 1 e 200. Exemplo: --limit=20')
       return
     }
 
-    const typebook = await Typebook
+    if (!Number.isInteger(sleepSeconds) || sleepSeconds < 1 || sleepSeconds > 300) {
+      this.logger.error('Informe uma pausa entre 1 e 300 segundos. Exemplo: --sleep=15')
+      return
+    }
+
+    if (!Number.isInteger(maxRounds) || maxRounds < 1 || maxRounds > 1000) {
+      this.logger.error('Informe max-rounds entre 1 e 1000. Exemplo: --max-rounds=50')
+      return
+    }
+
+    if (!hasTypebookFilter && this.dryRun) {
+      this.logger.warning('Dry-run sem typebook pode consultar muitos livros. Use --typebook para teste inicial ou mantenha --max-rounds baixo.')
+    }
+
+    const typebooks = await this.getTypebooks(companiesId, hasTypebookFilter ? typebooksId : null)
+
+    if (typebooks.length === 0) {
+      this.logger.info(
+        hasTypebookFilter
+          ? `Typebook ${typebooksId} da empresa ${companiesId} não encontrado ou sem pendências.`
+          : `Nenhum typebook com imagens antigas sem drive_file_id encontrado para a empresa ${companiesId}.`
+      )
+      return
+    }
+
+    let round = 0
+    let totalProcessed = 0
+    let totalUpdated = 0
+    let totalNotFound = 0
+    let totalDuplicated = 0
+    let totalErrors = 0
+
+    do {
+      round++
+
+      if (this.repeat) {
+        this.logger.info(`Rodada ${round}/${maxRounds}`)
+      }
+
+      const result = await this.processTypebooks(typebooks, limit)
+
+      totalProcessed += result.processed
+      totalUpdated += result.updated
+      totalNotFound += result.notFound
+      totalDuplicated += result.duplicated
+      totalErrors += result.errors
+
+      if (result.pending === 0 || !this.repeat || round >= maxRounds) break
+
+      this.logger.info(`Aguardando ${sleepSeconds} segundo(s) para o próximo lote.`)
+      await new Promise((resolve) => setTimeout(resolve, sleepSeconds * 1000))
+    } while (this.repeat)
+
+    if (this.repeat) {
+      this.logger.info(
+        `Resumo geral: rodadas=${round}, processados=${totalProcessed}, atualizados=${totalUpdated}, não encontrados=${totalNotFound}, duplicados=${totalDuplicated}, erros=${totalErrors}`
+      )
+    }
+  }
+
+  private async getTypebooks(companiesId: number, typebooksId: number | null) {
+    const query = Typebook
       .query()
       .preload('company')
-      .where('id', typebooksId)
-      .first()
-
-    if (!typebook) {
-      this.logger.error(`Typebook ${typebooksId} não encontrado.`)
-      return
-    }
-
-    if (!typebook.path || !typebook.company?.cloud) {
-      this.logger.error('Typebook sem pasta ou empresa sem cloud configurada.')
-      return
-    }
-
-    const folder = await sendSearchFile(typebook.path, typebook.company.cloud)
-    if (!folder?.[0]?.id) {
-      this.logger.error(`Pasta não encontrada no Drive: ${typebook.path}`)
-      return
-    }
-
-    const images = await Indeximage
-      .query()
-      .where('companies_id', typebook.companies_id)
-      .andWhere('typebooks_id', typebooksId)
-      .where((query) => {
-        query.whereNull('drive_file_id')
-        query.orWhere('drive_file_id', '')
+      .where('companies_id', companiesId)
+      .whereHas('typebooks', (indeximageQuery) => {
+        indeximageQuery.where('companies_id', companiesId)
+        indeximageQuery.where((query) => {
+          query.whereNull('drive_file_id')
+          query.orWhere('drive_file_id', '')
+        })
       })
-      .orderBy('updated_at', 'asc')
-      .limit(limit)
+      .orderBy('id', 'asc')
 
-    if (images.length === 0) {
-      this.logger.info('Nenhuma imagem antiga sem drive_file_id encontrada.')
-      return
+    if (typebooksId) {
+      query.andWhere('id', typebooksId)
     }
 
+    return query
+  }
+
+  private async processTypebooks(typebooks: Typebook[], limit: number) {
+    let remainingLimit = limit
     const result = {
+      pending: 0,
       processed: 0,
       updated: 0,
       notFound: 0,
@@ -80,7 +145,86 @@ export default class FillIndeximageDriveIds extends BaseCommand {
       errors: 0,
     }
 
-    this.logger.info(`Processando ${images.length} imagem(ns) do typebook ${typebooksId}.`)
+    for (const typebook of typebooks) {
+      if (remainingLimit <= 0) break
+
+      const batchResult = await this.processTypebook(typebook, remainingLimit)
+
+      result.pending += batchResult.pending
+      result.processed += batchResult.processed
+      result.updated += batchResult.updated
+      result.notFound += batchResult.notFound
+      result.duplicated += batchResult.duplicated
+      result.errors += batchResult.errors
+      remainingLimit -= batchResult.processed
+    }
+
+    return result
+  }
+
+  private async processTypebook(typebook: Typebook, limit: number) {
+    const emptyResult = {
+      pending: 0,
+      processed: 0,
+      updated: 0,
+      notFound: 0,
+      duplicated: 0,
+      errors: 0,
+    }
+
+    if (!typebook.path || !typebook.company?.cloud) {
+      this.logger.warning(`Typebook ${typebook.id} sem pasta ou empresa sem cloud configurada.`)
+      return emptyResult
+    }
+
+    const folder = await sendSearchFile(typebook.path, typebook.company.cloud)
+    if (!folder?.[0]?.id) {
+      this.logger.warning(`Pasta não encontrada no Drive para typebook ${typebook.id}: ${typebook.path}`)
+      return emptyResult
+    }
+
+    return this.processBatch(typebook, folder[0].id, limit)
+  }
+
+  private async processBatch(typebook: Typebook, folderId: string, limit: number) {
+    const queryLimit = Math.min(limit + this.ignoredImageKeys.size, 1000)
+    const candidateImages = await Indeximage
+      .query()
+      .where('companies_id', typebook.companies_id)
+      .andWhere('typebooks_id', typebook.id)
+      .where((query) => {
+        query.whereNull('drive_file_id')
+        query.orWhere('drive_file_id', '')
+      })
+      .orderBy('updated_at', 'asc')
+      .limit(queryLimit)
+
+    const images = candidateImages
+      .filter((image) => !this.ignoredImageKeys.has(this.getImageKey(image)))
+      .slice(0, limit)
+
+    if (images.length === 0) {
+      this.logger.info('Nenhuma imagem antiga sem drive_file_id encontrada.')
+      return {
+        pending: 0,
+        processed: 0,
+        updated: 0,
+        notFound: 0,
+        duplicated: 0,
+        errors: 0,
+      }
+    }
+
+    const result = {
+      pending: images.length,
+      processed: 0,
+      updated: 0,
+      notFound: 0,
+      duplicated: 0,
+      errors: 0,
+    }
+
+    this.logger.info(`Processando ${images.length} imagem(ns) do typebook ${typebook.id}.`)
 
     for (const image of images) {
       result.processed++
@@ -89,17 +233,19 @@ export default class FillIndeximageDriveIds extends BaseCommand {
         const foundFiles = await sendSearchFile(
           image.file_name,
           typebook.company.cloud,
-          folder[0].id
+          folderId as any
         )
 
         if (!Array.isArray(foundFiles) || foundFiles.length === 0) {
           result.notFound++
+          this.ignoredImageKeys.add(this.getImageKey(image))
           this.logger.warning(`Não encontrado: ${image.file_name}`)
           continue
         }
 
         if (foundFiles.length > 1) {
           result.duplicated++
+          this.ignoredImageKeys.add(this.getImageKey(image))
           this.logger.warning(`Duplicado no Drive: ${image.file_name}`)
           continue
         }
@@ -127,6 +273,7 @@ export default class FillIndeximageDriveIds extends BaseCommand {
         this.logger.success(`Atualizado: ${image.file_name}`)
       } catch (error) {
         result.errors++
+        this.ignoredImageKeys.add(this.getImageKey(image))
         this.logger.error(`Erro ao processar ${image.file_name}: ${error.message || error}`)
       }
     }
@@ -134,5 +281,16 @@ export default class FillIndeximageDriveIds extends BaseCommand {
     this.logger.info(
       `Resumo: processados=${result.processed}, atualizados=${result.updated}, não encontrados=${result.notFound}, duplicados=${result.duplicated}, erros=${result.errors}`
     )
+
+    return result
+  }
+
+  private getImageKey(image: Indeximage) {
+    return [
+      image.companies_id,
+      image.typebooks_id,
+      image.bookrecords_id,
+      image.seq,
+    ].join(':')
   }
 }
