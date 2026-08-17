@@ -201,7 +201,7 @@ async function authorize(cloud_number) {
         throw error;
     }
 }
-async function uploadFiles(authClient, parents, folderPath, fileName) {
+async function uploadFiles(authClient, parents, folderPath, fileName, mimeType = 'image/jpeg|image/png|image/jpg') {
     const drive = google.drive({ version: 'v3', auth: authClient });
     const parent = [parents];
     const resumableUpload = drive.files.create({
@@ -210,7 +210,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName) {
             parents: parent,
         },
         media: {
-            mimeType: 'image/jpeg|image/png|image/jpg',
+            mimeType,
             body: fs.createReadStream(`${folderPath}/${fileName}`),
         },
         fields: 'id, name, size',
@@ -477,9 +477,9 @@ async function sendListAllFilesMetadata(cloud_number, folderId = "", book = []) 
     return listAllFilesMetadata(auth, folderId, book);
 }
 exports.sendListAllFilesMetadata = sendListAllFilesMetadata;
-async function sendUploadFiles(parent, folderPath, fileName, cloud_number) {
+async function sendUploadFiles(parent, folderPath, fileName, cloud_number, mimeType = undefined) {
     const auth = await authorize(cloud_number);
-    const response = uploadFiles(auth, parent, folderPath, fileName);
+    const response = uploadFiles(auth, parent, folderPath, fileName, mimeType);
     return response;
 }
 exports.sendUploadFiles = sendUploadFiles;

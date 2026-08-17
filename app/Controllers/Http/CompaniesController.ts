@@ -54,6 +54,9 @@ export default class CompaniesController {
         .preload('typebooks')
         .preload('situations')
         .preload('finentity')
+        .withCount('attachments', (attachmentsQuery) => {
+          attachmentsQuery.whereNull('deleted_at')
+        })
         .whereRaw(query)
 
       return response.status(200).send(data)

@@ -25,6 +25,10 @@ Route.group(() => {
   Route.get("/companies/:id", 'CompaniesController.show')
   Route.post("/companies", 'CompaniesController.store')//.middleware('company_permission:post')
   Route.patch("/companies/:id", 'CompaniesController.update')//.middleware('company_permission:patch')
+  Route.get("/companies/:companyId/attachments", 'CompanyAttachmentsController.index')
+  Route.post("/companies/:companyId/attachments", 'CompanyAttachmentsController.store')
+  Route.get("/companies/:companyId/attachments/:id/download", 'CompanyAttachmentsController.download')
+  Route.delete("/companies/:companyId/attachments/:id", 'CompanyAttachmentsController.destroy')
 
   //SPEDY COMPANIES
   Route.get('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.showIntegration')
