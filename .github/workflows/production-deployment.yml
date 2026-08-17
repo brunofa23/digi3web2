@@ -53,7 +53,7 @@ jobs:
       # 6️⃣ Commit de build e push do HEAD para main-production
       - name: Commit e push para main-production (forçando com segurança)
         run: |
-          git checkout -B build-to-production
+          git checkout --detach
           git add -A
           git commit -m "chore(build): publish from ${GITHUB_SHA} [skip ci]" || echo "No changes to commit"
 
