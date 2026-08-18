@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.normalizeOcrSearchValue = exports.compareTermStatus = exports.compareNumberStatus = exports.extractHeaderKeywordConference = void 0;
+exports.normalizeOcrSearchValue = exports.compareTermStatus = exports.compareNumberStatus = exports.extractTopIsolatedNumberConference = exports.extractHeaderKeywordConference = void 0;
 const sharp_1 = __importDefault(require("sharp"));
 const googleVision_1 = require("./googleVision");
 const DEFAULT_POSITIVE_KEYWORDS = ['LIVRO', 'FOLHAS', 'TERMO'];
@@ -299,6 +299,26 @@ async function buildTopCrop(fileBuffer, ratio) {
         .jpeg({ quality: 92 })
         .toBuffer();
 }
+async function buildRatioCrop(fileBuffer, crop) {
+    const image = (0, sharp_1.default)(fileBuffer);
+    const metadata = await image.metadata();
+    const imageWidth = metadata.width || 0;
+    const imageHeight = metadata.height || 0;
+    if (!imageWidth || !imageHeight)
+        return null;
+    const left = Math.max(0, Math.floor(imageWidth * crop.left));
+    const top = Math.max(0, Math.floor(imageHeight * crop.top));
+    const width = Math.max(1, Math.min(imageWidth - left, Math.floor(imageWidth * crop.width)));
+    const height = Math.max(1, Math.min(imageHeight - top, Math.floor(imageHeight * crop.height)));
+    return (0, sharp_1.default)(fileBuffer)
+        .extract({ left, top, width, height })
+        .grayscale()
+        .normalize()
+        .sharpen()
+        .resize({ width: Math.min(Math.max(width * 3, 900), 1800), withoutEnlargement: false })
+        .jpeg({ quality: 92 })
+        .toBuffer();
+}
 function firstCandidate(candidates, minimumPriority) {
     const candidate = candidates
         .sort((current, next) => {
@@ -310,29 +330,12 @@ function firstCandidate(candidates, minimumPriority) {
     })[0] || null;
     return candidate && candidate.priority >= minimumPriority ? candidate : null;
 }
-async function extractHeaderKeywordConference(fileBuffer, fileName, options = {}) {
-    const fullText = await (0, googleVision_1.extractTextFromFileBuffer)(fileBuffer, fileName);
-    const level1 = extractHeaderCandidates(fullText, 'google_vision_level_1', options);
-    let sheetCandidates = [...level1.sheetCandidates];
-    let termCandidates = [...level1.termCandidates];
-    const cropRatio = cropRatioByRegion(options.extractionRegion);
-    if (cropRatio) {
-        const topCrop = await buildTopCrop(fileBuffer, cropRatio);
-        if (topCrop) {
-            const topText = await (0, googleVision_1.extractTextFromFileBuffer)(topCrop, fileName);
-            const level2 = extractHeaderCandidates(topText, 'google_vision_level_2_top', options);
-            sheetCandidates = [...sheetCandidates, ...level2.sheetCandidates];
-            termCandidates = [...termCandidates, ...level2.termCandidates];
-        }
-    }
-    const minimumPriority = minimumPriorityByRegion(options.extractionRegion);
-    const sheet = firstCandidate(sheetCandidates, minimumPriority);
-    const term = firstCandidate(termCandidates, minimumPriority);
+function buildCheckResult(fullText, sheet, term, defaultSource) {
     const detectedSheet = sheet ? normalizeNumber(sheet.value) : null;
     const detectedTerm = term ? normalizeDigitsText(term.value) || term.value : null;
     const confidence = Math.max(sheet?.confidence || 0, term?.confidence || 0);
     const evidenceText = normalizeEvidence([sheet?.evidence, term?.evidence].filter(Boolean).join(' | ')) || null;
-    const source = sheet?.source || term?.source || 'google_vision_level_1';
+    const source = sheet?.source || term?.source || defaultSource;
     const entities = uniqueEntities([
         ...extractDocumentEntities(fullText),
         ...extractNameEntities(fullText),
@@ -365,7 +368,117 @@ async function extractHeaderKeywordConference(fileBuffer, fileName, options = {}
         entities,
     };
 }
+async function extractHeaderKeywordConference(fileBuffer, fileName, options = {}) {
+    const fullText = await (0, googleVision_1.extractTextFromFileBuffer)(fileBuffer, fileName);
+    const level1 = extractHeaderCandidates(fullText, 'google_vision_level_1', options);
+    let sheetCandidates = [...level1.sheetCandidates];
+    let termCandidates = [...level1.termCandidates];
+    const cropRatio = cropRatioByRegion(options.extractionRegion);
+    if (cropRatio) {
+        const topCrop = await buildTopCrop(fileBuffer, cropRatio);
+        if (topCrop) {
+            const topText = await (0, googleVision_1.extractTextFromFileBuffer)(topCrop, fileName);
+            const level2 = extractHeaderCandidates(topText, 'google_vision_level_2_top', options);
+            sheetCandidates = [...sheetCandidates, ...level2.sheetCandidates];
+            termCandidates = [...termCandidates, ...level2.termCandidates];
+        }
+    }
+    const minimumPriority = minimumPriorityByRegion(options.extractionRegion);
+    const sheet = firstCandidate(sheetCandidates, minimumPriority);
+    const term = firstCandidate(termCandidates, minimumPriority);
+    return buildCheckResult(fullText, sheet, term, 'google_vision_level_1');
+}
 exports.extractHeaderKeywordConference = extractHeaderKeywordConference;
+function topNumberCropsByRegion(region) {
+    const topRight = {
+        source: 'google_vision_top_number_right',
+        left: 0.68,
+        top: 0,
+        width: 0.32,
+        height: 0.22,
+        priority: 55,
+    };
+    const topLeft = {
+        source: 'google_vision_top_number_left',
+        left: 0,
+        top: 0,
+        width: 0.32,
+        height: 0.22,
+        priority: 55,
+    };
+    const topFull = {
+        source: 'google_vision_top_number_full',
+        left: 0,
+        top: 0,
+        width: 1,
+        height: 0.18,
+        priority: 25,
+    };
+    if (region === 'top_right')
+        return [topRight, topFull];
+    if (region === 'top_left')
+        return [topLeft, topFull];
+    if (region === 'top_full')
+        return [topFull];
+    return [topRight, topLeft, topFull];
+}
+function extractTopNumberCandidates(text, source, sourcePriority) {
+    const candidates = [];
+    const lines = text
+        .split(/\r?\n/)
+        .map((line) => line.replace(/\s+/g, ' ').trim())
+        .filter(Boolean);
+    for (const [lineIndex, line] of lines.entries()) {
+        const searchableLine = normalizeMatchValue(line);
+        const letters = searchableLine.replace(/[0-9 ]/g, '');
+        const rawMatches = line.match(/[0-9OoIl]{1,4}/g) || [];
+        const numbers = rawMatches
+            .map((value) => normalizeDigitsText(value))
+            .filter((value) => value.length >= 1 && value.length <= 4);
+        if (!numbers.length || rawMatches.length > 2 || letters.length > 2)
+            continue;
+        for (const value of numbers) {
+            const number = Number(value);
+            if (!Number.isInteger(number) || number <= 0)
+                continue;
+            let priority = sourcePriority;
+            if (lineIndex <= 2)
+                priority += 20;
+            if (value.length <= 3)
+                priority += 10;
+            if (normalizeEvidence(line).length <= 8)
+                priority += 20;
+            if (source.includes('full'))
+                priority -= 10;
+            candidates.push({
+                value,
+                confidence: Math.max(0.2, Math.min(0.98, 0.55 + (priority / 100))),
+                evidence: normalizeEvidence(line),
+                source,
+                priority,
+                lineIndex,
+            });
+        }
+    }
+    return candidates;
+}
+async function extractTopIsolatedNumberConference(fileBuffer, fileName, options = {}) {
+    const fullText = await (0, googleVision_1.extractTextFromFileBuffer)(fileBuffer, fileName);
+    let sheetCandidates = [];
+    for (const crop of topNumberCropsByRegion(options.extractionRegion)) {
+        const croppedImage = await buildRatioCrop(fileBuffer, crop);
+        if (!croppedImage)
+            continue;
+        const croppedText = await (0, googleVision_1.extractTextFromFileBuffer)(croppedImage, fileName);
+        sheetCandidates = [
+            ...sheetCandidates,
+            ...extractTopNumberCandidates(croppedText, crop.source, crop.priority),
+        ];
+    }
+    const sheet = firstCandidate(sheetCandidates, 50);
+    return buildCheckResult(fullText, sheet, null, 'google_vision_top_number');
+}
+exports.extractTopIsolatedNumberConference = extractTopIsolatedNumberConference;
 function compareNumberStatus(expected, detected) {
     if (detected === null || detected === undefined)
         return 'not_found';

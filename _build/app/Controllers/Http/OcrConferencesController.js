@@ -35,8 +35,21 @@ class OcrConferencesController {
     }
     extractionRegion(value) {
         const region = String(value || 'auto_header').trim();
-        const allowedRegions = ['auto_header', 'upper_half', 'full_page'];
+        const allowedRegions = [
+            'auto_header',
+            'upper_half',
+            'full_page',
+            'top_external',
+            'top_right',
+            'top_left',
+            'top_full',
+        ];
         return allowedRegions.includes(region) ? region : 'auto_header';
+    }
+    layoutProfile(value) {
+        const layoutProfile = String(value || 'header_keyword').trim();
+        const allowedProfiles = ['header_keyword', 'top_isolated_number'];
+        return allowedProfiles.includes(layoutProfile) ? layoutProfile : 'header_keyword';
     }
     keywordList(value) {
         if (Array.isArray(value)) {
@@ -135,6 +148,7 @@ class OcrConferencesController {
         const typebooksId = Number(params.typebooks_id);
         const qs = request.qs();
         const page = Number(qs.page || 1);
+        const layoutProfile = this.layoutProfile(qs.layoutprofile || qs.layoutProfile);
         const search = (0, indexImageOcrConference_1.normalizeOcrSearchValue)(String(qs.ocrsearch || ''));
         if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
             return response.status(400).send({ message: 'typebooks_id inválido' });
@@ -153,7 +167,7 @@ class OcrConferencesController {
                 .andOn('checks.typebooks_id', 'indeximages.typebooks_id')
                 .andOn('checks.companies_id', 'indeximages.companies_id')
                 .andOn('checks.seq', 'indeximages.seq')
-                .andOnVal('checks.layout_profile', 'header_keyword');
+                .andOnVal('checks.layout_profile', layoutProfile);
         })
             .where('indeximages.companies_id', authenticate.companies_id)
             .andWhere('indeximages.typebooks_id', typebooksId)
@@ -227,7 +241,7 @@ class OcrConferencesController {
             side: input.side,
             obs: input.obs,
         };
-        const layoutProfile = String(body.layoutProfile || 'header_keyword');
+        const layoutProfile = this.layoutProfile(body.layoutProfile);
         const extractionOptions = {
             extractionRegion: this.extractionRegion(body.extractionRegion),
             positiveKeywords: this.keywordList(body.positiveKeywords),
@@ -240,9 +254,6 @@ class OcrConferencesController {
         const sequence = Number(body.seq);
         if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
             return response.status(400).send({ message: 'typebooks_id inválido' });
-        }
-        if (layoutProfile !== 'header_keyword') {
-            return response.status(400).send({ message: 'Layout ainda não suportado nesta etapa' });
         }
         const typebook = await this.getTypebook(authenticate.companies_id, typebooksId);
         if (!typebook)
@@ -330,7 +341,8 @@ class OcrConferencesController {
             errors: [],
             checks: [],
             debug: {
-                version: 'ocr-process-2026-08-18-05',
+                version: 'ocr-process-2026-08-18-06',
+                layout_profile: layoutProfile,
                 force,
                 limit,
                 matching_before_pending: matchingBeforePending,
@@ -376,7 +388,9 @@ class OcrConferencesController {
             }
             try {
                 const imageBuffer = await (0, googledrive_1.sendDownloadFileBuffer)(driveFile.id, typebook.company.cloud);
-                const extracted = await (0, indexImageOcrConference_1.extractHeaderKeywordConference)(imageBuffer, indeximage.file_name, extractionOptions);
+                const extracted = layoutProfile === 'top_isolated_number'
+                    ? await (0, indexImageOcrConference_1.extractTopIsolatedNumberConference)(imageBuffer, indeximage.file_name, extractionOptions)
+                    : await (0, indexImageOcrConference_1.extractHeaderKeywordConference)(imageBuffer, indeximage.file_name, extractionOptions);
                 const expectedSheet = indeximage.record_sheet ?? null;
                 const expectedTerm = indeximage.record_approximate_term ?? null;
                 const checkPayload = {

@@ -14,6 +14,7 @@ import {
   compareNumberStatus,
   compareTermStatus,
   extractHeaderKeywordConference,
+  extractTopIsolatedNumberConference,
   normalizeOcrSearchValue,
 } from 'App/Services/ocr/indexImageOcrConference'
 
@@ -43,9 +44,24 @@ export default class OcrConferencesController {
 
   private extractionRegion(value: any) {
     const region = String(value || 'auto_header').trim()
-    const allowedRegions = ['auto_header', 'upper_half', 'full_page']
+    const allowedRegions = [
+      'auto_header',
+      'upper_half',
+      'full_page',
+      'top_external',
+      'top_right',
+      'top_left',
+      'top_full',
+    ]
 
     return allowedRegions.includes(region) ? region : 'auto_header'
+  }
+
+  private layoutProfile(value: any) {
+    const layoutProfile = String(value || 'header_keyword').trim()
+    const allowedProfiles = ['header_keyword', 'top_isolated_number']
+
+    return allowedProfiles.includes(layoutProfile) ? layoutProfile : 'header_keyword'
   }
 
   private keywordList(value: any) {
@@ -157,6 +173,7 @@ export default class OcrConferencesController {
     const typebooksId = Number(params.typebooks_id)
     const qs = request.qs()
     const page = Number(qs.page || 1)
+    const layoutProfile = this.layoutProfile(qs.layoutprofile || qs.layoutProfile)
     const search = normalizeOcrSearchValue(String(qs.ocrsearch || ''))
 
     if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
@@ -177,7 +194,7 @@ export default class OcrConferencesController {
           .andOn('checks.typebooks_id', 'indeximages.typebooks_id')
           .andOn('checks.companies_id', 'indeximages.companies_id')
           .andOn('checks.seq', 'indeximages.seq')
-          .andOnVal('checks.layout_profile', 'header_keyword')
+          .andOnVal('checks.layout_profile', layoutProfile)
       })
       .where('indeximages.companies_id', authenticate.companies_id)
       .andWhere('indeximages.typebooks_id', typebooksId)
@@ -280,7 +297,7 @@ export default class OcrConferencesController {
       side: input.side,
       obs: input.obs,
     }
-    const layoutProfile = String(body.layoutProfile || 'header_keyword')
+    const layoutProfile = this.layoutProfile(body.layoutProfile)
     const extractionOptions = {
       extractionRegion: this.extractionRegion(body.extractionRegion),
       positiveKeywords: this.keywordList(body.positiveKeywords),
@@ -294,10 +311,6 @@ export default class OcrConferencesController {
 
     if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
       return response.status(400).send({ message: 'typebooks_id inválido' })
-    }
-
-    if (layoutProfile !== 'header_keyword') {
-      return response.status(400).send({ message: 'Layout ainda não suportado nesta etapa' })
     }
 
     const typebook = await this.getTypebook(authenticate.companies_id, typebooksId)
@@ -400,7 +413,8 @@ export default class OcrConferencesController {
       errors: [] as any[],
       checks: [] as any[],
       debug: {
-        version: 'ocr-process-2026-08-18-05',
+        version: 'ocr-process-2026-08-18-06',
+        layout_profile: layoutProfile,
         force,
         limit,
         matching_before_pending: matchingBeforePending,
@@ -458,7 +472,9 @@ export default class OcrConferencesController {
 
       try {
         const imageBuffer = await sendDownloadFileBuffer(driveFile.id, typebook.company.cloud)
-        const extracted = await extractHeaderKeywordConference(imageBuffer, indeximage.file_name, extractionOptions)
+        const extracted = layoutProfile === 'top_isolated_number'
+          ? await extractTopIsolatedNumberConference(imageBuffer, indeximage.file_name, extractionOptions)
+          : await extractHeaderKeywordConference(imageBuffer, indeximage.file_name, extractionOptions)
         const expectedSheet = indeximage.record_sheet ?? null
         const expectedTerm = indeximage.record_approximate_term ?? null
         const checkPayload = {

@@ -34,6 +34,15 @@ type Candidate = {
   lineIndex: number
 }
 
+type RatioCrop = {
+  source: string
+  left: number
+  top: number
+  width: number
+  height: number
+  priority: number
+}
+
 const DEFAULT_POSITIVE_KEYWORDS = ['LIVRO', 'FOLHAS', 'TERMO']
 const DEFAULT_NEGATIVE_KEYWORDS = [
   'AS FOLHAS',
@@ -361,6 +370,29 @@ async function buildTopCrop(fileBuffer: Buffer, ratio: number) {
     .toBuffer()
 }
 
+async function buildRatioCrop(fileBuffer: Buffer, crop: RatioCrop) {
+  const image = sharp(fileBuffer)
+  const metadata = await image.metadata()
+  const imageWidth = metadata.width || 0
+  const imageHeight = metadata.height || 0
+
+  if (!imageWidth || !imageHeight) return null
+
+  const left = Math.max(0, Math.floor(imageWidth * crop.left))
+  const top = Math.max(0, Math.floor(imageHeight * crop.top))
+  const width = Math.max(1, Math.min(imageWidth - left, Math.floor(imageWidth * crop.width)))
+  const height = Math.max(1, Math.min(imageHeight - top, Math.floor(imageHeight * crop.height)))
+
+  return sharp(fileBuffer)
+    .extract({ left, top, width, height })
+    .grayscale()
+    .normalize()
+    .sharpen()
+    .resize({ width: Math.min(Math.max(width * 3, 900), 1800), withoutEnlargement: false })
+    .jpeg({ quality: 92 })
+    .toBuffer()
+}
+
 function firstCandidate(candidates: Candidate[], minimumPriority: number) {
   const candidate = candidates
     .sort((current, next) => {
@@ -373,36 +405,17 @@ function firstCandidate(candidates: Candidate[], minimumPriority: number) {
   return candidate && candidate.priority >= minimumPriority ? candidate : null
 }
 
-export async function extractHeaderKeywordConference(
-  fileBuffer: Buffer,
-  fileName: string,
-  options: OcrExtractionOptions = {}
-): Promise<OcrCheckResult> {
-  const fullText = await extractTextFromFileBuffer(fileBuffer, fileName)
-  const level1 = extractHeaderCandidates(fullText, 'google_vision_level_1', options)
-  let sheetCandidates = [...level1.sheetCandidates]
-  let termCandidates = [...level1.termCandidates]
-  const cropRatio = cropRatioByRegion(options.extractionRegion)
-
-  if (cropRatio) {
-    const topCrop = await buildTopCrop(fileBuffer, cropRatio)
-
-    if (topCrop) {
-      const topText = await extractTextFromFileBuffer(topCrop, fileName)
-      const level2 = extractHeaderCandidates(topText, 'google_vision_level_2_top', options)
-      sheetCandidates = [...sheetCandidates, ...level2.sheetCandidates]
-      termCandidates = [...termCandidates, ...level2.termCandidates]
-    }
-  }
-
-  const minimumPriority = minimumPriorityByRegion(options.extractionRegion)
-  const sheet = firstCandidate(sheetCandidates, minimumPriority)
-  const term = firstCandidate(termCandidates, minimumPriority)
+function buildCheckResult(
+  fullText: string,
+  sheet: Candidate | null,
+  term: Candidate | null,
+  defaultSource: string
+): OcrCheckResult {
   const detectedSheet = sheet ? normalizeNumber(sheet.value) : null
   const detectedTerm = term ? normalizeDigitsText(term.value) || term.value : null
   const confidence = Math.max(sheet?.confidence || 0, term?.confidence || 0)
   const evidenceText = normalizeEvidence([sheet?.evidence, term?.evidence].filter(Boolean).join(' | ')) || null
-  const source = sheet?.source || term?.source || 'google_vision_level_1'
+  const source = sheet?.source || term?.source || defaultSource
   const entities = uniqueEntities([
     ...extractDocumentEntities(fullText),
     ...extractNameEntities(fullText),
@@ -435,6 +448,136 @@ export async function extractHeaderKeywordConference(
     source,
     entities,
   }
+}
+
+export async function extractHeaderKeywordConference(
+  fileBuffer: Buffer,
+  fileName: string,
+  options: OcrExtractionOptions = {}
+): Promise<OcrCheckResult> {
+  const fullText = await extractTextFromFileBuffer(fileBuffer, fileName)
+  const level1 = extractHeaderCandidates(fullText, 'google_vision_level_1', options)
+  let sheetCandidates = [...level1.sheetCandidates]
+  let termCandidates = [...level1.termCandidates]
+  const cropRatio = cropRatioByRegion(options.extractionRegion)
+
+  if (cropRatio) {
+    const topCrop = await buildTopCrop(fileBuffer, cropRatio)
+
+    if (topCrop) {
+      const topText = await extractTextFromFileBuffer(topCrop, fileName)
+      const level2 = extractHeaderCandidates(topText, 'google_vision_level_2_top', options)
+      sheetCandidates = [...sheetCandidates, ...level2.sheetCandidates]
+      termCandidates = [...termCandidates, ...level2.termCandidates]
+    }
+  }
+
+  const minimumPriority = minimumPriorityByRegion(options.extractionRegion)
+  const sheet = firstCandidate(sheetCandidates, minimumPriority)
+  const term = firstCandidate(termCandidates, minimumPriority)
+
+  return buildCheckResult(fullText, sheet, term, 'google_vision_level_1')
+}
+
+function topNumberCropsByRegion(region?: string): RatioCrop[] {
+  const topRight = {
+    source: 'google_vision_top_number_right',
+    left: 0.68,
+    top: 0,
+    width: 0.32,
+    height: 0.22,
+    priority: 55,
+  }
+  const topLeft = {
+    source: 'google_vision_top_number_left',
+    left: 0,
+    top: 0,
+    width: 0.32,
+    height: 0.22,
+    priority: 55,
+  }
+  const topFull = {
+    source: 'google_vision_top_number_full',
+    left: 0,
+    top: 0,
+    width: 1,
+    height: 0.18,
+    priority: 25,
+  }
+
+  if (region === 'top_right') return [topRight, topFull]
+  if (region === 'top_left') return [topLeft, topFull]
+  if (region === 'top_full') return [topFull]
+
+  return [topRight, topLeft, topFull]
+}
+
+function extractTopNumberCandidates(text: string, source: string, sourcePriority: number) {
+  const candidates: Candidate[] = []
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+
+  for (const [lineIndex, line] of lines.entries()) {
+    const searchableLine = normalizeMatchValue(line)
+    const letters = searchableLine.replace(/[0-9 ]/g, '')
+    const rawMatches = line.match(/[0-9OoIl]{1,4}/g) || []
+    const numbers = rawMatches
+      .map((value) => normalizeDigitsText(value))
+      .filter((value) => value.length >= 1 && value.length <= 4)
+
+    if (!numbers.length || rawMatches.length > 2 || letters.length > 2) continue
+
+    for (const value of numbers) {
+      const number = Number(value)
+
+      if (!Number.isInteger(number) || number <= 0) continue
+
+      let priority = sourcePriority
+
+      if (lineIndex <= 2) priority += 20
+      if (value.length <= 3) priority += 10
+      if (normalizeEvidence(line).length <= 8) priority += 20
+      if (source.includes('full')) priority -= 10
+
+      candidates.push({
+        value,
+        confidence: Math.max(0.2, Math.min(0.98, 0.55 + (priority / 100))),
+        evidence: normalizeEvidence(line),
+        source,
+        priority,
+        lineIndex,
+      })
+    }
+  }
+
+  return candidates
+}
+
+export async function extractTopIsolatedNumberConference(
+  fileBuffer: Buffer,
+  fileName: string,
+  options: OcrExtractionOptions = {}
+): Promise<OcrCheckResult> {
+  const fullText = await extractTextFromFileBuffer(fileBuffer, fileName)
+  let sheetCandidates: Candidate[] = []
+
+  for (const crop of topNumberCropsByRegion(options.extractionRegion)) {
+    const croppedImage = await buildRatioCrop(fileBuffer, crop)
+
+    if (!croppedImage) continue
+
+    const croppedText = await extractTextFromFileBuffer(croppedImage, fileName)
+    sheetCandidates = [
+      ...sheetCandidates,
+      ...extractTopNumberCandidates(croppedText, crop.source, crop.priority),
+    ]
+  }
+
+  const sheet = firstCandidate(sheetCandidates, 50)
+
+  return buildCheckResult(fullText, sheet, null, 'google_vision_top_number')
 }
 
 export function compareNumberStatus(expected: number | null | undefined, detected: number | null) {
