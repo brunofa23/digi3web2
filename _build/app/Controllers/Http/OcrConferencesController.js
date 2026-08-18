@@ -6,7 +6,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const luxon_1 = require("luxon");
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
-const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const IndeximageOcrCheck_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/IndeximageOcrCheck"));
 const IndeximageOcrEntity_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/IndeximageOcrEntity"));
@@ -20,37 +19,92 @@ class OcrConferencesController {
             .toLowerCase();
     }
     numberOrNull(value) {
+        if (value === undefined || value === null)
+            return null;
+        if (typeof value === 'string' && value.trim() === '')
+            return null;
         const number = Number(value);
         return Number.isFinite(number) ? number : null;
     }
+    booleanValue(value) {
+        if (typeof value === 'boolean')
+            return value;
+        if (typeof value === 'string')
+            return value === 'true' || value === '1';
+        return Boolean(value);
+    }
+    extractionRegion(value) {
+        const region = String(value || 'auto_header').trim();
+        const allowedRegions = ['auto_header', 'upper_half', 'full_page'];
+        return allowedRegions.includes(region) ? region : 'auto_header';
+    }
+    keywordList(value) {
+        if (Array.isArray(value)) {
+            return value.map((item) => String(item || '').trim()).filter(Boolean);
+        }
+        return String(value || '')
+            .split(/\r?\n|,/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+    hasValue(value) {
+        return value !== undefined && value !== null && String(value).trim() !== '';
+    }
+    applyExactOrRangeFilter(query, column, startValue, endValue) {
+        const start = this.numberOrNull(startValue);
+        const end = this.numberOrNull(endValue);
+        if (start !== null && end === null)
+            query.where(column, start);
+        else if (start !== null && end !== null)
+            query.where(column, '>=', start);
+        if (end !== null)
+            query.where(column, '<=', end);
+    }
     applyBookrecordFilters(query, filters, tableAlias = '') {
         const column = (field) => tableAlias ? `${tableAlias}.${field}` : field;
-        const numericRanges = [
-            ['cod', 'codstart', 'codend'],
-            ['book', 'bookstart', 'bookend'],
-            ['sheet', 'sheetstart', 'sheetend'],
-            ['indexbook', 'indexbook', 'indexbookend'],
-        ];
-        for (const [field, startKey, endKey] of numericRanges) {
-            const start = this.numberOrNull(filters[startKey]);
-            const end = this.numberOrNull(filters[endKey]);
-            if (start !== null && end !== null)
-                query.whereBetween(column(field), [start, end]);
-            else if (start !== null)
-                query.where(column(field), '>=', start);
-            else if (end !== null)
-                query.where(column(field), '<=', end);
+        this.applyExactOrRangeFilter(query, column('cod'), filters.codstart, filters.codend);
+        this.applyExactOrRangeFilter(query, column('book'), filters.bookstart, filters.bookend);
+        const sheetStart = this.numberOrNull(filters.sheetstart);
+        const sheetEnd = this.numberOrNull(filters.sheetend);
+        if (sheetStart === 0) {
+            query.where((sheetQuery) => {
+                sheetQuery.whereNull(column('sheet'));
+                if (sheetEnd !== null) {
+                    sheetQuery.orWhere((rangeQuery) => {
+                        rangeQuery.where(column('sheet'), '>=', sheetStart).andWhere(column('sheet'), '<=', sheetEnd);
+                    });
+                }
+                else {
+                    sheetQuery.orWhere(column('sheet'), sheetStart);
+                }
+            });
         }
-        if (filters.year)
+        else {
+            this.applyExactOrRangeFilter(query, column('sheet'), filters.sheetstart, filters.sheetend);
+        }
+        const indexbookStart = this.numberOrNull(filters.indexbook);
+        const indexbookEnd = this.numberOrNull(filters.indexbookend);
+        if (indexbookStart === 0) {
+            query.whereNull(column('indexbook'));
+        }
+        else if (indexbookStart !== null && indexbookEnd === null) {
+            query.where(column('indexbook'), indexbookStart);
+        }
+        else if (indexbookStart !== null && indexbookEnd !== null) {
+            query.whereBetween(column('indexbook'), [indexbookStart, indexbookEnd]);
+        }
+        const approximateTerm = this.numberOrNull(filters.approximateterm);
+        if (approximateTerm !== null) {
+            query.whereRaw(`CONCAT('-', ${column('approximate_term')}, '-') LIKE ?`, [`%-${approximateTerm}-%`]);
+        }
+        if (this.hasValue(filters.year))
             query.where(column('year'), filters.year);
-        if (filters.letter)
+        if (this.hasValue(filters.letter))
             query.where(column('letter'), filters.letter);
         if (filters.side && filters.side !== 'any')
             query.where(column('side'), filters.side);
-        if (filters.obs)
-            query.where(column('obs'), 'like', `%${filters.obs}%`);
-        if (filters.approximateterm)
-            query.where(column('approximate_term'), 'like', `%${filters.approximateterm}%`);
+        if (this.hasValue(filters.obs))
+            query.where(column('obs'), filters.obs);
     }
     confidenceLevel(confidence) {
         const value = Number(confidence || 0);
@@ -59,6 +113,14 @@ class OcrConferencesController {
         if (value >= 0.7)
             return 'medium';
         return 'low';
+    }
+    countValue(row) {
+        return Number(row?.total || row?.['count(*)'] || 0);
+    }
+    bodyValue(body, camelKey, lowerKey) {
+        return body[camelKey] !== undefined && body[camelKey] !== null && body[camelKey] !== ''
+            ? body[camelKey]
+            : body[lowerKey];
     }
     async getTypebook(companiesId, typebooksId) {
         return Typebook_1.default
@@ -132,30 +194,47 @@ class OcrConferencesController {
     async process({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const typebooksId = Number(params.typebooks_id);
-        const body = request.only([
-            'layoutProfile',
-            'limit',
-            'force',
-            'fileName',
-            'bookrecords_id',
-            'seq',
-            'codStart',
-            'codEnd',
-            'bookStart',
-            'bookEnd',
-            'sheetStart',
-            'sheetEnd',
-            'indexbook',
-            'indexbookEnd',
-            'approximateTerm',
-            'year',
-            'letter',
-            'side',
-            'obs',
-        ]);
+        const input = { ...request.qs(), ...request.body() };
+        const body = {
+            layoutProfile: input.layoutProfile,
+            extractionRegion: input.extractionRegion || input.extractionregion,
+            positiveKeywords: input.positiveKeywords || input.positivekeywords,
+            negativeKeywords: input.negativeKeywords || input.negativekeywords,
+            limit: input.limit,
+            force: input.force,
+            fileName: input.fileName,
+            bookrecords_id: input.bookrecords_id,
+            seq: input.seq,
+            codStart: input.codStart,
+            codEnd: input.codEnd,
+            bookStart: input.bookStart,
+            bookEnd: input.bookEnd,
+            sheetStart: input.sheetStart,
+            sheetEnd: input.sheetEnd,
+            codstart: input.codstart,
+            codend: input.codend,
+            bookstart: input.bookstart,
+            bookend: input.bookend,
+            sheetstart: input.sheetstart,
+            sheetend: input.sheetend,
+            indexbook: input.indexbook,
+            indexbookEnd: input.indexbookEnd,
+            indexbookend: input.indexbookend,
+            approximateTerm: input.approximateTerm,
+            approximateterm: input.approximateterm,
+            year: input.year,
+            letter: input.letter,
+            side: input.side,
+            obs: input.obs,
+        };
         const layoutProfile = String(body.layoutProfile || 'header_keyword');
+        const extractionOptions = {
+            extractionRegion: this.extractionRegion(body.extractionRegion),
+            positiveKeywords: this.keywordList(body.positiveKeywords),
+            negativeKeywords: this.keywordList(body.negativeKeywords),
+        };
         const limit = Math.min(Math.max(Number(body.limit || 20), 1), 100);
-        const force = Boolean(body.force);
+        const force = this.booleanValue(body.force);
         const singleFileName = String(body.fileName || '').trim();
         const bookrecordsId = Number(body.bookrecords_id);
         const sequence = Number(body.seq);
@@ -179,42 +258,43 @@ class OcrConferencesController {
                 path: typebook.path,
             });
         }
-        const query = Indeximage_1.default
-            .query()
-            .preload('bookrecord')
-            .where('companies_id', authenticate.companies_id)
-            .andWhere('typebooks_id', typebooksId)
-            .whereHas('bookrecord', (bookrecordQuery) => {
-            bookrecordQuery
-                .where('companies_id', authenticate.companies_id)
-                .andWhere('typebooks_id', typebooksId);
-            this.applyBookrecordFilters(bookrecordQuery, {
-                codstart: body.codStart,
-                codend: body.codEnd,
-                bookstart: body.bookStart,
-                bookend: body.bookEnd,
-                sheetstart: body.sheetStart,
-                sheetend: body.sheetEnd,
-                indexbook: body.indexbook,
-                indexbookend: body.indexbookEnd,
-                approximateterm: body.approximateTerm,
-                year: body.year,
-                letter: body.letter,
-                side: body.side,
-                obs: body.obs,
-            });
-        })
-            .orderBy('bookrecords_id', 'asc')
-            .orderBy('seq', 'asc')
-            .limit(limit);
-        if (singleFileName)
-            query.andWhere('file_name', singleFileName);
-        if (Number.isInteger(bookrecordsId) && bookrecordsId > 0)
-            query.andWhere('bookrecords_id', bookrecordsId);
-        if (Number.isInteger(sequence) && sequence >= 0)
-            query.andWhere('seq', sequence);
-        if (!force) {
-            query.whereNotExists((checkQuery) => {
+        const filterValues = {
+            codstart: this.bodyValue(body, 'codStart', 'codstart'),
+            codend: this.bodyValue(body, 'codEnd', 'codend'),
+            bookstart: this.bodyValue(body, 'bookStart', 'bookstart'),
+            bookend: this.bodyValue(body, 'bookEnd', 'bookend'),
+            sheetstart: this.bodyValue(body, 'sheetStart', 'sheetstart'),
+            sheetend: this.bodyValue(body, 'sheetEnd', 'sheetend'),
+            indexbook: body.indexbook,
+            indexbookend: this.bodyValue(body, 'indexbookEnd', 'indexbookend'),
+            approximateterm: this.bodyValue(body, 'approximateTerm', 'approximateterm'),
+            year: body.year,
+            letter: body.letter,
+            side: body.side,
+            obs: body.obs,
+        };
+        const buildSelectionQuery = () => {
+            const selectionQuery = Database_1.default
+                .from('indeximages as indeximages')
+                .join('bookrecords as bookrecords', (join) => {
+                join
+                    .on('bookrecords.id', 'indeximages.bookrecords_id')
+                    .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id')
+                    .andOn('bookrecords.companies_id', 'indeximages.companies_id');
+            })
+                .where('indeximages.companies_id', authenticate.companies_id)
+                .andWhere('indeximages.typebooks_id', typebooksId);
+            this.applyBookrecordFilters(selectionQuery, filterValues, 'bookrecords');
+            if (singleFileName)
+                selectionQuery.andWhere('indeximages.file_name', singleFileName);
+            if (Number.isInteger(bookrecordsId) && bookrecordsId > 0)
+                selectionQuery.andWhere('indeximages.bookrecords_id', bookrecordsId);
+            if (Number.isInteger(sequence) && sequence >= 0)
+                selectionQuery.andWhere('indeximages.seq', sequence);
+            return selectionQuery;
+        };
+        const applyPendingFilter = (selectionQuery) => {
+            return selectionQuery.whereNotExists((checkQuery) => {
                 checkQuery
                     .from('indeximage_ocr_checks as checks')
                     .whereRaw('checks.companies_id = indeximages.companies_id')
@@ -223,27 +303,72 @@ class OcrConferencesController {
                     .whereRaw('checks.seq = indeximages.seq')
                     .where('checks.layout_profile', layoutProfile);
             });
+        };
+        const matchingBeforePending = this.countValue(await buildSelectionQuery().count('* as total').first());
+        const matchingAfterPending = force
+            ? matchingBeforePending
+            : this.countValue(await applyPendingFilter(buildSelectionQuery()).count('* as total').first());
+        const query = buildSelectionQuery()
+            .select('indeximages.companies_id', 'indeximages.typebooks_id', 'indeximages.bookrecords_id', 'indeximages.seq', 'indeximages.file_name', 'indeximages.drive_file_id', 'indeximages.book as index_book', 'bookrecords.book as record_book', 'bookrecords.sheet as record_sheet', 'bookrecords.approximate_term as record_approximate_term')
+            .orderBy('bookrecords.book', 'asc')
+            .orderBy('bookrecords.sheet', 'asc')
+            .orderBy('bookrecords.cod', 'asc')
+            .orderBy('indeximages.seq', 'asc')
+            .limit(limit);
+        if (!force) {
+            applyPendingFilter(query);
         }
         const indeximages = await query;
+        const driveFileIdsFound = indeximages.filter((item) => item.drive_file_id).length;
+        const needsDriveNameLookup = indeximages.some((item) => !item.drive_file_id);
+        const result = {
+            selected: indeximages.length,
+            total_filter_rows: matchingBeforePending,
+            drive_files_found: driveFileIdsFound,
+            processed: 0,
+            skipped: 0,
+            errors: [],
+            checks: [],
+            debug: {
+                version: 'ocr-process-2026-08-18-05',
+                force,
+                limit,
+                matching_before_pending: matchingBeforePending,
+                matching_after_pending: matchingAfterPending,
+                drive_lookup_by_name: needsDriveNameLookup,
+                extraction_options: extractionOptions,
+                filters: filterValues,
+            },
+        };
+        if (!indeximages.length) {
+            return response.status(200).send(result);
+        }
         const bookNumbers = Array.from(new Set(indeximages
-            .map((item) => Number(item.bookrecord?.book || item.book))
+            .map((item) => Number(item.record_book || item.index_book))
             .filter((item) => Number.isInteger(item) && item > 0)));
-        const driveFiles = singleFileName
-            ? await (0, googledrive_1.sendSearchFile)(singleFileName, typebook.company.cloud, folder[0].id)
-            : await (0, googledrive_1.sendListAllFilesMetadata)(typebook.company.cloud, folder, bookNumbers);
+        const driveFiles = needsDriveNameLookup
+            ? singleFileName
+                ? await (0, googledrive_1.sendSearchFile)(singleFileName, typebook.company.cloud, folder[0].id)
+                : await (0, googledrive_1.sendListAllFilesMetadata)(typebook.company.cloud, folder, bookNumbers)
+            : [];
         const driveFilesByName = new Map();
         for (const file of driveFiles || []) {
             if (file?.name)
                 driveFilesByName.set(this.normalizeDriveFileName(file.name), file);
         }
-        const result = {
-            processed: 0,
-            skipped: 0,
-            errors: [],
-            checks: [],
-        };
+        result.drive_files_found = driveFileIdsFound + driveFilesByName.size;
         for (const indeximage of indeximages) {
-            const driveFile = driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name));
+            let driveFile = indeximage.drive_file_id
+                ? { id: indeximage.drive_file_id, name: indeximage.file_name }
+                : driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name));
+            if (!driveFile?.id) {
+                const foundFiles = await (0, googledrive_1.sendSearchFile)(indeximage.file_name, typebook.company.cloud, folder[0].id);
+                if (Array.isArray(foundFiles)) {
+                    driveFile = foundFiles.find((file) => {
+                        return this.normalizeDriveFileName(file?.name) === this.normalizeDriveFileName(indeximage.file_name);
+                    }) || foundFiles[0];
+                }
+            }
             if (!driveFile?.id) {
                 result.skipped++;
                 result.errors.push({ file_name: indeximage.file_name, message: 'Arquivo não encontrado no Google Drive' });
@@ -251,9 +376,9 @@ class OcrConferencesController {
             }
             try {
                 const imageBuffer = await (0, googledrive_1.sendDownloadFileBuffer)(driveFile.id, typebook.company.cloud);
-                const extracted = await (0, indexImageOcrConference_1.extractHeaderKeywordConference)(imageBuffer, indeximage.file_name);
-                const expectedSheet = indeximage.bookrecord?.sheet ?? null;
-                const expectedTerm = indeximage.bookrecord?.approximate_term ?? null;
+                const extracted = await (0, indexImageOcrConference_1.extractHeaderKeywordConference)(imageBuffer, indeximage.file_name, extractionOptions);
+                const expectedSheet = indeximage.record_sheet ?? null;
+                const expectedTerm = indeximage.record_approximate_term ?? null;
                 const checkPayload = {
                     companies_id: indeximage.companies_id,
                     typebooks_id: indeximage.typebooks_id,

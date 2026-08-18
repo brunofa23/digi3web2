@@ -6,6 +6,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.normalizeOcrSearchValue = exports.compareTermStatus = exports.compareNumberStatus = exports.extractHeaderKeywordConference = void 0;
 const sharp_1 = __importDefault(require("sharp"));
 const googleVision_1 = require("./googleVision");
+const DEFAULT_POSITIVE_KEYWORDS = ['LIVRO', 'FOLHAS', 'TERMO'];
+const DEFAULT_NEGATIVE_KEYWORDS = [
+    'AS FOLHAS',
+    'A FOLHAS',
+    'DO LIVRO',
+    'NO LIVRO',
+    'SOB O TERMO',
+    'EM DATA',
+    'REGISTRADO',
+    'REGISTRADA',
+];
 function normalizeSearchValue(value) {
     return String(value || '')
         .normalize('NFD')
@@ -21,9 +32,38 @@ function normalizeEvidence(value) {
         .trim()
         .slice(0, 500);
 }
+function normalizeMatchText(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toUpperCase();
+}
+function normalizeKeywordText(value) {
+    return normalizeMatchValue(value);
+}
+function normalizeMatchValue(value) {
+    return normalizeMatchText(value)
+        .replace(/[^A-Z0-9]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function normalizeKeywordList(keywords = []) {
+    return Array.from(new Set(keywords
+        .map((keyword) => normalizeKeywordText(keyword))
+        .filter(Boolean)));
+}
 function normalizeNumber(value) {
-    const digits = String(value || '').replace(/\D/g, '');
+    const digits = String(value || '')
+        .replace(/[Oo]/g, '0')
+        .replace(/[Il]/g, '1')
+        .replace(/\D/g, '');
     return digits ? Number(digits) : null;
+}
+function normalizeDigitsText(value) {
+    return String(value || '')
+        .replace(/[Oo]/g, '0')
+        .replace(/[Il]/g, '1')
+        .replace(/\D/g, '');
 }
 function onlyDigits(value) {
     return String(value || '').replace(/\D/g, '');
@@ -142,37 +182,108 @@ function extractNameEntities(text) {
     }
     return entities.slice(0, 20);
 }
-function extractHeaderCandidates(text, source) {
+function lineLimitByRegion(region) {
+    if (region === 'full_page')
+        return Number.POSITIVE_INFINITY;
+    if (region === 'upper_half')
+        return 90;
+    return 60;
+}
+function cropRatioByRegion(region) {
+    if (region === 'full_page')
+        return null;
+    if (region === 'upper_half')
+        return 0.5;
+    return 0.35;
+}
+function minimumPriorityByRegion(region) {
+    return region === 'full_page' ? 20 : 35;
+}
+function extractHeaderCandidates(text, source, options = {}) {
     const sheetCandidates = [];
     const termCandidates = [];
     const lines = text
         .split(/\r?\n/)
         .map((line) => line.replace(/\s+/g, ' ').trim())
         .filter(Boolean);
-    const headerLines = lines.slice(0, 18);
-    for (const line of headerLines) {
-        const sheetMatch = line.match(/(?:folhas?|fls?\.?)\D{0,16}(\d{1,6})/i);
-        const termMatch = line.match(/(?:termo|registro|matr[ií]cula)\D{0,20}(\d{1,8})/i);
-        if (sheetMatch?.[1]) {
+    const lineLimit = lineLimitByRegion(options.extractionRegion);
+    const headerLines = Number.isFinite(lineLimit) ? lines.slice(0, lineLimit) : lines;
+    const positiveKeywords = normalizeKeywordList([
+        ...DEFAULT_POSITIVE_KEYWORDS,
+        ...(options.positiveKeywords || []),
+    ]);
+    const negativeKeywords = normalizeKeywordList([
+        ...DEFAULT_NEGATIVE_KEYWORDS,
+        ...(options.negativeKeywords || []),
+    ]);
+    const candidatePriority = (line, context) => {
+        const normalizedLine = normalizeMatchText(line);
+        const normalizedContext = normalizeMatchText(context);
+        const searchableLine = normalizeMatchValue(line);
+        const searchableContext = normalizeMatchValue(context);
+        let priority = 0;
+        if (/\bLIVRO\b/.test(normalizedContext))
+            priority += 20;
+        if (/\bFOLHAS?\b|\bFLS\b/.test(normalizedContext))
+            priority += 20;
+        if (/\bTERMO\b|\bREGISTRO\b|\bMATRICULA\b/.test(normalizedContext))
+            priority += 20;
+        if (/\bSERVICO\b|\bREGISTRAL\b|\bPESSOAS\b|\bNATURAIS\b|\bTRANSCRICAO\b/.test(normalizedContext))
+            priority += 10;
+        if (/\bFOLHAS?\s*:/.test(normalizedLine))
+            priority += 20;
+        if (/\bTERMO\s*:/.test(normalizedLine))
+            priority += 20;
+        if (/\bFOLHAS?\b.*\bTERMO\b|\bTERMO\b.*\bFOLHAS?\b/.test(normalizedLine))
+            priority += 30;
+        if (source.includes('level_2'))
+            priority += 5;
+        for (const keyword of positiveKeywords) {
+            if (searchableLine.includes(keyword))
+                priority += 12;
+            else if (searchableContext.includes(keyword))
+                priority += 6;
+        }
+        for (const keyword of negativeKeywords) {
+            if (searchableLine.includes(keyword))
+                priority -= 45;
+            else if (searchableContext.includes(keyword))
+                priority -= 15;
+        }
+        return priority;
+    };
+    for (const [lineIndex, line] of headerLines.entries()) {
+        const context = headerLines
+            .slice(Math.max(0, lineIndex - 2), Math.min(headerLines.length, lineIndex + 3))
+            .join(' ');
+        const priority = candidatePriority(line, context);
+        const confidence = Math.max(0.2, Math.min(0.98, 0.55 + (priority / 100)));
+        const sheetMatch = line.match(/(?:folhas?|fls?\.?)\s*[:nº°o.\-]*\s*([0-9OoIl\s.\-]{1,10})/i);
+        const termMatch = line.match(/(?:termo|registro|matr[ií]cula)\s*[:nº°o.\-]*\s*([0-9OoIl\s.\-]{1,14})/i);
+        if (sheetMatch?.[1] && normalizeDigitsText(sheetMatch[1])) {
             sheetCandidates.push({
                 value: sheetMatch[1],
-                confidence: source.includes('level_2') ? 0.94 : 0.9,
+                confidence,
                 evidence: normalizeEvidence(line),
                 source,
+                priority,
+                lineIndex,
             });
         }
-        if (termMatch?.[1]) {
+        if (termMatch?.[1] && normalizeDigitsText(termMatch[1])) {
             termCandidates.push({
                 value: termMatch[1],
-                confidence: source.includes('level_2') ? 0.94 : 0.9,
+                confidence,
                 evidence: normalizeEvidence(line),
                 source,
+                priority,
+                lineIndex,
             });
         }
     }
     return { sheetCandidates, termCandidates };
 }
-async function buildTopCrop(fileBuffer) {
+async function buildTopCrop(fileBuffer, ratio) {
     const image = (0, sharp_1.default)(fileBuffer);
     const metadata = await image.metadata();
     const width = metadata.width || 0;
@@ -180,7 +291,7 @@ async function buildTopCrop(fileBuffer) {
     if (!width || !height)
         return null;
     return (0, sharp_1.default)(fileBuffer)
-        .extract({ left: 0, top: 0, width, height: Math.max(1, Math.floor(height * 0.35)) })
+        .extract({ left: 0, top: 0, width, height: Math.max(1, Math.floor(height * ratio)) })
         .grayscale()
         .normalize()
         .sharpen()
@@ -188,27 +299,37 @@ async function buildTopCrop(fileBuffer) {
         .jpeg({ quality: 92 })
         .toBuffer();
 }
-function bestCandidate(candidates) {
-    return candidates.sort((left, right) => right.confidence - left.confidence)[0] || null;
+function firstCandidate(candidates, minimumPriority) {
+    const candidate = candidates
+        .sort((current, next) => {
+        if (next.priority !== current.priority)
+            return next.priority - current.priority;
+        if (next.confidence !== current.confidence)
+            return next.confidence - current.confidence;
+        return current.lineIndex - next.lineIndex;
+    })[0] || null;
+    return candidate && candidate.priority >= minimumPriority ? candidate : null;
 }
-async function extractHeaderKeywordConference(fileBuffer, fileName) {
+async function extractHeaderKeywordConference(fileBuffer, fileName, options = {}) {
     const fullText = await (0, googleVision_1.extractTextFromFileBuffer)(fileBuffer, fileName);
-    const level1 = extractHeaderCandidates(fullText, 'google_vision_level_1');
+    const level1 = extractHeaderCandidates(fullText, 'google_vision_level_1', options);
     let sheetCandidates = [...level1.sheetCandidates];
     let termCandidates = [...level1.termCandidates];
-    if (!sheetCandidates.length || !termCandidates.length) {
-        const topCrop = await buildTopCrop(fileBuffer);
+    const cropRatio = cropRatioByRegion(options.extractionRegion);
+    if (cropRatio) {
+        const topCrop = await buildTopCrop(fileBuffer, cropRatio);
         if (topCrop) {
             const topText = await (0, googleVision_1.extractTextFromFileBuffer)(topCrop, fileName);
-            const level2 = extractHeaderCandidates(topText, 'google_vision_level_2_top');
+            const level2 = extractHeaderCandidates(topText, 'google_vision_level_2_top', options);
             sheetCandidates = [...sheetCandidates, ...level2.sheetCandidates];
             termCandidates = [...termCandidates, ...level2.termCandidates];
         }
     }
-    const sheet = bestCandidate(sheetCandidates);
-    const term = bestCandidate(termCandidates);
+    const minimumPriority = minimumPriorityByRegion(options.extractionRegion);
+    const sheet = firstCandidate(sheetCandidates, minimumPriority);
+    const term = firstCandidate(termCandidates, minimumPriority);
     const detectedSheet = sheet ? normalizeNumber(sheet.value) : null;
-    const detectedTerm = term ? onlyDigits(term.value) || term.value : null;
+    const detectedTerm = term ? normalizeDigitsText(term.value) || term.value : null;
     const confidence = Math.max(sheet?.confidence || 0, term?.confidence || 0);
     const evidenceText = normalizeEvidence([sheet?.evidence, term?.evidence].filter(Boolean).join(' | ')) || null;
     const source = sheet?.source || term?.source || 'google_vision_level_1';
