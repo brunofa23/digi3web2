@@ -96,6 +96,9 @@ Route.group(() => {
 
   Route.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get')
   Route.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages').middleware('bookrecord_permission:get')
+  Route.get('/typebooks/:typebooks_id/ocrconferences', 'OcrConferencesController.index').middleware('bookrecord_permission:get')
+  Route.post('/typebooks/:typebooks_id/ocrconferences/process', 'OcrConferencesController.process').middleware('bookrecord_permission:get')
+  Route.patch('/ocrconferences/:id/apply', 'OcrConferencesController.apply').middleware('bookrecord_permission:patch')
 
 
   Route.get("/fastfind", 'BookrecordsController.fastFind').middleware('bookrecord_permission:fastfind')

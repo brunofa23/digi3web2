@@ -256,14 +256,15 @@ git checkout development
 
 ## SCRIPT PARA INCLUIR O CAMPO DRIVE_FILE_ID
 ./start.sh node ace indeximages:fill-drive-ids \
-  --company=13 \
-  --limit=200 \
-  --repeat \
-  --sleep=15 \
-  --max-rounds=1000
+  --company=57 \
+    --limit=200 \
+      --repeat \
+        --sleep=15 \
+          --max-rounds=1000
 
-26
-28
-29
-30
-31
+24
+36
+39
+41
+55
+57
