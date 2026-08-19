@@ -1,10 +1,12 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
 import { DateTime } from 'luxon'
+import BadRequestException from 'App/Exceptions/BadRequestException'
 import Typebook from 'App/Models/Typebook'
 import Bookrecord from 'App/Models/Bookrecord'
 import IndeximageOcrCheck from 'App/Models/IndeximageOcrCheck'
 import IndeximageOcrEntity from 'App/Models/IndeximageOcrEntity'
+import { verifyPermission } from 'App/Services/util'
 import {
   sendDownloadFileBuffer,
   sendListAllFilesMetadata,
@@ -19,6 +21,14 @@ import {
 } from 'App/Services/ocr/indexImageOcrConference'
 
 export default class OcrConferencesController {
+  private ocrConferencePermissiongroupId = 44
+
+  private ensureOcrConferenceAccess(authenticate: any, permissions: any[] = []) {
+    if (!verifyPermission(Boolean(authenticate.superuser), permissions, this.ocrConferencePermissiongroupId)) {
+      throw new BadRequestException('Acesso a conferência OCR não permitido', 403, 'ocr_conference_permission_required')
+    }
+  }
+
   private normalizeDriveFileName(value: string) {
     return String(value || '')
       .normalize('NFC')
@@ -170,6 +180,8 @@ export default class OcrConferencesController {
 
   public async index({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
+    this.ensureOcrConferenceAccess(authenticate, permissions)
     const typebooksId = Number(params.typebooks_id)
     const qs = request.qs()
     const page = Number(qs.page || 1)
@@ -263,6 +275,8 @@ export default class OcrConferencesController {
 
   public async process({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
+    this.ensureOcrConferenceAccess(authenticate, permissions)
     const typebooksId = Number(params.typebooks_id)
     const input = { ...request.qs(), ...request.body() }
     const body = {
@@ -546,6 +560,8 @@ export default class OcrConferencesController {
 
   public async apply({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
+    this.ensureOcrConferenceAccess(authenticate, permissions)
     const checkId = Number(params.id)
     const { applySheet, applyTerm } = request.only(['applySheet', 'applyTerm'])
 
