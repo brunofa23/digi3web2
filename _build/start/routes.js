@@ -78,9 +78,9 @@ Route_1.default.group(() => {
     Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords');
     Route_1.default.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get');
     Route_1.default.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages').middleware('bookrecord_permission:get');
-    Route_1.default.get('/typebooks/:typebooks_id/ocrconferences', 'OcrConferencesController.index').middleware('bookrecord_permission:get');
-    Route_1.default.post('/typebooks/:typebooks_id/ocrconferences/process', 'OcrConferencesController.process').middleware('bookrecord_permission:get');
-    Route_1.default.patch('/ocrconferences/:id/apply', 'OcrConferencesController.apply').middleware('bookrecord_permission:patch');
+    Route_1.default.get('/typebooks/:typebooks_id/ocrconferences', 'OcrConferencesController.index').middleware('auth');
+    Route_1.default.post('/typebooks/:typebooks_id/ocrconferences/process', 'OcrConferencesController.process').middleware('auth');
+    Route_1.default.patch('/ocrconferences/:id/apply', 'OcrConferencesController.apply').middleware('auth');
     Route_1.default.get("/fastfind", 'BookrecordsController.fastFind').middleware('bookrecord_permission:fastfind');
     Route_1.default.get("/fastfinddocuments", 'BookrecordsController.fastFindDocuments').middleware('bookrecord_permission:fastfind');
     Route_1.default.get("/maxbookrecord", 'BookrecordsController.maxBookRecord').middleware('bookrecord_permission:maxbookrecord');

@@ -5,13 +5,23 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const luxon_1 = require("luxon");
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const IndeximageOcrCheck_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/IndeximageOcrCheck"));
 const IndeximageOcrEntity_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/IndeximageOcrEntity"));
+const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const indexImageOcrConference_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/indexImageOcrConference");
 class OcrConferencesController {
+    constructor() {
+        this.ocrConferencePermissiongroupId = 44;
+    }
+    ensureOcrConferenceAccess(authenticate, permissions = []) {
+        if (!(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, this.ocrConferencePermissiongroupId)) {
+            throw new BadRequestException_1.default('Acesso a conferência OCR não permitido', 403, 'ocr_conference_permission_required');
+        }
+    }
     normalizeDriveFileName(value) {
         return String(value || '')
             .normalize('NFC')
@@ -145,6 +155,8 @@ class OcrConferencesController {
     }
     async index({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
         const typebooksId = Number(params.typebooks_id);
         const qs = request.qs();
         const page = Number(qs.page || 1);
@@ -207,6 +219,8 @@ class OcrConferencesController {
     }
     async process({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
         const typebooksId = Number(params.typebooks_id);
         const input = { ...request.qs(), ...request.body() };
         const body = {
@@ -453,6 +467,8 @@ class OcrConferencesController {
     }
     async apply({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
         const checkId = Number(params.id);
         const { applySheet, applyTerm } = request.only(['applySheet', 'applyTerm']);
         if (!Number.isInteger(checkId) || checkId <= 0) {
