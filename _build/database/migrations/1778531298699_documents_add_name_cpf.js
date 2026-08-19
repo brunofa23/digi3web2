@@ -10,14 +10,14 @@ class default_1 extends Schema_1.default {
         this.tableName = 'indeximages';
     }
     async up() {
-        this.schema.alterTable(this.tableName, (table) => {
+        await this.schema.alterTable(this.tableName, (table) => {
             table.integer('book').nullable().after('previous_file_name');
             table.integer('sheet').nullable().after('book');
             table.integer('register', 20).nullable().after('sheet');
         });
     }
     async down() {
-        this.schema.alterTable(this.tableName, (table) => {
+        await this.schema.alterTable(this.tableName, (table) => {
             table.dropColumn('book');
             table.dropColumn('sheet');
             table.dropColumn('register');

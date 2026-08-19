@@ -9,20 +9,21 @@ class default_1 extends Schema_1.default {
         super(...arguments);
         this.tableName = 'indeximages';
     }
-    async up() {
-        const hasName = await this.schema.hasColumn(this.tableName, 'name');
-        const hasCpf = await this.schema.hasColumn(this.tableName, 'cpf');
-        const hasIndexText = await this.schema.hasColumn(this.tableName, 'index_text');
-        if (!hasName && !hasCpf && !hasIndexText)
+    async dropColumnIfExists(columnName) {
+        const hasColumn = await this.schema.hasColumn(this.tableName, columnName);
+        if (!hasColumn)
             return;
-        await this.schema.alterTable(this.tableName, (table) => {
-            if (hasName)
-                table.dropColumn('name');
-            if (hasCpf)
-                table.dropColumn('cpf');
-            if (hasIndexText)
-                table.dropColumn('index_text');
-        });
+        await this.schema.raw(`
+      ALTER TABLE \`${this.tableName}\`
+      DROP COLUMN \`${columnName}\`,
+      ALGORITHM=INSTANT,
+      LOCK=NONE
+    `);
+    }
+    async up() {
+        await this.dropColumnIfExists('name');
+        await this.dropColumnIfExists('cpf');
+        await this.dropColumnIfExists('index_text');
     }
     async down() { }
 }

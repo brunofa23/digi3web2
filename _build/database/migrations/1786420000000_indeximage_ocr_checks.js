@@ -10,7 +10,7 @@ class default_1 extends Schema_1.default {
         this.tableName = 'indeximage_ocr_checks';
     }
     async up() {
-        this.schema.createTable(this.tableName, (table) => {
+        await this.schema.createTable(this.tableName, (table) => {
             table.increments('id');
             table.integer('companies_id').notNullable().unsigned();
             table.integer('typebooks_id').notNullable().unsigned();
@@ -39,7 +39,7 @@ class default_1 extends Schema_1.default {
         });
     }
     async down() {
-        this.schema.dropTable(this.tableName);
+        await this.schema.dropTable(this.tableName);
     }
 }
 exports.default = default_1;

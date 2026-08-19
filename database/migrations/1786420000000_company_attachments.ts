@@ -4,7 +4,7 @@ export default class extends BaseSchema {
   protected tableName = 'company_attachments'
 
   public async up() {
-    this.schema.createTable(this.tableName, (table) => {
+    await this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table
         .integer('companies_id')
@@ -33,6 +33,6 @@ export default class extends BaseSchema {
   }
 
   public async down() {
-    this.schema.dropTable(this.tableName)
+    await this.schema.dropTable(this.tableName)
   }
 }

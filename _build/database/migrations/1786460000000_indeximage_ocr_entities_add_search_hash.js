@@ -10,14 +10,14 @@ class default_1 extends Schema_1.default {
         this.tableName = 'indeximage_ocr_entities';
     }
     async up() {
-        this.schema.alterTable(this.tableName, (table) => {
+        await this.schema.alterTable(this.tableName, (table) => {
             table.string('normalized_hash', 64).nullable().after('normalized_value');
             table.index(['companies_id', 'typebooks_id', 'entity_type', 'normalized_hash'], 'idx_img_ocr_entities_type_hash');
             table.index(['companies_id', 'typebooks_id', 'bookrecords_id', 'entity_type'], 'idx_img_ocr_entities_record_type');
         });
     }
     async down() {
-        this.schema.alterTable(this.tableName, (table) => {
+        await this.schema.alterTable(this.tableName, (table) => {
             table.dropIndex(['companies_id', 'typebooks_id', 'entity_type', 'normalized_hash'], 'idx_img_ocr_entities_type_hash');
             table.dropIndex(['companies_id', 'typebooks_id', 'bookrecords_id', 'entity_type'], 'idx_img_ocr_entities_record_type');
             table.dropColumn('normalized_hash');
