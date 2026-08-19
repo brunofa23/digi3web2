@@ -38,7 +38,19 @@ jobs:
         run: |
           git fetch origin main main-production
           git checkout --detach origin/main-production
-          git merge --no-edit origin/main
+          git merge --no-edit origin/main || {
+            conflicts="$(git diff --name-only --diff-filter=U)"
+
+            if [ "$conflicts" = "_build/.adonisrc.json" ]; then
+              git checkout --theirs _build/.adonisrc.json
+              git add _build/.adonisrc.json
+              git commit --no-edit
+            else
+              echo "Merge conflicts:"
+              echo "$conflicts"
+              exit 1
+            fi
+          }
 
       # 5️⃣ Build do Adonis e cópias necessárias
       - name: Build Adonis

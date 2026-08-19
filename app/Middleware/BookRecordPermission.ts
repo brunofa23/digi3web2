@@ -39,7 +39,7 @@ export default class BookRecordPermission {
         break
       }
 
-      if (guard === 'destroy' && verifyPermission(user.superuser, permissions, 20)) {
+      if (guard === 'destroy' && verifyPermission(user.superuser, permissions, 25)) {
         allowed = true
         break
       }
@@ -92,7 +92,7 @@ export default class BookRecordPermission {
 //         await next()
 //         return
 //       }
-//       if (guard === 'destroy' && verifyPermission(authenticate.superuser, permissions, 20)) {
+//       if (guard === 'destroy' && verifyPermission(authenticate.superuser, permissions, 25)) {
 //         await next()
 //         return
 //       }
