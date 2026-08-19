@@ -29,6 +29,9 @@ export default class IndeximageOcrEntity extends BaseModel {
   public normalized_value: string
 
   @column()
+  public normalized_hash: string | null
+
+  @column()
   public confidence: number | null
 
   @column()
