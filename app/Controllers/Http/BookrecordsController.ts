@@ -53,25 +53,35 @@ export default class BookrecordsController {
       .toLowerCase()
   }
 
-  private orWhereOcrEntitySearch(query: any, value: any, entityTypes: string[] = []) {
+  private ocrSearchParts(value: any) {
     const searchValue = String(value || '').trim()
     const normalizedValue = normalizeOcrSearchValue(searchValue)
     const digitsValue = searchValue.replace(/\D/g, '')
     const hashValue = hashOcrSearchValue(digitsValue || normalizedValue)
 
+    return { normalizedValue, digitsValue, hashValue }
+  }
+
+  private applyOcrEntityImageScope(query: any, entityTypes: string[] = []) {
+    query
+      .from('indeximage_ocr_entities as entities')
+      .whereRaw('entities.companies_id = indeximages.companies_id')
+      .whereRaw('entities.typebooks_id = indeximages.typebooks_id')
+      .whereRaw('entities.bookrecords_id = indeximages.bookrecords_id')
+      .whereRaw('entities.seq = indeximages.seq')
+
+    if (entityTypes.length) {
+      query.whereIn('entities.entity_type', entityTypes)
+    }
+  }
+
+  private whereOcrEntitySearch(query: any, value: any, entityTypes: string[] = []) {
+    const { normalizedValue, digitsValue, hashValue } = this.ocrSearchParts(value)
+
     if (!normalizedValue && !digitsValue && !hashValue) return
 
-    query.orWhereExists((entityQuery) => {
-      entityQuery
-        .from('indeximage_ocr_entities as entities')
-        .whereRaw('entities.companies_id = indeximages.companies_id')
-        .whereRaw('entities.typebooks_id = indeximages.typebooks_id')
-        .whereRaw('entities.bookrecords_id = indeximages.bookrecords_id')
-        .whereRaw('entities.seq = indeximages.seq')
-
-      if (entityTypes.length) {
-        entityQuery.whereIn('entities.entity_type', entityTypes)
-      }
+    query.whereExists((entityQuery) => {
+      this.applyOcrEntityImageScope(entityQuery, entityTypes)
 
       entityQuery.andWhere((valueQuery) => {
         valueQuery.where('entities.normalized_value', 'like', `%${normalizedValue || digitsValue}%`)
@@ -431,37 +441,17 @@ export default class BookrecordsController {
         }
 
         if (nameField) {
-          queryIndex.andWhere((subQuery) => {
-            subQuery.where('indeximages.name', 'like', `%${nameField}%`)
-            this.orWhereOcrEntitySearch(subQuery, nameField, ['name'])
-          })
+          this.whereOcrEntitySearch(queryIndex, nameField, ['name'])
         }
 
         if (cpfField) {
           const cpfDigits = String(cpfField).replace(/\D/g, '')
 
-          queryIndex.andWhere((subQuery) => {
-            subQuery.whereRaw(
-              "REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?",
-              [`%${cpfDigits || cpfField}%`]
-            )
-            this.orWhereOcrEntitySearch(subQuery, cpfDigits || cpfField, ['document'])
-          })
+          this.whereOcrEntitySearch(queryIndex, cpfDigits || cpfField, ['document'])
         }
 
         if (indexImageField) {
-          const cpfDigits = String(indexImageField).replace(/\D/g, '')
-
-          queryIndex.andWhere((subQuery) => {
-            subQuery
-              .where('indeximages.name', 'like', `%${indexImageField}%`)
-              .orWhere('indeximages.index_text', 'like', `%${indexImageField}%`)
-              .orWhereRaw(
-                "REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?",
-                [`%${cpfDigits || indexImageField}%`]
-              )
-            this.orWhereOcrEntitySearch(subQuery, indexImageField)
-          })
+          this.whereOcrEntitySearch(queryIndex, indexImageField)
         }
       })
     }

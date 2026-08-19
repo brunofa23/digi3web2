@@ -1,5 +1,47 @@
 {
   "commands": {
+    "ocr:backfill-entities": {
+      "settings": {
+        "loadApp": true
+      },
+      "commandPath": "./commands/BackfillIndeximageOcrEntities",
+      "commandName": "ocr:backfill-entities",
+      "description": "Migra dados OCR legados de indeximages para indeximage_ocr_entities",
+      "args": [],
+      "aliases": [],
+      "flags": [
+        {
+          "name": "company",
+          "propertyName": "company",
+          "type": "number",
+          "description": "ID da empresa que será processada"
+        },
+        {
+          "name": "limit",
+          "propertyName": "limit",
+          "type": "number",
+          "description": "Quantidade máxima de imagens para processar no lote"
+        },
+        {
+          "name": "dry-run",
+          "propertyName": "dryRun",
+          "type": "boolean",
+          "description": "Apenas simula a migração, sem gravar no banco"
+        },
+        {
+          "name": "force",
+          "propertyName": "force",
+          "type": "boolean",
+          "description": "Recria entidades legadas já migradas anteriormente"
+        },
+        {
+          "name": "include-processed",
+          "propertyName": "includeProcessed",
+          "type": "boolean",
+          "description": "Inclui imagens que já possuem entidades OCR novas"
+        }
+      ]
+    },
     "indeximages:fill-drive-ids": {
       "settings": {
         "loadApp": true
