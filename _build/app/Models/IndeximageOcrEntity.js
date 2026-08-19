@@ -49,6 +49,10 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
+], IndeximageOcrEntity.prototype, "normalized_hash", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
 ], IndeximageOcrEntity.prototype, "confidence", void 0);
 __decorate([
     (0, Orm_1.column)(),

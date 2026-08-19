@@ -12,10 +12,12 @@ const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const BadRequestException_2 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
+const IndeximageOcrEntity_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/IndeximageOcrEntity"));
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const BookrecordValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/BookrecordValidator"));
 const luxon_1 = require("luxon");
 const googleVision_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/googleVision");
+const indexImageOcrConference_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/indexImageOcrConference");
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Audit/AuditLogger"));
 const fileRename = require('../../Services/fileRename/fileRename');
@@ -41,6 +43,41 @@ class BookrecordsController {
             .trim()
             .toLowerCase();
     }
+    ocrSearchParts(value) {
+        const searchValue = String(value || '').trim();
+        const normalizedValue = (0, indexImageOcrConference_1.normalizeOcrSearchValue)(searchValue);
+        const digitsValue = searchValue.replace(/\D/g, '');
+        const hashValue = (0, indexImageOcrConference_1.hashOcrSearchValue)(digitsValue || normalizedValue);
+        return { normalizedValue, digitsValue, hashValue };
+    }
+    applyOcrEntityImageScope(query, entityTypes = []) {
+        query
+            .from('indeximage_ocr_entities as entities')
+            .whereRaw('entities.companies_id = indeximages.companies_id')
+            .whereRaw('entities.typebooks_id = indeximages.typebooks_id')
+            .whereRaw('entities.bookrecords_id = indeximages.bookrecords_id')
+            .whereRaw('entities.seq = indeximages.seq');
+        if (entityTypes.length) {
+            query.whereIn('entities.entity_type', entityTypes);
+        }
+    }
+    whereOcrEntitySearch(query, value, entityTypes = []) {
+        const { normalizedValue, digitsValue, hashValue } = this.ocrSearchParts(value);
+        if (!normalizedValue && !digitsValue && !hashValue)
+            return;
+        query.whereExists((entityQuery) => {
+            this.applyOcrEntityImageScope(entityQuery, entityTypes);
+            entityQuery.andWhere((valueQuery) => {
+                valueQuery.where('entities.normalized_value', 'like', `%${normalizedValue || digitsValue}%`);
+                if (digitsValue) {
+                    valueQuery.orWhere('entities.normalized_value', 'like', `%${digitsValue}%`);
+                }
+                if (hashValue) {
+                    valueQuery.orWhere('entities.normalized_hash', hashValue);
+                }
+            });
+        });
+    }
     uniqueValues(values) {
         const unique = new Map();
         for (const value of values) {
@@ -51,97 +88,6 @@ class BookrecordsController {
             }
         }
         return Array.from(unique.values());
-    }
-    isValidCpf(cpf) {
-        const digits = String(cpf || '').replace(/\D/g, '');
-        if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
-            return false;
-        }
-        let sum = 0;
-        for (let index = 0; index < 9; index++) {
-            sum += Number(digits[index]) * (10 - index);
-        }
-        let digit = 11 - (sum % 11);
-        const firstDigit = digit >= 10 ? 0 : digit;
-        if (firstDigit !== Number(digits[9])) {
-            return false;
-        }
-        sum = 0;
-        for (let index = 0; index < 10; index++) {
-            sum += Number(digits[index]) * (11 - index);
-        }
-        digit = 11 - (sum % 11);
-        const secondDigit = digit >= 10 ? 0 : digit;
-        return secondDigit === Number(digits[10]);
-    }
-    isValidCnpj(cnpj) {
-        const digits = String(cnpj || '').replace(/\D/g, '');
-        if (digits.length !== 14 || /^(\d)\1{13}$/.test(digits)) {
-            return false;
-        }
-        const calculateDigit = (length) => {
-            const weights = length === 12
-                ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-                : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-            const sum = weights.reduce((total, weight, index) => {
-                return total + Number(digits[index]) * weight;
-            }, 0);
-            const digit = 11 - (sum % 11);
-            return digit >= 10 ? 0 : digit;
-        };
-        return calculateDigit(12) === Number(digits[12]) &&
-            calculateDigit(13) === Number(digits[13]);
-    }
-    extractCpfs(text) {
-        const matches = text.match(/\b(?:\d{3}\.?\d{3}\.?\d{3}-?\d{2}|\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2})\b/g) || [];
-        return this.uniqueValues(matches
-            .map((document) => document.replace(/\D/g, ''))
-            .filter((document) => {
-            return this.isValidCpf(document) || this.isValidCnpj(document);
-        }));
-    }
-    extractNames(text) {
-        const names = [];
-        const lines = text
-            .split(/\r?\n/)
-            .map((line) => line.replace(/\s+/g, ' ').trim())
-            .filter(Boolean);
-        const labelPatterns = [
-            /(?:^|\b)nome(?:\s+da\s+pessoa)?\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
-            /(?:^|\b)requerente\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
-            /(?:^|\b)interessad[oa]\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
-            /(?:^|\b)propriet[aá]ri[oa]\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ' ]{5,})/i,
-        ];
-        for (const line of lines) {
-            for (const pattern of labelPatterns) {
-                const match = line.match(pattern);
-                if (match?.[1]) {
-                    names.push(this.cleanDetectedName(match[1]));
-                }
-            }
-        }
-        if (!names.length) {
-            const ignored = /CPF|RG|CNPJ|LIVRO|FOLHA|FLS|TERMO|REGISTRO|MATRICULA|MATRÍCULA|NASCIMENTO|CASAMENTO|CERTIDAO|CERTIDÃO|CARTORIO|CARTÓRIO|DATA|ENDERECO|ENDEREÇO/i;
-            for (const line of lines) {
-                const cleanLine = this.cleanDetectedName(line);
-                const words = cleanLine.split(' ').filter(Boolean);
-                if (words.length >= 2 &&
-                    words.length <= 8 &&
-                    !/\d/.test(cleanLine) &&
-                    !ignored.test(cleanLine) &&
-                    cleanLine.length >= 8) {
-                    names.push(cleanLine);
-                    break;
-                }
-            }
-        }
-        return this.uniqueValues(names);
-    }
-    cleanDetectedName(value) {
-        return String(value || '')
-            .replace(/[^A-Za-zÀ-ÖØ-öø-ÿ' ]/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
     }
     extractNumberByPatterns(text, patterns) {
         for (const pattern of patterns) {
@@ -370,20 +316,14 @@ class BookrecordsController {
                     queryIndex.andWhere('indeximages.typebooks_id', params.typebooks_id);
                 }
                 if (nameField) {
-                    queryIndex.andWhere('indeximages.name', 'like', `%${nameField}%`);
+                    this.whereOcrEntitySearch(queryIndex, nameField, ['name']);
                 }
                 if (cpfField) {
                     const cpfDigits = String(cpfField).replace(/\D/g, '');
-                    queryIndex.andWhereRaw("REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?", [`%${cpfDigits || cpfField}%`]);
+                    this.whereOcrEntitySearch(queryIndex, cpfDigits || cpfField, ['document']);
                 }
                 if (indexImageField) {
-                    const cpfDigits = String(indexImageField).replace(/\D/g, '');
-                    queryIndex.andWhere((subQuery) => {
-                        subQuery
-                            .where('indeximages.name', 'like', `%${indexImageField}%`)
-                            .orWhere('indeximages.index_text', 'like', `%${indexImageField}%`)
-                            .orWhereRaw("REPLACE(REPLACE(REPLACE(indeximages.cpf, '.', ''), '-', ''), ' ', '') LIKE ?", [`%${cpfDigits || indexImageField}%`]);
-                    });
+                    this.whereOcrEntitySearch(queryIndex, indexImageField);
                 }
             });
         }
@@ -2286,6 +2226,7 @@ class BookrecordsController {
         const singleFileName = String(fileName || '').trim();
         const bookrecordsId = Number(bookrecords_id);
         const sequence = Number(seq);
+        const isManualExtract = manualExtract === true || manualExtract === 'true' || manualExtract === 1 || manualExtract === '1';
         const bookNumbers = Array.isArray(books)
             ? books.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
             : [];
@@ -2400,7 +2341,6 @@ class BookrecordsController {
         for (const indeximage of indeximages) {
             try {
                 console.log("passo 7", indeximage.file_name);
-                const alreadyExtractedText = Boolean(String(indeximage.index_text || '').trim());
                 const driveFile = driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name));
                 console.log("passo 7.1", driveFile);
                 if (!driveFile?.id) {
@@ -2433,68 +2373,96 @@ class BookrecordsController {
                     });
                     continue;
                 }
-                const cpfs = this.extractCpfs(indexText);
-                const names = this.extractNames(indexText);
                 const { book, sheet, register } = extractionLayout === 'personal_indicator'
                     ? this.extractPersonalIndicatorFields(indexText, indeximage.file_name)
                     : this.extractBookSheetRegister(indexText, indeximage.file_name);
-                console.log("PASSO 10", { book, sheet, register, cpfs, names });
+                const entities = (0, indexImageOcrConference_1.extractOcrEntitiesFromText)(indexText, {
+                    detectedSheet: sheet,
+                    detectedTerm: register,
+                    sheetConfidence: 0.78,
+                    termConfidence: 0.78,
+                    sheetEvidence: sheet ? `Folha identificada: ${sheet}` : null,
+                    termEvidence: register ? `Termo identificado: ${register}` : null,
+                });
+                const documentEntities = entities.filter((entity) => entity.entity_type === 'document');
+                const nameEntities = entities.filter((entity) => entity.entity_type === 'name');
+                console.log("PASSO 10", { book, sheet, register, documents: documentEntities.length, names: nameEntities.length });
                 try {
-                    console.log("PASSO 10.1 - ATUALIZANDO INDEXIMAGE");
-                    const updatedIndeximage = await Indeximage_1.default
+                    console.log("PASSO 10.1 - ATUALIZANDO INDEXIMAGE E ENTIDADES OCR");
+                    await IndeximageOcrEntity_1.default
+                        .query()
+                        .where('companies_id', indeximage.companies_id)
+                        .andWhere('typebooks_id', indeximage.typebooks_id)
+                        .andWhere('bookrecords_id', indeximage.bookrecords_id)
+                        .andWhere('seq', indeximage.seq)
+                        .delete();
+                    if (entities.length) {
+                        await IndeximageOcrEntity_1.default.createMany(entities.map((entity) => ({
+                            companies_id: indeximage.companies_id,
+                            typebooks_id: indeximage.typebooks_id,
+                            bookrecords_id: indeximage.bookrecords_id,
+                            seq: indeximage.seq,
+                            entity_type: entity.entity_type,
+                            value: entity.value,
+                            normalized_value: entity.normalized_value,
+                            normalized_hash: (0, indexImageOcrConference_1.hashOcrSearchValue)(entity.normalized_value),
+                            confidence: entity.confidence,
+                            source: isManualExtract ? 'indeximage_manual_extract' : 'typebook_extract',
+                            evidence_text: entity.evidence_text,
+                        })));
+                    }
+                    await Indeximage_1.default
                         .query()
                         .where('companies_id', indeximage.companies_id)
                         .andWhere('typebooks_id', indeximage.typebooks_id)
                         .andWhere('bookrecords_id', indeximage.bookrecords_id)
                         .andWhere('seq', indeximage.seq)
                         .update({
-                        name: names.length ? names.join(' - ') : null,
-                        cpf: cpfs.length ? cpfs.join(' - ') : null,
-                        index_text: indexText,
                         book,
                         sheet,
                         register,
                         ready: true,
                     });
                     result.processed++;
-                    result.images.push({
+                    const imageResult = {
                         file_name: indeximage.file_name,
                         bookrecords_id: indeximage.bookrecords_id,
                         seq: indeximage.seq,
-                        index_text: indexText,
-                        name: names.length ? names.join(' - ') : null,
-                        cpf: cpfs.length ? cpfs.join(' - ') : null,
                         book,
                         sheet,
                         register,
+                        entities: entities.length,
                         ready: true,
-                    });
-                    if (!manualExtract || !alreadyExtractedText) {
-                        await AuditLogger_1.default.record(ctx, {
-                            companiesId: authenticate.companies_id,
-                            userId: authenticate.id,
-                            action: manualExtract ? 'indeximage_extract_text_manual' : 'indeximage_extract_text',
-                            entityTable: 'indeximages',
-                            resourceKey: `indeximages:${indeximage.typebooks_id}:${indeximage.bookrecords_id}:${indeximage.seq}:${indeximage.file_name}`,
-                            entityKey: {
-                                typebooks_id: indeximage.typebooks_id,
-                                bookrecords_id: indeximage.bookrecords_id,
-                                seq: indeximage.seq,
-                                file_name: indeximage.file_name,
-                            },
-                            description: `Usuário ${authenticate.name || authenticate.username} extraiu texto da imagem ${indeximage.file_name}`,
-                            metadata: {
-                                file_name: indeximage.file_name,
-                                text_length: indexText?.length || 0,
-                                extracted_names: names.length,
-                                extracted_documents: cpfs.length,
-                                book,
-                                sheet,
-                                register,
-                                ready: true,
-                            },
-                        });
+                    };
+                    if (isManualExtract) {
+                        imageResult.extracted_text = indexText;
                     }
+                    result.images.push(imageResult);
+                    await AuditLogger_1.default.record(ctx, {
+                        companiesId: authenticate.companies_id,
+                        userId: authenticate.id,
+                        action: isManualExtract ? 'indeximage_extract_text_manual' : 'indeximage_extract_entities',
+                        entityTable: 'indeximages',
+                        resourceKey: `indeximages:${indeximage.typebooks_id}:${indeximage.bookrecords_id}:${indeximage.seq}:${indeximage.file_name}`,
+                        entityKey: {
+                            typebooks_id: indeximage.typebooks_id,
+                            bookrecords_id: indeximage.bookrecords_id,
+                            seq: indeximage.seq,
+                            file_name: indeximage.file_name,
+                        },
+                        description: `Usuário ${authenticate.name || authenticate.username} extraiu texto da imagem ${indeximage.file_name}`,
+                        metadata: {
+                            file_name: indeximage.file_name,
+                            text_length: indexText?.length || 0,
+                            extracted_names: nameEntities.length,
+                            extracted_documents: documentEntities.length,
+                            extracted_entities: entities.length,
+                            book,
+                            sheet,
+                            register,
+                            ready: true,
+                        },
+                    });
                 }
                 catch (error) {
                     console.error("Erro ao atualizar indeximage:", error);

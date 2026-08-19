@@ -162,6 +162,8 @@ class OcrConferencesController {
         const page = Number(qs.page || 1);
         const layoutProfile = this.layoutProfile(qs.layoutprofile || qs.layoutProfile);
         const search = (0, indexImageOcrConference_1.normalizeOcrSearchValue)(String(qs.ocrsearch || ''));
+        const searchDigits = String(qs.ocrsearch || '').replace(/\D/g, '');
+        const searchHash = (0, indexImageOcrConference_1.hashOcrSearchValue)(searchDigits || search);
         if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
             return response.status(400).send({ message: 'typebooks_id inválido' });
         }
@@ -211,7 +213,15 @@ class OcrConferencesController {
                     .whereRaw('entities.typebooks_id = indeximages.typebooks_id')
                     .whereRaw('entities.bookrecords_id = indeximages.bookrecords_id')
                     .whereRaw('entities.seq = indeximages.seq')
-                    .where('entities.normalized_value', 'like', `%${search}%`);
+                    .andWhere((valueQuery) => {
+                    valueQuery.where('entities.normalized_value', 'like', `%${search}%`);
+                    if (searchDigits) {
+                        valueQuery.orWhere('entities.normalized_value', 'like', `%${searchDigits}%`);
+                    }
+                    if (searchHash) {
+                        valueQuery.orWhere('entities.normalized_hash', searchHash);
+                    }
+                });
             });
         }
         const result = await query.paginate(page, 50);
@@ -448,6 +458,7 @@ class OcrConferencesController {
                         entity_type: entity.entity_type,
                         value: entity.value,
                         normalized_value: entity.normalized_value,
+                        normalized_hash: (0, indexImageOcrConference_1.hashOcrSearchValue)(entity.normalized_value),
                         confidence: entity.confidence,
                         source: extracted.source,
                         evidence_text: entity.evidence_text,

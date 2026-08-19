@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.normalizeOcrSearchValue = exports.compareTermStatus = exports.compareNumberStatus = exports.extractTopIsolatedNumberConference = exports.extractHeaderKeywordConference = void 0;
+exports.extractOcrEntitiesFromText = exports.hashOcrSearchValue = exports.normalizeOcrSearchValue = exports.compareTermStatus = exports.compareNumberStatus = exports.extractTopIsolatedNumberConference = exports.extractHeaderKeywordConference = void 0;
+const crypto_1 = __importDefault(require("crypto"));
 const sharp_1 = __importDefault(require("sharp"));
 const googleVision_1 = require("./googleVision");
 const DEFAULT_POSITIVE_KEYWORDS = ['LIVRO', 'FOLHAS', 'TERMO'];
@@ -336,28 +337,14 @@ function buildCheckResult(fullText, sheet, term, defaultSource) {
     const confidence = Math.max(sheet?.confidence || 0, term?.confidence || 0);
     const evidenceText = normalizeEvidence([sheet?.evidence, term?.evidence].filter(Boolean).join(' | ')) || null;
     const source = sheet?.source || term?.source || defaultSource;
-    const entities = uniqueEntities([
-        ...extractDocumentEntities(fullText),
-        ...extractNameEntities(fullText),
-        ...(detectedSheet !== null
-            ? [{
-                    entity_type: 'sheet',
-                    value: String(detectedSheet),
-                    normalized_value: String(detectedSheet),
-                    confidence: sheet?.confidence || 0.7,
-                    evidence_text: sheet?.evidence || null,
-                }]
-            : []),
-        ...(detectedTerm
-            ? [{
-                    entity_type: 'term',
-                    value: detectedTerm,
-                    normalized_value: normalizeSearchValue(detectedTerm),
-                    confidence: term?.confidence || 0.7,
-                    evidence_text: term?.evidence || null,
-                }]
-            : []),
-    ]);
+    const entities = extractOcrEntitiesFromText(fullText, {
+        detectedSheet,
+        detectedTerm,
+        sheetConfidence: sheet?.confidence || 0.7,
+        termConfidence: term?.confidence || 0.7,
+        sheetEvidence: sheet?.evidence || null,
+        termEvidence: term?.evidence || null,
+    });
     return {
         detectedSheet,
         detectedTerm,
@@ -501,4 +488,43 @@ function normalizeOcrSearchValue(value) {
     return normalizeSearchValue(value);
 }
 exports.normalizeOcrSearchValue = normalizeOcrSearchValue;
+function hashOcrSearchValue(value) {
+    const normalized = normalizeOcrSearchValue(value);
+    return normalized
+        ? crypto_1.default.createHash('sha256').update(normalized).digest('hex')
+        : '';
+}
+exports.hashOcrSearchValue = hashOcrSearchValue;
+function extractOcrEntitiesFromText(text, options = {}) {
+    const detectedTerm = options.detectedTerm !== null && options.detectedTerm !== undefined
+        ? normalizeDigitsText(String(options.detectedTerm)) || String(options.detectedTerm).trim()
+        : null;
+    const detectedSheet = options.detectedSheet !== null && options.detectedSheet !== undefined
+        ? Number(options.detectedSheet)
+        : null;
+    const entities = [
+        ...extractDocumentEntities(text),
+        ...extractNameEntities(text),
+    ];
+    if (detectedSheet !== null && Number.isInteger(detectedSheet) && detectedSheet > 0) {
+        entities.push({
+            entity_type: 'sheet',
+            value: String(detectedSheet),
+            normalized_value: String(detectedSheet),
+            confidence: options.sheetConfidence || 0.7,
+            evidence_text: options.sheetEvidence || null,
+        });
+    }
+    if (detectedTerm) {
+        entities.push({
+            entity_type: 'term',
+            value: detectedTerm,
+            normalized_value: normalizeSearchValue(detectedTerm),
+            confidence: options.termConfidence || 0.7,
+            evidence_text: options.termEvidence || null,
+        });
+    }
+    return uniqueEntities(entities);
+}
+exports.extractOcrEntitiesFromText = extractOcrEntitiesFromText;
 //# sourceMappingURL=indexImageOcrConference.js.map
