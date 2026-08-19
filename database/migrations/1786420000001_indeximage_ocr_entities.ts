@@ -4,7 +4,7 @@ export default class extends BaseSchema {
   protected tableName = 'indeximage_ocr_entities'
 
   public async up() {
-    this.schema.createTable(this.tableName, (table) => {
+    await this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table.integer('companies_id').notNullable().unsigned()
       table.integer('typebooks_id').notNullable().unsigned()
@@ -28,6 +28,6 @@ export default class extends BaseSchema {
   }
 
   public async down() {
-    this.schema.dropTable(this.tableName)
+    await this.schema.dropTable(this.tableName)
   }
 }

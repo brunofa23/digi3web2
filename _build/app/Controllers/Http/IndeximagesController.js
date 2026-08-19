@@ -607,7 +607,6 @@ class IndeximagesController {
             extension: path.extname(fileName),
             body,
             size: fileDownload.size,
-            index_text: indexImage?.index_text,
             bookrecords_id: indexImage?.bookrecords_id,
             typebooks_id: indexImage?.typebooks_id,
             seq: indexImage?.seq,
