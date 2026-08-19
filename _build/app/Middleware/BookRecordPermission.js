@@ -27,7 +27,7 @@ class BookRecordPermission {
                 allowed = true;
                 break;
             }
-            if (guard === 'destroy' && (0, util_1.verifyPermission)(user.superuser, permissions, 20)) {
+            if (guard === 'destroy' && (0, util_1.verifyPermission)(user.superuser, permissions, 25)) {
                 allowed = true;
                 break;
             }
