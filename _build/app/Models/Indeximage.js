@@ -28,9 +28,6 @@ class Indeximage extends Orm_1.BaseModel {
             'file_name',
             'drive_file_id',
             'previous_file_name',
-            'name',
-            'cpf',
-            'index_text',
             'book',
             'sheet',
             'register',
@@ -100,18 +97,6 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Indeximage.prototype, "previous_file_name", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", String)
-], Indeximage.prototype, "name", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", String)
-], Indeximage.prototype, "cpf", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", String)
-], Indeximage.prototype, "index_text", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)

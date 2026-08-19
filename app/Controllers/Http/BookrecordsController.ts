@@ -9,7 +9,7 @@ import BadRequest from 'App/Exceptions/BadRequestException'
 import Typebook from 'App/Models/Typebook'
 import Document from 'App/Models/Document'
 import IndeximageOcrEntity from 'App/Models/IndeximageOcrEntity'
-import { schema, rules } from '@ioc:Adonis/Core/Validator'
+import { schema } from '@ioc:Adonis/Core/Validator'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
 import { DateTime } from 'luxon'
 import { extractTextFromFileBuffer } from 'App/Services/ocr/googleVision'
@@ -3429,7 +3429,6 @@ export default class BookrecordsController {
     for (const indeximage of indeximages) {
       try {
         console.log("passo 7", indeximage.file_name)
-        const alreadyExtractedText = Boolean(String(indeximage.index_text || '').trim())
 
         const driveFile = driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name))
 
@@ -3542,38 +3541,36 @@ export default class BookrecordsController {
           } as any
 
           if (isManualExtract) {
-            imageResult.index_text = indexText
+            imageResult.extracted_text = indexText
           }
 
           result.images.push(imageResult)
 
-          if (!isManualExtract || !alreadyExtractedText) {
-            await AuditLogger.record(ctx, {
-              companiesId: authenticate.companies_id,
-              userId: authenticate.id,
-              action: isManualExtract ? 'indeximage_extract_text_manual' : 'indeximage_extract_entities',
-              entityTable: 'indeximages',
-              resourceKey: `indeximages:${indeximage.typebooks_id}:${indeximage.bookrecords_id}:${indeximage.seq}:${indeximage.file_name}`,
-              entityKey: {
-                typebooks_id: indeximage.typebooks_id,
-                bookrecords_id: indeximage.bookrecords_id,
-                seq: indeximage.seq,
-                file_name: indeximage.file_name,
-              },
-              description: `Usuário ${authenticate.name || authenticate.username} extraiu texto da imagem ${indeximage.file_name}`,
-              metadata: {
-                file_name: indeximage.file_name,
-                text_length: indexText?.length || 0,
-                extracted_names: nameEntities.length,
-                extracted_documents: documentEntities.length,
-                extracted_entities: entities.length,
-                book,
-                sheet,
-                register,
-                ready: true,
-              },
-            })
-          }
+          await AuditLogger.record(ctx, {
+            companiesId: authenticate.companies_id,
+            userId: authenticate.id,
+            action: isManualExtract ? 'indeximage_extract_text_manual' : 'indeximage_extract_entities',
+            entityTable: 'indeximages',
+            resourceKey: `indeximages:${indeximage.typebooks_id}:${indeximage.bookrecords_id}:${indeximage.seq}:${indeximage.file_name}`,
+            entityKey: {
+              typebooks_id: indeximage.typebooks_id,
+              bookrecords_id: indeximage.bookrecords_id,
+              seq: indeximage.seq,
+              file_name: indeximage.file_name,
+            },
+            description: `Usuário ${authenticate.name || authenticate.username} extraiu texto da imagem ${indeximage.file_name}`,
+            metadata: {
+              file_name: indeximage.file_name,
+              text_length: indexText?.length || 0,
+              extracted_names: nameEntities.length,
+              extracted_documents: documentEntities.length,
+              extracted_entities: entities.length,
+              book,
+              sheet,
+              register,
+              ready: true,
+            },
+          })
         } catch (error) {
           console.error("Erro ao atualizar indeximage:", error)
         }
