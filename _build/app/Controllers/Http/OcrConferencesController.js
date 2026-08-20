@@ -162,14 +162,13 @@ class OcrConferencesController {
         const ids = rows.map((row) => row.id).filter(Boolean);
         if (!ids.length)
             return 0;
-        await Database_1.default
-            .from('indeximage_ocr_checks')
-            .whereIn('id', ids)
-            .update({
-            expected_sheet: Database_1.default.raw('detected_sheet'),
-            sheet_status: 'match',
-            updated_at: luxon_1.DateTime.local().toSQL(),
-        });
+        await Database_1.default.rawQuery(`
+        UPDATE indeximage_ocr_checks
+        SET expected_sheet = detected_sheet,
+            sheet_status = ?,
+            updated_at = ?
+        WHERE id IN (${ids.map(() => '?').join(', ')})
+      `, ['match', luxon_1.DateTime.local().toSQL(), ...ids]);
         return ids.length;
     }
     async getTypebook(companiesId, typebooksId) {
