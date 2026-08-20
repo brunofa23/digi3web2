@@ -145,6 +145,9 @@ class OcrConferencesController {
             ? body[camelKey]
             : body[lowerKey];
     }
+    processKey(companiesId, typebooksId, processId) {
+        return `${companiesId}:${typebooksId}:${processId}`;
+    }
     async reconcileProcessedSheetMatches(buildSelectionQuery, layoutProfile) {
         const rows = await buildSelectionQuery()
             .join('indeximage_ocr_checks as checks', (join) => {
@@ -315,6 +318,11 @@ class OcrConferencesController {
         const singleFileName = String(body.fileName || '').trim();
         const bookrecordsId = Number(body.bookrecords_id);
         const sequence = Number(body.seq);
+        const processId = String(input.processId || input.processid || '').trim();
+        const cancelKey = processId ? this.processKey(authenticate.companies_id, typebooksId, processId) : '';
+        const isCancelled = () => cancelKey && OcrConferencesController.cancelledProcesses.has(cancelKey);
+        if (cancelKey)
+            OcrConferencesController.cancelledProcesses.delete(cancelKey);
         if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
             return response.status(400).send({ message: 'typebooks_id inválido' });
         }
@@ -415,6 +423,8 @@ class OcrConferencesController {
             total_filter_rows: matchingBeforePending,
             drive_files_found: driveFileIdsFound,
             reconciled_sheet_matches: reconciledSheetMatches,
+            process_id: processId || null,
+            cancelled: false,
             processed: 0,
             skipped: 0,
             errors: [],
@@ -450,6 +460,10 @@ class OcrConferencesController {
         }
         result.drive_files_found = driveFileIdsFound + driveFilesByName.size;
         for (const indeximage of indeximages) {
+            if (isCancelled()) {
+                result.cancelled = true;
+                break;
+            }
             let driveFile = indeximage.drive_file_id
                 ? { id: indeximage.drive_file_id, name: indeximage.file_name }
                 : driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name));
@@ -468,9 +482,17 @@ class OcrConferencesController {
             }
             try {
                 const imageBuffer = await (0, googledrive_1.sendDownloadFileBuffer)(driveFile.id, typebook.company.cloud);
+                if (isCancelled()) {
+                    result.cancelled = true;
+                    break;
+                }
                 const extracted = layoutProfile === 'top_isolated_number'
                     ? await (0, indexImageOcrConference_1.extractTopIsolatedNumberConference)(imageBuffer, indeximage.file_name, extractionOptions)
                     : await (0, indexImageOcrConference_1.extractHeaderKeywordConference)(imageBuffer, indeximage.file_name, extractionOptions);
+                if (isCancelled()) {
+                    result.cancelled = true;
+                    break;
+                }
                 const expectedSheet = indeximage.record_sheet ?? null;
                 const expectedTerm = indeximage.record_approximate_term ?? null;
                 const checkPayload = {
@@ -530,7 +552,24 @@ class OcrConferencesController {
                 });
             }
         }
+        if (cancelKey)
+            OcrConferencesController.cancelledProcesses.delete(cancelKey);
         return response.status(200).send(result);
+    }
+    async cancelProcess({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
+        const typebooksId = Number(params.typebooks_id);
+        const processId = String(request.input('processId') || request.input('processid') || '').trim();
+        if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+            return response.status(400).send({ message: 'typebooks_id inválido' });
+        }
+        if (!processId) {
+            return response.status(400).send({ message: 'processId inválido' });
+        }
+        OcrConferencesController.cancelledProcesses.add(this.processKey(authenticate.companies_id, typebooksId, processId));
+        return response.status(200).send({ cancelled: true, process_id: processId });
     }
     async apply({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -577,6 +616,169 @@ class OcrConferencesController {
         check.confidence_level = this.confidenceLevel(check.confidence);
         await check.save();
         return response.status(200).send({ check, applied: payload });
+    }
+    async bulkApplySheets({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
+        const typebooksId = Number(params.typebooks_id);
+        const input = { ...request.qs(), ...request.body() };
+        const layoutProfile = this.layoutProfile(input.layoutProfile || input.layoutprofile);
+        const markerScope = String(input.markerScope || input.markerscope || '').trim();
+        const search = (0, indexImageOcrConference_1.normalizeOcrSearchValue)(String(input.ocrSearch || input.ocrsearch || ''));
+        const searchDigits = String(input.ocrSearch || input.ocrsearch || '').replace(/\D/g, '');
+        const searchHash = (0, indexImageOcrConference_1.hashOcrSearchValue)(searchDigits || search);
+        if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+            return response.status(400).send({ message: 'typebooks_id inválido' });
+        }
+        if (!['marked', 'unmarked'].includes(markerScope)) {
+            return response.status(400).send({ message: 'Selecione marcados ou não marcados' });
+        }
+        const filterValues = {
+            codstart: this.bodyValue(input, 'codStart', 'codstart'),
+            codend: this.bodyValue(input, 'codEnd', 'codend'),
+            bookstart: this.bodyValue(input, 'bookStart', 'bookstart'),
+            bookend: this.bodyValue(input, 'bookEnd', 'bookend'),
+            sheetstart: this.bodyValue(input, 'sheetStart', 'sheetstart'),
+            sheetend: this.bodyValue(input, 'sheetEnd', 'sheetend'),
+            indexbook: input.indexbook,
+            indexbookend: this.bodyValue(input, 'indexbookEnd', 'indexbookend'),
+            approximateterm: this.bodyValue(input, 'approximateTerm', 'approximateterm'),
+            year: input.year,
+            letter: input.letter,
+            side: input.side,
+            obs: input.obs,
+        };
+        const query = Database_1.default
+            .from('indeximage_ocr_checks as checks')
+            .join('indeximages as indeximages', (join) => {
+            join
+                .on('indeximages.bookrecords_id', 'checks.bookrecords_id')
+                .andOn('indeximages.typebooks_id', 'checks.typebooks_id')
+                .andOn('indeximages.companies_id', 'checks.companies_id')
+                .andOn('indeximages.seq', 'checks.seq');
+        })
+            .join('bookrecords as bookrecords', (join) => {
+            join
+                .on('bookrecords.id', 'indeximages.bookrecords_id')
+                .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id')
+                .andOn('bookrecords.companies_id', 'indeximages.companies_id');
+        })
+            .where('checks.companies_id', authenticate.companies_id)
+            .andWhere('checks.typebooks_id', typebooksId)
+            .andWhere('checks.layout_profile', layoutProfile)
+            .whereNotNull('checks.detected_sheet')
+            .select('checks.id', 'checks.bookrecords_id', 'checks.detected_sheet');
+        this.applyBookrecordFilters(query, filterValues, 'bookrecords');
+        if (markerScope === 'marked')
+            query.andWhere('checks.line_marker', true);
+        else
+            query.andWhere('checks.line_marker', false);
+        const sheetStatus = input.sheetStatus || input.sheetstatus;
+        const termStatus = input.termStatus || input.termstatus;
+        const confidenceLevel = input.confidenceLevel || input.confidencelevel;
+        const reviewStatus = input.reviewStatus || input.reviewstatus;
+        if (sheetStatus === 'not_processed')
+            query.whereNull('checks.processed_at');
+        else if (sheetStatus)
+            query.andWhere('checks.sheet_status', sheetStatus);
+        if (termStatus === 'not_processed')
+            query.whereNull('checks.processed_at');
+        else if (termStatus)
+            query.andWhere('checks.term_status', termStatus);
+        if (confidenceLevel)
+            query.andWhere('checks.confidence_level', confidenceLevel);
+        if (reviewStatus === 'not_processed')
+            query.whereNull('checks.processed_at');
+        else if (reviewStatus)
+            query.andWhere('checks.review_status', reviewStatus);
+        if (search) {
+            query.whereExists((entityQuery) => {
+                entityQuery
+                    .from('indeximage_ocr_entities as entities')
+                    .whereRaw('entities.companies_id = checks.companies_id')
+                    .whereRaw('entities.typebooks_id = checks.typebooks_id')
+                    .whereRaw('entities.bookrecords_id = checks.bookrecords_id')
+                    .whereRaw('entities.seq = checks.seq')
+                    .andWhere((valueQuery) => {
+                    valueQuery.where('entities.normalized_value', 'like', `%${search}%`);
+                    if (searchDigits) {
+                        valueQuery.orWhere('entities.normalized_value', 'like', `%${searchDigits}%`);
+                    }
+                    if (searchHash) {
+                        valueQuery.orWhere('entities.normalized_hash', searchHash);
+                    }
+                });
+            });
+        }
+        const rows = await query;
+        const grouped = new Map();
+        for (const row of rows) {
+            const bookrecordId = Number(row.bookrecords_id);
+            const detectedSheet = Number(row.detected_sheet);
+            if (!Number.isInteger(bookrecordId) || !Number.isInteger(detectedSheet))
+                continue;
+            const group = grouped.get(bookrecordId) || { detectedSheets: new Set(), checkIds: [] };
+            group.detectedSheets.add(detectedSheet);
+            group.checkIds.push(Number(row.id));
+            grouped.set(bookrecordId, group);
+        }
+        const targets = Array.from(grouped.entries())
+            .filter(([, group]) => group.detectedSheets.size === 1)
+            .map(([bookrecordId, group]) => ({
+            bookrecordId,
+            detectedSheet: Array.from(group.detectedSheets)[0],
+            checkIds: group.checkIds.filter(Boolean),
+        }));
+        const conflicts = grouped.size - targets.length;
+        const now = luxon_1.DateTime.local().toSQL();
+        await Database_1.default.transaction(async (trx) => {
+            for (const target of targets) {
+                await Database_1.default
+                    .from('bookrecords')
+                    .useTransaction(trx)
+                    .where('id', target.bookrecordId)
+                    .andWhere('companies_id', authenticate.companies_id)
+                    .andWhere('typebooks_id', typebooksId)
+                    .update({
+                    sheet: target.detectedSheet,
+                    updated_at: now,
+                });
+                await Database_1.default.rawQuery(`
+            UPDATE indeximage_ocr_checks
+            SET expected_sheet = ?,
+                sheet_status = CASE
+                  WHEN detected_sheet IS NULL THEN 'not_found'
+                  WHEN detected_sheet = ? THEN 'match'
+                  ELSE 'divergent'
+                END,
+                review_status = CASE
+                  WHEN id IN (${target.checkIds.map(() => '?').join(', ')}) THEN 'corrected_manually'
+                  ELSE review_status
+                END,
+                updated_at = ?
+            WHERE companies_id = ?
+              AND typebooks_id = ?
+              AND bookrecords_id = ?
+              AND layout_profile = ?
+          `, [
+                    target.detectedSheet,
+                    target.detectedSheet,
+                    ...target.checkIds,
+                    now,
+                    authenticate.companies_id,
+                    typebooksId,
+                    target.bookrecordId,
+                    layoutProfile,
+                ]).useTransaction(trx);
+            }
+        });
+        return response.status(200).send({
+            selected: rows.length,
+            updated: targets.length,
+            conflicts,
+            marker_scope: markerScope,
+        });
     }
     async updateSheet({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
@@ -632,6 +834,42 @@ class OcrConferencesController {
                 sheet: bookrecord.sheet,
             },
             check,
+        });
+    }
+    async updateSide({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
+        const typebooksId = Number(params.typebooks_id);
+        const bookrecordId = Number(params.bookrecord_id);
+        const rawSide = request.input('side');
+        const side = rawSide === undefined || rawSide === null || String(rawSide).trim() === ''
+            ? null
+            : String(rawSide).trim().toUpperCase();
+        if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+            return response.status(400).send({ message: 'typebooks_id inválido' });
+        }
+        if (!Number.isInteger(bookrecordId) || bookrecordId <= 0) {
+            return response.status(400).send({ message: 'bookrecord_id inválido' });
+        }
+        if (side !== null && !['F', 'V'].includes(side)) {
+            return response.status(400).send({ message: 'Lado inválido' });
+        }
+        const bookrecord = await Bookrecord_1.default
+            .query()
+            .where('id', bookrecordId)
+            .andWhere('companies_id', authenticate.companies_id)
+            .andWhere('typebooks_id', typebooksId)
+            .first();
+        if (!bookrecord)
+            return response.status(404).send({ message: 'Registro não encontrado' });
+        bookrecord.side = side;
+        await bookrecord.save();
+        return response.status(200).send({
+            bookrecord: {
+                id: bookrecord.id,
+                side: bookrecord.side,
+            },
         });
     }
     async updateMarker({ auth, params, request, response }) {
@@ -726,4 +964,5 @@ class OcrConferencesController {
     }
 }
 exports.default = OcrConferencesController;
+OcrConferencesController.cancelledProcesses = new Set();
 //# sourceMappingURL=OcrConferencesController.js.map
