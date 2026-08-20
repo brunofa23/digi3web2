@@ -79,6 +79,7 @@ Route_1.default.group(() => {
     Route_1.default.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get');
     Route_1.default.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages').middleware('bookrecord_permission:get');
     Route_1.default.get('/typebooks/:typebooks_id/ocrconferences', 'OcrConferencesController.index').middleware('auth');
+    Route_1.default.get('/typebooks/:typebooks_id/ocrconferences/entities', 'OcrConferencesController.entities').middleware('auth');
     Route_1.default.post('/typebooks/:typebooks_id/ocrconferences/process', 'OcrConferencesController.process').middleware('auth');
     Route_1.default.post('/typebooks/:typebooks_id/ocrconferences/process/cancel', 'OcrConferencesController.cancelProcess').middleware('auth');
     Route_1.default.patch('/typebooks/:typebooks_id/ocrconferences/apply-sheets', 'OcrConferencesController.bulkApplySheets').middleware('auth');

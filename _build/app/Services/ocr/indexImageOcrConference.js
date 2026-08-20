@@ -136,52 +136,143 @@ function cleanName(value) {
         .replace(/\s+/g, ' ')
         .trim();
 }
+const NAME_PARTICLES = new Set(['A', 'AS', 'DA', 'DAS', 'DE', 'DI', 'DO', 'DOS', 'E']);
+const NAME_REJECT_WORDS = new Set([
+    'ACAO',
+    'ADICIONAL',
+    'ANO',
+    'ART',
+    'ARTS',
+    'BASE',
+    'BENS',
+    'CARTORIO',
+    'CAUSA',
+    'CIDADE',
+    'CIVEL',
+    'COMARCA',
+    'COMPARECEU',
+    'COMPROMISSO',
+    'CONFORME',
+    'CURADOR',
+    'CURADORA',
+    'CURATELA',
+    'DATA',
+    'DECIDO',
+    'DECRETO',
+    'DESIGNACAO',
+    'DIREITO',
+    'DOCUMENTOS',
+    'EMOLUMENTO',
+    'ESTADO',
+    'ETC',
+    'FOLHA',
+    'FOLHAS',
+    'GERAIS',
+    'GOVERNADOR',
+    'HIPOTECA',
+    'INCAPACIDADE',
+    'INTERDICAO',
+    'INTERDITANDA',
+    'INTERROGATORIO',
+    'JUIZ',
+    'LAUDO',
+    'LIVRO',
+    'MANDADO',
+    'MANIFESTACAO',
+    'MATRICULA',
+    'MINAS',
+    'NATURAIS',
+    'NOMEACAO',
+    'OFICIAL',
+    'PESSOA',
+    'PESSOAS',
+    'PERICIA',
+    'PROVISORIA',
+    'PROVISORIO',
+    'PUBLIQUE',
+    'RECEITA',
+    'REGISTRAL',
+    'REGISTRO',
+    'RELATORIO',
+    'REQUERENTE',
+    'SENTENCA',
+    'SERVICO',
+    'SUBDISTRITO',
+    'TERMO',
+    'VALADARES',
+    'VARA',
+    'VISTOS',
+]);
+const NAME_STOP_PATTERN = /\b(?:alegou|brasileir[ao]s?|casad[ao]s?|com|declar(?:a|ou|o)|domiciliad[ao]s?|em|estado|filh[ao]s?|homologad[ao]s?|natural|pediu|profiss[aã]o|qualificad[ao]s?|registrad[ao]s?|requer(?:eu|e|eram)|residentes?|solteir[ao]s?)\b.*$/i;
+function trimNameCandidate(value) {
+    return cleanName(value)
+        .replace(NAME_STOP_PATTERN, '')
+        .replace(/\b(?:Dr|Dra|Sr|Sra|D)\b\.?/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+function isPersonNameCandidate(value) {
+    const name = trimNameCandidate(value);
+    const words = name.split(' ').filter(Boolean);
+    const meaningfulWords = words.filter((word) => !NAME_PARTICLES.has(normalizeMatchValue(word)));
+    if (name.length < 8 || words.length < 2 || words.length > 8 || meaningfulWords.length < 2)
+        return false;
+    let nameLikeWords = 0;
+    for (const word of meaningfulWords) {
+        const normalizedWord = normalizeMatchValue(word);
+        if (word.length < 2 || NAME_REJECT_WORDS.has(normalizedWord))
+            return false;
+        if (/^[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]/.test(word) || word === word.toUpperCase())
+            nameLikeWords++;
+    }
+    return nameLikeWords >= 2;
+}
+function pushNameEntity(entities, value, confidence, evidence) {
+    const name = trimNameCandidate(value);
+    if (!isPersonNameCandidate(name))
+        return;
+    entities.push({
+        entity_type: 'name',
+        value: name,
+        normalized_value: normalizeSearchValue(name),
+        confidence,
+        evidence_text: normalizeEvidence(evidence),
+    });
+}
+function extractUppercaseNameCandidates(line) {
+    const matches = line.match(/\b[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]{2,}(?:\s+(?:D[AEIO]S?|E|[A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ]{2,})){1,7}\b/g) || [];
+    return matches.map((value) => trimNameCandidate(value)).filter(Boolean);
+}
 function extractNameEntities(text) {
     const entities = [];
     const lines = text
         .split(/\r?\n/)
         .map((line) => line.replace(/\s+/g, ' ').trim())
         .filter(Boolean);
-    const ignored = /CPF|RG|CNPJ|LIVRO|FOLHA|FOLHAS|FLS|TERMO|REGISTRO|MATRICULA|MATRÍCULA|CARTORIO|CARTÓRIO|DATA|NASC|FALEC|SEXO|COR|ESTADO|CIVIL|NATURAL|PROFISSAO|PROFISSÃO|RESIDENTE|DOMICILIADO/i;
     const labeledPatterns = [
         /(?:^|\b)nome\s*[:\-]?\s*([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-Za-zÀ-ÖØ-öø-ÿ' ]{5,})/i,
         /(?:^|\b)compareceu\s+([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-Za-zÀ-ÖØ-öø-ÿ' ]{5,})/i,
         /(?:^|\b)nasceu\s+([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-Za-zÀ-ÖØ-öø-ÿ' ]{5,})/i,
         /(?:^|\b)falec(?:eu|ido|ida)\s+([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-Za-zÀ-ÖØ-öø-ÿ' ]{5,})/i,
         /(?:^|\b)filh[ao]\s+(?:legitim[ao]\s+)?de\s+([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-Za-zÀ-ÖØ-öø-ÿ' ]{5,})/i,
+        /(?:^|\b)(?:interdi[cç][aã]o|interditand[ao]|requerente|curador[ao]?|declarante)\s+(?:de\s+)?([A-ZÁÀÂÃÉÈÊÍÌÎÓÒÔÕÚÙÛÇ][A-Za-zÀ-ÖØ-öø-ÿ' ]{5,})/i,
     ];
     for (const line of lines) {
         for (const pattern of labeledPatterns) {
             const match = line.match(pattern);
-            const name = cleanName(match?.[1] || '');
-            const words = name.split(' ').filter(Boolean);
-            if (words.length >= 2 && words.length <= 8 && !ignored.test(name)) {
-                entities.push({
-                    entity_type: 'name',
-                    value: name,
-                    normalized_value: normalizeSearchValue(name),
-                    confidence: 0.86,
-                    evidence_text: normalizeEvidence(line),
-                });
-            }
+            pushNameEntity(entities, match?.[1] || '', 0.88, line);
+        }
+        for (const name of extractUppercaseNameCandidates(line)) {
+            pushNameEntity(entities, name, 0.82, line);
         }
     }
-    if (!entities.length) {
-        for (const line of lines) {
-            const name = cleanName(line);
-            const words = name.split(' ').filter(Boolean);
-            if (words.length >= 2 && words.length <= 6 && name.length >= 8 && !/\d/.test(name) && !ignored.test(name)) {
-                entities.push({
-                    entity_type: 'name',
-                    value: name,
-                    normalized_value: normalizeSearchValue(name),
-                    confidence: 0.62,
-                    evidence_text: normalizeEvidence(line),
-                });
-            }
+    for (const line of lines) {
+        const name = cleanName(line);
+        if (!/\d/.test(name) && name === name.toUpperCase()) {
+            pushNameEntity(entities, name, 0.64, line);
         }
     }
-    return entities.slice(0, 20);
+    return entities.slice(0, 40);
 }
 function lineLimitByRegion(region) {
     if (region === 'full_page')

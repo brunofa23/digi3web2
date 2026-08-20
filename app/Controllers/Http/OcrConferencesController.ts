@@ -338,6 +338,44 @@ export default class OcrConferencesController {
     return response.status(200).send(result)
   }
 
+  public async entities({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
+    this.ensureOcrConferenceAccess(authenticate, permissions)
+    const typebooksId = Number(params.typebooks_id)
+    const qs = request.qs()
+    const bookrecordsId = Number(qs.bookrecords_id || qs.bookrecordId)
+    const sequence = Number(qs.seq)
+    const entityType = String(qs.entity_type || qs.entityType || '').trim()
+    const allowedEntityTypes = ['name', 'document', 'sheet', 'term']
+
+    if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+      return response.status(400).send({ message: 'typebooks_id inválido' })
+    }
+
+    if (!Number.isInteger(bookrecordsId) || bookrecordsId <= 0) {
+      return response.status(400).send({ message: 'bookrecords_id inválido' })
+    }
+
+    const query = IndeximageOcrEntity
+      .query()
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('typebooks_id', typebooksId)
+      .andWhere('bookrecords_id', bookrecordsId)
+
+    if (Number.isInteger(sequence) && sequence >= 0) query.andWhere('seq', sequence)
+    if (allowedEntityTypes.includes(entityType)) query.andWhere('entity_type', entityType)
+
+    const entities = await query
+      .orderBy('seq', 'asc')
+      .orderBy('entity_type', 'asc')
+      .orderBy('confidence', 'desc')
+      .orderBy('id', 'asc')
+      .limit(200)
+
+    return response.status(200).send({ data: entities })
+  }
+
   public async process({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const permissions = auth.use('api').token?.meta.payload.permissions || []
