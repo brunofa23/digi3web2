@@ -98,7 +98,10 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages').middleware('bookrecord_permission:get')
   Route.get('/typebooks/:typebooks_id/ocrconferences', 'OcrConferencesController.index').middleware('auth')
   Route.post('/typebooks/:typebooks_id/ocrconferences/process', 'OcrConferencesController.process').middleware('auth')
+  Route.patch('/typebooks/:typebooks_id/ocrconferences/bookrecords/:bookrecord_id/sheet', 'OcrConferencesController.updateSheet').middleware('auth')
+  Route.patch('/typebooks/:typebooks_id/ocrconferences/bookrecords/:bookrecord_id/marker', 'OcrConferencesController.updateRowMarker').middleware('auth')
   Route.patch('/ocrconferences/:id/apply', 'OcrConferencesController.apply').middleware('auth')
+  Route.patch('/ocrconferences/:id/marker', 'OcrConferencesController.updateMarker').middleware('auth')
 
 
   Route.get("/fastfind", 'BookrecordsController.fastFind').middleware('bookrecord_permission:fastfind')

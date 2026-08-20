@@ -87,6 +87,10 @@ __decorate([
     __metadata("design:type", String)
 ], IndeximageOcrCheck.prototype, "review_status", void 0);
 __decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], IndeximageOcrCheck.prototype, "line_marker", void 0);
+__decorate([
     Orm_1.column.dateTime(),
     __metadata("design:type", Object)
 ], IndeximageOcrCheck.prototype, "processed_at", void 0);
