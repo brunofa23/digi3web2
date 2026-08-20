@@ -145,6 +145,33 @@ class OcrConferencesController {
             ? body[camelKey]
             : body[lowerKey];
     }
+    async reconcileProcessedSheetMatches(buildSelectionQuery, layoutProfile) {
+        const rows = await buildSelectionQuery()
+            .join('indeximage_ocr_checks as checks', (join) => {
+            join
+                .on('checks.bookrecords_id', 'indeximages.bookrecords_id')
+                .andOn('checks.typebooks_id', 'indeximages.typebooks_id')
+                .andOn('checks.companies_id', 'indeximages.companies_id')
+                .andOn('checks.seq', 'indeximages.seq')
+                .andOnVal('checks.layout_profile', layoutProfile);
+        })
+            .where('checks.sheet_status', 'divergent')
+            .whereNotNull('checks.detected_sheet')
+            .whereRaw('bookrecords.sheet = checks.detected_sheet')
+            .select('checks.id');
+        const ids = rows.map((row) => row.id).filter(Boolean);
+        if (!ids.length)
+            return 0;
+        await Database_1.default
+            .from('indeximage_ocr_checks')
+            .whereIn('id', ids)
+            .update({
+            expected_sheet: Database_1.default.raw('detected_sheet'),
+            sheet_status: 'match',
+            updated_at: luxon_1.DateTime.local().toSQL(),
+        });
+        return ids.length;
+    }
     async getTypebook(companiesId, typebooksId) {
         return Typebook_1.default
             .query()
@@ -160,6 +187,7 @@ class OcrConferencesController {
         const typebooksId = Number(params.typebooks_id);
         const qs = request.qs();
         const page = Number(qs.page || 1);
+        const perPage = Math.min(Math.max(Number(qs.perpage || qs.perPage || 20), 1), 200);
         const layoutProfile = this.layoutProfile(qs.layoutprofile || qs.layoutProfile);
         const search = (0, indexImageOcrConference_1.normalizeOcrSearchValue)(String(qs.ocrsearch || ''));
         const searchDigits = String(qs.ocrsearch || '').replace(/\D/g, '');
@@ -185,26 +213,37 @@ class OcrConferencesController {
         })
             .where('indeximages.companies_id', authenticate.companies_id)
             .andWhere('indeximages.typebooks_id', typebooksId)
-            .select('checks.id', 'checks.layout_profile', 'checks.expected_sheet', 'checks.detected_sheet', 'checks.expected_term', 'checks.detected_term', 'checks.sheet_status', 'checks.term_status', 'checks.confidence', 'checks.confidence_level', 'checks.evidence_text', 'checks.source', 'checks.auto_applied', 'checks.review_status', 'checks.processed_at', 'bookrecords.id as bookrecord_id', 'bookrecords.cod', 'bookrecords.book', 'bookrecords.sheet', 'bookrecords.side', 'bookrecords.approximate_term', 'bookrecords.indexbook', 'bookrecords.year', 'bookrecords.letter', 'bookrecords.obs', 'indeximages.file_name', 'indeximages.ext')
+            .select('checks.id', 'checks.layout_profile', 'checks.expected_sheet', 'checks.detected_sheet', 'checks.expected_term', 'checks.detected_term', 'checks.sheet_status', 'checks.term_status', 'checks.confidence', 'checks.confidence_level', 'checks.evidence_text', 'checks.source', 'checks.auto_applied', 'checks.review_status', 'checks.line_marker', 'checks.processed_at', 'bookrecords.id as bookrecord_id', 'bookrecords.cod', 'bookrecords.book', 'bookrecords.sheet', 'bookrecords.side', 'bookrecords.approximate_term', 'bookrecords.indexbook', 'bookrecords.year', 'bookrecords.letter', 'bookrecords.obs', 'indeximages.seq', 'indeximages.file_name', 'indeximages.ext')
             .orderBy('bookrecords.book', 'asc')
             .orderBy('bookrecords.sheet', 'asc')
             .orderBy('bookrecords.cod', 'asc')
-            .orderBy('checks.seq', 'asc');
+            .orderBy('indeximages.seq', 'asc');
         this.applyBookrecordFilters(query, qs, 'bookrecords');
-        if (qs.sheetstatus === 'not_processed')
-            query.whereNull('checks.id');
+        if (qs.sheetstatus === 'not_processed') {
+            query.where((notProcessedQuery) => {
+                notProcessedQuery.whereNull('checks.id').orWhereNull('checks.processed_at');
+            });
+        }
         else if (qs.sheetstatus)
             query.andWhere('checks.sheet_status', qs.sheetstatus);
-        if (qs.termstatus === 'not_processed')
-            query.whereNull('checks.id');
+        if (qs.termstatus === 'not_processed') {
+            query.where((notProcessedQuery) => {
+                notProcessedQuery.whereNull('checks.id').orWhereNull('checks.processed_at');
+            });
+        }
         else if (qs.termstatus)
             query.andWhere('checks.term_status', qs.termstatus);
         if (qs.confidencelevel)
             query.andWhere('checks.confidence_level', qs.confidencelevel);
-        if (qs.reviewstatus === 'not_processed')
-            query.whereNull('checks.id');
+        if (qs.reviewstatus === 'not_processed') {
+            query.where((notProcessedQuery) => {
+                notProcessedQuery.whereNull('checks.id').orWhereNull('checks.processed_at');
+            });
+        }
         else if (qs.reviewstatus)
             query.andWhere('checks.review_status', qs.reviewstatus);
+        if (this.booleanValue(qs.linemarker || qs.lineMarker))
+            query.andWhere('checks.line_marker', true);
         if (search) {
             query.whereExists((entityQuery) => {
                 entityQuery
@@ -224,7 +263,7 @@ class OcrConferencesController {
                 });
             });
         }
-        const result = await query.paginate(page, 50);
+        const result = await query.paginate(page, perPage);
         return response.status(200).send(result);
     }
     async process({ auth, params, request, response }) {
@@ -264,6 +303,7 @@ class OcrConferencesController {
             letter: input.letter,
             side: input.side,
             obs: input.obs,
+            lineMarker: input.lineMarker !== undefined ? input.lineMarker : input.linemarker,
         };
         const layoutProfile = this.layoutProfile(body.layoutProfile);
         const extractionOptions = {
@@ -307,6 +347,7 @@ class OcrConferencesController {
             letter: body.letter,
             side: body.side,
             obs: body.obs,
+            lineMarker: body.lineMarker,
         };
         const buildSelectionQuery = () => {
             const selectionQuery = Database_1.default
@@ -320,6 +361,18 @@ class OcrConferencesController {
                 .where('indeximages.companies_id', authenticate.companies_id)
                 .andWhere('indeximages.typebooks_id', typebooksId);
             this.applyBookrecordFilters(selectionQuery, filterValues, 'bookrecords');
+            if (this.booleanValue(filterValues.lineMarker)) {
+                selectionQuery.whereExists((checkQuery) => {
+                    checkQuery
+                        .from('indeximage_ocr_checks as marker_checks')
+                        .whereRaw('marker_checks.companies_id = indeximages.companies_id')
+                        .whereRaw('marker_checks.typebooks_id = indeximages.typebooks_id')
+                        .whereRaw('marker_checks.bookrecords_id = indeximages.bookrecords_id')
+                        .whereRaw('marker_checks.seq = indeximages.seq')
+                        .where('marker_checks.layout_profile', layoutProfile)
+                        .where('marker_checks.line_marker', true);
+                });
+            }
             if (singleFileName)
                 selectionQuery.andWhere('indeximages.file_name', singleFileName);
             if (Number.isInteger(bookrecordsId) && bookrecordsId > 0)
@@ -336,9 +389,11 @@ class OcrConferencesController {
                     .whereRaw('checks.typebooks_id = indeximages.typebooks_id')
                     .whereRaw('checks.bookrecords_id = indeximages.bookrecords_id')
                     .whereRaw('checks.seq = indeximages.seq')
-                    .where('checks.layout_profile', layoutProfile);
+                    .where('checks.layout_profile', layoutProfile)
+                    .whereNotNull('checks.processed_at');
             });
         };
+        const reconciledSheetMatches = await this.reconcileProcessedSheetMatches(buildSelectionQuery, layoutProfile);
         const matchingBeforePending = this.countValue(await buildSelectionQuery().count('* as total').first());
         const matchingAfterPending = force
             ? matchingBeforePending
@@ -360,6 +415,7 @@ class OcrConferencesController {
             selected: indeximages.length,
             total_filter_rows: matchingBeforePending,
             drive_files_found: driveFileIdsFound,
+            reconciled_sheet_matches: reconciledSheetMatches,
             processed: 0,
             skipped: 0,
             errors: [],
@@ -371,6 +427,7 @@ class OcrConferencesController {
                 limit,
                 matching_before_pending: matchingBeforePending,
                 matching_after_pending: matchingAfterPending,
+                reconciled_sheet_matches: reconciledSheetMatches,
                 drive_lookup_by_name: needsDriveNameLookup,
                 extraction_options: extractionOptions,
                 filters: filterValues,
@@ -521,6 +578,152 @@ class OcrConferencesController {
         check.confidence_level = this.confidenceLevel(check.confidence);
         await check.save();
         return response.status(200).send({ check, applied: payload });
+    }
+    async updateSheet({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
+        const typebooksId = Number(params.typebooks_id);
+        const bookrecordId = Number(params.bookrecord_id);
+        const sequence = Number(request.input('seq'));
+        const layoutProfile = this.layoutProfile(request.input('layoutProfile') || request.input('layoutprofile'));
+        const rawSheet = request.input('sheet');
+        const sheet = rawSheet === undefined || rawSheet === null || String(rawSheet).trim() === ''
+            ? null
+            : Number(rawSheet);
+        if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+            return response.status(400).send({ message: 'typebooks_id inválido' });
+        }
+        if (!Number.isInteger(bookrecordId) || bookrecordId <= 0) {
+            return response.status(400).send({ message: 'bookrecord_id inválido' });
+        }
+        if (sheet !== null && (!Number.isInteger(sheet) || sheet < 0)) {
+            return response.status(400).send({ message: 'Folha inválida' });
+        }
+        const bookrecord = await Bookrecord_1.default
+            .query()
+            .where('id', bookrecordId)
+            .andWhere('companies_id', authenticate.companies_id)
+            .andWhere('typebooks_id', typebooksId)
+            .first();
+        if (!bookrecord)
+            return response.status(404).send({ message: 'Registro não encontrado' });
+        bookrecord.sheet = sheet;
+        await bookrecord.save();
+        let check = null;
+        if (Number.isInteger(sequence) && sequence >= 0) {
+            check = await IndeximageOcrCheck_1.default
+                .query()
+                .where('companies_id', authenticate.companies_id)
+                .andWhere('typebooks_id', typebooksId)
+                .andWhere('bookrecords_id', bookrecordId)
+                .andWhere('seq', sequence)
+                .andWhere('layout_profile', layoutProfile)
+                .first();
+            if (check) {
+                check.expected_sheet = sheet;
+                check.sheet_status = (0, indexImageOcrConference_1.compareNumberStatus)(sheet, check.detected_sheet);
+                check.review_status = 'corrected_manually';
+                await check.save();
+            }
+        }
+        return response.status(200).send({
+            bookrecord: {
+                id: bookrecord.id,
+                sheet: bookrecord.sheet,
+            },
+            check,
+        });
+    }
+    async updateMarker({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
+        const checkId = Number(params.id);
+        const markerInput = request.input('lineMarker') !== undefined
+            ? request.input('lineMarker')
+            : request.input('line_marker');
+        const lineMarker = this.booleanValue(markerInput);
+        if (!Number.isInteger(checkId) || checkId <= 0) {
+            return response.status(400).send({ message: 'id inválido' });
+        }
+        const check = await IndeximageOcrCheck_1.default
+            .query()
+            .where('id', checkId)
+            .andWhere('companies_id', authenticate.companies_id)
+            .first();
+        if (!check)
+            return response.status(404).send({ message: 'Conferência não encontrada' });
+        check.line_marker = lineMarker;
+        await check.save();
+        return response.status(200).send({ check });
+    }
+    async updateRowMarker({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
+        const typebooksId = Number(params.typebooks_id);
+        const bookrecordId = Number(params.bookrecord_id);
+        const sequence = Number(request.input('seq'));
+        const layoutProfile = this.layoutProfile(request.input('layoutProfile') || request.input('layoutprofile'));
+        const markerInput = request.input('lineMarker') !== undefined
+            ? request.input('lineMarker')
+            : request.input('line_marker');
+        const lineMarker = this.booleanValue(markerInput);
+        if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+            return response.status(400).send({ message: 'typebooks_id inválido' });
+        }
+        if (!Number.isInteger(bookrecordId) || bookrecordId <= 0) {
+            return response.status(400).send({ message: 'bookrecord_id inválido' });
+        }
+        if (!Number.isInteger(sequence) || sequence < 0) {
+            return response.status(400).send({ message: 'seq inválido' });
+        }
+        const row = await Database_1.default
+            .from('indeximages as indeximages')
+            .join('bookrecords as bookrecords', (join) => {
+            join
+                .on('bookrecords.id', 'indeximages.bookrecords_id')
+                .andOn('bookrecords.typebooks_id', 'indeximages.typebooks_id')
+                .andOn('bookrecords.companies_id', 'indeximages.companies_id');
+        })
+            .where('indeximages.companies_id', authenticate.companies_id)
+            .andWhere('indeximages.typebooks_id', typebooksId)
+            .andWhere('indeximages.bookrecords_id', bookrecordId)
+            .andWhere('indeximages.seq', sequence)
+            .select('bookrecords.sheet', 'bookrecords.approximate_term')
+            .first();
+        if (!row)
+            return response.status(404).send({ message: 'Imagem não encontrada' });
+        let check = await IndeximageOcrCheck_1.default
+            .query()
+            .where('companies_id', authenticate.companies_id)
+            .andWhere('typebooks_id', typebooksId)
+            .andWhere('bookrecords_id', bookrecordId)
+            .andWhere('seq', sequence)
+            .andWhere('layout_profile', layoutProfile)
+            .first();
+        if (check) {
+            check.line_marker = lineMarker;
+            await check.save();
+            return response.status(200).send({ check });
+        }
+        check = await IndeximageOcrCheck_1.default.create({
+            companies_id: authenticate.companies_id,
+            typebooks_id: typebooksId,
+            bookrecords_id: bookrecordId,
+            seq: sequence,
+            layout_profile: layoutProfile,
+            expected_sheet: row.sheet ?? null,
+            expected_term: row.approximate_term ?? null,
+            sheet_status: 'not_found',
+            term_status: 'not_found',
+            auto_applied: false,
+            review_status: 'pending',
+            line_marker: lineMarker,
+            processed_at: null,
+        });
+        return response.status(200).send({ check });
     }
 }
 exports.default = OcrConferencesController;

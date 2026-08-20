@@ -13,12 +13,17 @@ class default_1 extends Schema_1.default {
         const hasColumn = await this.schema.hasColumn(this.tableName, columnName);
         if (!hasColumn)
             return;
-        await this.schema.raw(`
-      ALTER TABLE \`${this.tableName}\`
-      DROP COLUMN \`${columnName}\`,
-      ALGORITHM=INSTANT,
-      LOCK=NONE
-    `);
+        try {
+            await this.schema.alterTable(this.tableName, (table) => {
+                table.dropColumn(columnName);
+            });
+        }
+        catch (error) {
+            const databaseError = error;
+            const columnAlreadyRemoved = databaseError.code === 'ER_CANT_DROP_FIELD_OR_KEY' || databaseError.errno === 1091;
+            if (!columnAlreadyRemoved)
+                throw error;
+        }
     }
     async up() {
         await this.dropColumnIfExists('name');

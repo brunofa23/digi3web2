@@ -58,6 +58,9 @@ export default class IndeximageOcrCheck extends BaseModel {
   @column()
   public review_status: string
 
+  @column()
+  public line_marker: boolean
+
   @column.dateTime()
   public processed_at: DateTime | null
 
