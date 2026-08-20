@@ -189,14 +189,16 @@ export default class OcrConferencesController {
 
     if (!ids.length) return 0
 
-    await Database
-      .from('indeximage_ocr_checks')
-      .whereIn('id', ids)
-      .update({
-        expected_sheet: Database.raw('detected_sheet'),
-        sheet_status: 'match',
-        updated_at: DateTime.local().toSQL(),
-      })
+    await Database.rawQuery(
+      `
+        UPDATE indeximage_ocr_checks
+        SET expected_sheet = detected_sheet,
+            sheet_status = ?,
+            updated_at = ?
+        WHERE id IN (${ids.map(() => '?').join(', ')})
+      `,
+      ['match', DateTime.local().toSQL(), ...ids]
+    )
 
     return ids.length
   }
