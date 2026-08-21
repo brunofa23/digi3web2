@@ -2,12 +2,21 @@ import Application from '@ioc:Adonis/Core/Application'
 
 const fs = require('fs');
 async function DeleteFiles(folderPath) {
-  // fs.unlink(`${folderPath}`, (err) => {
-  //   if (err) {
-  //     throw "ERRO DELETE::" + err;
-  //   }
-  //   return true
-  // });
+  if (!folderPath) return false
+
+  try {
+    if (!fs.existsSync(folderPath)) return false
+
+    const stats = fs.statSync(folderPath)
+    if (stats.isDirectory()) return false
+
+    fs.unlinkSync(folderPath)
+
+    return true
+  } catch (error) {
+    console.error('Erro ao excluir arquivo temporário:', error)
+    return false
+  }
 }
 
 

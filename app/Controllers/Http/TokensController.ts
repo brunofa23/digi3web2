@@ -1,32 +1,72 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import BadRequestException from 'App/Exceptions/BadRequestException'
+import AuditLogger from 'App/Services/Audit/AuditLogger'
 import Token from 'App/Models/Token'
+import { schema, rules } from '@ioc:Adonis/Core/Validator'
 
 export default class TokensController {
 
-    //*****MODELO DE INSERÇÃO DO TOKEN */
-    // {
-    //     "id": "1",
-    //     "name": "tokenGoogle",
-    //     "credentials": "{\"web\":{\"client_id\": \"978830289909-q6jl9jj60afudibmtooj8bt8bt3s2kuu.apps.googleusercontent.com\",\"project_id\": \"digi3web\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\":\"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_secret\": \"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\",\"redirect_uris\": [\"http://localhost:3334/oauth2callback\",\"http://localhost:3335/oauth2callback\"],\"javascript_origins\": [\"http://localhost\",\"http://localhost:3334\",\"http://localhost:3335\"]}}",
-    //     "accountname": "digi3@gmail.com",
-    //     "status": 1
-    //   }
+    private validateJsonField(value: string | undefined, field: string) {
+        if (value === undefined) return
 
-    public async store({ auth, response, request }: HttpContextContract) {
-        const authenticate = await auth.use('api').authenticate()
-        const data = request.only(Token.fillable)
-        if (authenticate.companies_id == 1 && authenticate.superuser == true) {
-            try {
-                const searchPayload = { name: data.name }
-                const persistancePayload = data
-                await Token.updateOrCreate(searchPayload, persistancePayload)
-                return response.status(200).send("salvo")
-            } catch (error) {
-                throw error
-                //throw new BadRequest('Bad Request', 401, 'erro')
-            }
+        try {
+            JSON.parse(value)
+        } catch (error) {
+            throw new BadRequestException(`${field} inválido`, 422, 'token_invalid_json')
         }
-        else return "não liberado"
+    }
+
+    public async store(ctx: HttpContextContract) {
+        const { auth, response, request } = ctx
+        const authenticate = await auth.use('api').authenticate()
+
+        if (authenticate.companies_id !== 1 || authenticate.superuser !== true) {
+            throw new BadRequestException('Acesso não liberado', 403, 'token_forbidden')
+        }
+
+        const tokenSchema = schema.create({
+            id: schema.number.optional([rules.unsigned()]),
+            name: schema.string({ trim: true }, [rules.maxLength(80)]),
+            token: schema.string.optional({ trim: true }),
+            credentials: schema.string.optional({ trim: true }),
+            accountname: schema.string({ trim: true }, [rules.maxLength(255)]),
+            status: schema.boolean.optional(),
+        })
+
+        const { id: _ignoredId, ...data } = await request.validate({ schema: tokenSchema })
+
+        this.validateJsonField(data.token, 'token')
+        this.validateJsonField(data.credentials, 'credentials')
+
+        const existentToken = await Token.findBy('name', data.name)
+        const beforeData = existentToken?.serialize()
+        const persistedToken = await Token.updateOrCreate({ name: data.name }, data)
+
+        await AuditLogger.record(ctx, {
+            companiesId: authenticate.companies_id,
+            userId: authenticate.id,
+            action: existentToken ? 'google_drive_token_update' : 'google_drive_token_create',
+            entityTable: 'tokens',
+            entityId: persistedToken.id,
+            resourceKey: `tokens:${persistedToken.id}`,
+            entityKey: {
+                token_id: persistedToken.id,
+                name: persistedToken.name,
+            },
+            description: `Usuário ${authenticate.name || authenticate.username} alterou credenciais da nuvem ${persistedToken.name}`,
+            beforeData,
+            afterData: persistedToken,
+            metadata: {
+                token_id: persistedToken.id,
+                name: persistedToken.name,
+                accountname: persistedToken.accountname,
+                status: persistedToken.status,
+                token_changed: data.token !== undefined,
+                credentials_changed: data.credentials !== undefined,
+            },
+        })
+
+        return response.status(200).send("salvo")
     }
 
 

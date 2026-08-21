@@ -124,13 +124,16 @@ async function getToken(cloud_number: number) {
   try {
     //const token = await Token.findBy("name", 'tokenGoogle')
     const token = await Token.findOrFail(cloud_number)
+    if (!token.status) {
+      throw new Error(`Nuvem Google Drive inativa: ${cloud_number}`)
+    }
     if (!types.isNull(token?.token)) {
       token.token = JSON.parse(token.token)
       return token
     }
   } catch (error) {
     console.log("erro 1541", error)
-    return null
+    throw error
   }
 }
 
@@ -138,11 +141,14 @@ async function getCredentials(cloud_number: number) {
   try {
     //const credentials = await Token.findBy("name", 'tokenGoogle')
     const credentials = await Token.findOrFail(cloud_number)
+    if (!credentials.status) {
+      throw new Error(`Nuvem Google Drive inativa: ${cloud_number}`)
+    }
     credentials.credentials = JSON.parse(credentials.credentials)
     return credentials
   } catch (error) {
     console.log("erro 1542", error)
-    return null
+    throw error
   }
 }
 
