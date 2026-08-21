@@ -109,6 +109,9 @@ function configureGoogleAuthClient(client, cloud_number) {
 async function getToken(cloud_number) {
     try {
         const token = await Token_1.default.findOrFail(cloud_number);
+        if (!token.status) {
+            throw new Error(`Nuvem Google Drive inativa: ${cloud_number}`);
+        }
         if (!Helpers_1.types.isNull(token?.token)) {
             token.token = JSON.parse(token.token);
             return token;
@@ -116,18 +119,21 @@ async function getToken(cloud_number) {
     }
     catch (error) {
         console.log("erro 1541", error);
-        return null;
+        throw error;
     }
 }
 async function getCredentials(cloud_number) {
     try {
         const credentials = await Token_1.default.findOrFail(cloud_number);
+        if (!credentials.status) {
+            throw new Error(`Nuvem Google Drive inativa: ${cloud_number}`);
+        }
         credentials.credentials = JSON.parse(credentials.credentials);
         return credentials;
     }
     catch (error) {
         console.log("erro 1542", error);
-        return null;
+        throw error;
     }
 }
 async function generateCredentialsToJson(cloud_number) {

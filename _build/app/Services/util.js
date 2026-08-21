@@ -7,6 +7,21 @@ exports.verifyPermission = exports.currencyConverter = exports.logInJson = expor
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const fs = require('fs');
 async function DeleteFiles(folderPath) {
+    if (!folderPath)
+        return false;
+    try {
+        if (!fs.existsSync(folderPath))
+            return false;
+        const stats = fs.statSync(folderPath);
+        if (stats.isDirectory())
+            return false;
+        fs.unlinkSync(folderPath);
+        return true;
+    }
+    catch (error) {
+        console.error('Erro ao excluir arquivo temporário:', error);
+        return false;
+    }
 }
 exports.DeleteFiles = DeleteFiles;
 const verifyPermission = (isSuperuser = false, permissions = [], permission_id) => {
