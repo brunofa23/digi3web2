@@ -36,9 +36,9 @@ class Token extends Orm_1.BaseModel {
         }
     }
     static afterFind(token) {
-        if (!Helpers_1.types.isNull(token.token))
+        if (!Helpers_1.types.isNull(token.token) && typeof token.token === 'string' && token.token.trim() !== '')
             token.token = Encryption_1.default.decrypt(token.token);
-        if (!Helpers_1.types.isNull(token.credentials))
+        if (!Helpers_1.types.isNull(token.credentials) && typeof token.credentials === 'string' && token.credentials.trim() !== '')
             token.credentials = Encryption_1.default.decrypt(token.credentials);
     }
 }
