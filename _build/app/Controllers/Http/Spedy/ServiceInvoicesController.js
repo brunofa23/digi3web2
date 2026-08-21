@@ -192,6 +192,20 @@ class ServiceInvoicesController {
         const status = request.input('status');
         if (status)
             query.where('status', status);
+        const dateStart = request.input('dateStart') || request.input('date_start');
+        if (dateStart) {
+            const parsedDateStart = luxon_1.DateTime.fromISO(String(dateStart));
+            if (parsedDateStart.isValid) {
+                query.where('created_at', '>=', parsedDateStart.startOf('day').toSQL());
+            }
+        }
+        const dateEnd = request.input('dateEnd') || request.input('date_end');
+        if (dateEnd) {
+            const parsedDateEnd = luxon_1.DateTime.fromISO(String(dateEnd));
+            if (parsedDateEnd.isValid) {
+                query.where('created_at', '<=', parsedDateEnd.endOf('day').toSQL());
+            }
+        }
         const receiverName = String(request.input('receiverName') || request.input('receiver') || '').trim();
         if (receiverName) {
             query.where('receiver_name', 'like', `%${receiverName}%`);

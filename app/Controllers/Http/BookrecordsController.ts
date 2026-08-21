@@ -3069,8 +3069,8 @@ export default class BookrecordsController {
 
   public async updatedFiles({ auth, request, response }: HttpContextContract) {
     //const authenticate = await auth.use('api').authenticate()
-    const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side, typebooks_id } =
-      request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side'])
+    const { datestart, dateend, companies_id, bookstart, bookend, sheetstart, sheetend, side, typebooks_id, status } =
+      request.only(['datestart', 'dateend', 'companies_id', 'bookstart', 'bookend', 'sheetstart', 'sheetend', 'typebooks_id', 'side', 'status'])
     let query = '1=1'
     if (companies_id == undefined || companies_id == null) {
       throw new BadRequestException('Bad Request', 401, "Sem empresa Selecionada")
@@ -3109,10 +3109,14 @@ export default class BookrecordsController {
             .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
             .andOn('indeximages.companies_id', 'bookrecords.companies_id');
         })
+        .innerJoin('books', 'books.id', 'bookrecords.books_id')
         .select('bookrecords.*')
         .select('indeximages.file_name', 'indeximages.date_atualization')
         .whereBetween('indeximages.date_atualization', [datestart, dateend])
         .andWhere('bookrecords.companies_id', companies_id)
+        .if(status !== undefined && status !== null && status !== '', (statusQuery) => {
+          statusQuery.andWhere('books.status', Number(status))
+        })
         .whereRaw(query)
 
       return response.status(200).send(payLoad)
