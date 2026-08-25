@@ -204,8 +204,8 @@ export default class BookrecordsController {
       year,
       letter,
       sheetstart, sheetend,
-      side, obs, sheetzero, noAttachment,
-      lastPagesOfEachBook, codmax,
+      side, obs, sheetzero, noAttachment, noattachment,
+      lastPagesOfEachBook, lastpagesofeachbook, codmax,
       document,
       month,
       yeardoc,
@@ -225,6 +225,10 @@ export default class BookrecordsController {
       cpf,
       indeximagefield
     } = request.qs()
+    const filterNoAttachment = noAttachment || noattachment
+    const filterLastPagesOfEachBook = lastPagesOfEachBook || lastpagesofeachbook
+    const onlyNoAttachment = filterNoAttachment === true || filterNoAttachment == 'true'
+    const onlyLastPagesOfEachBook = filterLastPagesOfEachBook === true || filterLastPagesOfEachBook == 'true'
     const nameField = name || request.input('name')
     const cpfField = cpf || request.input('cpf')
     const indexImageField = indeximagefield || request.input('indexImageField') || request.input('indeximagefield')
@@ -241,10 +245,10 @@ export default class BookrecordsController {
 
     let query = " 1=1 "
     if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter)
+      !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter)
       return null
     //last pages of each book****************************
-    if (lastPagesOfEachBook) {
+    if (onlyLastPagesOfEachBook) {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
     }
 
@@ -253,12 +257,27 @@ export default class BookrecordsController {
     const limit = Env.get('PAGINATION')
     let data
     let queryExecute
-    if (noAttachment) {
+    if (onlyNoAttachment) {
       console.log("PASSO 1")
 
       queryExecute = Bookrecord.query()
         .where('companies_id', '=', authenticate.companies_id)
         .andWhere('typebooks_id', '=', params.typebooks_id)
+        .preload('indeximage', (queryIndex) => {
+          queryIndex.where("companies_id", '=', authenticate.companies_id)
+            .andWhere('typebooks_id', params.typebooks_id)
+        })
+        .preload('document', query => {
+          query.preload('documenttype', query => {
+            query.select('name')
+          })
+            .preload('documenttypebook', query => {
+              query.select('description')
+            })
+            .preload('entity', query => {
+              query.select('description')
+            })
+        })
         .whereNotExists((subquery) => {
           subquery
             .select('id')
