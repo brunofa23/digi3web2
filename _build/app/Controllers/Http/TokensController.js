@@ -331,9 +331,6 @@ class TokensController {
         if (status) {
             warnings.push('Inative a nuvem antes de revogar no Google.');
         }
-        if (companiesCount > 0) {
-            warnings.push('Remova as empresas vinculadas antes de revogar no Google.');
-        }
         if (!tokenInfo.exists) {
             warnings.push('Token OAuth não encontrado no banco.');
         }
@@ -356,7 +353,6 @@ class TokensController {
             warnings.push('Credenciais OAuth não estão em JSON válido.');
         }
         const readyToRevoke = !status
-            && companiesCount === 0
             && tokenInfo.decryptable
             && tokenInfo.json_valid
             && !!tokenInfo.data?.refresh_token;
@@ -427,15 +423,6 @@ class TokensController {
         const status = this.isEnabled(token.status);
         if (status) {
             throw new BadRequestException_1.default('Inative a nuvem antes de revogar no Google', 422, 'token_revoke_requires_inactive');
-        }
-        const companies = await Database_1.default
-            .from('companies')
-            .where('cloud', token.id)
-            .count('id as total')
-            .first();
-        const companiesCount = Number(companies?.total || 0);
-        if (companiesCount > 0) {
-            throw new BadRequestException_1.default('Remova as empresas vinculadas antes de revogar no Google', 422, 'token_revoke_has_linked_companies');
         }
         const tokenInfo = this.inspectEncryptedJson(token.token);
         if (!tokenInfo.decryptable || !tokenInfo.json_valid || !tokenInfo.data?.refresh_token) {
@@ -529,10 +516,13 @@ class TokensController {
             id: Validator_1.schema.number.optional([Validator_1.rules.unsigned()]),
             name: Validator_1.schema.string({ trim: true }, [Validator_1.rules.maxLength(80)]),
             accountname: Validator_1.schema.string({ trim: true }, [Validator_1.rules.maxLength(255)]),
-            credentials: Validator_1.schema.string({ trim: true }),
+            credentials: Validator_1.schema.string.optional({ trim: true }),
             frontend_redirect: Validator_1.schema.string.optional({ trim: true }),
         });
         const data = await request.validate({ schema: oauthSchema });
+        if (!data.id && !data.credentials) {
+            throw new BadRequestException_1.default('credentials é obrigatório para nova nuvem', 422, 'token_credentials_required');
+        }
         const existentTokenQuery = Database_1.default
             .from('tokens')
             .select('id')
@@ -544,15 +534,14 @@ class TokensController {
         if (existentToken) {
             throw new BadRequestException_1.default('Já existe uma nuvem com esse nome', 409, 'token_name_exists');
         }
-        const credentialsJson = this.parseCredentialsJson(data.credentials);
-        const oauthCredentials = this.getOAuthClientCredentials(credentialsJson);
+        let credentialsJson = data.credentials ? this.parseCredentialsJson(data.credentials) : null;
         const redirectUri = this.getBackendOAuthRedirectUri(ctx);
         const frontendRedirect = this.getSafeFrontendRedirect(ctx, data.frontend_redirect);
         let token;
         if (data.id) {
             const existingToken = await Database_1.default
                 .from('tokens')
-                .select('id', 'name', 'accountname', 'status', 'token')
+                .select('id', 'name', 'accountname', 'status', 'token', 'credentials')
                 .where('id', data.id)
                 .first();
             if (!existingToken) {
@@ -565,17 +554,27 @@ class TokensController {
             if (tokenInfo.data?.refresh_token) {
                 throw new BadRequestException_1.default('A nuvem ainda possui token OAuth. Revogue o token antigo antes de reautorizar.', 422, 'token_reauthorize_requires_revoked_oauth');
             }
-            await Database_1.default
-                .from('tokens')
-                .where('id', existingToken.id)
-                .update({
+            if (!credentialsJson) {
+                const credentialsInfo = this.inspectEncryptedJson(existingToken.credentials);
+                if (!credentialsInfo.decryptable || !credentialsInfo.json_valid) {
+                    throw new BadRequestException_1.default('Credenciais OAuth não encontradas para reautorização', 422, 'token_reauthorize_credentials_missing');
+                }
+                credentialsJson = credentialsInfo.data;
+            }
+            const updatePayload = {
                 name: data.name,
                 accountname: data.accountname,
-                credentials: await Encryption_1.default.encrypt(JSON.stringify(credentialsJson)),
                 token: null,
                 status: false,
                 updated_at: new Date(),
-            });
+            };
+            if (data.credentials) {
+                updatePayload.credentials = await Encryption_1.default.encrypt(JSON.stringify(credentialsJson));
+            }
+            await Database_1.default
+                .from('tokens')
+                .where('id', existingToken.id)
+                .update(updatePayload);
             token = {
                 id: existingToken.id,
                 name: data.name,
@@ -584,6 +583,9 @@ class TokensController {
             };
         }
         else {
+            if (!credentialsJson) {
+                throw new BadRequestException_1.default('credentials é obrigatório para nova nuvem', 422, 'token_credentials_required');
+            }
             token = await Token_1.default.create({
                 name: data.name,
                 accountname: data.accountname,
@@ -591,6 +593,7 @@ class TokensController {
                 status: false,
             });
         }
+        const oauthCredentials = this.getOAuthClientCredentials(credentialsJson);
         const state = Encryption_1.default.encrypt(JSON.stringify({
             token_id: token.id,
             user_id: authenticate.id,
