@@ -34,7 +34,7 @@ function isRetryableGoogleDriveError(error) {
   ].includes(code) || message.includes('Premature close') || message.includes('socket hang up')
 }
 
-function sanitizeGoogleDriveError(error, message = undefined) {
+function sanitizeGoogleDriveError(error, message: string | undefined = undefined) {
   const sanitized: any = new Error(message || error?.message || 'Google Drive request failed')
   sanitized.name = error?.name || 'GoogleDriveError'
   sanitized.code = error?.code
@@ -176,6 +176,25 @@ async function loadSavedCredentialsIfExist(cloud_number: number) {
       return null;
     }
   }
+}
+
+async function loadSavedCredentialsOrFail(cloud_number: number) {
+  const auth = await loadSavedCredentialsIfExist(cloud_number)
+
+  if (!auth) {
+    throw new Error('Nuvem sem autorização válida. Reautorize a conta Google.')
+  }
+
+  return auth
+}
+
+async function validateGoogleDriveConnection(authClient) {
+  const drive = google.drive({ version: 'v3', auth: authClient });
+  await drive.about.get({
+    fields: 'user(emailAddress)'
+  })
+
+  return true
 }
 
 async function saveCredentials(client, cloud_number: number) {
@@ -593,6 +612,23 @@ async function sendAuthorize(cloud_number: number) {
   return true
 }
 
+async function sendValidateConnection(cloud_number: number) {
+  const auth = await loadSavedCredentialsOrFail(cloud_number)
+
+  try {
+    await validateGoogleDriveConnection(auth)
+    return true
+  } catch (error) {
+    const googleError = error?.response?.data?.error || error?.code
+
+    if (googleError === 'invalid_grant' || error?.googleAuthTokenError) {
+      throw new Error('Autorização Google inválida ou expirada. Reautorize a conta Google.')
+    }
+
+    throw sanitizeGoogleDriveError(error, 'Não foi possível validar a conexão com o Google Drive.')
+  }
+}
+
 async function sendListFiles(cloud_number: number, folderId = "") {
   //authorize().then(listFiles(folderId)).catch(console.error);
   const auth = await authorize(cloud_number)
@@ -680,4 +716,4 @@ async function sendRenameFile(fileId, newTitle, cloud_number: number) {
 
 }
 
-export { sendListFiles, sendUploadFiles, sendAuthorize, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDownloadFileBuffer, sendDeleteFile, sendListAllFiles, sendListAllFilesMetadata, sendRenameFile }
+export { sendListFiles, sendUploadFiles, sendAuthorize, sendValidateConnection, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDownloadFileBuffer, sendDeleteFile, sendListAllFiles, sendListAllFilesMetadata, sendRenameFile }

@@ -4,7 +4,7 @@ import AuditLogger from 'App/Services/Audit/AuditLogger'
 import Database from '@ioc:Adonis/Lucid/Database'
 import Token from 'App/Models/Token'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
-import { sendAuthorize } from 'App/Services/googleDrive/googledrive'
+import { sendValidateConnection } from 'App/Services/googleDrive/googledrive'
 import Encryption from '@ioc:Adonis/Core/Encryption'
 import Env from '@ioc:Adonis/Core/Env'
 
@@ -222,7 +222,7 @@ export default class TokensController {
             .firstOrFail()
 
         try {
-            await sendAuthorize(token.id)
+            await sendValidateConnection(token.id)
 
             await AuditLogger.record(ctx, {
                 companiesId: authenticate.companies_id,
@@ -293,14 +293,38 @@ export default class TokensController {
         })
 
         const data = await request.validate({ schema: statusSchema })
-        const token = await Token.query()
-            .select('id', 'name', 'accountname', 'status')
+        const token = await Database
+            .from('tokens')
+            .select('id', 'name', 'accountname', 'status', 'token')
             .where('id', params.id)
-            .firstOrFail()
-        const beforeData = token.serialize()
+            .first()
 
-        token.status = data.status
-        await token.save()
+        if (!token) {
+            throw new BadRequestException('Nuvem não encontrada', 404, 'token_not_found')
+        }
+
+        if (data.status) {
+            const tokenInfo = this.inspectEncryptedJson(token.token)
+
+            if (!tokenInfo.decryptable || !tokenInfo.json_valid || !tokenInfo.data?.refresh_token) {
+                throw new BadRequestException('Nuvem sem autorização válida. Reautorize a conta Google antes de ativar.', 422, 'token_activation_requires_valid_oauth')
+            }
+        }
+
+        const beforeData = {
+            id: token.id,
+            name: token.name,
+            accountname: token.accountname,
+            status: this.isEnabled(token.status),
+        }
+
+        await Database
+            .from('tokens')
+            .where('id', token.id)
+            .update({
+                status: data.status,
+                updated_at: new Date(),
+            })
 
         await AuditLogger.record(ctx, {
             companiesId: authenticate.companies_id,
@@ -319,14 +343,14 @@ export default class TokensController {
                 id: token.id,
                 name: token.name,
                 accountname: token.accountname,
-                status: token.status,
+                status: data.status,
             },
             metadata: {
                 token_id: token.id,
                 name: token.name,
                 accountname: token.accountname,
                 previous_status: beforeData.status,
-                status: token.status,
+                status: data.status,
             },
         })
 
@@ -335,7 +359,7 @@ export default class TokensController {
                 id: token.id,
                 name: token.name,
                 accountname: token.accountname,
-                status: token.status,
+                status: data.status,
             },
             message: data.status ? 'Nuvem ativada com sucesso' : 'Nuvem inativada com sucesso',
         })
@@ -377,6 +401,9 @@ export default class TokensController {
         if (status) {
             warnings.push('Inative a nuvem antes de revogar no Google.')
         }
+        if (companiesCount > 0) {
+            warnings.push('Remova as empresas vinculadas antes de revogar no Google.')
+        }
         if (!tokenInfo.exists) {
             warnings.push('Token OAuth não encontrado no banco.')
         } else if (!tokenInfo.decryptable) {
@@ -395,6 +422,7 @@ export default class TokensController {
         }
 
         const readyToRevoke = !status
+            && companiesCount === 0
             && tokenInfo.decryptable
             && tokenInfo.json_valid
             && !!tokenInfo.data?.refresh_token
@@ -477,6 +505,17 @@ export default class TokensController {
         const status = this.isEnabled(token.status)
         if (status) {
             throw new BadRequestException('Inative a nuvem antes de revogar no Google', 422, 'token_revoke_requires_inactive')
+        }
+
+        const companies = await Database
+            .from('companies')
+            .where('cloud', token.id)
+            .count('id as total')
+            .first()
+        const companiesCount = Number(companies?.total || 0)
+
+        if (companiesCount > 0) {
+            throw new BadRequestException('Remova as empresas vinculadas antes de revogar no Google', 422, 'token_revoke_has_linked_companies')
         }
 
         const tokenInfo = this.inspectEncryptedJson(token.token)
@@ -575,6 +614,7 @@ export default class TokensController {
         const authenticate = await this.authorizeCloudAdmin(ctx)
 
         const oauthSchema = schema.create({
+            id: schema.number.optional([rules.unsigned()]),
             name: schema.string({ trim: true }, [rules.maxLength(80)]),
             accountname: schema.string({ trim: true }, [rules.maxLength(255)]),
             credentials: schema.string({ trim: true }),
@@ -582,11 +622,16 @@ export default class TokensController {
         })
 
         const data = await request.validate({ schema: oauthSchema })
-        const existentToken = await Database
+        const existentTokenQuery = Database
             .from('tokens')
             .select('id')
             .where('name', data.name)
-            .first()
+
+        if (data.id) {
+            existentTokenQuery.whereNot('id', data.id)
+        }
+
+        const existentToken = await existentTokenQuery.first()
 
         if (existentToken) {
             throw new BadRequestException('Já existe uma nuvem com esse nome', 409, 'token_name_exists')
@@ -597,12 +642,54 @@ export default class TokensController {
         const redirectUri = this.getBackendOAuthRedirectUri(ctx)
         const frontendRedirect = this.getSafeFrontendRedirect(ctx, data.frontend_redirect)
 
-        const token = await Token.create({
-            name: data.name,
-            accountname: data.accountname,
-            credentials: JSON.stringify(credentialsJson),
-            status: false,
-        })
+        let token: any
+
+        if (data.id) {
+            const existingToken = await Database
+                .from('tokens')
+                .select('id', 'name', 'accountname', 'status', 'token')
+                .where('id', data.id)
+                .first()
+
+            if (!existingToken) {
+                throw new BadRequestException('Nuvem não encontrada', 404, 'token_not_found')
+            }
+
+            if (this.isEnabled(existingToken.status)) {
+                throw new BadRequestException('Inative a nuvem antes de reautorizar', 422, 'token_reauthorize_requires_inactive')
+            }
+
+            const tokenInfo = this.inspectEncryptedJson(existingToken.token)
+            if (tokenInfo.data?.refresh_token) {
+                throw new BadRequestException('A nuvem ainda possui token OAuth. Revogue o token antigo antes de reautorizar.', 422, 'token_reauthorize_requires_revoked_oauth')
+            }
+
+            await Database
+                .from('tokens')
+                .where('id', existingToken.id)
+                .update({
+                    name: data.name,
+                    accountname: data.accountname,
+                    credentials: await Encryption.encrypt(JSON.stringify(credentialsJson)),
+                    token: null,
+                    status: false,
+                    updated_at: new Date(),
+                })
+
+            token = {
+                id: existingToken.id,
+                name: data.name,
+                accountname: data.accountname,
+                status: false,
+            }
+        } else {
+            token = await Token.create({
+                name: data.name,
+                accountname: data.accountname,
+                credentials: JSON.stringify(credentialsJson),
+                status: false,
+            })
+        }
 
         const state = Encryption.encrypt(JSON.stringify({
             token_id: token.id,
@@ -642,6 +729,7 @@ export default class TokensController {
                 name: token.name,
                 accountname: token.accountname,
                 redirect_uri: redirectUri,
+                reauthorize: !!data.id,
             },
         })
 
