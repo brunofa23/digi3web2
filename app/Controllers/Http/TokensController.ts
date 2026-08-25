@@ -4,7 +4,7 @@ import AuditLogger from 'App/Services/Audit/AuditLogger'
 import Database from '@ioc:Adonis/Lucid/Database'
 import Token from 'App/Models/Token'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
-import { sendAuthorize } from 'App/Services/googleDrive/googledrive'
+import { sendValidateConnection } from 'App/Services/googleDrive/googledrive'
 import Encryption from '@ioc:Adonis/Core/Encryption'
 import Env from '@ioc:Adonis/Core/Env'
 
@@ -80,6 +80,20 @@ export default class TokensController {
 
     private getOAuthClientCredentials(credentials: any) {
         return credentials?.web || credentials?.installed || null
+    }
+
+    private async revokeGoogleToken(refreshToken: string) {
+        const revokeResponse = await fetch('https://oauth2.googleapis.com/revoke', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ token: refreshToken }).toString(),
+        })
+
+        if (!revokeResponse.ok) {
+            throw new BadRequestException('Google não aceitou a revogação do token', 422, 'token_revoke_google_failed')
+        }
     }
 
     private getBackendOAuthRedirectUri(ctx: HttpContextContract) {
@@ -208,7 +222,7 @@ export default class TokensController {
             .firstOrFail()
 
         try {
-            await sendAuthorize(token.id)
+            await sendValidateConnection(token.id)
 
             await AuditLogger.record(ctx, {
                 companiesId: authenticate.companies_id,
@@ -279,14 +293,38 @@ export default class TokensController {
         })
 
         const data = await request.validate({ schema: statusSchema })
-        const token = await Token.query()
-            .select('id', 'name', 'accountname', 'status')
+        const token = await Database
+            .from('tokens')
+            .select('id', 'name', 'accountname', 'status', 'token')
             .where('id', params.id)
-            .firstOrFail()
-        const beforeData = token.serialize()
+            .first()
 
-        token.status = data.status
-        await token.save()
+        if (!token) {
+            throw new BadRequestException('Nuvem não encontrada', 404, 'token_not_found')
+        }
+
+        if (data.status) {
+            const tokenInfo = this.inspectEncryptedJson(token.token)
+
+            if (!tokenInfo.decryptable || !tokenInfo.json_valid || !tokenInfo.data?.refresh_token) {
+                throw new BadRequestException('Nuvem sem autorização válida. Reautorize a conta Google antes de ativar.', 422, 'token_activation_requires_valid_oauth')
+            }
+        }
+
+        const beforeData = {
+            id: token.id,
+            name: token.name,
+            accountname: token.accountname,
+            status: this.isEnabled(token.status),
+        }
+
+        await Database
+            .from('tokens')
+            .where('id', token.id)
+            .update({
+                status: data.status,
+                updated_at: new Date(),
+            })
 
         await AuditLogger.record(ctx, {
             companiesId: authenticate.companies_id,
@@ -305,14 +343,14 @@ export default class TokensController {
                 id: token.id,
                 name: token.name,
                 accountname: token.accountname,
-                status: token.status,
+                status: data.status,
             },
             metadata: {
                 token_id: token.id,
                 name: token.name,
                 accountname: token.accountname,
                 previous_status: beforeData.status,
-                status: token.status,
+                status: data.status,
             },
         })
 
@@ -321,7 +359,7 @@ export default class TokensController {
                 id: token.id,
                 name: token.name,
                 accountname: token.accountname,
-                status: token.status,
+                status: data.status,
             },
             message: data.status ? 'Nuvem ativada com sucesso' : 'Nuvem inativada com sucesso',
         })
@@ -440,40 +478,228 @@ export default class TokensController {
         })
     }
 
+    public async revoke(ctx: HttpContextContract) {
+        const { params, response } = ctx
+        const authenticate = await this.authorizeCloudAdmin(ctx)
+
+        const token = await Database
+            .from('tokens')
+            .select(
+                'id',
+                'name',
+                'accountname',
+                'status',
+                'token'
+            )
+            .where('id', params.id)
+            .first()
+
+        if (!token) {
+            throw new BadRequestException('Nuvem não encontrada', 404, 'token_not_found')
+        }
+
+        const status = this.isEnabled(token.status)
+        if (status) {
+            throw new BadRequestException('Inative a nuvem antes de revogar no Google', 422, 'token_revoke_requires_inactive')
+        }
+
+        const tokenInfo = this.inspectEncryptedJson(token.token)
+        if (!tokenInfo.decryptable || !tokenInfo.json_valid || !tokenInfo.data?.refresh_token) {
+            throw new BadRequestException('Refresh token não encontrado para revogação', 422, 'token_revoke_refresh_token_missing')
+        }
+
+        try {
+            await this.revokeGoogleToken(tokenInfo.data.refresh_token)
+
+            await Database
+                .from('tokens')
+                .where('id', token.id)
+                .update({
+                    token: null,
+                    status: false,
+                    updated_at: new Date(),
+                })
+
+            await AuditLogger.record(ctx, {
+                companiesId: authenticate.companies_id,
+                userId: authenticate.id,
+                action: 'google_drive_token_revoke',
+                entityTable: 'tokens',
+                entityId: token.id,
+                resourceKey: `tokens:${token.id}`,
+                entityKey: {
+                    token_id: token.id,
+                    name: token.name,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} revogou credenciais OAuth da nuvem ${token.name}`,
+                beforeData: {
+                    id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    status,
+                    has_token: true,
+                },
+                afterData: {
+                    id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    status: false,
+                    has_token: false,
+                },
+                metadata: {
+                    token_id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    revoked: true,
+                },
+            })
+
+            return response.status(200).send({
+                data: {
+                    id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    status: false,
+                    token_revoked: true,
+                },
+                message: 'Token revogado no Google e removido do Digi3',
+            })
+        } catch (error) {
+            if (error instanceof BadRequestException) {
+                throw error
+            }
+
+            await AuditLogger.record(ctx, {
+                companiesId: authenticate.companies_id,
+                userId: authenticate.id,
+                action: 'google_drive_token_revoke_failed',
+                entityTable: 'tokens',
+                entityId: token.id,
+                resourceKey: `tokens:${token.id}`,
+                entityKey: {
+                    token_id: token.id,
+                    name: token.name,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} tentou revogar credenciais OAuth da nuvem ${token.name}`,
+                metadata: {
+                    token_id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    revoked: false,
+                    error_message: error?.message,
+                },
+            })
+
+            throw new BadRequestException('Não foi possível revogar o token no Google', 422, 'token_revoke_failed')
+        }
+    }
+
     public async startOAuth(ctx: HttpContextContract) {
         const { request, response } = ctx
         const authenticate = await this.authorizeCloudAdmin(ctx)
 
         const oauthSchema = schema.create({
+            id: schema.number.optional([rules.unsigned()]),
             name: schema.string({ trim: true }, [rules.maxLength(80)]),
             accountname: schema.string({ trim: true }, [rules.maxLength(255)]),
-            credentials: schema.string({ trim: true }),
+            credentials: schema.string.optional({ trim: true }),
             frontend_redirect: schema.string.optional({ trim: true }),
         })
 
         const data = await request.validate({ schema: oauthSchema })
-        const existentToken = await Database
+
+        if (!data.id && !data.credentials) {
+            throw new BadRequestException('credentials é obrigatório para nova nuvem', 422, 'token_credentials_required')
+        }
+
+        const existentTokenQuery = Database
             .from('tokens')
             .select('id')
             .where('name', data.name)
-            .first()
+
+        if (data.id) {
+            existentTokenQuery.whereNot('id', data.id)
+        }
+
+        const existentToken = await existentTokenQuery.first()
 
         if (existentToken) {
             throw new BadRequestException('Já existe uma nuvem com esse nome', 409, 'token_name_exists')
         }
 
-        const credentialsJson = this.parseCredentialsJson(data.credentials)
-        const oauthCredentials = this.getOAuthClientCredentials(credentialsJson)
+        let credentialsJson = data.credentials ? this.parseCredentialsJson(data.credentials) : null
         const redirectUri = this.getBackendOAuthRedirectUri(ctx)
         const frontendRedirect = this.getSafeFrontendRedirect(ctx, data.frontend_redirect)
 
-        const token = await Token.create({
-            name: data.name,
-            accountname: data.accountname,
-            credentials: JSON.stringify(credentialsJson),
-            status: false,
-        })
+        let token: any
 
+        if (data.id) {
+            const existingToken = await Database
+                .from('tokens')
+                .select('id', 'name', 'accountname', 'status', 'token', 'credentials')
+                .where('id', data.id)
+                .first()
+
+            if (!existingToken) {
+                throw new BadRequestException('Nuvem não encontrada', 404, 'token_not_found')
+            }
+
+            if (this.isEnabled(existingToken.status)) {
+                throw new BadRequestException('Inative a nuvem antes de reautorizar', 422, 'token_reauthorize_requires_inactive')
+            }
+
+            const tokenInfo = this.inspectEncryptedJson(existingToken.token)
+            if (tokenInfo.data?.refresh_token) {
+                throw new BadRequestException('A nuvem ainda possui token OAuth. Revogue o token antigo antes de reautorizar.', 422, 'token_reauthorize_requires_revoked_oauth')
+            }
+
+            if (!credentialsJson) {
+                const credentialsInfo = this.inspectEncryptedJson(existingToken.credentials)
+
+                if (!credentialsInfo.decryptable || !credentialsInfo.json_valid) {
+                    throw new BadRequestException('Credenciais OAuth não encontradas para reautorização', 422, 'token_reauthorize_credentials_missing')
+                }
+
+                credentialsJson = credentialsInfo.data
+            }
+
+            const updatePayload: any = {
+                name: data.name,
+                accountname: data.accountname,
+                token: null,
+                status: false,
+                updated_at: new Date(),
+            }
+
+            if (data.credentials) {
+                updatePayload.credentials = await Encryption.encrypt(JSON.stringify(credentialsJson))
+            }
+
+            await Database
+                .from('tokens')
+                .where('id', existingToken.id)
+                .update(updatePayload)
+
+            token = {
+                id: existingToken.id,
+                name: data.name,
+                accountname: data.accountname,
+                status: false,
+            }
+        } else {
+            if (!credentialsJson) {
+                throw new BadRequestException('credentials é obrigatório para nova nuvem', 422, 'token_credentials_required')
+            }
+
+            token = await Token.create({
+                name: data.name,
+                accountname: data.accountname,
+                credentials: JSON.stringify(credentialsJson),
+                status: false,
+            })
+        }
+
+        const oauthCredentials = this.getOAuthClientCredentials(credentialsJson)
         const state = Encryption.encrypt(JSON.stringify({
             token_id: token.id,
             user_id: authenticate.id,
@@ -512,6 +738,7 @@ export default class TokensController {
                 name: token.name,
                 accountname: token.accountname,
                 redirect_uri: redirectUri,
+                reauthorize: !!data.id,
             },
         })
 

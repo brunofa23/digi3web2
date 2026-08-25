@@ -160,6 +160,7 @@ Route.group(() => {
   Route.get("/tokens", "TokensController.index")
   Route.get("/tokens/:id/test", "TokensController.test")
   Route.get("/tokens/:id/revoke-preview", "TokensController.revokePreview")
+  Route.post("/tokens/:id/revoke", "TokensController.revoke")
   Route.patch("/tokens/:id/status", "TokensController.updateStatus")
   Route.post("/tokens/oauth/start", "TokensController.startOAuth")
   Route.get("/tokens/oauth/callback", "TokensController.oauthCallback")

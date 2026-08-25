@@ -119,6 +119,7 @@ Route_1.default.group(() => {
     Route_1.default.get("/tokens", "TokensController.index");
     Route_1.default.get("/tokens/:id/test", "TokensController.test");
     Route_1.default.get("/tokens/:id/revoke-preview", "TokensController.revokePreview");
+    Route_1.default.post("/tokens/:id/revoke", "TokensController.revoke");
     Route_1.default.patch("/tokens/:id/status", "TokensController.updateStatus");
     Route_1.default.post("/tokens/oauth/start", "TokensController.startOAuth");
     Route_1.default.get("/tokens/oauth/callback", "TokensController.oauthCallback");

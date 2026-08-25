@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendRenameFile = exports.sendListAllFilesMetadata = exports.sendListAllFiles = exports.sendDeleteFile = exports.sendDownloadFileBuffer = exports.sendDownloadFile = exports.sendSearchOrCreateFolder = exports.sendSearchFile = exports.sendCreateFolder = exports.sendAuthorize = exports.sendUploadFiles = exports.sendListFiles = void 0;
+exports.sendRenameFile = exports.sendListAllFilesMetadata = exports.sendListAllFiles = exports.sendDeleteFile = exports.sendDownloadFileBuffer = exports.sendDownloadFile = exports.sendSearchOrCreateFolder = exports.sendSearchFile = exports.sendCreateFolder = exports.sendValidateConnection = exports.sendAuthorize = exports.sendUploadFiles = exports.sendListFiles = void 0;
 const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const Token_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Token"));
 const Helpers_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Helpers");
@@ -160,6 +160,20 @@ async function loadSavedCredentialsIfExist(cloud_number) {
             return null;
         }
     }
+}
+async function loadSavedCredentialsOrFail(cloud_number) {
+    const auth = await loadSavedCredentialsIfExist(cloud_number);
+    if (!auth) {
+        throw new Error('Nuvem sem autorização válida. Reautorize a conta Google.');
+    }
+    return auth;
+}
+async function validateGoogleDriveConnection(authClient) {
+    const drive = google.drive({ version: 'v3', auth: authClient });
+    await drive.about.get({
+        fields: 'user(emailAddress)'
+    });
+    return true;
 }
 async function saveCredentials(client, cloud_number) {
     const content = await fsPromises.readFile(CREDENTIALS_PATH);
@@ -468,6 +482,21 @@ async function sendAuthorize(cloud_number) {
     return true;
 }
 exports.sendAuthorize = sendAuthorize;
+async function sendValidateConnection(cloud_number) {
+    const auth = await loadSavedCredentialsOrFail(cloud_number);
+    try {
+        await validateGoogleDriveConnection(auth);
+        return true;
+    }
+    catch (error) {
+        const googleError = error?.response?.data?.error || error?.code;
+        if (googleError === 'invalid_grant' || error?.googleAuthTokenError) {
+            throw new Error('Autorização Google inválida ou expirada. Reautorize a conta Google.');
+        }
+        throw sanitizeGoogleDriveError(error, 'Não foi possível validar a conexão com o Google Drive.');
+    }
+}
+exports.sendValidateConnection = sendValidateConnection;
 async function sendListFiles(cloud_number, folderId = "") {
     const auth = await authorize(cloud_number);
     return listFiles(auth, folderId);
