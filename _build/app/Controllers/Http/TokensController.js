@@ -72,6 +72,18 @@ class TokensController {
     getOAuthClientCredentials(credentials) {
         return credentials?.web || credentials?.installed || null;
     }
+    async revokeGoogleToken(refreshToken) {
+        const revokeResponse = await fetch('https://oauth2.googleapis.com/revoke', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({ token: refreshToken }).toString(),
+        });
+        if (!revokeResponse.ok) {
+            throw new BadRequestException_1.default('Google não aceitou a revogação do token', 422, 'token_revoke_google_failed');
+        }
+    }
     getBackendOAuthRedirectUri(ctx) {
         const configuredUrl = Env_1.default.get('GOOGLE_DRIVE_OAUTH_CALLBACK_URL', '');
         if (configuredUrl) {
@@ -376,6 +388,106 @@ class TokensController {
                 ? 'Nuvem pronta para revogação no Google'
                 : 'Nuvem ainda não está pronta para revogação no Google',
         });
+    }
+    async revoke(ctx) {
+        const { params, response } = ctx;
+        const authenticate = await this.authorizeCloudAdmin(ctx);
+        const token = await Database_1.default
+            .from('tokens')
+            .select('id', 'name', 'accountname', 'status', 'token')
+            .where('id', params.id)
+            .first();
+        if (!token) {
+            throw new BadRequestException_1.default('Nuvem não encontrada', 404, 'token_not_found');
+        }
+        const status = this.isEnabled(token.status);
+        if (status) {
+            throw new BadRequestException_1.default('Inative a nuvem antes de revogar no Google', 422, 'token_revoke_requires_inactive');
+        }
+        const tokenInfo = this.inspectEncryptedJson(token.token);
+        if (!tokenInfo.decryptable || !tokenInfo.json_valid || !tokenInfo.data?.refresh_token) {
+            throw new BadRequestException_1.default('Refresh token não encontrado para revogação', 422, 'token_revoke_refresh_token_missing');
+        }
+        try {
+            await this.revokeGoogleToken(tokenInfo.data.refresh_token);
+            await Database_1.default
+                .from('tokens')
+                .where('id', token.id)
+                .update({
+                token: null,
+                status: false,
+                updated_at: new Date(),
+            });
+            await AuditLogger_1.default.record(ctx, {
+                companiesId: authenticate.companies_id,
+                userId: authenticate.id,
+                action: 'google_drive_token_revoke',
+                entityTable: 'tokens',
+                entityId: token.id,
+                resourceKey: `tokens:${token.id}`,
+                entityKey: {
+                    token_id: token.id,
+                    name: token.name,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} revogou credenciais OAuth da nuvem ${token.name}`,
+                beforeData: {
+                    id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    status,
+                    has_token: true,
+                },
+                afterData: {
+                    id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    status: false,
+                    has_token: false,
+                },
+                metadata: {
+                    token_id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    revoked: true,
+                },
+            });
+            return response.status(200).send({
+                data: {
+                    id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    status: false,
+                    token_revoked: true,
+                },
+                message: 'Token revogado no Google e removido do Digi3',
+            });
+        }
+        catch (error) {
+            if (error instanceof BadRequestException_1.default) {
+                throw error;
+            }
+            await AuditLogger_1.default.record(ctx, {
+                companiesId: authenticate.companies_id,
+                userId: authenticate.id,
+                action: 'google_drive_token_revoke_failed',
+                entityTable: 'tokens',
+                entityId: token.id,
+                resourceKey: `tokens:${token.id}`,
+                entityKey: {
+                    token_id: token.id,
+                    name: token.name,
+                },
+                description: `Usuário ${authenticate.name || authenticate.username} tentou revogar credenciais OAuth da nuvem ${token.name}`,
+                metadata: {
+                    token_id: token.id,
+                    name: token.name,
+                    accountname: token.accountname,
+                    revoked: false,
+                    error_message: error?.message,
+                },
+            });
+            throw new BadRequestException_1.default('Não foi possível revogar o token no Google', 422, 'token_revoke_failed');
+        }
     }
     async startOAuth(ctx) {
         const { request, response } = ctx;

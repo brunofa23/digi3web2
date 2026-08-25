@@ -38,10 +38,11 @@ class CompaniesController {
             let errorValidation = await new validations_1.default('company_error_100');
             throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
         }
-        const { status } = request.only(['status']);
-        let query = " 1=1 ";
-        if (status)
-            query += ` and status=${status} `;
+        const { status, cloud } = request.only(['status', 'cloud']);
+        const cloudFilter = cloud !== undefined && cloud !== null && cloud !== '' ? Number(cloud) : null;
+        if (cloudFilter !== null && !Number.isFinite(cloudFilter)) {
+            throw new BadRequestException_1.default('Filtro de nuvem inválido', 400, 'company_error_cloud_filter');
+        }
         try {
             const data = await Company_1.default
                 .query()
@@ -51,7 +52,12 @@ class CompaniesController {
                 .withCount('attachments', (attachmentsQuery) => {
                 attachmentsQuery.whereNull('deleted_at');
             })
-                .whereRaw(query);
+                .if(status !== undefined && status !== null && status !== '', query => {
+                query.where('status', status);
+            })
+                .if(cloud !== undefined && cloud !== null && cloud !== '', query => {
+                query.where('cloud', cloudFilter);
+            });
             return response.status(200).send(data);
         }
         catch (error) {
