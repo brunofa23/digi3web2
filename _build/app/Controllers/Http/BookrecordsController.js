@@ -154,7 +154,11 @@ class BookrecordsController {
     }
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, approximatetermend, indexbook, indexbookend, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, lastPagesOfEachBook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List, name, cpf, indeximagefield } = request.qs();
+        const { codstart, codend, bookstart, bookend, approximateterm, approximatetermend, indexbook, indexbookend, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, noattachment, lastPagesOfEachBook, lastpagesofeachbook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List, name, cpf, indeximagefield } = request.qs();
+        const filterNoAttachment = noAttachment || noattachment;
+        const filterLastPagesOfEachBook = lastPagesOfEachBook || lastpagesofeachbook;
+        const onlyNoAttachment = filterNoAttachment === true || filterNoAttachment == 'true';
+        const onlyLastPagesOfEachBook = filterLastPagesOfEachBook === true || filterLastPagesOfEachBook == 'true';
         const nameField = name || request.input('name');
         const cpfField = cpf || request.input('cpf');
         const indexImageField = indeximagefield || request.input('indexImageField') || request.input('indeximagefield');
@@ -168,20 +172,35 @@ class BookrecordsController {
             !!yeardoc || !!obs_document || !!fin_entity_List || hasDocumentCustomFilter);
         let query = " 1=1 ";
         if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-            (lastPagesOfEachBook == 'false' || !lastPagesOfEachBook) && noAttachment == 'false' && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter)
+            !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter)
             return null;
-        if (lastPagesOfEachBook) {
+        if (onlyLastPagesOfEachBook) {
             query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
         }
         const page = request.input('page', 1);
         const limit = Env_1.default.get('PAGINATION');
         let data;
         let queryExecute;
-        if (noAttachment) {
+        if (onlyNoAttachment) {
             console.log("PASSO 1");
             queryExecute = Bookrecord_1.default.query()
                 .where('companies_id', '=', authenticate.companies_id)
                 .andWhere('typebooks_id', '=', params.typebooks_id)
+                .preload('indeximage', (queryIndex) => {
+                queryIndex.where("companies_id", '=', authenticate.companies_id)
+                    .andWhere('typebooks_id', params.typebooks_id);
+            })
+                .preload('document', query => {
+                query.preload('documenttype', query => {
+                    query.select('name');
+                })
+                    .preload('documenttypebook', query => {
+                    query.select('description');
+                })
+                    .preload('entity', query => {
+                    query.select('description');
+                });
+            })
                 .whereNotExists((subquery) => {
                 subquery
                     .select('id')
