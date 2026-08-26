@@ -608,6 +608,14 @@ async function sendSearchFile(fileName, cloud_number: number, parentId = undefin
 }
 
 async function sendDeleteFile(fileId, cloud_number: number) {
+  if (!cloud_number) {
+    throw new Error('Empresa sem configuração de cloud')
+  }
+
+  if (!fileId || typeof fileId !== 'string') {
+    throw new Error('Arquivo Google Drive inválido para exclusão')
+  }
+
   const auth = await authorize(cloud_number)
   return deleteFile(auth, fileId)
 }
@@ -636,6 +644,18 @@ async function sendDownloadFileBuffer(fileId, cloud_number: number) {
 }
 
 async function sendRenameFile(fileId, newTitle, cloud_number: number) {
+  if (!cloud_number) {
+    throw new Error('Empresa sem configuração de cloud')
+  }
+
+  if (!fileId || typeof fileId !== 'string') {
+    throw new Error('Arquivo Google Drive inválido para renomeação')
+  }
+
+  if (!newTitle || typeof newTitle !== 'string' || newTitle.trim() === '') {
+    throw new Error('Novo nome de arquivo Google Drive inválido')
+  }
+
   const auth = await authorize(cloud_number)
   return renameFile(auth, fileId, newTitle)
 
