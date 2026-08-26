@@ -205,9 +205,14 @@ __decorate([
     __metadata("design:type", Object)
 ], MarriedCertificate.prototype, "dthrPrenup", void 0);
 __decorate([
-    Orm_1.column.date({
+    Orm_1.column.dateTime({
         columnName: 'document_schedule_date',
         serializeAs: 'documentScheduleDate',
+        serialize: (value) => {
+            if (!value)
+                return null;
+            return value.setZone('America/Sao_Paulo').toFormat("yyyy-LL-dd'T'HH:mm");
+        },
     }),
     __metadata("design:type", Object)
 ], MarriedCertificate.prototype, "documentScheduleDate", void 0);

@@ -247,7 +247,10 @@ export default class OrderCertificatesController {
           bookRegistryOfficePrenup: marriedData.bookRegistryOfficePrenup ?? null,
           sheetRegistryOfficePrenup: marriedData.sheetRegistryOfficePrenup ?? null,
           dthrPrenup: marriedData.dthrPrenup ?? null,
-          documentScheduleDate: marriedData.documentScheduleDate ?? null,
+          documentScheduleDate:
+            marriedData.documentScheduleDate && String(marriedData.documentScheduleDate).trim() !== ''
+              ? DateTime.fromISO(marriedData.documentScheduleDate, { zone: 'America/Sao_Paulo' })
+              : null,
 
           cerimonyLocation: marriedData.cerimonyLocation ?? '',
           otherCerimonyLocation: marriedData.otherCerimonyLocation ?? '',
@@ -730,8 +733,30 @@ export default class OrderCertificatesController {
       .orderBy('id', 'asc')
       .paginate(page, perPage)
 
-    const result = paginated.all().map((order) => {
+    const orders = paginated.all()
+    const marriedCertificateIds = orders
+      .filter((order) => Number(order.bookId) === 2 && order.certificateId)
+      .map((order) => order.certificateId)
+
+    const imageCounts = new Map<number, number>()
+
+    if (marriedCertificateIds.length) {
+      const counts = await Database
+        .from('image_certificates')
+        .select('married_certificate_id')
+        .count('* as total')
+        .where('companies_id', authenticate.companies_id)
+        .whereIn('married_certificate_id', marriedCertificateIds)
+        .groupBy('married_certificate_id')
+
+      counts.forEach((row) => {
+        imageCounts.set(Number(row.married_certificate_id), Number(row.total ?? 0))
+      })
+    }
+
+    const result = orders.map((order) => {
       const json = order.toJSON()
+      const imageCertificatesCount = imageCounts.get(Number(order.certificateId)) ?? 0
 
       if (json.receipt) {
         const codeList = (json.receipt.items || [])
@@ -741,6 +766,11 @@ export default class OrderCertificatesController {
 
         json.receipt.emolumentCode = codeList
         delete json.receipt.items
+      }
+
+      json.imageCertificatesCount = imageCertificatesCount
+      if (json.marriedCertificate) {
+        json.marriedCertificate.imageCertificatesCount = imageCertificatesCount
       }
 
       return json

@@ -39,8 +39,7 @@ export default class ImageCertificatesController {
 
   private async hasConfirmedImageDevice(
     request: HttpContextContract['request'],
-    companyId: number,
-    userId: number
+    companyId: number
   ) {
     const cookieToken = request.plainCookie(this.imageDeviceCookieName, null, true)
 
@@ -50,7 +49,6 @@ export default class ImageCertificatesController {
 
     const data = await Tokentoimage.query()
       .where('companies_id', companyId)
-      .andWhere('users_id', userId)
       .andWhere('token', this.hashImageDeviceCookie(cookieToken))
       .first()
 
@@ -68,7 +66,7 @@ export default class ImageCertificatesController {
       return false
     }
 
-    return this.hasConfirmedImageDevice(request, user.companies_id, user.id)
+    return this.hasConfirmedImageDevice(request, user.companies_id)
   }
 
   private normalizeText(value: string) {

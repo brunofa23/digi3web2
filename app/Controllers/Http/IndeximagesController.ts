@@ -154,8 +154,7 @@ export default class IndeximagesController {
 
   private async hasConfirmedImageDevice(
     request: HttpContextContract['request'],
-    companyId: number,
-    userId: number
+    companyId: number
   ) {
     const cookieToken = request.plainCookie(this.imageDeviceCookieName, null, true)
 
@@ -165,7 +164,6 @@ export default class IndeximagesController {
 
     const data = await Tokentoimage.query()
       .where('companies_id', companyId)
-      .andWhere('users_id', userId)
       .andWhere('token', this.hashImageDeviceCookie(cookieToken))
       .first()
 
@@ -183,7 +181,7 @@ export default class IndeximagesController {
       return false
     }
 
-    return this.hasConfirmedImageDevice(request, user.companies_id, user.id)
+    return this.hasConfirmedImageDevice(request, user.companies_id)
   }
 
   public async store({ request, response }: HttpContextContract) {

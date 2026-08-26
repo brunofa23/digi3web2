@@ -41,6 +41,7 @@ let isPendingRenameQueueRunning = false;
 const pendingRenameBatchSize = 5;
 const pendingRenameDelayMs = 1000;
 const maxPendingRenameRoundsByTypebook = 50;
+const maxGoogleDriveDeleteBatchSize = 20;
 function hasDataImageLookup(dataImages) {
     return Boolean(dataImages?.id ||
         dataImages?.book ||
@@ -674,10 +675,21 @@ async function mountNameFileWithTimestamp(bookRecord, seq, extFile, fileTimestam
 }
 async function deleteFile(listFiles, cloud_number) {
     try {
+        if (!Array.isArray(listFiles) || listFiles.length === 0) {
+            return "nenhum arquivo para excluir";
+        }
+        if (listFiles.length > maxGoogleDriveDeleteBatchSize) {
+            throw new Error(`Exclusão em massa bloqueada no Google Drive: ${listFiles.length} arquivos`);
+        }
         const idFolder = await (0, googledrive_1.sendSearchFile)(listFiles[0]['path'], cloud_number);
+        if (!idFolder?.[0]?.id) {
+            throw new Error('Pasta Google Drive não encontrada para exclusão');
+        }
         let idFile;
         for (const file of listFiles) {
             idFile = await (0, googledrive_1.sendSearchFile)(file['file_name'], cloud_number, idFolder[0].id);
+            if (!idFile?.[0]?.id)
+                continue;
             await (0, googledrive_1.sendDeleteFile)(idFile[0].id, cloud_number);
         }
         return "excluido!!!";

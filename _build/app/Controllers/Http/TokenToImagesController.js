@@ -33,14 +33,13 @@ class TokenToImagesController {
         }
         return options;
     }
-    async findImageDeviceByCookie(request, companyId, userId) {
+    async findImageDeviceByCookie(request, companyId) {
         const cookieToken = request.plainCookie(this.imageDeviceCookieName, null, true);
         if (!cookieToken) {
             return null;
         }
         const data = await Tokentoimage_1.default.query()
             .where('companies_id', companyId)
-            .andWhere('users_id', userId)
             .andWhere('token', this.hashImageDeviceCookie(cookieToken))
             .first();
         if (!data?.expires_at || data.expires_at < luxon_1.DateTime.now()) {
@@ -118,7 +117,7 @@ class TokenToImagesController {
     }
     async verifyTokenToImages({ auth, response, request }) {
         const authenticate = await auth.use('api').authenticate();
-        const data = await this.findImageDeviceByCookie(request, authenticate.companies_id, authenticate.id);
+        const data = await this.findImageDeviceByCookie(request, authenticate.companies_id);
         return response.status(200).send(data ? this.serializeImageDevice(data) : null);
     }
 }

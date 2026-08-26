@@ -57,6 +57,7 @@ let isPendingRenameQueueRunning = false
 const pendingRenameBatchSize = 5
 const pendingRenameDelayMs = 1000
 const maxPendingRenameRoundsByTypebook = 50
+const maxGoogleDriveDeleteBatchSize = 20
 
 function hasDataImageLookup(dataImages: any) {
   return Boolean(
@@ -853,13 +854,25 @@ async function mountNameFileWithTimestamp(bookRecord: Bookrecord, seq: number, e
   return `Id${bookRecord.id}_${seq}(${bookRecord.cod})_${bookRecord.typebooks_id}_${bookRecord.book}_${!bookRecord.sheet || bookRecord.sheet == null ? "" : bookRecord.sheet}_${!bookRecord.approximate_term || bookRecord.approximate_term == null ? '' : bookRecord.approximate_term}_${!bookRecord.side || bookRecord.side == null ? '' : bookRecord.side}_${bookRecord.books_id}_${!bookRecord.indexbook || bookRecord.indexbook == null ? '' : bookRecord.indexbook}_${!bookRecord.obs || bookRecord.obs == null ? '' : bookRecord.obs}_${!bookRecord.letter || bookRecord.letter == null ? '' : bookRecord.letter}_${!bookRecord.year || bookRecord.year == null ? '' : bookRecord.year}_${dateFile}${extFile.toLowerCase()}`
 }
 
-async function deleteFile(listFiles: [{}], cloud_number: number) {
+async function deleteFile(listFiles: any[], cloud_number: number) {
   try {
+    if (!Array.isArray(listFiles) || listFiles.length === 0) {
+      return "nenhum arquivo para excluir"
+    }
+
+    if (listFiles.length > maxGoogleDriveDeleteBatchSize) {
+      throw new Error(`Exclusão em massa bloqueada no Google Drive: ${listFiles.length} arquivos`)
+    }
 
     const idFolder = await sendSearchFile(listFiles[0]['path'], cloud_number)
+    if (!idFolder?.[0]?.id) {
+      throw new Error('Pasta Google Drive não encontrada para exclusão')
+    }
+
     let idFile
     for (const file of listFiles) {
       idFile = await sendSearchFile(file['file_name'], cloud_number, idFolder[0].id)
+      if (!idFile?.[0]?.id) continue
       await sendDeleteFile(idFile[0].id, cloud_number)
     }
     return "excluido!!!"

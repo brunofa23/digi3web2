@@ -4,21 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendRenameFile = exports.sendListAllFilesMetadata = exports.sendListAllFiles = exports.sendDeleteFile = exports.sendDownloadFileBuffer = exports.sendDownloadFile = exports.sendSearchOrCreateFolder = exports.sendSearchFile = exports.sendCreateFolder = exports.sendValidateConnection = exports.sendAuthorize = exports.sendUploadFiles = exports.sendListFiles = void 0;
-const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
 const Token_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Token"));
 const Helpers_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Helpers");
 const sharp_1 = __importDefault(require("sharp"));
-const fsPromises = require('fs').promises;
 const fs = require('fs');
-const deleteFiles = require('../util');
-const path = require('path');
-const process = require('process');
-const { authenticate } = require('@google-cloud/local-auth');
 const { google } = require('googleapis');
-const SCOPES = ['https://www.googleapis.com/auth/drive'];
-const TOKEN_PATH = Application_1.default.configPath('tokens/');
-const CREDENTIALS_PATH = Application_1.default.configPath('/credentials/credentials.json');
-const CREDENTIALS_PATH_FOLDER = Application_1.default.configPath('/credentials/');
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -108,45 +98,31 @@ function configureGoogleAuthClient(client, cloud_number) {
 }
 async function getToken(cloud_number) {
     try {
+        if (!cloud_number) {
+            throw new Error('Empresa sem configuração de cloud');
+        }
         const token = await Token_1.default.findOrFail(cloud_number);
         if (!token.status) {
             throw new Error(`Nuvem Google Drive inativa: ${cloud_number}`);
         }
-        if (!Helpers_1.types.isNull(token?.token)) {
-            token.token = JSON.parse(token.token);
-            return token;
+        if (Helpers_1.types.isNull(token?.token) || typeof token.token !== 'string' || token.token.trim() === '') {
+            throw new Error('Nuvem sem autorização válida. Reautorize a conta Google.');
         }
+        let parsedToken;
+        try {
+            parsedToken = JSON.parse(token.token);
+        }
+        catch (error) {
+            throw new Error('Token Google Drive inválido. Reautorize a conta Google.');
+        }
+        if (!parsedToken?.refresh_token) {
+            throw new Error('Nuvem sem refresh token válido. Reautorize a conta Google.');
+        }
+        token.token = parsedToken;
+        return token;
     }
     catch (error) {
         console.log("erro 1541", error);
-        throw error;
-    }
-}
-async function getCredentials(cloud_number) {
-    try {
-        const credentials = await Token_1.default.findOrFail(cloud_number);
-        if (!credentials.status) {
-            throw new Error(`Nuvem Google Drive inativa: ${cloud_number}`);
-        }
-        credentials.credentials = JSON.parse(credentials.credentials);
-        return credentials;
-    }
-    catch (error) {
-        console.log("erro 1542", error);
-        throw error;
-    }
-}
-async function generateCredentialsToJson(cloud_number) {
-    const credentialsDB = await getCredentials(cloud_number);
-    const fileNameCredentials = CREDENTIALS_PATH;
-    const content = JSON.stringify(credentialsDB?.credentials, null, 2);
-    try {
-        if (!fs.existsSync(CREDENTIALS_PATH_FOLDER)) {
-            fs.mkdirSync(CREDENTIALS_PATH_FOLDER);
-        }
-        await fs.writeFileSync(fileNameCredentials, content, 'utf8');
-    }
-    catch (error) {
         throw error;
     }
 }
@@ -175,51 +151,8 @@ async function validateGoogleDriveConnection(authClient) {
     });
     return true;
 }
-async function saveCredentials(client, cloud_number) {
-    const content = await fsPromises.readFile(CREDENTIALS_PATH);
-    const keys = JSON.parse(content);
-    const key = keys.installed || keys.web;
-    const payload = JSON.stringify({
-        type: 'authorized_user',
-        client_id: key.client_id,
-        client_secret: key.client_secret,
-        refresh_token: client.credentials.refresh_token,
-    });
-    try {
-        const token = await Token_1.default.findOrFail(cloud_number);
-        token.token = payload;
-        await token.save();
-        await deleteFiles.DeleteFiles(CREDENTIALS_PATH);
-        await deleteFiles.DeleteFiles(TOKEN_PATH);
-    }
-    catch (error) {
-        return error;
-    }
-}
 async function authorize(cloud_number) {
-    let client = await loadSavedCredentialsIfExist(cloud_number);
-    if (client) {
-        return client;
-    }
-    if (!fs.existsSync(CREDENTIALS_PATH)) {
-        await generateCredentialsToJson(cloud_number);
-        return;
-    }
-    try {
-        client = await authenticate({
-            scopes: SCOPES,
-            keyfilePath: CREDENTIALS_PATH,
-            setTimeout: 6000000
-        });
-        if (client.credentials) {
-            await saveCredentials(client, cloud_number);
-        }
-        return configureGoogleAuthClient(client, cloud_number);
-    }
-    catch (error) {
-        console.error('Erro ao autenticar:', error);
-        throw error;
-    }
+    return loadSavedCredentialsOrFail(cloud_number);
 }
 async function uploadFiles(authClient, parents, folderPath, fileName, mimeType = 'image/jpeg|image/png|image/jpg') {
     const drive = google.drive({ version: 'v3', auth: authClient });
@@ -534,6 +467,12 @@ async function sendSearchFile(fileName, cloud_number, parentId = undefined) {
 }
 exports.sendSearchFile = sendSearchFile;
 async function sendDeleteFile(fileId, cloud_number) {
+    if (!cloud_number) {
+        throw new Error('Empresa sem configuração de cloud');
+    }
+    if (!fileId || typeof fileId !== 'string') {
+        throw new Error('Arquivo Google Drive inválido para exclusão');
+    }
     const auth = await authorize(cloud_number);
     return deleteFile(auth, fileId);
 }
@@ -561,6 +500,15 @@ async function sendDownloadFileBuffer(fileId, cloud_number) {
 }
 exports.sendDownloadFileBuffer = sendDownloadFileBuffer;
 async function sendRenameFile(fileId, newTitle, cloud_number) {
+    if (!cloud_number) {
+        throw new Error('Empresa sem configuração de cloud');
+    }
+    if (!fileId || typeof fileId !== 'string') {
+        throw new Error('Arquivo Google Drive inválido para renomeação');
+    }
+    if (!newTitle || typeof newTitle !== 'string' || newTitle.trim() === '') {
+        throw new Error('Novo nome de arquivo Google Drive inválido');
+    }
     const auth = await authorize(cloud_number);
     return renameFile(auth, fileId, newTitle);
 }

@@ -35,8 +35,7 @@ export default class TokenToImagesController {
 
   private async findImageDeviceByCookie(
     request: HttpContextContract['request'],
-    companyId: number,
-    userId: number
+    companyId: number
   ) {
     const cookieToken = request.plainCookie(this.imageDeviceCookieName, null, true)
 
@@ -46,7 +45,6 @@ export default class TokenToImagesController {
 
     const data = await Tokentoimage.query()
       .where('companies_id', companyId)
-      .andWhere('users_id', userId)
       .andWhere('token', this.hashImageDeviceCookie(cookieToken))
       .first()
 
@@ -140,7 +138,7 @@ export default class TokenToImagesController {
 
   public async verifyTokenToImages({ auth, response, request }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    const data = await this.findImageDeviceByCookie(request, authenticate.companies_id, authenticate.id)
+    const data = await this.findImageDeviceByCookie(request, authenticate.companies_id)
     return response.status(200).send(data ? this.serializeImageDevice(data) : null)
   }
 

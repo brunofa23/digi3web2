@@ -131,14 +131,13 @@ class IndeximagesController {
         const accessImageSql = luxon_1.DateTime.fromSQL(accessImageText);
         return accessImageSql.isValid ? accessImageSql : luxon_1.DateTime.fromISO(accessImageText);
     }
-    async hasConfirmedImageDevice(request, companyId, userId) {
+    async hasConfirmedImageDevice(request, companyId) {
         const cookieToken = request.plainCookie(this.imageDeviceCookieName, null, true);
         if (!cookieToken) {
             return false;
         }
         const data = await Tokentoimage_1.default.query()
             .where('companies_id', companyId)
-            .andWhere('users_id', userId)
             .andWhere('token', this.hashImageDeviceCookie(cookieToken))
             .first();
         return Boolean(data?.expires_at && data.expires_at >= luxon_1.DateTime.now());
@@ -151,7 +150,7 @@ class IndeximagesController {
         if (!accessImage.isValid || accessImage < luxon_1.DateTime.now()) {
             return false;
         }
-        return this.hasConfirmedImageDevice(request, user.companies_id, user.id);
+        return this.hasConfirmedImageDevice(request, user.companies_id);
     }
     async store({ request, response }) {
         const body = request.only(Indeximage_1.default.fillable);
