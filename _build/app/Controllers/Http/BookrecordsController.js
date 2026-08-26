@@ -2392,7 +2392,7 @@ class BookrecordsController {
                     result.skipped++;
                     result.errors.push({
                         file_name: indeximage.file_name,
-                        message: 'PDF sem texto pesquisável disponível para extração',
+                        message: 'PDF sem texto extraível por OCR',
                     });
                     continue;
                 }

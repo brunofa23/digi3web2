@@ -375,14 +375,22 @@ function extractHeaderCandidates(text, source, options = {}) {
     }
     return { sheetCandidates, termCandidates };
 }
-async function buildTopCrop(fileBuffer, ratio) {
-    const image = (0, sharp_1.default)(fileBuffer);
+function isPdfFile(fileName) {
+    return String(fileName || '').toLowerCase().endsWith('.pdf');
+}
+function sharpInput(fileBuffer, fileName) {
+    return isPdfFile(fileName)
+        ? (0, sharp_1.default)(fileBuffer, { density: 200, page: 0, pages: 1 })
+        : (0, sharp_1.default)(fileBuffer);
+}
+async function buildTopCrop(fileBuffer, ratio, fileName) {
+    const image = sharpInput(fileBuffer, fileName);
     const metadata = await image.metadata();
     const width = metadata.width || 0;
     const height = metadata.height || 0;
     if (!width || !height)
         return null;
-    return (0, sharp_1.default)(fileBuffer)
+    return sharpInput(fileBuffer, fileName)
         .extract({ left: 0, top: 0, width, height: Math.max(1, Math.floor(height * ratio)) })
         .grayscale()
         .normalize()
@@ -391,8 +399,8 @@ async function buildTopCrop(fileBuffer, ratio) {
         .jpeg({ quality: 92 })
         .toBuffer();
 }
-async function buildRatioCrop(fileBuffer, crop) {
-    const image = (0, sharp_1.default)(fileBuffer);
+async function buildRatioCrop(fileBuffer, crop, fileName) {
+    const image = sharpInput(fileBuffer, fileName);
     const metadata = await image.metadata();
     const imageWidth = metadata.width || 0;
     const imageHeight = metadata.height || 0;
@@ -402,7 +410,7 @@ async function buildRatioCrop(fileBuffer, crop) {
     const top = Math.max(0, Math.floor(imageHeight * crop.top));
     const width = Math.max(1, Math.min(imageWidth - left, Math.floor(imageWidth * crop.width)));
     const height = Math.max(1, Math.min(imageHeight - top, Math.floor(imageHeight * crop.height)));
-    return (0, sharp_1.default)(fileBuffer)
+    return sharpInput(fileBuffer, fileName)
         .extract({ left, top, width, height })
         .grayscale()
         .normalize()
@@ -453,9 +461,13 @@ async function extractHeaderKeywordConference(fileBuffer, fileName, options = {}
     let termCandidates = [...level1.termCandidates];
     const cropRatio = cropRatioByRegion(options.extractionRegion);
     if (cropRatio) {
-        const topCrop = await buildTopCrop(fileBuffer, cropRatio);
+        let topCrop = null;
+        try {
+            topCrop = await buildTopCrop(fileBuffer, cropRatio, fileName);
+        }
+        catch { }
         if (topCrop) {
-            const topText = await (0, googleVision_1.extractTextFromFileBuffer)(topCrop, fileName);
+            const topText = await (0, googleVision_1.extractTextFromFileBuffer)(topCrop, '.jpg');
             const level2 = extractHeaderCandidates(topText, 'google_vision_level_2_top', options);
             sheetCandidates = [...sheetCandidates, ...level2.sheetCandidates];
             termCandidates = [...termCandidates, ...level2.termCandidates];
@@ -544,14 +556,21 @@ async function extractTopIsolatedNumberConference(fileBuffer, fileName, options 
     const fullText = await (0, googleVision_1.extractTextFromFileBuffer)(fileBuffer, fileName);
     let sheetCandidates = [];
     for (const crop of topNumberCropsByRegion(options.extractionRegion)) {
-        const croppedImage = await buildRatioCrop(fileBuffer, crop);
+        let croppedImage = null;
+        try {
+            croppedImage = await buildRatioCrop(fileBuffer, crop, fileName);
+        }
+        catch { }
         if (!croppedImage)
             continue;
-        const croppedText = await (0, googleVision_1.extractTextFromFileBuffer)(croppedImage, fileName);
+        const croppedText = await (0, googleVision_1.extractTextFromFileBuffer)(croppedImage, '.jpg');
         sheetCandidates = [
             ...sheetCandidates,
             ...extractTopNumberCandidates(croppedText, crop.source, crop.priority),
         ];
+    }
+    if (!sheetCandidates.length) {
+        sheetCandidates = extractTopNumberCandidates(fullText, 'google_vision_top_number_full_text', 25);
     }
     const sheet = firstCandidate(sheetCandidates, 50);
     return buildCheckResult(fullText, sheet, null, 'google_vision_top_number');

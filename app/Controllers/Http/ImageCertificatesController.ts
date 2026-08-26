@@ -527,7 +527,7 @@ export default class ImageCertificatesController {
 
     if (extension === '.pdf' && !String(indexText || '').trim()) {
       return response.badRequest({
-        error: 'PDF sem texto pesquisável disponível para extração',
+        error: 'PDF sem texto extraível por OCR',
       })
     }
 

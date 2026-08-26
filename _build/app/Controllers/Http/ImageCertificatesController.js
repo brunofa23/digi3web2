@@ -451,7 +451,7 @@ class ImageCertificatesController {
         const indexText = await (0, googleVision_1.extractTextFromFileBuffer)(imageBuffer, image.fileName);
         if (extension === '.pdf' && !String(indexText || '').trim()) {
             return response.badRequest({
-                error: 'PDF sem texto pesquisável disponível para extração',
+                error: 'PDF sem texto extraível por OCR',
             });
         }
         const extractedData = this.extractCertificateImageData(indexText, image.description);
