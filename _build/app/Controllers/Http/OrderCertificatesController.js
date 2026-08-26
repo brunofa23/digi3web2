@@ -526,8 +526,26 @@ class OrderCertificatesController {
         const paginated = await query
             .orderBy('id', 'asc')
             .paginate(page, perPage);
-        const result = paginated.all().map((order) => {
+        const orders = paginated.all();
+        const marriedCertificateIds = orders
+            .filter((order) => Number(order.bookId) === 2 && order.certificateId)
+            .map((order) => order.certificateId);
+        const imageCounts = new Map();
+        if (marriedCertificateIds.length) {
+            const counts = await Database_1.default
+                .from('image_certificates')
+                .select('married_certificate_id')
+                .count('* as total')
+                .where('companies_id', authenticate.companies_id)
+                .whereIn('married_certificate_id', marriedCertificateIds)
+                .groupBy('married_certificate_id');
+            counts.forEach((row) => {
+                imageCounts.set(Number(row.married_certificate_id), Number(row.total ?? 0));
+            });
+        }
+        const result = orders.map((order) => {
             const json = order.toJSON();
+            const imageCertificatesCount = imageCounts.get(Number(order.certificateId)) ?? 0;
             if (json.receipt) {
                 const codeList = (json.receipt.items || [])
                     .map((item) => item.emolument?.code)
@@ -535,6 +553,10 @@ class OrderCertificatesController {
                     .join(',');
                 json.receipt.emolumentCode = codeList;
                 delete json.receipt.items;
+            }
+            json.imageCertificatesCount = imageCertificatesCount;
+            if (json.marriedCertificate) {
+                json.marriedCertificate.imageCertificatesCount = imageCertificatesCount;
             }
             return json;
         });
