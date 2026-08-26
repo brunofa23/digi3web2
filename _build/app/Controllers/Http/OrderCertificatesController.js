@@ -171,7 +171,9 @@ class OrderCertificatesController {
                 bookRegistryOfficePrenup: marriedData.bookRegistryOfficePrenup ?? null,
                 sheetRegistryOfficePrenup: marriedData.sheetRegistryOfficePrenup ?? null,
                 dthrPrenup: marriedData.dthrPrenup ?? null,
-                documentScheduleDate: marriedData.documentScheduleDate ?? null,
+                documentScheduleDate: marriedData.documentScheduleDate && String(marriedData.documentScheduleDate).trim() !== ''
+                    ? luxon_1.DateTime.fromISO(marriedData.documentScheduleDate, { zone: 'America/Sao_Paulo' })
+                    : null,
                 cerimonyLocation: marriedData.cerimonyLocation ?? '',
                 otherCerimonyLocation: marriedData.otherCerimonyLocation ?? '',
                 nameFormerSpouse: marriedData.nameFormerSpouse ?? '',

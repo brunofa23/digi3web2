@@ -247,7 +247,10 @@ export default class OrderCertificatesController {
           bookRegistryOfficePrenup: marriedData.bookRegistryOfficePrenup ?? null,
           sheetRegistryOfficePrenup: marriedData.sheetRegistryOfficePrenup ?? null,
           dthrPrenup: marriedData.dthrPrenup ?? null,
-          documentScheduleDate: marriedData.documentScheduleDate ?? null,
+          documentScheduleDate:
+            marriedData.documentScheduleDate && String(marriedData.documentScheduleDate).trim() !== ''
+              ? DateTime.fromISO(marriedData.documentScheduleDate, { zone: 'America/Sao_Paulo' })
+              : null,
 
           cerimonyLocation: marriedData.cerimonyLocation ?? '',
           otherCerimonyLocation: marriedData.otherCerimonyLocation ?? '',

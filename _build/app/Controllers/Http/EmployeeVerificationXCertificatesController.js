@@ -69,7 +69,7 @@ class EmployeeVerificationXCertificatesController {
             companiesId,
             employeeVerificationId: payload.employeeVerificationId,
             userId,
-            status: payload.status,
+            status: payload.status ?? '',
             date: payload.date,
         });
         await item.refresh();

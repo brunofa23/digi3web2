@@ -16,7 +16,7 @@ EmployeeVerificationXCertificateValidator.createSchema = Validator_1.schema.crea
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'employee_verifications', column: 'id' }),
     ]),
-    status: Validator_1.schema.string({ trim: true }, [
+    status: Validator_1.schema.string.optional({ trim: true }, [
         Validator_1.rules.maxLength(80),
     ]),
     date: Validator_1.schema.date({
@@ -42,7 +42,6 @@ EmployeeVerificationXCertificateValidator.updateSchema = Validator_1.schema.crea
 EmployeeVerificationXCertificateValidator.messages = {
     'marriedCertificateId.required': 'O campo marriedCertificateId é obrigatório',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
-    'status.required': 'O campo status é obrigatório',
     'date.required': 'O campo date é obrigatório',
     'marriedCertificateId.exists': 'O certificado de casamento informado não foi encontrado',
     'employeeVerificationId.exists': 'A conferência de funcionário informada não foi encontrada',

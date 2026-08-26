@@ -181,9 +181,13 @@ export default class MarriedCertificate extends BaseModel {
   })
   public dthrPrenup: DateTime | null
 
-  @column.date({
+  @column.dateTime({
     columnName: 'document_schedule_date',
     serializeAs: 'documentScheduleDate',
+    serialize: (value: DateTime | null) => {
+      if (!value) return null
+      return value.setZone('America/Sao_Paulo').toFormat("yyyy-LL-dd'T'HH:mm")
+    },
   })
   public documentScheduleDate: DateTime | null
 

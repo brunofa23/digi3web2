@@ -13,7 +13,7 @@ export default class EmployeeVerificationXCertificateValidator {
       rules.unsigned(),
       rules.exists({ table: 'employee_verifications', column: 'id' }),
     ]),
-    status: schema.string({ trim: true }, [
+    status: schema.string.optional({ trim: true }, [
       rules.maxLength(80),
     ]),
     date: schema.date({
@@ -41,7 +41,6 @@ export default class EmployeeVerificationXCertificateValidator {
   public static messages = {
     'marriedCertificateId.required': 'O campo marriedCertificateId é obrigatório',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
-    'status.required': 'O campo status é obrigatório',
     'date.required': 'O campo date é obrigatório',
 
     'marriedCertificateId.exists': 'O certificado de casamento informado não foi encontrado',
