@@ -17,6 +17,7 @@ const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const Tokentoimage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Tokentoimage"));
 const luxon_1 = require("luxon");
 const crypto_1 = __importDefault(require("crypto"));
+const imageUploadJobs_1 = global[Symbol.for('ioc.use')]("App/Services/imageUploadJobs");
 const sharp_1 = __importDefault(require("sharp"));
 const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
@@ -24,9 +25,11 @@ const fs = require('fs');
 const path = require('path');
 async function createUploadJob(payload) {
     try {
+        await (0, imageUploadJobs_1.cleanupOldImageUploadJobs)();
         return await ImageUploadJob_1.default.create({
             companiesId: payload.companiesId,
             typebooksId: payload.typebooksId,
+            userId: payload.userId,
             status: 'RECEIVED',
             source: payload.source,
             fileNames: JSON.stringify(payload.fileNames || []),
@@ -295,6 +298,7 @@ class IndeximagesController {
         const uploadJob = await createUploadJob({
             companiesId: authenticate.companies_id,
             typebooksId: Number(params.typebooks_id) || null,
+            userId: authenticate.id || null,
             source,
             fileNames: images.map((image) => image.clientName),
             dataImages,
@@ -485,19 +489,35 @@ class IndeximagesController {
                 }
             }
             await updateUploadJob(uploadJob, 'SAVING_FILES');
-            const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
-            if (!files?.length) {
+            const uploadResults = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
+            const resultItems = Array.isArray(uploadResults) ? uploadResults : [];
+            const uploadedFiles = resultItems.filter((file) => !file?.skipped);
+            const skippedFiles = resultItems.filter((file) => file?.skipped);
+            const uploadedFileNames = uploadedFiles
+                .map((file) => file?.file_name || file?.fileName || file?.name || file)
+                .filter(Boolean);
+            const uploadReport = {
+                summary: {
+                    total: resultItems.length,
+                    uploaded: uploadedFiles.length,
+                    skipped: skippedFiles.length,
+                },
+                uploadedFiles,
+                skippedFiles,
+            };
+            if (!uploadedFiles.length && !skippedFiles.length) {
                 await updateUploadJob(uploadJob, 'FAILED', {
                     errorMessage: 'Nenhum arquivo foi enviado para o Google Drive.',
                 });
                 return response.status(422).send({
-                    files,
+                    files: [],
+                    uploadReport,
                     uploadJob: serializeUploadJob(uploadJob),
                     message: 'Nenhum arquivo foi enviado para o Google Drive.',
                 });
             }
             await updateUploadJob(uploadJob, 'COMPLETED', {
-                resultFiles: JSON.stringify(files || []),
+                resultFiles: JSON.stringify(uploadReport),
             });
             await AuditLogger_1.default.imageUpload(ctx, {
                 companiesId: authenticate.companies_id,
@@ -507,18 +527,22 @@ class IndeximagesController {
                 entityKey: {
                     typebooks_id: Number(params.typebooks_id),
                 },
-                description: `Usuário ${authenticate.name || authenticate.username} anexou ${files.length} imagem(ns)`,
+                description: `Usuário ${authenticate.name || authenticate.username} anexou ${uploadedFiles.length} imagem(ns)`,
                 metadata: {
                     source,
                     upload_job_id: uploadJob?.id,
-                    file_names: files.map((file) => file.file_name || file.fileName || file.name).filter(Boolean),
-                    quantity: files.length,
+                    file_names: uploadedFileNames,
+                    quantity: uploadedFiles.length,
+                    skipped_quantity: skippedFiles.length,
                 },
             });
             return response.status(201).send({
-                files,
+                files: uploadedFileNames,
+                uploadReport,
                 uploadJob: serializeUploadJob(uploadJob),
-                message: 'Arquivo Salvo com sucesso!!!',
+                message: uploadedFiles.length
+                    ? 'Arquivo Salvo com sucesso!!!'
+                    : 'Nenhum arquivo novo foi enviado. Arquivos duplicados foram ignorados.',
             });
         }
         catch (error) {

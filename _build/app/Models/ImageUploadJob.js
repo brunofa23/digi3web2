@@ -27,6 +27,10 @@ __decorate([
     __metadata("design:type", Object)
 ], ImageUploadJob.prototype, "typebooksId", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'user_id' }),
+    __metadata("design:type", Object)
+], ImageUploadJob.prototype, "userId", void 0);
+__decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], ImageUploadJob.prototype, "status", void 0);

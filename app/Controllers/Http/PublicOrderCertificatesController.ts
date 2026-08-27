@@ -928,7 +928,7 @@ export default class PublicOrderCertificatesController {
       const indexText = await extractTextFromFileBuffer(imageBuffer, ocrFileName)
 
       if (/(\.pdf|^pdf)$/i.test(String(ocrFileName || '')) && !String(indexText || '').trim()) {
-        throw new BadRequestException('PDF sem texto pesquisável disponível para extração', 422)
+        throw new BadRequestException('PDF sem texto extraível por OCR', 422)
       }
 
       const extractedData = this.extractCertificateImageData(indexText, description)

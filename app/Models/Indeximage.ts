@@ -15,6 +15,9 @@ export default class Indeximage extends BaseModel {
       'ext',
       'file_name',
       'drive_file_id',
+      'drive_file_size',
+      'drive_md5_checksum',
+      'drive_folder_id',
       'previous_file_name',
       'book',
       'sheet',
@@ -70,6 +73,15 @@ export default class Indeximage extends BaseModel {
 
   @column()
   public drive_file_id: string
+
+  @column()
+  public drive_file_size: number | null
+
+  @column()
+  public drive_md5_checksum: string | null
+
+  @column()
+  public drive_folder_id: string | null
 
   @column()
   public previous_file_name: string

@@ -191,7 +191,7 @@ async function uploadFiles(authClient, parents, folderPath, fileName, mimeType =
       mimeType,
       body: fs.createReadStream(`${folderPath}/${fileName}`),
     },
-    fields: 'id, name, size',
+    fields: 'id, name, size, md5Checksum, parents',
     supportsTeamDrives: true,
     useResumableUpload: true,
   }, {
