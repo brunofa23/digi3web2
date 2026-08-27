@@ -48,6 +48,12 @@ export default class ImageUploadJobsController {
     return 'completed'
   }
 
+  private shouldShowJob(job: ImageUploadJob) {
+    const summary = this.getSummary(job)
+
+    return !(job.status === 'COMPLETED' && summary.total === 0 && summary.uploaded === 0 && summary.skipped === 0)
+  }
+
   private getDateStart(dateStart: string | undefined) {
     const retentionStart = getUploadJobRetentionStart()
     if (!dateStart) return retentionStart
@@ -120,9 +126,10 @@ export default class ImageUploadJobsController {
       }
 
       const jobs = await query
+      const visibleJobs = jobs.filter((job) => this.shouldShowJob(job))
       const filteredJobs = status
-        ? jobs.filter((job) => this.getUploadStatus(job) === status)
-        : jobs
+        ? visibleJobs.filter((job) => this.getUploadStatus(job) === status)
+        : visibleJobs
       const limitedJobs = filteredJobs.slice(0, maxLimit)
       const userIds = Array.from(new Set(limitedJobs.map((item) => item.userId).filter(Boolean)))
       const typebookIds = Array.from(new Set(limitedJobs.map((item) => item.typebooksId).filter(Boolean)))
