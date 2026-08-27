@@ -160,11 +160,20 @@ async function getLocalFileMetadata(filePath: string) {
   }
 }
 
-async function findDuplicateIndeximage(companiesId: number, driveFolderId: string, md5Checksum: string, fileSize: number) {
-  if (!companiesId || !driveFolderId || !md5Checksum || !fileSize) return null
+async function findDuplicateIndeximage(
+  companiesId: number,
+  typebooksId: number,
+  bookrecordsId: number,
+  driveFolderId: string,
+  md5Checksum: string,
+  fileSize: number
+) {
+  if (!companiesId || !typebooksId || !bookrecordsId || !driveFolderId || !md5Checksum || !fileSize) return null
 
   return Indeximage.query()
     .where('companies_id', companiesId)
+    .andWhere('typebooks_id', typebooksId)
+    .andWhere('bookrecords_id', bookrecordsId)
     .andWhere('drive_folder_id', driveFolderId)
     .andWhere('drive_md5_checksum', md5Checksum)
     .andWhere('drive_file_size', fileSize)
@@ -519,6 +528,8 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     const localMetadata = await getLocalFileMetadata(localFilePath)
     const duplicateIndeximage = await findDuplicateIndeximage(
       objfileRename.companies_id,
+      objfileRename.typebooks_id,
+      objfileRename.bookrecords_id,
       idParent,
       localMetadata.md5Checksum,
       localMetadata.size

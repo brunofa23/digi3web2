@@ -28,7 +28,7 @@ class default_1 extends Schema_1.default {
         const hasIndex = await this.hasDuplicateLookupIndex();
         if (!hasIndex) {
             await this.schema.alterTable(this.tableName, (table) => {
-                table.index(['companies_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'], this.indexName);
+                table.index(['companies_id', 'typebooks_id', 'bookrecords_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'], this.indexName);
             });
         }
     }
@@ -36,7 +36,7 @@ class default_1 extends Schema_1.default {
         const hasIndex = await this.hasDuplicateLookupIndex();
         if (hasIndex) {
             await this.schema.alterTable(this.tableName, (table) => {
-                table.dropIndex(['companies_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'], this.indexName);
+                table.dropIndex(['companies_id', 'typebooks_id', 'bookrecords_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'], this.indexName);
             });
         }
         const hasDriveFolderId = await this.schema.hasColumn(this.tableName, 'drive_folder_id');

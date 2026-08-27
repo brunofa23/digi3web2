@@ -171,9 +171,8 @@ class BookrecordsController {
             !!book_name || !!book_number || !!sheet_number || !!month ||
             !!yeardoc || !!obs_document || !!fin_entity_List || hasDocumentCustomFilter);
         let query = " 1=1 ";
-        if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-            !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter)
-            return null;
+        const showRecentRecords = !codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
+            !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter && !codmax;
         if (onlyLastPagesOfEachBook) {
             query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
         }
@@ -411,7 +410,15 @@ class BookrecordsController {
                 });
             });
         }
-        data = await queryExecute.paginate(page, limit);
+        if (showRecentRecords) {
+            queryExecute
+                .orderBy('bookrecords.created_at', 'desc')
+                .orderBy('bookrecords.id', 'desc');
+            data = await queryExecute.paginate(1, 500);
+        }
+        else {
+            data = await queryExecute.paginate(page, limit);
+        }
         return response.status(200).send(data);
     }
     async fastFind({ auth, request, response }) {

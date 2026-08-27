@@ -23,7 +23,7 @@ export default class extends BaseSchema {
     if (!hasIndex) {
       await this.schema.alterTable(this.tableName, (table) => {
         table.index(
-          ['companies_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'],
+          ['companies_id', 'typebooks_id', 'bookrecords_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'],
           this.indexName
         )
       })
@@ -36,7 +36,7 @@ export default class extends BaseSchema {
     if (hasIndex) {
       await this.schema.alterTable(this.tableName, (table) => {
         table.dropIndex(
-          ['companies_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'],
+          ['companies_id', 'typebooks_id', 'bookrecords_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'],
           this.indexName
         )
       })

@@ -244,9 +244,8 @@ export default class BookrecordsController {
     )
 
     let query = " 1=1 "
-    if (!codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter)
-      return null
+    const showRecentRecords = !codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
+      !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter && !codmax
     //last pages of each book****************************
     if (onlyLastPagesOfEachBook) {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
@@ -568,7 +567,16 @@ export default class BookrecordsController {
 
     //console.log("QUERY FINAL: ", queryExecute.toQuery())
 
-    data = await queryExecute.paginate(page, limit)
+    if (showRecentRecords) {
+      queryExecute
+        .orderBy('bookrecords.created_at', 'desc')
+        .orderBy('bookrecords.id', 'desc')
+
+      data = await queryExecute.paginate(1, 500)
+    } else {
+      data = await queryExecute.paginate(page, limit)
+    }
+
     return response.status(200).send(data)
   }
 
