@@ -27,9 +27,15 @@ class default_1 extends Schema_1.default {
         }
         const hasIndex = await this.hasDuplicateLookupIndex();
         if (!hasIndex) {
-            await this.schema.alterTable(this.tableName, (table) => {
-                table.index(['companies_id', 'typebooks_id', 'bookrecords_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'], this.indexName);
-            });
+            try {
+                await this.schema.alterTable(this.tableName, (table) => {
+                    table.index(['companies_id', 'typebooks_id', 'bookrecords_id', 'drive_folder_id', 'drive_md5_checksum', 'drive_file_size'], this.indexName);
+                });
+            }
+            catch (error) {
+                if (!this.isDuplicateIndexError(error))
+                    throw error;
+            }
         }
     }
     async down() {
@@ -63,6 +69,10 @@ class default_1 extends Schema_1.default {
       `, [this.tableName, this.indexName]);
         const rows = Array.isArray(result?.[0]) ? result[0] : result;
         return Array.isArray(rows) && rows.length > 0;
+    }
+    isDuplicateIndexError(error) {
+        const databaseError = error;
+        return databaseError.code === 'ER_DUP_KEYNAME' || databaseError.errno === 1061;
     }
 }
 exports.default = default_1;

@@ -7,28 +7,40 @@ export default class extends BaseSchema {
 
   public async up () {
     if (!(await this.hasColumn('user_id'))) {
-      await this.schema.alterTable(this.tableName, (table) => {
-        table
-          .integer('user_id')
-          .unsigned()
-          .nullable()
-          .references('id')
-          .inTable('users')
-          .onDelete('SET NULL')
-          .after('typebooks_id')
-      })
+      try {
+        await this.schema.alterTable(this.tableName, (table) => {
+          table
+            .integer('user_id')
+            .unsigned()
+            .nullable()
+            .references('id')
+            .inTable('users')
+            .onDelete('SET NULL')
+            .after('typebooks_id')
+        })
+      } catch (error) {
+        if (!this.isDuplicateColumnError(error)) throw error
+      }
     }
 
     if (!(await this.hasIndex('image_upload_jobs_company_typebook_created_idx'))) {
-      await this.schema.alterTable(this.tableName, (table) => {
-        table.index(['companies_id', 'typebooks_id', 'created_at'], 'image_upload_jobs_company_typebook_created_idx')
-      })
+      try {
+        await this.schema.alterTable(this.tableName, (table) => {
+          table.index(['companies_id', 'typebooks_id', 'created_at'], 'image_upload_jobs_company_typebook_created_idx')
+        })
+      } catch (error) {
+        if (!this.isDuplicateIndexError(error)) throw error
+      }
     }
 
     if (!(await this.hasIndex('image_upload_jobs_user_created_idx'))) {
-      await this.schema.alterTable(this.tableName, (table) => {
-        table.index(['user_id', 'created_at'], 'image_upload_jobs_user_created_idx')
-      })
+      try {
+        await this.schema.alterTable(this.tableName, (table) => {
+          table.index(['user_id', 'created_at'], 'image_upload_jobs_user_created_idx')
+        })
+      } catch (error) {
+        if (!this.isDuplicateIndexError(error)) throw error
+      }
     }
 
     this.defer(async (db) => {
@@ -137,5 +149,15 @@ export default class extends BaseSchema {
 
     const rows = Array.isArray(result?.[0]) ? result[0] : result
     return Array.isArray(rows) && rows.length > 0
+  }
+
+  private isDuplicateColumnError(error: unknown) {
+    const databaseError = error as { code?: string; errno?: number }
+    return databaseError.code === 'ER_DUP_FIELDNAME' || databaseError.errno === 1060
+  }
+
+  private isDuplicateIndexError(error: unknown) {
+    const databaseError = error as { code?: string; errno?: number }
+    return databaseError.code === 'ER_DUP_KEYNAME' || databaseError.errno === 1061
   }
 }
