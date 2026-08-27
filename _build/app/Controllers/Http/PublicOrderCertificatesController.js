@@ -821,7 +821,7 @@ class PublicOrderCertificatesController {
             const ocrFileName = file.clientName || file.extname || '';
             const indexText = await (0, googleVision_1.extractTextFromFileBuffer)(imageBuffer, ocrFileName);
             if (/(\.pdf|^pdf)$/i.test(String(ocrFileName || '')) && !String(indexText || '').trim()) {
-                throw new BadRequestException_1.default('PDF sem texto pesquisável disponível para extração', 422);
+                throw new BadRequestException_1.default('PDF sem texto extraível por OCR', 422);
             }
             const extractedData = this.extractCertificateImageData(indexText, description);
             return response.ok({

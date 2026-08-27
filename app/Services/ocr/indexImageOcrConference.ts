@@ -463,15 +463,25 @@ function extractHeaderCandidates(text: string, source: string, options: OcrExtra
   return { sheetCandidates, termCandidates }
 }
 
-async function buildTopCrop(fileBuffer: Buffer, ratio: number) {
-  const image = sharp(fileBuffer)
+function isPdfFile(fileName: string) {
+  return String(fileName || '').toLowerCase().endsWith('.pdf')
+}
+
+function sharpInput(fileBuffer: Buffer, fileName: string) {
+  return isPdfFile(fileName)
+    ? sharp(fileBuffer, { density: 200, page: 0, pages: 1 })
+    : sharp(fileBuffer)
+}
+
+async function buildTopCrop(fileBuffer: Buffer, ratio: number, fileName: string) {
+  const image = sharpInput(fileBuffer, fileName)
   const metadata = await image.metadata()
   const width = metadata.width || 0
   const height = metadata.height || 0
 
   if (!width || !height) return null
 
-  return sharp(fileBuffer)
+  return sharpInput(fileBuffer, fileName)
     .extract({ left: 0, top: 0, width, height: Math.max(1, Math.floor(height * ratio)) })
     .grayscale()
     .normalize()
@@ -481,8 +491,8 @@ async function buildTopCrop(fileBuffer: Buffer, ratio: number) {
     .toBuffer()
 }
 
-async function buildRatioCrop(fileBuffer: Buffer, crop: RatioCrop) {
-  const image = sharp(fileBuffer)
+async function buildRatioCrop(fileBuffer: Buffer, crop: RatioCrop, fileName: string) {
+  const image = sharpInput(fileBuffer, fileName)
   const metadata = await image.metadata()
   const imageWidth = metadata.width || 0
   const imageHeight = metadata.height || 0
@@ -494,7 +504,7 @@ async function buildRatioCrop(fileBuffer: Buffer, crop: RatioCrop) {
   const width = Math.max(1, Math.min(imageWidth - left, Math.floor(imageWidth * crop.width)))
   const height = Math.max(1, Math.min(imageHeight - top, Math.floor(imageHeight * crop.height)))
 
-  return sharp(fileBuffer)
+  return sharpInput(fileBuffer, fileName)
     .extract({ left, top, width, height })
     .grayscale()
     .normalize()
@@ -559,10 +569,14 @@ export async function extractHeaderKeywordConference(
   const cropRatio = cropRatioByRegion(options.extractionRegion)
 
   if (cropRatio) {
-    const topCrop = await buildTopCrop(fileBuffer, cropRatio)
+    let topCrop: Buffer | null = null
+
+    try {
+      topCrop = await buildTopCrop(fileBuffer, cropRatio, fileName)
+    } catch {}
 
     if (topCrop) {
-      const topText = await extractTextFromFileBuffer(topCrop, fileName)
+      const topText = await extractTextFromFileBuffer(topCrop, '.jpg')
       const level2 = extractHeaderCandidates(topText, 'google_vision_level_2_top', options)
       sheetCandidates = [...sheetCandidates, ...level2.sheetCandidates]
       termCandidates = [...termCandidates, ...level2.termCandidates]
@@ -661,15 +675,23 @@ export async function extractTopIsolatedNumberConference(
   let sheetCandidates: Candidate[] = []
 
   for (const crop of topNumberCropsByRegion(options.extractionRegion)) {
-    const croppedImage = await buildRatioCrop(fileBuffer, crop)
+    let croppedImage: Buffer | null = null
+
+    try {
+      croppedImage = await buildRatioCrop(fileBuffer, crop, fileName)
+    } catch {}
 
     if (!croppedImage) continue
 
-    const croppedText = await extractTextFromFileBuffer(croppedImage, fileName)
+    const croppedText = await extractTextFromFileBuffer(croppedImage, '.jpg')
     sheetCandidates = [
       ...sheetCandidates,
       ...extractTopNumberCandidates(croppedText, crop.source, crop.priority),
     ]
+  }
+
+  if (!sheetCandidates.length) {
+    sheetCandidates = extractTopNumberCandidates(fullText, 'google_vision_top_number_full_text', 25)
   }
 
   const sheet = firstCandidate(sheetCandidates, 50)
