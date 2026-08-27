@@ -13,6 +13,9 @@ export default class ImageUploadJob extends BaseModel {
   @column({ columnName: 'typebooks_id' })
   public typebooksId: number | null
 
+  @column({ columnName: 'user_id' })
+  public userId: number | null
+
   @column()
   public status: string
 

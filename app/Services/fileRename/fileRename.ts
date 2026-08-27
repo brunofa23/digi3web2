@@ -180,6 +180,24 @@ async function findDuplicateIndeximage(
     .first()
 }
 
+function getUploadReportItem(objfileRename: any, image: any, idParent: string) {
+  return {
+    file_name: objfileRename.file_name,
+    original_file_name: image?.clientName || path.basename(String(image || objfileRename.file_name)),
+    companies_id: objfileRename.companies_id,
+    typebooks_id: objfileRename.typebooks_id,
+    bookrecords_id: objfileRename.bookrecords_id,
+    seq: objfileRename.seq,
+    cod: objfileRename.register || objfileRename.cod,
+    book: objfileRename.book,
+    sheet: objfileRename.sheet,
+    side: objfileRename.side,
+    approximate_term: objfileRename.approximate_term,
+    indexbook: objfileRename.indexbook,
+    drive_folder_id: objfileRename.drive_folder_id || idParent,
+  }
+}
+
 // async function downloadImage(fileName, typebook_id, company_id, cloud_number: number) {
 //   const directoryParent = await Typebook.query()
 //     .where('id', '=', typebook_id)
@@ -539,8 +557,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       await deleteImage(localFilePath)
 
       return {
-        file_name: objfileRename.file_name,
-        original_file_name: image?.clientName || path.basename(String(image || objfileRename.file_name)),
+        ...getUploadReportItem(objfileRename, image, idParent),
         uploaded: false,
         skipped: true,
         reason: 'duplicate_file',
@@ -599,8 +616,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     throw new BadRequestException(error + ' sendUploadFiles', 409)
   }
   return {
-    file_name: objfileRename.file_name,
-    original_file_name: image?.clientName || path.basename(String(image || objfileRename.file_name)),
+    ...getUploadReportItem(objfileRename, image, idParent),
     uploaded: true,
     skipped: false,
     drive_file_id: objfileRename.drive_file_id || null,

@@ -13,6 +13,7 @@ import AuditLogger from 'App/Services/Audit/AuditLogger'
 import Tokentoimage from 'App/Models/Tokentoimage'
 import { DateTime } from 'luxon'
 import crypto from 'crypto'
+import { cleanupOldImageUploadJobs } from 'App/Services/imageUploadJobs'
 
 import sharp from 'sharp'
 
@@ -24,14 +25,18 @@ const path = require('path')
 async function createUploadJob(payload: {
   companiesId: number
   typebooksId: number | null
+  userId: number | null
   source: string
   fileNames: string[]
   dataImages: any
 }) {
   try {
+    await cleanupOldImageUploadJobs()
+
     return await ImageUploadJob.create({
       companiesId: payload.companiesId,
       typebooksId: payload.typebooksId,
+      userId: payload.userId,
       status: 'RECEIVED',
       source: payload.source,
       fileNames: JSON.stringify(payload.fileNames || []),
@@ -371,6 +376,7 @@ export default class IndeximagesController {
     const uploadJob = await createUploadJob({
       companiesId: authenticate.companies_id,
       typebooksId: Number(params.typebooks_id) || null,
+      userId: authenticate.id || null,
       source,
       fileNames: images.map((image) => image.clientName),
       dataImages,

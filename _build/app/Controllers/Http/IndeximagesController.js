@@ -17,6 +17,7 @@ const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const Tokentoimage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Tokentoimage"));
 const luxon_1 = require("luxon");
 const crypto_1 = __importDefault(require("crypto"));
+const imageUploadJobs_1 = global[Symbol.for('ioc.use')]("App/Services/imageUploadJobs");
 const sharp_1 = __importDefault(require("sharp"));
 const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
@@ -24,9 +25,11 @@ const fs = require('fs');
 const path = require('path');
 async function createUploadJob(payload) {
     try {
+        await (0, imageUploadJobs_1.cleanupOldImageUploadJobs)();
         return await ImageUploadJob_1.default.create({
             companiesId: payload.companiesId,
             typebooksId: payload.typebooksId,
+            userId: payload.userId,
             status: 'RECEIVED',
             source: payload.source,
             fileNames: JSON.stringify(payload.fileNames || []),
@@ -295,6 +298,7 @@ class IndeximagesController {
         const uploadJob = await createUploadJob({
             companiesId: authenticate.companies_id,
             typebooksId: Number(params.typebooks_id) || null,
+            userId: authenticate.id || null,
             source,
             fileNames: images.map((image) => image.clientName),
             dataImages,
