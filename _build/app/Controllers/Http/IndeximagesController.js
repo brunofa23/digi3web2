@@ -485,19 +485,35 @@ class IndeximagesController {
                 }
             }
             await updateUploadJob(uploadJob, 'SAVING_FILES');
-            const files = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
-            if (!files?.length) {
+            const uploadResults = await FileRename.transformFilesNameToId(images, params, authenticate.companies_id, company?.cloud, false, dataImages);
+            const resultItems = Array.isArray(uploadResults) ? uploadResults : [];
+            const uploadedFiles = resultItems.filter((file) => !file?.skipped);
+            const skippedFiles = resultItems.filter((file) => file?.skipped);
+            const uploadedFileNames = uploadedFiles
+                .map((file) => file?.file_name || file?.fileName || file?.name || file)
+                .filter(Boolean);
+            const uploadReport = {
+                summary: {
+                    total: resultItems.length,
+                    uploaded: uploadedFiles.length,
+                    skipped: skippedFiles.length,
+                },
+                uploadedFiles,
+                skippedFiles,
+            };
+            if (!uploadedFiles.length && !skippedFiles.length) {
                 await updateUploadJob(uploadJob, 'FAILED', {
                     errorMessage: 'Nenhum arquivo foi enviado para o Google Drive.',
                 });
                 return response.status(422).send({
-                    files,
+                    files: [],
+                    uploadReport,
                     uploadJob: serializeUploadJob(uploadJob),
                     message: 'Nenhum arquivo foi enviado para o Google Drive.',
                 });
             }
             await updateUploadJob(uploadJob, 'COMPLETED', {
-                resultFiles: JSON.stringify(files || []),
+                resultFiles: JSON.stringify(uploadReport),
             });
             await AuditLogger_1.default.imageUpload(ctx, {
                 companiesId: authenticate.companies_id,
@@ -507,18 +523,22 @@ class IndeximagesController {
                 entityKey: {
                     typebooks_id: Number(params.typebooks_id),
                 },
-                description: `Usuário ${authenticate.name || authenticate.username} anexou ${files.length} imagem(ns)`,
+                description: `Usuário ${authenticate.name || authenticate.username} anexou ${uploadedFiles.length} imagem(ns)`,
                 metadata: {
                     source,
                     upload_job_id: uploadJob?.id,
-                    file_names: files.map((file) => file.file_name || file.fileName || file.name).filter(Boolean),
-                    quantity: files.length,
+                    file_names: uploadedFileNames,
+                    quantity: uploadedFiles.length,
+                    skipped_quantity: skippedFiles.length,
                 },
             });
             return response.status(201).send({
-                files,
+                files: uploadedFileNames,
+                uploadReport,
                 uploadJob: serializeUploadJob(uploadJob),
-                message: 'Arquivo Salvo com sucesso!!!',
+                message: uploadedFiles.length
+                    ? 'Arquivo Salvo com sucesso!!!'
+                    : 'Nenhum arquivo novo foi enviado. Arquivos duplicados foram ignorados.',
             });
         }
         catch (error) {

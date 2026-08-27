@@ -14,6 +14,7 @@ const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App
 const pino_std_serializers_1 = require("pino-std-serializers");
 const luxon_1 = require("luxon");
 const fs_1 = require("fs");
+const crypto_1 = __importDefault(require("crypto"));
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const PdfOptimizer_1 = __importDefault(require("../imageProcessing/PdfOptimizer"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
@@ -111,6 +112,30 @@ async function deleteImage(folderPath) {
     catch (error) {
         return { "ERRO DELETE::>": pino_std_serializers_1.err, error };
     }
+}
+async function getLocalFileMetadata(filePath) {
+    const stat = await fs_1.promises.stat(filePath);
+    const hash = crypto_1.default.createHash('md5');
+    await new Promise((resolve, reject) => {
+        const stream = fs.createReadStream(filePath);
+        stream.on('data', (chunk) => hash.update(chunk));
+        stream.on('end', () => resolve());
+        stream.on('error', reject);
+    });
+    return {
+        size: stat.size,
+        md5Checksum: hash.digest('hex'),
+    };
+}
+async function findDuplicateIndeximage(companiesId, driveFolderId, md5Checksum, fileSize) {
+    if (!companiesId || !driveFolderId || !md5Checksum || !fileSize)
+        return null;
+    return Indeximage_1.default.query()
+        .where('companies_id', companiesId)
+        .andWhere('drive_folder_id', driveFolderId)
+        .andWhere('drive_md5_checksum', md5Checksum)
+        .andWhere('drive_file_size', fileSize)
+        .first();
 }
 async function downloadImage(fileName, typebook_id, company_id, cloud_number) {
     const directoryParent = await Typebook_1.default.query()
@@ -353,14 +378,10 @@ async function processPendingRenameBatch(companiesId, typebooksId) {
 }
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
     try {
+        let localFilePath = path_1.default.join(folderPath, objfileRename.file_name);
         if (capture) {
-            await fs.rename(image, `${path_1.default.dirname(image)}/${objfileRename.file_name}`, function (err) {
-                if (err) {
-                    throw err;
-                }
-                else {
-                }
-            });
+            localFilePath = path_1.default.join(path_1.default.dirname(image), objfileRename.file_name);
+            await fs_1.promises.rename(image, localFilePath);
         }
         else {
             const newPath = path_1.default.join(folderPath, objfileRename.file_name);
@@ -370,14 +391,49 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
                 fs.renameSync(returnPathFile, newPath);
             }
         }
+        const localMetadata = await getLocalFileMetadata(localFilePath);
+        const duplicateIndeximage = await findDuplicateIndeximage(objfileRename.companies_id, idParent, localMetadata.md5Checksum, localMetadata.size);
+        if (duplicateIndeximage) {
+            await deleteImage(localFilePath);
+            return {
+                file_name: objfileRename.file_name,
+                original_file_name: image?.clientName || path_1.default.basename(String(image || objfileRename.file_name)),
+                uploaded: false,
+                skipped: true,
+                reason: 'duplicate_file',
+                message: 'Arquivo já enviado anteriormente para esta pasta.',
+                drive_file_size: localMetadata.size,
+                drive_md5_checksum: localMetadata.md5Checksum,
+                drive_folder_id: idParent,
+                duplicate: {
+                    file_name: duplicateIndeximage.file_name,
+                    drive_file_id: duplicateIndeximage.drive_file_id,
+                    same_name: duplicateIndeximage.file_name === objfileRename.file_name,
+                },
+            };
+        }
         const sendUpload = await (0, googledrive_1.sendUploadFiles)(idParent, folderPath, `${objfileRename.file_name}`, cloud_number);
         if (sendUpload.status !== 200) {
             delete objfileRename.date_atualization;
             await ErrorlogImage_1.default.create(objfileRename);
             throw new BadRequestException_1.default('Falha ao enviar arquivo para o Google Drive', 409);
         }
+        const driveFileSize = sendUpload.data?.size ? Number(sendUpload.data.size) : localMetadata.size;
+        const driveMd5Checksum = sendUpload.data?.md5Checksum || localMetadata.md5Checksum;
+        const driveFolderId = Array.isArray(sendUpload.data?.parents) && sendUpload.data.parents.length
+            ? sendUpload.data.parents[0]
+            : idParent;
+        if (sendUpload.data?.md5Checksum && sendUpload.data.md5Checksum !== localMetadata.md5Checksum) {
+            throw new BadRequestException_1.default('Checksum retornado pelo Google Drive diferente do arquivo enviado', 409);
+        }
+        if (sendUpload.data?.size && Number(sendUpload.data.size) !== localMetadata.size) {
+            throw new BadRequestException_1.default('Tamanho retornado pelo Google Drive diferente do arquivo enviado', 409);
+        }
         if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
             objfileRename.drive_file_id = sendUpload.data?.id || null;
+            objfileRename.drive_file_size = driveFileSize;
+            objfileRename.drive_md5_checksum = driveMd5Checksum;
+            objfileRename.drive_folder_id = driveFolderId;
             const date_atualization = luxon_1.DateTime.now();
             objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm');
             await Indeximage_1.default.create(objfileRename);
@@ -387,7 +443,16 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     catch (error) {
         throw new BadRequestException_1.default(error + ' sendUploadFiles', 409);
     }
-    return objfileRename.file_name;
+    return {
+        file_name: objfileRename.file_name,
+        original_file_name: image?.clientName || path_1.default.basename(String(image || objfileRename.file_name)),
+        uploaded: true,
+        skipped: false,
+        drive_file_id: objfileRename.drive_file_id || null,
+        drive_file_size: objfileRename.drive_file_size || null,
+        drive_md5_checksum: objfileRename.drive_md5_checksum || null,
+        drive_folder_id: objfileRename.drive_folder_id || idParent,
+    };
 }
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}, validateOnly = false) {
     let objFileName;

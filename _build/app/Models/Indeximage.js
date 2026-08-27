@@ -27,6 +27,9 @@ class Indeximage extends Orm_1.BaseModel {
             'ext',
             'file_name',
             'drive_file_id',
+            'drive_file_size',
+            'drive_md5_checksum',
+            'drive_folder_id',
             'previous_file_name',
             'book',
             'sheet',
@@ -93,6 +96,18 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Indeximage.prototype, "drive_file_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Indeximage.prototype, "drive_file_size", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Indeximage.prototype, "drive_md5_checksum", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Indeximage.prototype, "drive_folder_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

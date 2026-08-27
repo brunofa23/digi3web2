@@ -9,6 +9,7 @@ import BadRequestException from "App/Exceptions/BadRequestException";
 import { err } from "pino-std-serializers";
 import { DateTime } from "luxon";
 import { promises as fsp } from 'fs'
+import crypto from 'crypto'
 
 
 
@@ -140,6 +141,34 @@ async function deleteImage(folderPath) {
     return { "ERRO DELETE::>": err, error }
   }
 
+}
+
+async function getLocalFileMetadata(filePath: string) {
+  const stat = await fsp.stat(filePath)
+  const hash = crypto.createHash('md5')
+
+  await new Promise<void>((resolve, reject) => {
+    const stream = fs.createReadStream(filePath)
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('end', () => resolve())
+    stream.on('error', reject)
+  })
+
+  return {
+    size: stat.size,
+    md5Checksum: hash.digest('hex'),
+  }
+}
+
+async function findDuplicateIndeximage(companiesId: number, driveFolderId: string, md5Checksum: string, fileSize: number) {
+  if (!companiesId || !driveFolderId || !md5Checksum || !fileSize) return null
+
+  return Indeximage.query()
+    .where('companies_id', companiesId)
+    .andWhere('drive_folder_id', driveFolderId)
+    .andWhere('drive_md5_checksum', md5Checksum)
+    .andWhere('drive_file_size', fileSize)
+    .first()
 }
 
 // async function downloadImage(fileName, typebook_id, company_id, cloud_number: number) {
@@ -460,15 +489,12 @@ async function processPendingRenameBatch(companiesId, typebooksId) {
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
 
   try {
+    let localFilePath = path.join(folderPath, objfileRename.file_name)
+
     //copia o arquivo para servidor
     if (capture) {
-      await fs.rename(image, `${path.dirname(image)}/${objfileRename.file_name}`, function (err) {
-        if (err) {
-          throw err;
-        } else {
-          //console.log('Arquivo renomeado');
-        }
-      });
+      localFilePath = path.join(path.dirname(image), objfileRename.file_name)
+      await fsp.rename(image, localFilePath)
     }
     else {
       const newPath = path.join(folderPath, objfileRename.file_name)//`${folderPath}/${objfileRename.file_name}`
@@ -490,6 +516,35 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
     }
 
+    const localMetadata = await getLocalFileMetadata(localFilePath)
+    const duplicateIndeximage = await findDuplicateIndeximage(
+      objfileRename.companies_id,
+      idParent,
+      localMetadata.md5Checksum,
+      localMetadata.size
+    )
+
+    if (duplicateIndeximage) {
+      await deleteImage(localFilePath)
+
+      return {
+        file_name: objfileRename.file_name,
+        original_file_name: image?.clientName || path.basename(String(image || objfileRename.file_name)),
+        uploaded: false,
+        skipped: true,
+        reason: 'duplicate_file',
+        message: 'Arquivo já enviado anteriormente para esta pasta.',
+        drive_file_size: localMetadata.size,
+        drive_md5_checksum: localMetadata.md5Checksum,
+        drive_folder_id: idParent,
+        duplicate: {
+          file_name: duplicateIndeximage.file_name,
+          drive_file_id: duplicateIndeximage.drive_file_id,
+          same_name: duplicateIndeximage.file_name === objfileRename.file_name,
+        },
+      }
+    }
+
     //FAZ O TRATAMENTO DA IMAGEM ANTES DE ENVIAR PARA O GDRIVE
     // const fullPathFileInput = path.join(folderPath, objfileRename.file_name)
     // await imageProcessing(fullPathFileInput)
@@ -502,9 +557,26 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       throw new BadRequestException('Falha ao enviar arquivo para o Google Drive', 409)
     }
 
+    const driveFileSize = sendUpload.data?.size ? Number(sendUpload.data.size) : localMetadata.size
+    const driveMd5Checksum = sendUpload.data?.md5Checksum || localMetadata.md5Checksum
+    const driveFolderId = Array.isArray(sendUpload.data?.parents) && sendUpload.data.parents.length
+      ? sendUpload.data.parents[0]
+      : idParent
+
+    if (sendUpload.data?.md5Checksum && sendUpload.data.md5Checksum !== localMetadata.md5Checksum) {
+      throw new BadRequestException('Checksum retornado pelo Google Drive diferente do arquivo enviado', 409)
+    }
+
+    if (sendUpload.data?.size && Number(sendUpload.data.size) !== localMetadata.size) {
+      throw new BadRequestException('Tamanho retornado pelo Google Drive diferente do arquivo enviado', 409)
+    }
+
     //chamar função para inserir na tabela indeximages
     if (!objfileRename.typeBookFile || objfileRename.typeBookFile == false) {
       objfileRename.drive_file_id = sendUpload.data?.id || null
+      objfileRename.drive_file_size = driveFileSize
+      objfileRename.drive_md5_checksum = driveMd5Checksum
+      objfileRename.drive_folder_id = driveFolderId
       const date_atualization = DateTime.now()
       objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm')
       await Indeximage.create(objfileRename)
@@ -515,7 +587,16 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
   } catch (error) {
     throw new BadRequestException(error + ' sendUploadFiles', 409)
   }
-  return objfileRename.file_name
+  return {
+    file_name: objfileRename.file_name,
+    original_file_name: image?.clientName || path.basename(String(image || objfileRename.file_name)),
+    uploaded: true,
+    skipped: false,
+    drive_file_id: objfileRename.drive_file_id || null,
+    drive_file_size: objfileRename.drive_file_size || null,
+    drive_md5_checksum: objfileRename.drive_md5_checksum || null,
+    drive_folder_id: objfileRename.drive_folder_id || idParent,
+  }
 
 }
 
