@@ -41,6 +41,12 @@ type RestoreOptions = {
   reason?: string
 }
 
+type ListSnapshotsOptions = {
+  companyId: number
+  typebookId?: number
+  source?: 'local' | 'drive'
+}
+
 type TableBackup = {
   table: string
   rows: any[]
@@ -200,6 +206,14 @@ export default class AcervoBackupService {
     }
   }
 
+  public async listSnapshots(options: ListSnapshotsOptions) {
+    const company = await Company.findOrFail(options.companyId)
+
+    return options.source === 'drive'
+      ? this.listDriveSnapshots(company, options.typebookId)
+      : this.listLocalSnapshots(company.id, options.typebookId)
+  }
+
   private async getTypebooks(companyId: number, typebookId?: number) {
     const query = Typebook.query()
       .where('companies_id', companyId)
@@ -265,6 +279,82 @@ export default class AcervoBackupService {
       typebook,
       sqlGz,
     }
+  }
+
+  private async listLocalSnapshots(companyId: number, typebookId?: number) {
+    const companyPath = Application.tmpPath(`acervoBackups/company_${companyId}`)
+    const snapshots = await fs.readdir(companyPath).catch(() => [])
+    const result: any[] = []
+
+    for (const snapshot of snapshots) {
+      const manifestPath = `${companyPath}/${snapshot}/manifest.json`
+      if (!await this.fileExists(manifestPath)) continue
+
+      const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'))
+      const typebooks = this.filterManifestTypebooks(manifest, typebookId)
+
+      if (typebooks.length === 0) continue
+
+      result.push({
+        snapshot,
+        source: 'local',
+        generated_at: manifest.generated_at,
+        company: manifest.company,
+        typebooks,
+      })
+    }
+
+    return this.sortSnapshots(result)
+  }
+
+  private async listDriveSnapshots(company: Company, typebookId?: number) {
+    if (!company.cloud) {
+      throw new Error('Empresa sem configuração de cloud')
+    }
+
+    const companyFolderId = await sendCreateFolder(company.foldername, company.cloud)
+    const backupFolderId = await sendCreateFolder('BACKUPS_ACERVO', company.cloud, companyFolderId)
+    const snapshots = await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }])
+    const result: any[] = []
+
+    for (const snapshot of snapshots || []) {
+      if (snapshot.mimeType !== 'application/vnd.google-apps.folder') continue
+
+      const snapshotDate = DateTime.fromFormat(snapshot.name, 'yyyy-MM-dd_HHmm')
+      if (!snapshotDate.isValid) continue
+
+      const files = await listDriveFilesMetadata(company.cloud, [{ id: snapshot.id }])
+      const manifestFile = files?.find((item) => item.name === 'manifest.json')
+      if (!manifestFile?.id) continue
+
+      const manifestBuffer = await downloadDriveFileBuffer(manifestFile.id, company.cloud)
+      const manifest = JSON.parse(manifestBuffer.toString('utf8'))
+      const typebooks = this.filterManifestTypebooks(manifest, typebookId)
+
+      if (typebooks.length === 0) continue
+
+      result.push({
+        snapshot: snapshot.name,
+        source: 'drive',
+        generated_at: manifest.generated_at,
+        company: manifest.company,
+        typebooks,
+      })
+    }
+
+    return this.sortSnapshots(result)
+  }
+
+  private filterManifestTypebooks(manifest: any, typebookId?: number) {
+    const typebooks = Array.isArray(manifest?.typebooks) ? manifest.typebooks : []
+
+    if (!typebookId) return typebooks
+
+    return typebooks.filter((item) => Number(item.typebooks_id) === Number(typebookId))
+  }
+
+  private sortSnapshots(snapshots: any[]) {
+    return snapshots.sort((a, b) => String(b.snapshot).localeCompare(String(a.snapshot)))
   }
 
   private async getDrivePackage(company: Company, snapshot: string, typebookId: number) {

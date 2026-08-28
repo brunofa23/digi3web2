@@ -35,6 +35,11 @@ class AcervoBackupService {
         const typebooks = await this.getTypebooks(company.id, options.typebookId);
         const snapshot = luxon_1.DateTime.now().toFormat('yyyy-MM-dd_HHmm');
         const basePath = Application_1.default.tmpPath(`acervoBackups/company_${company.id}/${snapshot}`);
+        if (typebooks.length === 0) {
+            throw new Error(options.typebookId
+                ? `Typebook ${options.typebookId} não encontrado para a empresa ${company.id}`
+                : `Nenhum typebook encontrado para a empresa ${company.id}`);
+        }
         await fs_1.promises.mkdir(basePath, { recursive: true });
         const manifest = {
             version: 1,
@@ -128,6 +133,12 @@ class AcervoBackupService {
             checksum,
         };
     }
+    async listSnapshots(options) {
+        const company = await Company_1.default.findOrFail(options.companyId);
+        return options.source === 'drive'
+            ? this.listDriveSnapshots(company, options.typebookId)
+            : this.listLocalSnapshots(company.id, options.typebookId);
+    }
     async getTypebooks(companyId, typebookId) {
         const query = Typebook_1.default.query()
             .where('companies_id', companyId)
@@ -163,14 +174,88 @@ class AcervoBackupService {
     }
     async getLocalPackage(companyId, snapshot, typebookId) {
         const basePath = Application_1.default.tmpPath(`acervoBackups/company_${companyId}/${snapshot}`);
-        const manifest = JSON.parse(await fs_1.promises.readFile(`${basePath}/manifest.json`, 'utf8'));
+        const manifestPath = `${basePath}/manifest.json`;
+        const manifestExists = await this.fileExists(manifestPath);
+        if (!manifestExists) {
+            throw new Error(`Snapshot local não encontrado: ${basePath}`);
+        }
+        const manifest = JSON.parse(await fs_1.promises.readFile(manifestPath, 'utf8'));
         const typebook = this.findManifestTypebook(manifest, typebookId);
-        const sqlGz = await fs_1.promises.readFile(`${basePath}/${typebook.file}`);
+        const sqlPath = `${basePath}/${typebook.file}`;
+        const sqlExists = await this.fileExists(sqlPath);
+        if (!sqlExists) {
+            throw new Error(`Arquivo SQL do typebook ${typebookId} não encontrado no snapshot local`);
+        }
+        const sqlGz = await fs_1.promises.readFile(sqlPath);
         return {
             manifest,
             typebook,
             sqlGz,
         };
+    }
+    async listLocalSnapshots(companyId, typebookId) {
+        const companyPath = Application_1.default.tmpPath(`acervoBackups/company_${companyId}`);
+        const snapshots = await fs_1.promises.readdir(companyPath).catch(() => []);
+        const result = [];
+        for (const snapshot of snapshots) {
+            const manifestPath = `${companyPath}/${snapshot}/manifest.json`;
+            if (!await this.fileExists(manifestPath))
+                continue;
+            const manifest = JSON.parse(await fs_1.promises.readFile(manifestPath, 'utf8'));
+            const typebooks = this.filterManifestTypebooks(manifest, typebookId);
+            if (typebooks.length === 0)
+                continue;
+            result.push({
+                snapshot,
+                source: 'local',
+                generated_at: manifest.generated_at,
+                company: manifest.company,
+                typebooks,
+            });
+        }
+        return this.sortSnapshots(result);
+    }
+    async listDriveSnapshots(company, typebookId) {
+        if (!company.cloud) {
+            throw new Error('Empresa sem configuração de cloud');
+        }
+        const companyFolderId = await (0, googledrive_1.sendCreateFolder)(company.foldername, company.cloud);
+        const backupFolderId = await (0, googledrive_1.sendCreateFolder)('BACKUPS_ACERVO', company.cloud, companyFolderId);
+        const snapshots = await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }]);
+        const result = [];
+        for (const snapshot of snapshots || []) {
+            if (snapshot.mimeType !== 'application/vnd.google-apps.folder')
+                continue;
+            const snapshotDate = luxon_1.DateTime.fromFormat(snapshot.name, 'yyyy-MM-dd_HHmm');
+            if (!snapshotDate.isValid)
+                continue;
+            const files = await listDriveFilesMetadata(company.cloud, [{ id: snapshot.id }]);
+            const manifestFile = files?.find((item) => item.name === 'manifest.json');
+            if (!manifestFile?.id)
+                continue;
+            const manifestBuffer = await downloadDriveFileBuffer(manifestFile.id, company.cloud);
+            const manifest = JSON.parse(manifestBuffer.toString('utf8'));
+            const typebooks = this.filterManifestTypebooks(manifest, typebookId);
+            if (typebooks.length === 0)
+                continue;
+            result.push({
+                snapshot: snapshot.name,
+                source: 'drive',
+                generated_at: manifest.generated_at,
+                company: manifest.company,
+                typebooks,
+            });
+        }
+        return this.sortSnapshots(result);
+    }
+    filterManifestTypebooks(manifest, typebookId) {
+        const typebooks = Array.isArray(manifest?.typebooks) ? manifest.typebooks : [];
+        if (!typebookId)
+            return typebooks;
+        return typebooks.filter((item) => Number(item.typebooks_id) === Number(typebookId));
+    }
+    sortSnapshots(snapshots) {
+        return snapshots.sort((a, b) => String(b.snapshot).localeCompare(String(a.snapshot)));
     }
     async getDrivePackage(company, snapshot, typebookId) {
         if (!company.cloud) {
@@ -422,6 +507,9 @@ class AcervoBackupService {
                 continue;
             await fs_1.promises.rm(`${companyPath}/${snapshot}`, { recursive: true, force: true });
         }
+    }
+    async fileExists(path) {
+        return fs_1.promises.access(path).then(() => true).catch(() => false);
     }
     async cleanupDriveRetention(company, retentionDays) {
         if (!company.cloud)

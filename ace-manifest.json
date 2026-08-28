@@ -36,6 +36,42 @@
         }
       ]
     },
+    "acervo:backup-all": {
+      "settings": {
+        "loadApp": true
+      },
+      "commandPath": "./commands/AcervoBackupAll",
+      "commandName": "acervo:backup-all",
+      "description": "Gera backup granular do acervo para todas as empresas ativas",
+      "args": [],
+      "aliases": [],
+      "flags": [
+        {
+          "name": "upload",
+          "propertyName": "upload",
+          "type": "boolean",
+          "description": "Envia os arquivos gerados para o Google Drive das empresas"
+        },
+        {
+          "name": "retention-days",
+          "propertyName": "retentionDays",
+          "type": "number",
+          "description": "Dias de retenção dos snapshots"
+        },
+        {
+          "name": "include-inactive",
+          "propertyName": "includeInactive",
+          "type": "boolean",
+          "description": "Inclui empresas inativas"
+        },
+        {
+          "name": "include-without-books-module",
+          "propertyName": "includeWithoutBooksModule",
+          "type": "boolean",
+          "description": "Ignora filtro do módulo de livros"
+        }
+      ]
+    },
     "acervo:restore": {
       "settings": {
         "loadApp": true
@@ -87,6 +123,36 @@
           "propertyName": "reason",
           "type": "string",
           "description": "Motivo da restauração"
+        }
+      ]
+    },
+    "acervo:snapshots": {
+      "settings": {
+        "loadApp": true
+      },
+      "commandPath": "./commands/AcervoSnapshots",
+      "commandName": "acervo:snapshots",
+      "description": "Lista snapshots de backup do acervo por empresa e typebook",
+      "args": [],
+      "aliases": [],
+      "flags": [
+        {
+          "name": "company",
+          "propertyName": "company",
+          "type": "number",
+          "description": "ID da empresa"
+        },
+        {
+          "name": "typebook",
+          "propertyName": "typebook",
+          "type": "number",
+          "description": "ID do typebook. Se omitido, lista todos"
+        },
+        {
+          "name": "source",
+          "propertyName": "source",
+          "type": "string",
+          "description": "Origem dos backups: local ou drive"
         }
       ]
     },
