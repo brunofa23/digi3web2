@@ -1,5 +1,95 @@
 {
   "commands": {
+    "acervo:backup": {
+      "settings": {
+        "loadApp": true
+      },
+      "commandPath": "./commands/AcervoBackup",
+      "commandName": "acervo:backup",
+      "description": "Gera backup granular do acervo por empresa e typebook",
+      "args": [],
+      "aliases": [],
+      "flags": [
+        {
+          "name": "company",
+          "propertyName": "company",
+          "type": "number",
+          "description": "ID da empresa"
+        },
+        {
+          "name": "typebook",
+          "propertyName": "typebook",
+          "type": "number",
+          "description": "ID do typebook. Se omitido, gera todos os typebooks da empresa"
+        },
+        {
+          "name": "upload",
+          "propertyName": "upload",
+          "type": "boolean",
+          "description": "Envia os arquivos gerados para o Google Drive da empresa"
+        },
+        {
+          "name": "retention-days",
+          "propertyName": "retentionDays",
+          "type": "number",
+          "description": "Dias de retenção dos snapshots"
+        }
+      ]
+    },
+    "acervo:restore": {
+      "settings": {
+        "loadApp": true
+      },
+      "commandPath": "./commands/AcervoRestore",
+      "commandName": "acervo:restore",
+      "description": "Restaura backup granular do acervo por empresa e typebook",
+      "args": [],
+      "aliases": [],
+      "flags": [
+        {
+          "name": "company",
+          "propertyName": "company",
+          "type": "number",
+          "description": "ID da empresa"
+        },
+        {
+          "name": "typebook",
+          "propertyName": "typebook",
+          "type": "number",
+          "description": "ID do typebook que será restaurado"
+        },
+        {
+          "name": "snapshot",
+          "propertyName": "snapshot",
+          "type": "string",
+          "description": "Snapshot no formato yyyy-MM-dd_HHmm"
+        },
+        {
+          "name": "source",
+          "propertyName": "source",
+          "type": "string",
+          "description": "Origem do backup: local ou drive"
+        },
+        {
+          "name": "dry-run",
+          "propertyName": "dryRun",
+          "type": "boolean",
+          "description": "Valida manifest/checksum sem aplicar restauração"
+        },
+        {
+          "name": "confirm",
+          "propertyName": "confirm",
+          "type": "boolean",
+          "description": "Confirma a aplicação da restauração no banco"
+        },
+        {
+          "name": "reason",
+          "propertyName": "reason",
+          "type": "string",
+          "description": "Motivo da restauração"
+        }
+      ]
+    },
     "indeximages:fill-drive-ids": {
       "settings": {
         "loadApp": true
