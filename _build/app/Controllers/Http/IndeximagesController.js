@@ -85,6 +85,17 @@ function sanitizeUploadFileName(fileName, extname) {
     const baseName = path.basename(fileName || fallback).replace(/[^\w.\-]/g, '_');
     return baseName.includes('.') ? baseName : `${baseName}.${extname}`;
 }
+function normalizeImageOrigin(value) {
+    const allowedOrigins = [
+        'desktop_file_input',
+        'mobile_file_input',
+        'app_native_camera',
+        'app_ionic_camera',
+        'unknown',
+    ];
+    const origin = String(value || '').trim();
+    return allowedOrigins.includes(origin) ? origin : 'unknown';
+}
 async function buildImageFromBase64Upload(payload) {
     const match = String(payload.imageBase64 || '').match(/^data:([^;]+);base64,(.+)$/);
     const mimeType = payload.imageType || match?.[1] || 'image/jpeg';
@@ -271,6 +282,7 @@ class IndeximagesController {
                 dataImages = dataImagesRaw;
             }
         }
+        dataImages.image_origin = normalizeImageOrigin(dataImages?.image_origin || request.input('image_origin'));
         const imageBase64 = request.input('imageBase64');
         if (!images.length && imageBase64) {
             images = [
@@ -565,7 +577,7 @@ class IndeximagesController {
     async uploadCapture({ auth, request, params }) {
         const authenticate = await auth.use('api').authenticate();
         const company = await Company_1.default.find(authenticate.companies_id);
-        const { imageCaptureBase64, cod, id } = request.requestData;
+        const { imageCaptureBase64, cod, id, image_origin } = request.requestData;
         let base64Image = imageCaptureBase64.split(';base64,').pop();
         const uploadsBasePath = Application_1.default.tmpPath('uploads');
         const folderPath = Application_1.default.tmpPath(`/uploads/Client_${authenticate.companies_id}`);
@@ -585,7 +597,7 @@ class IndeximagesController {
         fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
             console.log('File created', { folderPath });
         });
-        const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, company?.cloud, true);
+        const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, company?.cloud, true, { id, cod, image_origin: normalizeImageOrigin(image_origin) });
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }
     async download(ctx) {
@@ -601,6 +613,7 @@ class IndeximagesController {
         const fileName = params.id;
         const company = await Company_1.default.find(authenticate.companies_id);
         const indexImage = await Indeximage_1.default.query()
+            .preload('bookrecord')
             .where('file_name', fileName)
             .andWhere('typebooks_id', typebook_id)
             .andWhere('companies_id', authenticate.companies_id)
@@ -630,9 +643,19 @@ class IndeximagesController {
             extension: path.extname(fileName),
             body,
             size: fileDownload.size,
+            drive_file_id: indexImage?.drive_file_id,
+            drive_file_size: indexImage?.drive_file_size || fileDownload.size,
+            drive_md5_checksum: indexImage?.drive_md5_checksum,
+            drive_folder_id: indexImage?.drive_folder_id,
+            image_origin: indexImage?.image_origin || 'unknown',
+            image_width: indexImage?.image_width,
+            image_height: indexImage?.image_height,
             bookrecords_id: indexImage?.bookrecords_id,
             typebooks_id: indexImage?.typebooks_id,
             seq: indexImage?.seq,
+            book: indexImage?.bookrecord?.book,
+            sheet: indexImage?.bookrecord?.sheet,
+            side: indexImage?.bookrecord?.side,
         };
     }
     async countProcessing({ auth, params, response }) {

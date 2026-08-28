@@ -94,6 +94,19 @@ function sanitizeUploadFileName(fileName: string, extname: string) {
   return baseName.includes('.') ? baseName : `${baseName}.${extname}`
 }
 
+function normalizeImageOrigin(value: any) {
+  const allowedOrigins = [
+    'desktop_file_input',
+    'mobile_file_input',
+    'app_native_camera',
+    'app_ionic_camera',
+    'unknown',
+  ]
+  const origin = String(value || '').trim()
+
+  return allowedOrigins.includes(origin) ? origin : 'unknown'
+}
+
 async function buildImageFromBase64Upload(payload: {
   imageBase64: string
   imageName?: string
@@ -337,6 +350,7 @@ export default class IndeximagesController {
         dataImages = dataImagesRaw
       }
     }
+    dataImages.image_origin = normalizeImageOrigin(dataImages?.image_origin || request.input('image_origin'))
 
     const imageBase64 = request.input('imageBase64')
     if (!images.length && imageBase64) {
@@ -703,7 +717,7 @@ export default class IndeximagesController {
   public async uploadCapture({ auth, request, params }) {
     const authenticate = await auth.use('api').authenticate()
     const company = await Company.find(authenticate.companies_id)
-    const { imageCaptureBase64, cod, id } = request.requestData
+    const { imageCaptureBase64, cod, id, image_origin } = request.requestData
     let base64Image = imageCaptureBase64.split(';base64,').pop();
 
     const uploadsBasePath = Application.tmpPath('uploads')
@@ -726,7 +740,14 @@ export default class IndeximagesController {
       console.log('File created', { folderPath })
     });
 
-    const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, company?.cloud, true)
+    const file = await FileRename.transformFilesNameToId(
+      `${folderPath}/${file_name}.jpeg`,
+      params,
+      authenticate.companies_id,
+      company?.cloud,
+      true,
+      { id, cod, image_origin: normalizeImageOrigin(image_origin) }
+    )
     return { sucesso: "sucesso", file, typebook: params.typebooks_id }
   }
 
@@ -745,6 +766,7 @@ export default class IndeximagesController {
     const fileName = params.id
     const company = await Company.find(authenticate.companies_id)
     const indexImage = await Indeximage.query()
+      .preload('bookrecord')
       .where('file_name', fileName)
       .andWhere('typebooks_id', typebook_id)
       .andWhere('companies_id', authenticate.companies_id)
@@ -775,9 +797,19 @@ export default class IndeximagesController {
       extension: path.extname(fileName),
       body,
       size: fileDownload.size,
+      drive_file_id: indexImage?.drive_file_id,
+      drive_file_size: indexImage?.drive_file_size || fileDownload.size,
+      drive_md5_checksum: indexImage?.drive_md5_checksum,
+      drive_folder_id: indexImage?.drive_folder_id,
+      image_origin: indexImage?.image_origin || 'unknown',
+      image_width: indexImage?.image_width,
+      image_height: indexImage?.image_height,
       bookrecords_id: indexImage?.bookrecords_id,
       typebooks_id: indexImage?.typebooks_id,
       seq: indexImage?.seq,
+      book: indexImage?.bookrecord?.book,
+      sheet: indexImage?.bookrecord?.sheet,
+      side: indexImage?.bookrecord?.side,
     }
 
   }

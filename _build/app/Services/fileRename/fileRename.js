@@ -15,6 +15,7 @@ const pino_std_serializers_1 = require("pino-std-serializers");
 const luxon_1 = require("luxon");
 const fs_1 = require("fs");
 const crypto_1 = __importDefault(require("crypto"));
+const sharp_1 = __importDefault(require("sharp"));
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const PdfOptimizer_1 = __importDefault(require("../imageProcessing/PdfOptimizer"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
@@ -116,16 +117,40 @@ async function deleteImage(folderPath) {
 async function getLocalFileMetadata(filePath) {
     const stat = await fs_1.promises.stat(filePath);
     const hash = crypto_1.default.createHash('md5');
+    let width = null;
+    let height = null;
     await new Promise((resolve, reject) => {
         const stream = fs.createReadStream(filePath);
         stream.on('data', (chunk) => hash.update(chunk));
         stream.on('end', () => resolve());
         stream.on('error', reject);
     });
+    try {
+        const metadata = await (0, sharp_1.default)(filePath).metadata();
+        width = metadata.width || null;
+        height = metadata.height || null;
+    }
+    catch (error) {
+        width = null;
+        height = null;
+    }
     return {
         size: stat.size,
         md5Checksum: hash.digest('hex'),
+        width,
+        height,
     };
+}
+function normalizeImageOrigin(value) {
+    const allowedOrigins = [
+        'desktop_file_input',
+        'mobile_file_input',
+        'app_native_camera',
+        'app_ionic_camera',
+        'unknown',
+    ];
+    const origin = String(value || '').trim();
+    return allowedOrigins.includes(origin) ? origin : 'unknown';
 }
 async function findDuplicateIndeximage(companiesId, typebooksId, bookrecordsId, driveFolderId, md5Checksum, fileSize) {
     if (!companiesId || !typebooksId || !bookrecordsId || !driveFolderId || !md5Checksum || !fileSize)
@@ -148,12 +173,12 @@ function getUploadReportItem(objfileRename, image, idParent) {
         bookrecords_id: objfileRename.bookrecords_id,
         seq: objfileRename.seq,
         cod: objfileRename.register || objfileRename.cod,
-        book: objfileRename.book,
-        sheet: objfileRename.sheet,
-        side: objfileRename.side,
         approximate_term: objfileRename.approximate_term,
         indexbook: objfileRename.indexbook,
         drive_folder_id: objfileRename.drive_folder_id || idParent,
+        image_origin: objfileRename.image_origin || 'unknown',
+        image_width: objfileRename.image_width || null,
+        image_height: objfileRename.image_height || null,
     };
 }
 async function downloadImage(fileName, typebook_id, company_id, cloud_number) {
@@ -228,11 +253,11 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
         throw new BadRequestException_1.default('undefined book', 409);
     const parentId = await ensureDriveFolder(directoryParent.path, cloud_number, companies_id);
     if (capture) {
-        const validateFileRename = await fileRename(images, params.typebooks_id, companies_id, {}, true);
+        const validateFileRename = await fileRename(images, params.typebooks_id, companies_id, dataImages, true);
         if (isInvalidFileRename(validateFileRename)) {
             throwInvalidFiles([normalizeInvalidFileRename(images, validateFileRename)]);
         }
-        const _fileRename = await fileRename(images, params.typebooks_id, companies_id);
+        const _fileRename = await fileRename(images, params.typebooks_id, companies_id, dataImages);
         if (isInvalidFileRename(_fileRename)) {
             throwInvalidFiles([normalizeInvalidFileRename(images, _fileRename)]);
         }
@@ -423,6 +448,9 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
                 drive_file_size: localMetadata.size,
                 drive_md5_checksum: localMetadata.md5Checksum,
                 drive_folder_id: idParent,
+                image_origin: objfileRename.image_origin || 'unknown',
+                image_width: localMetadata.width,
+                image_height: localMetadata.height,
                 duplicate: {
                     file_name: duplicateIndeximage.file_name,
                     drive_file_id: duplicateIndeximage.drive_file_id,
@@ -452,6 +480,8 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
             objfileRename.drive_file_size = driveFileSize;
             objfileRename.drive_md5_checksum = driveMd5Checksum;
             objfileRename.drive_folder_id = driveFolderId;
+            objfileRename.image_width = localMetadata.width;
+            objfileRename.image_height = localMetadata.height;
             const date_atualization = luxon_1.DateTime.now();
             objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm');
             await Indeximage_1.default.create(objfileRename);
@@ -469,6 +499,9 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         drive_file_size: objfileRename.drive_file_size || null,
         drive_md5_checksum: objfileRename.drive_md5_checksum || null,
         drive_folder_id: objfileRename.drive_folder_id || idParent,
+        image_origin: objfileRename.image_origin || 'unknown',
+        image_width: objfileRename.image_width || null,
+        image_height: objfileRename.image_height || null,
     };
 }
 async function fileRename(originalFileName, typebooks_id, companies_id, dataImages = {}, validateOnly = false) {
@@ -725,6 +758,8 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                 companies_id,
                 seq,
                 ext: objFileName.ext,
+                register: bookRecord.cod,
+                image_origin: normalizeImageOrigin(dataImages?.image_origin),
             };
         }
         catch (error) {
