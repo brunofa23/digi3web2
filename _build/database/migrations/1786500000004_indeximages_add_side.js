@@ -4,7 +4,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const Schema_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Schema"));
-const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 class default_1 extends Schema_1.default {
     constructor() {
         super(...arguments);
@@ -33,19 +32,14 @@ class default_1 extends Schema_1.default {
         });
     }
     async hasColumn(columnName) {
-        const result = await Database_1.default.rawQuery(`
-        SELECT COLUMN_NAME
-        FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = ?
-          AND COLUMN_NAME = ?
-      `, [this.tableName, columnName]);
-        const rows = Array.isArray(result?.[0]) ? result[0] : result;
-        return Array.isArray(rows) && rows.length > 0;
+        return this.schema.hasColumn(this.tableName, columnName);
     }
     isDuplicateColumnError(error) {
         const databaseError = error;
-        return databaseError.code === 'ER_DUP_FIELDNAME' || databaseError.errno === 1060;
+        const message = databaseError.sqlMessage || databaseError.message || '';
+        return databaseError.code === 'ER_DUP_FIELDNAME'
+            || databaseError.errno === 1060
+            || message.includes('Duplicate column name');
     }
 }
 exports.default = default_1;

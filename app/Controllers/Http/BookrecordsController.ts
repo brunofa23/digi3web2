@@ -3434,7 +3434,7 @@ export default class BookrecordsController {
     const indeximages = await query
     const effectiveBookNumbers = bookNumbers.length
       ? bookNumbers
-      : this.uniqueValues(indeximages.map((item) => String(item.bookrecord?.book || item.book || '')))
+      : this.uniqueValues(indeximages.map((item) => String(item.bookrecord?.book || '')))
         .map((item) => Number(item))
         .filter((item) => Number.isInteger(item) && item > 0)
     const driveFiles = singleFileName

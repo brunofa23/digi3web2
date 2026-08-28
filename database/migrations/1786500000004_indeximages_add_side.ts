@@ -1,5 +1,4 @@
 import BaseSchema from '@ioc:Adonis/Lucid/Schema'
-import Database from '@ioc:Adonis/Lucid/Database'
 
 export default class extends BaseSchema {
   protected tableName = 'indeximages'
@@ -29,23 +28,14 @@ export default class extends BaseSchema {
   }
 
   private async hasColumn(columnName: string) {
-    const result = await Database.rawQuery(
-      `
-        SELECT COLUMN_NAME
-        FROM information_schema.COLUMNS
-        WHERE TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME = ?
-          AND COLUMN_NAME = ?
-      `,
-      [this.tableName, columnName]
-    )
-
-    const rows = Array.isArray(result?.[0]) ? result[0] : result
-    return Array.isArray(rows) && rows.length > 0
+    return this.schema.hasColumn(this.tableName, columnName)
   }
 
   private isDuplicateColumnError(error: unknown) {
-    const databaseError = error as { code?: string; errno?: number }
-    return databaseError.code === 'ER_DUP_FIELDNAME' || databaseError.errno === 1060
+    const databaseError = error as { code?: string; errno?: number; message?: string; sqlMessage?: string }
+    const message = databaseError.sqlMessage || databaseError.message || ''
+    return databaseError.code === 'ER_DUP_FIELDNAME'
+      || databaseError.errno === 1060
+      || message.includes('Duplicate column name')
   }
 }

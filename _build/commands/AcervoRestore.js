@@ -68,6 +68,9 @@ class AcervoRestore extends standalone_1.BaseCommand {
         for (const [table, total] of Object.entries(result.typebook.tables || {})) {
             this.logger.info(`${table}: ${total}`);
         }
+        for (const warning of result.warnings || []) {
+            this.logger.warning(warning);
+        }
         if (!this.dryRun) {
             this.logger.warning(`Pre-restore gerado em: ${result.pre_restore_path}`);
         }

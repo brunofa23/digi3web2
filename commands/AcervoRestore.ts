@@ -87,6 +87,10 @@ export default class AcervoRestore extends BaseCommand {
       this.logger.info(`${table}: ${total}`)
     }
 
+    for (const warning of result.warnings || []) {
+      this.logger.warning(warning)
+    }
+
     if (!this.dryRun) {
       this.logger.warning(`Pre-restore gerado em: ${result.pre_restore_path}`)
     }

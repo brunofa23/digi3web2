@@ -22,9 +22,6 @@ export default class Indeximage extends BaseModel {
       'image_width',
       'image_height',
       'previous_file_name',
-      'book',
-      'sheet',
-      'side',
       'register',
       'ready',
       'date_atualization',
@@ -98,15 +95,6 @@ export default class Indeximage extends BaseModel {
 
   @column()
   public previous_file_name: string
-
-  @column()
-  public book: number
-
-  @column()
-  public sheet: number
-
-  @column()
-  public side: string | null
 
   @column()
   public register: number

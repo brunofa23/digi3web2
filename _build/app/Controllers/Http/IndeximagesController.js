@@ -613,6 +613,7 @@ class IndeximagesController {
         const fileName = params.id;
         const company = await Company_1.default.find(authenticate.companies_id);
         const indexImage = await Indeximage_1.default.query()
+            .preload('bookrecord')
             .where('file_name', fileName)
             .andWhere('typebooks_id', typebook_id)
             .andWhere('companies_id', authenticate.companies_id)
@@ -652,9 +653,9 @@ class IndeximagesController {
             bookrecords_id: indexImage?.bookrecords_id,
             typebooks_id: indexImage?.typebooks_id,
             seq: indexImage?.seq,
-            book: indexImage?.book,
-            sheet: indexImage?.sheet,
-            side: indexImage?.side,
+            book: indexImage?.bookrecord?.book,
+            sheet: indexImage?.bookrecord?.sheet,
+            side: indexImage?.bookrecord?.side,
         };
     }
     async countProcessing({ auth, params, response }) {

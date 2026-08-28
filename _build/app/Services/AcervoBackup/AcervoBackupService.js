@@ -80,6 +80,9 @@ class AcervoBackupService {
         if (options.upload) {
             await this.cleanupDriveRetention(company, options.retentionDays || 30);
         }
+        if (options.userId) {
+            await this.logBackup(options, manifest);
+        }
         return {
             snapshot,
             path: basePath,
@@ -99,7 +102,9 @@ class AcervoBackupService {
         }
         const sql = (await gunzipAsync(packageData.sqlGz)).toString('utf8');
         this.validateRestoreSql(sql, options.companyId, options.typebookId);
+        const preparedRestore = await this.prepareRestoreSql(sql);
         if (options.dryRun) {
+            await this.executeRestoreSqlAsDryRun(preparedRestore.sql);
             return {
                 dryRun: true,
                 applied: false,
@@ -108,6 +113,7 @@ class AcervoBackupService {
                 manifest: packageData.manifest,
                 typebook: packageData.typebook,
                 checksum,
+                warnings: preparedRestore.warnings,
             };
         }
         if (!options.confirm) {
@@ -119,8 +125,8 @@ class AcervoBackupService {
             upload: false,
             retentionDays: 30,
         });
-        await this.executeRestoreSql(sql);
-        await this.logRestore(options, packageData.typebook, preRestore);
+        await this.executeRestoreSql(preparedRestore.sql);
+        await this.logRestore(options, packageData.typebook, preRestore, preparedRestore.warnings);
         return {
             dryRun: false,
             applied: true,
@@ -131,6 +137,7 @@ class AcervoBackupService {
             manifest: packageData.manifest,
             typebook: packageData.typebook,
             checksum,
+            warnings: preparedRestore.warnings,
         };
     }
     async listSnapshots(options) {
@@ -303,6 +310,10 @@ class AcervoBackupService {
         const typebookRows = await Database_1.default.from('typebooks')
             .where('companies_id', companyId)
             .andWhere('id', typebookId);
+        const bookrecordRows = await Database_1.default.from('bookrecords')
+            .where('companies_id', companyId)
+            .andWhere('typebooks_id', typebookId);
+        const bookrecordIds = bookrecordRows.map((row) => row.id);
         const result = [
             {
                 table: 'typebooks',
@@ -311,13 +322,26 @@ class AcervoBackupService {
             },
         ];
         for (const table of TABLES) {
-            const rows = await Database_1.default.from(table)
+            const columns = await this.getColumns(table);
+            const query = Database_1.default.from(table)
                 .where('companies_id', companyId)
                 .andWhere('typebooks_id', typebookId);
+            if (table === 'bookrecords') {
+                query.whereIn('id', bookrecordIds);
+            }
+            else if (columns.includes('bookrecords_id')) {
+                if (bookrecordIds.length === 0) {
+                    query.whereRaw('1 = 0');
+                }
+                else {
+                    query.whereIn('bookrecords_id', bookrecordIds);
+                }
+            }
+            const rows = await query;
             result.push({
                 table,
                 rows,
-                columns: await this.getColumns(table),
+                columns,
             });
         }
         return result;
@@ -399,10 +423,14 @@ class AcervoBackupService {
             await connection.end();
         }
     }
-    async logRestore(options, typebook, preRestore) {
+    async executeRestoreSqlAsDryRun(sql) {
+        const dryRunSql = sql.replace(/COMMIT;\s*$/i, 'ROLLBACK;');
+        await this.executeRestoreSql(dryRunSql);
+    }
+    async logRestore(options, typebook, preRestore, warnings) {
         await AuditLog_1.default.create({
             companiesId: options.companyId,
-            userId: null,
+            userId: options.userId || null,
             action: 'acervo_restore',
             entityTable: 'typebooks',
             entityId: options.typebookId,
@@ -422,6 +450,7 @@ class AcervoBackupService {
                 checksum_sha256: typebook.checksum_sha256,
                 tables: typebook.tables,
                 total_rows: typebook.total_rows,
+                warnings,
             },
             beforeData: {
                 pre_restore_snapshot: preRestore.snapshot,
@@ -434,6 +463,41 @@ class AcervoBackupService {
             occurrenceCount: 1,
             firstAt: luxon_1.DateTime.now(),
             lastAt: luxon_1.DateTime.now(),
+            ip: options.ip || null,
+        });
+    }
+    async logBackup(options, manifest) {
+        await AuditLog_1.default.create({
+            companiesId: options.companyId,
+            userId: options.userId || null,
+            action: 'acervo_backup_manual',
+            entityTable: options.typebookId ? 'typebooks' : 'companies',
+            entityId: options.typebookId || options.companyId,
+            resourceKey: `acervo-backup:${options.companyId}:${options.typebookId || 'all'}:${manifest.snapshot}`,
+            entityKey: {
+                companies_id: options.companyId,
+                typebooks_id: options.typebookId || null,
+                snapshot: manifest.snapshot,
+            },
+            description: options.typebookId
+                ? `Backup manual do acervo do livro ${options.typebookId}`
+                : 'Backup manual do acervo da empresa',
+            metadata: {
+                uploaded_to_drive: Boolean(options.upload),
+                retention_days: options.retentionDays || 30,
+                snapshot: manifest.snapshot,
+                typebooks: manifest.typebooks?.map((typebook) => ({
+                    typebooks_id: typebook.typebooks_id,
+                    typebook_name: typebook.typebook_name,
+                    file: typebook.file,
+                    checksum_sha256: typebook.checksum_sha256,
+                    total_rows: typebook.total_rows,
+                })) || [],
+            },
+            occurrenceCount: 1,
+            firstAt: luxon_1.DateTime.now(),
+            lastAt: luxon_1.DateTime.now(),
+            ip: options.ip || null,
         });
     }
     buildInsertSql(backup) {
@@ -484,10 +548,191 @@ class AcervoBackupService {
             .replace(/\0/g, '\\0')
             .replace(/\n/g, '\\n')
             .replace(/\r/g, '\\r')
-            .replace(/\b/g, '\\b')
+            .replace(/\x08/g, '\\b')
             .replace(/\t/g, '\\t')
             .replace(/\x1a/g, '\\Z')
             .replace(/'/g, "\\'")}'`;
+    }
+    async prepareRestoreSql(sql) {
+        const warnings = [];
+        let preparedSql = sql;
+        if (preparedSql.includes('\\b')) {
+            preparedSql = preparedSql.replace(/\\b/g, '');
+            warnings.push('Backup antigo continha escapes "\\b" em textos; eles foram normalizados antes da restauração.');
+        }
+        preparedSql = await this.removeMissingInsertColumns(preparedSql, warnings);
+        preparedSql = this.removeRowsWithoutParentBookrecord(preparedSql, warnings);
+        return {
+            sql: preparedSql,
+            warnings,
+        };
+    }
+    async removeMissingInsertColumns(sql, warnings) {
+        const insertRegex = /INSERT INTO ([a-zA-Z0-9_]+) \(([\s\S]*?)\) VALUES\n([\s\S]*?)\nON DUPLICATE KEY UPDATE [\s\S]*?;/g;
+        const matches = Array.from(sql.matchAll(insertRegex));
+        const tables = Array.from(new Set(matches.map((match) => match[1])));
+        const columnCache = new Map();
+        for (const table of tables) {
+            columnCache.set(table, new Set(await this.getColumns(table)));
+        }
+        return sql.replace(insertRegex, (statement, table, columnSql, valuesSql) => {
+            return this.sanitizeInsertStatement(statement, table, columnSql, valuesSql, columnCache, warnings);
+        });
+    }
+    sanitizeInsertStatement(statement, table, columnSql, valuesSql, columnCache, warnings) {
+        const currentColumns = columnCache.get(table);
+        if (!currentColumns || currentColumns.size === 0)
+            return statement;
+        const columns = this.parseInsertColumns(columnSql);
+        const keepIndexes = columns
+            .map((column, index) => currentColumns.has(column) ? index : -1)
+            .filter((index) => index >= 0);
+        const ignoredColumns = columns.filter((column) => !currentColumns.has(column));
+        if (ignoredColumns.length === 0)
+            return statement;
+        const rows = this.parseInsertRows(valuesSql);
+        const sanitizedRows = rows.map((row) => {
+            const values = this.parseRowValues(row);
+            return `(${keepIndexes.map((index) => values[index]).join(', ')})`;
+        });
+        const keptColumns = keepIndexes.map((index) => columns[index]);
+        warnings.push(`Tabela ${table}: colunas ignoradas por não existirem no banco atual: ${ignoredColumns.join(', ')}.`);
+        return [
+            `INSERT INTO ${table} (${keptColumns.map((column) => `\`${column}\``).join(', ')}) VALUES`,
+            sanitizedRows.join(',\n'),
+            this.getDuplicateUpdate(keptColumns),
+        ].join('\n');
+    }
+    parseInsertColumns(columnSql) {
+        return Array.from(columnSql.matchAll(/`([^`]+)`/g)).map((match) => match[1]);
+    }
+    parseInsertRows(valuesSql) {
+        const rows = [];
+        let start = -1;
+        let depth = 0;
+        let inString = false;
+        let escaped = false;
+        for (let index = 0; index < valuesSql.length; index++) {
+            const char = valuesSql[index];
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                }
+                else if (char === '\\') {
+                    escaped = true;
+                }
+                else if (char === "'") {
+                    inString = false;
+                }
+                continue;
+            }
+            if (char === "'") {
+                inString = true;
+                continue;
+            }
+            if (char === '(') {
+                if (depth === 0)
+                    start = index;
+                depth++;
+            }
+            else if (char === ')') {
+                depth--;
+                if (depth === 0 && start >= 0) {
+                    rows.push(valuesSql.slice(start, index + 1));
+                    start = -1;
+                }
+            }
+        }
+        return rows;
+    }
+    parseRowValues(rowSql) {
+        const content = rowSql.trim().replace(/^\(/, '').replace(/\)$/, '');
+        const values = [];
+        let start = 0;
+        let inString = false;
+        let escaped = false;
+        for (let index = 0; index < content.length; index++) {
+            const char = content[index];
+            if (inString) {
+                if (escaped) {
+                    escaped = false;
+                }
+                else if (char === '\\') {
+                    escaped = true;
+                }
+                else if (char === "'") {
+                    inString = false;
+                }
+                continue;
+            }
+            if (char === "'") {
+                inString = true;
+                continue;
+            }
+            if (char === ',') {
+                values.push(content.slice(start, index).trim());
+                start = index + 1;
+            }
+        }
+        values.push(content.slice(start).trim());
+        return values;
+    }
+    removeRowsWithoutParentBookrecord(sql, warnings) {
+        const insertRegex = /INSERT INTO ([a-zA-Z0-9_]+) \(([\s\S]*?)\) VALUES\n([\s\S]*?)\nON DUPLICATE KEY UPDATE [\s\S]*?;/g;
+        const bookrecordIds = new Set();
+        const dependentTables = [
+            'indeximages',
+            'documents',
+            'indeximage_ocr_checks',
+            'indeximage_ocr_entities',
+        ];
+        for (const match of sql.matchAll(insertRegex)) {
+            const [, table, columnSql, valuesSql] = match;
+            if (table !== 'bookrecords')
+                continue;
+            const columns = this.parseInsertColumns(columnSql);
+            const idIndex = columns.indexOf('id');
+            if (idIndex < 0)
+                continue;
+            for (const row of this.parseInsertRows(valuesSql)) {
+                const values = this.parseRowValues(row);
+                const id = this.getSqlNumber(values[idIndex]);
+                if (id)
+                    bookrecordIds.add(id);
+            }
+        }
+        if (bookrecordIds.size === 0)
+            return sql;
+        return sql.replace(insertRegex, (statement, table, columnSql, valuesSql) => {
+            if (!dependentTables.includes(table))
+                return statement;
+            const columns = this.parseInsertColumns(columnSql);
+            const parentIndex = columns.indexOf('bookrecords_id');
+            if (parentIndex < 0)
+                return statement;
+            const rows = this.parseInsertRows(valuesSql);
+            const validRows = rows.filter((row) => {
+                const values = this.parseRowValues(row);
+                const parentId = this.getSqlNumber(values[parentIndex]);
+                return parentId ? bookrecordIds.has(parentId) : true;
+            });
+            const ignoredRows = rows.length - validRows.length;
+            if (ignoredRows === 0)
+                return statement;
+            warnings.push(`Tabela ${table}: ${ignoredRows} registro(s) ignorado(s) porque o bookrecords_id não existe no snapshot.`);
+            if (validRows.length === 0) {
+                return `-- ${table}: ${ignoredRows} registro(s) ignorado(s) por bookrecords_id inexistente`;
+            }
+            return [
+                `INSERT INTO ${table} (${columns.map((column) => `\`${column}\``).join(', ')}) VALUES`,
+                validRows.join(',\n'),
+                this.getDuplicateUpdate(columns),
+            ].join('\n');
+        });
+    }
+    getSqlNumber(value) {
+        const numberValue = Number(String(value || '').trim());
+        return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null;
     }
     async ensureDriveSnapshotFolder(company, snapshot) {
         if (!company.cloud) {

@@ -34,9 +34,6 @@ class Indeximage extends Orm_1.BaseModel {
             'image_width',
             'image_height',
             'previous_file_name',
-            'book',
-            'sheet',
-            'side',
             'register',
             'ready',
             'date_atualization',
@@ -128,18 +125,6 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Indeximage.prototype, "previous_file_name", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Number)
-], Indeximage.prototype, "book", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Number)
-], Indeximage.prototype, "sheet", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Object)
-], Indeximage.prototype, "side", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)

@@ -8,6 +8,7 @@ const ImageUploadJob_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Mode
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
+const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const imageUploadJobs_1 = global[Symbol.for('ioc.use')]("App/Services/imageUploadJobs");
 class ImageUploadJobsController {
@@ -50,6 +51,20 @@ class ImageUploadJobsController {
     shouldShowJob(job) {
         const summary = this.getSummary(job);
         return !(job.status === 'COMPLETED' && summary.total === 0 && summary.uploaded === 0 && summary.skipped === 0);
+    }
+    enrichFilesWithBookrecord(files = [], bookrecordsById) {
+        return files.map((file) => {
+            const bookrecord = bookrecordsById.get(Number(file?.bookrecords_id));
+            if (!bookrecord)
+                return file;
+            return {
+                ...file,
+                cod: file.cod ?? bookrecord.cod,
+                book: bookrecord.book,
+                sheet: bookrecord.sheet,
+                side: bookrecord.side,
+            };
+        });
     }
     getDateStart(dateStart) {
         const retentionStart = (0, imageUploadJobs_1.getUploadJobRetentionStart)();
@@ -114,6 +129,14 @@ class ImageUploadJobsController {
             const limitedJobs = filteredJobs.slice(0, maxLimit);
             const userIds = Array.from(new Set(limitedJobs.map((item) => item.userId).filter(Boolean)));
             const typebookIds = Array.from(new Set(limitedJobs.map((item) => item.typebooksId).filter(Boolean)));
+            const bookrecordIds = Array.from(new Set(limitedJobs.flatMap((job) => {
+                const resultFiles = this.parseJson(job.resultFiles, {});
+                const files = [
+                    ...(resultFiles?.uploadedFiles || []),
+                    ...(resultFiles?.skippedFiles || []),
+                ];
+                return files.map((file) => Number(file?.bookrecords_id)).filter((id) => Number.isInteger(id) && id > 0);
+            })));
             const users = userIds.length
                 ? await User_1.default.query().whereIn('id', userIds).select('id', 'name', 'username')
                 : [];
@@ -124,8 +147,15 @@ class ImageUploadJobsController {
                     .whereIn('id', typebookIds)
                     .select('id', 'name')
                 : [];
+            const bookrecords = bookrecordIds.length
+                ? await Bookrecord_1.default.query()
+                    .where('companies_id', effectiveCompanyId)
+                    .whereIn('id', bookrecordIds)
+                    .select('id', 'cod', 'book', 'sheet', 'side')
+                : [];
             const usersById = new Map(users.map((user) => [user.id, user]));
             const typebooksById = new Map(typebooks.map((typebook) => [typebook.id, typebook]));
+            const bookrecordsById = new Map(bookrecords.map((bookrecord) => [bookrecord.id, bookrecord]));
             return response.status(200).send({
                 retentionDays: imageUploadJobs_1.RETENTION_DAYS,
                 data: limitedJobs.map((job) => {
@@ -143,8 +173,8 @@ class ImageUploadJobsController {
                         file_names: fileNames,
                         data_images: dataImages,
                         summary: this.getSummary(job),
-                        uploaded_files: resultFiles?.uploadedFiles || [],
-                        skipped_files: resultFiles?.skippedFiles || [],
+                        uploaded_files: this.enrichFilesWithBookrecord(resultFiles?.uploadedFiles || [], bookrecordsById),
+                        skipped_files: this.enrichFilesWithBookrecord(resultFiles?.skippedFiles || [], bookrecordsById),
                         error_message: job.errorMessage,
                         created_at: job.createdAt?.toISO(),
                         updated_at: job.updatedAt?.toISO(),

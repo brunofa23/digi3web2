@@ -439,7 +439,7 @@ class OcrConferencesController {
             ? matchingBeforePending
             : this.countValue(await applyPendingFilter(buildSelectionQuery()).count('* as total').first());
         const query = buildSelectionQuery()
-            .select('indeximages.companies_id', 'indeximages.typebooks_id', 'indeximages.bookrecords_id', 'indeximages.seq', 'indeximages.file_name', 'indeximages.drive_file_id', 'indeximages.book as index_book', 'bookrecords.book as record_book', 'bookrecords.sheet as record_sheet', 'bookrecords.approximate_term as record_approximate_term')
+            .select('indeximages.companies_id', 'indeximages.typebooks_id', 'indeximages.bookrecords_id', 'indeximages.seq', 'indeximages.file_name', 'indeximages.drive_file_id', 'bookrecords.book as index_book', 'bookrecords.book as record_book', 'bookrecords.sheet as record_sheet', 'bookrecords.approximate_term as record_approximate_term')
             .orderBy('bookrecords.book', 'asc')
             .orderBy('bookrecords.sheet', 'asc')
             .orderBy('bookrecords.cod', 'asc')
