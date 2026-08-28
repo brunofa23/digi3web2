@@ -525,7 +525,7 @@ export default class OcrConferencesController {
         'indeximages.seq',
         'indeximages.file_name',
         'indeximages.drive_file_id',
-        'indeximages.book as index_book',
+        'bookrecords.book as index_book',
         'bookrecords.book as record_book',
         'bookrecords.sheet as record_sheet',
         'bookrecords.approximate_term as record_approximate_term'

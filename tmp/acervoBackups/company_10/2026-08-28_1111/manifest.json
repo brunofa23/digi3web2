@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "scope": "acervo",
+  "generated_at": "2026-08-28T11:11:33.528-03:00",
+  "snapshot": "2026-08-28_1111",
+  "company": {
+    "id": 10,
+    "name": "CARTORIO TESTE",
+    "foldername": "Client_10",
+    "cloud": 1
+  },
+  "retention_days": 30,
+  "tables_included": [
+    "typebooks",
+    "bookrecords",
+    "indeximages",
+    "documents",
+    "document_configs",
+    "indeximage_ocr_checks",
+    "indeximage_ocr_entities"
+  ],
+  "typebooks": [
+    {
+      "typebooks_id": 236,
+      "typebook_name": "CASAMENTO 236",
+      "typebook_path": "Client_10.Book_236.CASAMENTO",
+      "file": "acervo_company_10_typebook_236.sql.gz",
+      "file_size": 2962,
+      "checksum_sha256": "4c012684fbd3d01799d9e711dc8ae36f3aac7c4258293f40cb6616afb1ccfda8",
+      "drive_file_id": null,
+      "tables": {
+        "typebooks": 1,
+        "bookrecords": 8,
+        "indeximages": 9,
+        "documents": 7,
+        "document_configs": 0,
+        "indeximage_ocr_checks": 0,
+        "indeximage_ocr_entities": 4
+      },
+      "total_rows": 29
+    }
+  ]
+}

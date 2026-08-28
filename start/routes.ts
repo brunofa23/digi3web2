@@ -92,6 +92,10 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/indeximagesinitial', 'BookrecordsController.indeximagesinitial').middleware('bookrecord_permission:get')
   Route.get('/updatedfiles', 'BookrecordsController.updatedFiles').middleware('bookrecord_permission:get')
   Route.get('/auditlogs', 'AuditLogsController.index').middleware('auth')
+  Route.get('/acervo-backups/snapshots', 'AcervoBackupsController.snapshots').middleware('auth')
+  Route.post('/acervo-backups/backup', 'AcervoBackupsController.backup').middleware('auth')
+  Route.post('/acervo-backups/restore/dry-run', 'AcervoBackupsController.dryRun').middleware('auth')
+  Route.post('/acervo-backups/restore', 'AcervoBackupsController.apply').middleware('auth')
   Route.get('/imageuploadjobs', 'ImageUploadJobsController.index').middleware('auth')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords')
 

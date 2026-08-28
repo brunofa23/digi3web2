@@ -10,6 +10,7 @@ import { err } from "pino-std-serializers";
 import { DateTime } from "luxon";
 import { promises as fsp } from 'fs'
 import crypto from 'crypto'
+import sharp from 'sharp'
 
 
 
@@ -146,6 +147,8 @@ async function deleteImage(folderPath) {
 async function getLocalFileMetadata(filePath: string) {
   const stat = await fsp.stat(filePath)
   const hash = crypto.createHash('md5')
+  let width: number | null = null
+  let height: number | null = null
 
   await new Promise<void>((resolve, reject) => {
     const stream = fs.createReadStream(filePath)
@@ -154,10 +157,34 @@ async function getLocalFileMetadata(filePath: string) {
     stream.on('error', reject)
   })
 
+  try {
+    const metadata = await sharp(filePath).metadata()
+    width = metadata.width || null
+    height = metadata.height || null
+  } catch (error) {
+    width = null
+    height = null
+  }
+
   return {
     size: stat.size,
     md5Checksum: hash.digest('hex'),
+    width,
+    height,
   }
+}
+
+function normalizeImageOrigin(value: any) {
+  const allowedOrigins = [
+    'desktop_file_input',
+    'mobile_file_input',
+    'app_native_camera',
+    'app_ionic_camera',
+    'unknown',
+  ]
+  const origin = String(value || '').trim()
+
+  return allowedOrigins.includes(origin) ? origin : 'unknown'
 }
 
 async function findDuplicateIndeximage(
@@ -189,12 +216,12 @@ function getUploadReportItem(objfileRename: any, image: any, idParent: string) {
     bookrecords_id: objfileRename.bookrecords_id,
     seq: objfileRename.seq,
     cod: objfileRename.register || objfileRename.cod,
-    book: objfileRename.book,
-    sheet: objfileRename.sheet,
-    side: objfileRename.side,
     approximate_term: objfileRename.approximate_term,
     indexbook: objfileRename.indexbook,
     drive_folder_id: objfileRename.drive_folder_id || idParent,
+    image_origin: objfileRename.image_origin || 'unknown',
+    image_width: objfileRename.image_width || null,
+    image_height: objfileRename.image_height || null,
   }
 }
 
@@ -304,12 +331,12 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 
   // **imagem única (capture)**
   if (capture) {
-    const validateFileRename = await fileRename(images, params.typebooks_id, companies_id, {}, true)
+    const validateFileRename = await fileRename(images, params.typebooks_id, companies_id, dataImages, true)
     if (isInvalidFileRename(validateFileRename)) {
       throwInvalidFiles([normalizeInvalidFileRename(images, validateFileRename)])
     }
 
-    const _fileRename = await fileRename(images, params.typebooks_id, companies_id)
+    const _fileRename = await fileRename(images, params.typebooks_id, companies_id, dataImages)
     if (isInvalidFileRename(_fileRename)) {
       throwInvalidFiles([normalizeInvalidFileRename(images, _fileRename)])
     }
@@ -565,6 +592,9 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         drive_file_size: localMetadata.size,
         drive_md5_checksum: localMetadata.md5Checksum,
         drive_folder_id: idParent,
+        image_origin: objfileRename.image_origin || 'unknown',
+        image_width: localMetadata.width,
+        image_height: localMetadata.height,
         duplicate: {
           file_name: duplicateIndeximage.file_name,
           drive_file_id: duplicateIndeximage.drive_file_id,
@@ -605,6 +635,8 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       objfileRename.drive_file_size = driveFileSize
       objfileRename.drive_md5_checksum = driveMd5Checksum
       objfileRename.drive_folder_id = driveFolderId
+      objfileRename.image_width = localMetadata.width
+      objfileRename.image_height = localMetadata.height
       const date_atualization = DateTime.now()
       objfileRename.date_atualization = date_atualization.toFormat('yyyy-MM-dd HH:mm')
       await Indeximage.create(objfileRename)
@@ -623,6 +655,9 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     drive_file_size: objfileRename.drive_file_size || null,
     drive_md5_checksum: objfileRename.drive_md5_checksum || null,
     drive_folder_id: objfileRename.drive_folder_id || idParent,
+    image_origin: objfileRename.image_origin || 'unknown',
+    image_width: objfileRename.image_width || null,
+    image_height: objfileRename.image_height || null,
   }
 
 }
@@ -927,6 +962,8 @@ async function fileRename(originalFileName: string, typebooks_id, companies_id, 
         companies_id,
         seq,
         ext: objFileName.ext,
+        register: bookRecord.cod,
+        image_origin: normalizeImageOrigin(dataImages?.image_origin),
         //previous_file_name: originalFileName
       }
     } catch (error) {

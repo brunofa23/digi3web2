@@ -4,6 +4,7 @@ import ImageUploadJob from 'App/Models/ImageUploadJob'
 import User from 'App/Models/User'
 import Company from 'App/Models/Company'
 import Typebook from 'App/Models/Typebook'
+import Bookrecord from 'App/Models/Bookrecord'
 import { verifyPermission } from 'App/Services/util'
 import {
   cleanupOldImageUploadJobs,
@@ -46,6 +47,28 @@ export default class ImageUploadJobsController {
     if (summary.skipped > 0) return 'not_uploaded'
 
     return 'completed'
+  }
+
+  private shouldShowJob(job: ImageUploadJob) {
+    const summary = this.getSummary(job)
+
+    return !(job.status === 'COMPLETED' && summary.total === 0 && summary.uploaded === 0 && summary.skipped === 0)
+  }
+
+  private enrichFilesWithBookrecord(files: any[] = [], bookrecordsById: Map<number, Bookrecord>) {
+    return files.map((file) => {
+      const bookrecord = bookrecordsById.get(Number(file?.bookrecords_id))
+
+      if (!bookrecord) return file
+
+      return {
+        ...file,
+        cod: file.cod ?? bookrecord.cod,
+        book: bookrecord.book,
+        sheet: bookrecord.sheet,
+        side: bookrecord.side,
+      }
+    })
   }
 
   private getDateStart(dateStart: string | undefined) {
@@ -120,12 +143,22 @@ export default class ImageUploadJobsController {
       }
 
       const jobs = await query
+      const visibleJobs = jobs.filter((job) => this.shouldShowJob(job))
       const filteredJobs = status
-        ? jobs.filter((job) => this.getUploadStatus(job) === status)
-        : jobs
+        ? visibleJobs.filter((job) => this.getUploadStatus(job) === status)
+        : visibleJobs
       const limitedJobs = filteredJobs.slice(0, maxLimit)
       const userIds = Array.from(new Set(limitedJobs.map((item) => item.userId).filter(Boolean)))
       const typebookIds = Array.from(new Set(limitedJobs.map((item) => item.typebooksId).filter(Boolean)))
+      const bookrecordIds = Array.from(new Set(limitedJobs.flatMap((job) => {
+        const resultFiles = this.parseJson(job.resultFiles, {})
+        const files = [
+          ...(resultFiles?.uploadedFiles || []),
+          ...(resultFiles?.skippedFiles || []),
+        ]
+
+        return files.map((file) => Number(file?.bookrecords_id)).filter((id) => Number.isInteger(id) && id > 0)
+      })))
 
       const users = userIds.length
         ? await User.query().whereIn('id', userIds as number[]).select('id', 'name', 'username')
@@ -137,9 +170,16 @@ export default class ImageUploadJobsController {
           .whereIn('id', typebookIds as number[])
           .select('id', 'name')
         : []
+      const bookrecords = bookrecordIds.length
+        ? await Bookrecord.query()
+          .where('companies_id', effectiveCompanyId)
+          .whereIn('id', bookrecordIds as number[])
+          .select('id', 'cod', 'book', 'sheet', 'side')
+        : []
 
       const usersById = new Map(users.map((user) => [user.id, user]))
       const typebooksById = new Map(typebooks.map((typebook) => [typebook.id, typebook]))
+      const bookrecordsById = new Map(bookrecords.map((bookrecord) => [bookrecord.id, bookrecord]))
 
       return response.status(200).send({
         retentionDays: RETENTION_DAYS,
@@ -159,8 +199,8 @@ export default class ImageUploadJobsController {
             file_names: fileNames,
             data_images: dataImages,
             summary: this.getSummary(job),
-            uploaded_files: resultFiles?.uploadedFiles || [],
-            skipped_files: resultFiles?.skippedFiles || [],
+            uploaded_files: this.enrichFilesWithBookrecord(resultFiles?.uploadedFiles || [], bookrecordsById),
+            skipped_files: this.enrichFilesWithBookrecord(resultFiles?.skippedFiles || [], bookrecordsById),
             error_message: job.errorMessage,
             created_at: job.createdAt?.toISO(),
             updated_at: job.updatedAt?.toISO(),

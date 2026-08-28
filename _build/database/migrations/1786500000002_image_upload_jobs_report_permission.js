@@ -13,26 +13,44 @@ class default_1 extends Schema_1.default {
     }
     async up() {
         if (!(await this.hasColumn('user_id'))) {
-            await this.schema.alterTable(this.tableName, (table) => {
-                table
-                    .integer('user_id')
-                    .unsigned()
-                    .nullable()
-                    .references('id')
-                    .inTable('users')
-                    .onDelete('SET NULL')
-                    .after('typebooks_id');
-            });
+            try {
+                await this.schema.alterTable(this.tableName, (table) => {
+                    table
+                        .integer('user_id')
+                        .unsigned()
+                        .nullable()
+                        .references('id')
+                        .inTable('users')
+                        .onDelete('SET NULL')
+                        .after('typebooks_id');
+                });
+            }
+            catch (error) {
+                if (!this.isDuplicateColumnError(error))
+                    throw error;
+            }
         }
         if (!(await this.hasIndex('image_upload_jobs_company_typebook_created_idx'))) {
-            await this.schema.alterTable(this.tableName, (table) => {
-                table.index(['companies_id', 'typebooks_id', 'created_at'], 'image_upload_jobs_company_typebook_created_idx');
-            });
+            try {
+                await this.schema.alterTable(this.tableName, (table) => {
+                    table.index(['companies_id', 'typebooks_id', 'created_at'], 'image_upload_jobs_company_typebook_created_idx');
+                });
+            }
+            catch (error) {
+                if (!this.isDuplicateIndexError(error))
+                    throw error;
+            }
         }
         if (!(await this.hasIndex('image_upload_jobs_user_created_idx'))) {
-            await this.schema.alterTable(this.tableName, (table) => {
-                table.index(['user_id', 'created_at'], 'image_upload_jobs_user_created_idx');
-            });
+            try {
+                await this.schema.alterTable(this.tableName, (table) => {
+                    table.index(['user_id', 'created_at'], 'image_upload_jobs_user_created_idx');
+                });
+            }
+            catch (error) {
+                if (!this.isDuplicateIndexError(error))
+                    throw error;
+            }
         }
         this.defer(async (db) => {
             const now = new Date();
@@ -121,6 +139,14 @@ class default_1 extends Schema_1.default {
       `, [this.tableName, indexName]);
         const rows = Array.isArray(result?.[0]) ? result[0] : result;
         return Array.isArray(rows) && rows.length > 0;
+    }
+    isDuplicateColumnError(error) {
+        const databaseError = error;
+        return databaseError.code === 'ER_DUP_FIELDNAME' || databaseError.errno === 1060;
+    }
+    isDuplicateIndexError(error) {
+        const databaseError = error;
+        return databaseError.code === 'ER_DUP_KEYNAME' || databaseError.errno === 1061;
     }
 }
 exports.default = default_1;

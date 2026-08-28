@@ -30,9 +30,10 @@ class Indeximage extends Orm_1.BaseModel {
             'drive_file_size',
             'drive_md5_checksum',
             'drive_folder_id',
+            'image_origin',
+            'image_width',
+            'image_height',
             'previous_file_name',
-            'book',
-            'sheet',
             'register',
             'ready',
             'date_atualization',
@@ -110,16 +111,20 @@ __decorate([
 ], Indeximage.prototype, "drive_folder_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Indeximage.prototype, "image_origin", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Indeximage.prototype, "image_width", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Indeximage.prototype, "image_height", void 0);
+__decorate([
+    (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], Indeximage.prototype, "previous_file_name", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Number)
-], Indeximage.prototype, "book", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Number)
-], Indeximage.prototype, "sheet", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
