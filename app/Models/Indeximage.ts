@@ -18,9 +18,13 @@ export default class Indeximage extends BaseModel {
       'drive_file_size',
       'drive_md5_checksum',
       'drive_folder_id',
+      'image_origin',
+      'image_width',
+      'image_height',
       'previous_file_name',
       'book',
       'sheet',
+      'side',
       'register',
       'ready',
       'date_atualization',
@@ -84,6 +88,15 @@ export default class Indeximage extends BaseModel {
   public drive_folder_id: string | null
 
   @column()
+  public image_origin: string | null
+
+  @column()
+  public image_width: number | null
+
+  @column()
+  public image_height: number | null
+
+  @column()
   public previous_file_name: string
 
   @column()
@@ -91,6 +104,9 @@ export default class Indeximage extends BaseModel {
 
   @column()
   public sheet: number
+
+  @column()
+  public side: string | null
 
   @column()
   public register: number
