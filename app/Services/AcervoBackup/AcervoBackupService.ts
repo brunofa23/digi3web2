@@ -21,6 +21,7 @@ import {
 const gzipAsync = promisify(gzip)
 const gunzipAsync = promisify(gunzip)
 const uploadDriveFile = sendUploadFiles as any
+const createDriveFolder = sendCreateFolder as any
 const listDriveFilesMetadata = sendListAllFilesMetadata as any
 const downloadDriveFileBuffer = sendDownloadFileBuffer as any
 
@@ -65,6 +66,7 @@ const TABLES = [
   'indeximage_ocr_checks',
   'indeximage_ocr_entities',
 ]
+const INDEX_FILE = 'index.json'
 
 export default class AcervoBackupService {
   public async backup(options: BackupOptions) {
@@ -99,10 +101,12 @@ export default class AcervoBackupService {
       typebooks: [],
     }
 
+    let driveBackupFolderId: string | null = null
     let driveSnapshotFolderId: string | null = null
 
     if (options.upload) {
-      driveSnapshotFolderId = await this.ensureDriveSnapshotFolder(company, snapshot)
+      driveBackupFolderId = await this.ensureDriveBackupFolder(company)
+      driveSnapshotFolderId = await createDriveFolder(snapshot, company.cloud, driveBackupFolderId)
     }
 
     for (const typebook of typebooks) {
@@ -144,6 +148,15 @@ export default class AcervoBackupService {
 
     if (options.upload) {
       await this.cleanupDriveRetention(company, options.retentionDays || 30)
+    }
+
+    if (options.upload && driveBackupFolderId) {
+      await this.updateDriveIndexAfterBackup(
+        company,
+        driveBackupFolderId,
+        manifest,
+        options.retentionDays || 30
+      )
     }
 
     if (options.userId) {
@@ -304,17 +317,11 @@ export default class AcervoBackupService {
       if (!await this.fileExists(manifestPath)) continue
 
       const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'))
-      const typebooks = this.filterManifestTypebooks(manifest, typebookId)
+      const snapshotSummary = this.buildSnapshotSummary(manifest, 'local', typebookId, snapshot)
 
-      if (typebooks.length === 0) continue
+      if (snapshotSummary.typebooks.length === 0) continue
 
-      result.push({
-        snapshot,
-        source: 'local',
-        generated_at: manifest.generated_at,
-        company: manifest.company,
-        typebooks,
-      })
+      result.push(snapshotSummary)
     }
 
     return this.sortSnapshots(result)
@@ -325,37 +332,190 @@ export default class AcervoBackupService {
       throw new Error('Empresa sem configuração de cloud')
     }
 
-    const companyFolderId = await sendCreateFolder(company.foldername, company.cloud)
-    const backupFolderId = await sendCreateFolder('BACKUPS_ACERVO', company.cloud, companyFolderId)
-    const snapshots = await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }])
+    const backupFolderId = await this.ensureDriveBackupFolder(company)
+    const backupFiles = await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }])
+    const index = await this.readDriveIndex(company, backupFolderId, backupFiles)
+
+    if (index) {
+      return this.sortSnapshots(this.filterSnapshotSummaries(index.snapshots, typebookId))
+    }
+
+    const snapshots = await this.collectDriveSnapshotSummaries(company, backupFolderId, backupFiles)
+    await this.writeDriveIndex(company, backupFolderId, snapshots, 30).catch((error) => {
+      console.error('Erro ao atualizar index.json do acervo:', error)
+    })
+
+    return this.sortSnapshots(this.filterSnapshotSummaries(snapshots, typebookId))
+  }
+
+  private async collectDriveSnapshotSummaries(company: Company, backupFolderId: string, backupFiles?: any[]) {
+    const files = backupFiles || await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }])
     const result: any[] = []
 
-    for (const snapshot of snapshots || []) {
+    for (const snapshot of files || []) {
       if (snapshot.mimeType !== 'application/vnd.google-apps.folder') continue
 
       const snapshotDate = DateTime.fromFormat(snapshot.name, 'yyyy-MM-dd_HHmm')
       if (!snapshotDate.isValid) continue
 
-      const files = await listDriveFilesMetadata(company.cloud, [{ id: snapshot.id }])
-      const manifestFile = files?.find((item) => item.name === 'manifest.json')
+      const snapshotFiles = await listDriveFilesMetadata(company.cloud, [{ id: snapshot.id }])
+      const manifestFile = snapshotFiles?.find((item) => item.name === 'manifest.json')
       if (!manifestFile?.id) continue
 
       const manifestBuffer = await downloadDriveFileBuffer(manifestFile.id, company.cloud)
       const manifest = JSON.parse(manifestBuffer.toString('utf8'))
-      const typebooks = this.filterManifestTypebooks(manifest, typebookId)
+      const snapshotSummary = this.buildSnapshotSummary(manifest, 'drive', undefined, snapshot.name)
 
-      if (typebooks.length === 0) continue
+      if (snapshotSummary.typebooks.length === 0) continue
 
-      result.push({
-        snapshot: snapshot.name,
-        source: 'drive',
-        generated_at: manifest.generated_at,
-        company: manifest.company,
-        typebooks,
-      })
+      result.push(snapshotSummary)
     }
 
     return this.sortSnapshots(result)
+  }
+
+  private async readDriveIndex(company: Company, backupFolderId: string, backupFiles?: any[]) {
+    const files = backupFiles || await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }])
+    const indexFile = files?.find((item) => item.name === INDEX_FILE)
+
+    if (!indexFile?.id) return null
+
+    try {
+      const indexBuffer = await downloadDriveFileBuffer(indexFile.id, company.cloud)
+      const index = JSON.parse(indexBuffer.toString('utf8'))
+
+      if (index?.scope !== 'acervo_index') return null
+      if (Number(index?.company?.id) !== Number(company.id)) return null
+      if (!Array.isArray(index?.snapshots)) return null
+
+      return index
+    } catch (error) {
+      console.error('Erro ao ler index.json do acervo:', error)
+      return null
+    }
+  }
+
+  private async updateDriveIndexAfterBackup(
+    company: Company,
+    backupFolderId: string,
+    manifest: any,
+    retentionDays: number
+  ) {
+    const backupFiles = await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }])
+    const index = await this.readDriveIndex(company, backupFolderId, backupFiles)
+    const snapshots = index
+      ? index.snapshots
+      : await this.collectDriveSnapshotSummaries(company, backupFolderId, backupFiles)
+    const currentSnapshot = this.mergeSnapshotSummary(snapshots, this.buildSnapshotSummary(manifest, 'drive'))
+    const limit = DateTime.now().minus({ days: retentionDays })
+    const updatedSnapshots = snapshots
+      .filter((snapshot) => snapshot.snapshot !== currentSnapshot.snapshot)
+      .concat(currentSnapshot)
+      .filter((snapshot) => {
+        const snapshotDate = DateTime.fromFormat(snapshot.snapshot, 'yyyy-MM-dd_HHmm')
+        return snapshotDate.isValid && snapshotDate >= limit
+      })
+
+    await this.writeDriveIndex(company, backupFolderId, updatedSnapshots, retentionDays)
+  }
+
+  private mergeSnapshotSummary(snapshots: any[], currentSnapshot: any) {
+    const existingSnapshot = (snapshots || []).find((snapshot) => snapshot.snapshot === currentSnapshot.snapshot)
+
+    if (!existingSnapshot) return currentSnapshot
+
+    const currentTypebookIds = new Set(
+      currentSnapshot.typebooks.map((typebook) => Number(typebook.typebooks_id))
+    )
+    const typebooks = [
+      ...(existingSnapshot.typebooks || []).filter((typebook) => {
+        return !currentTypebookIds.has(Number(typebook.typebooks_id))
+      }),
+      ...currentSnapshot.typebooks,
+    ]
+
+    return this.buildSnapshotSummary(
+      {
+        snapshot: currentSnapshot.snapshot,
+        generated_at: currentSnapshot.generated_at,
+        company: currentSnapshot.company,
+        typebooks,
+      },
+      'drive'
+    )
+  }
+
+  private async writeDriveIndex(
+    company: Company,
+    backupFolderId: string,
+    snapshots: any[],
+    retentionDays: number
+  ) {
+    const indexPath = Application.tmpPath(`acervoBackups/company_${company.id}/_index`)
+    const index = {
+      version: 1,
+      scope: 'acervo_index',
+      generated_at: DateTime.now().toISO(),
+      company: snapshots[0]?.company || {
+        id: company.id,
+        name: company.name,
+        foldername: company.foldername,
+        cloud: company.cloud,
+      },
+      retention_days: retentionDays,
+      snapshots: this.sortSnapshots(snapshots),
+    }
+
+    await fs.mkdir(indexPath, { recursive: true })
+    await fs.writeFile(`${indexPath}/${INDEX_FILE}`, JSON.stringify(index, null, 2))
+
+    const files = await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }])
+    const oldIndexes = (files || []).filter((item) => item.name === INDEX_FILE)
+
+    for (const oldIndex of oldIndexes) {
+      await sendDeleteFile(oldIndex.id, company.cloud)
+    }
+
+    await uploadDriveFile(
+      backupFolderId,
+      indexPath,
+      INDEX_FILE,
+      company.cloud,
+      'application/json'
+    )
+  }
+
+  private buildSnapshotSummary(manifest: any, source: 'local' | 'drive', typebookId?: number, snapshotName?: string) {
+    const typebooks = this.filterManifestTypebooks(manifest, typebookId)
+
+    return {
+      snapshot: snapshotName || manifest.snapshot,
+      source,
+      generated_at: manifest.generated_at,
+      company: manifest.company,
+      typebooks,
+      typebooks_count: typebooks.length,
+      total_rows: typebooks.reduce((total, item) => total + (Number(item.total_rows) || 0), 0),
+      file_size: typebooks.reduce((total, item) => total + (Number(item.file_size) || 0), 0),
+    }
+  }
+
+  private filterSnapshotSummaries(snapshots: any[], typebookId?: number) {
+    return (snapshots || [])
+      .map((snapshot) => {
+        return this.buildSnapshotSummary(
+          {
+            snapshot: snapshot.snapshot,
+            generated_at: snapshot.generated_at,
+            company: snapshot.company,
+            typebooks: snapshot.typebooks,
+          },
+          snapshot.source === 'local' ? 'local' : 'drive',
+          typebookId,
+          snapshot.snapshot
+        )
+      })
+      .filter((snapshot) => snapshot.typebooks.length > 0)
   }
 
   private filterManifestTypebooks(manifest: any, typebookId?: number) {
@@ -375,8 +535,8 @@ export default class AcervoBackupService {
       throw new Error('Empresa sem configuração de cloud')
     }
 
-    const companyFolderId = await sendCreateFolder(company.foldername, company.cloud)
-    const backupFolderId = await sendCreateFolder('BACKUPS_ACERVO', company.cloud, companyFolderId)
+    const companyFolderId = await createDriveFolder(company.foldername, company.cloud)
+    const backupFolderId = await createDriveFolder('BACKUPS_ACERVO', company.cloud, companyFolderId)
     const snapshotFolderId = await this.findDriveFolder(company.cloud, backupFolderId, snapshot)
     const files = await listDriveFilesMetadata(company.cloud, [{ id: snapshotFolderId }])
     const manifestFile = this.findDriveFile(files, 'manifest.json')
@@ -911,14 +1071,13 @@ export default class AcervoBackupService {
     return Number.isInteger(numberValue) && numberValue > 0 ? numberValue : null
   }
 
-  private async ensureDriveSnapshotFolder(company: Company, snapshot: string) {
+  private async ensureDriveBackupFolder(company: Company) {
     if (!company.cloud) {
       throw new Error('Empresa sem configuração de cloud')
     }
 
-    const companyFolderId = await sendCreateFolder(company.foldername, company.cloud)
-    const backupFolderId = await sendCreateFolder('BACKUPS_ACERVO', company.cloud, companyFolderId)
-    return sendCreateFolder(snapshot, company.cloud, backupFolderId)
+    const companyFolderId = await createDriveFolder(company.foldername, company.cloud)
+    return createDriveFolder('BACKUPS_ACERVO', company.cloud, companyFolderId)
   }
 
   private async cleanupLocalRetention(companyId: number, retentionDays: number) {
@@ -942,8 +1101,7 @@ export default class AcervoBackupService {
   private async cleanupDriveRetention(company: Company, retentionDays: number) {
     if (!company.cloud) return
 
-    const companyFolderId = await sendCreateFolder(company.foldername, company.cloud)
-    const backupFolderId = await sendCreateFolder('BACKUPS_ACERVO', company.cloud, companyFolderId)
+    const backupFolderId = await this.ensureDriveBackupFolder(company)
     const snapshots = await listDriveFilesMetadata(company.cloud, [{ id: backupFolderId }])
     const limit = DateTime.now().minus({ days: retentionDays })
 
