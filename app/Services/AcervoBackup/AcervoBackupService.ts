@@ -63,6 +63,14 @@ export default class AcervoBackupService {
     const snapshot = DateTime.now().toFormat('yyyy-MM-dd_HHmm')
     const basePath = Application.tmpPath(`acervoBackups/company_${company.id}/${snapshot}`)
 
+    if (typebooks.length === 0) {
+      throw new Error(
+        options.typebookId
+          ? `Typebook ${options.typebookId} não encontrado para a empresa ${company.id}`
+          : `Nenhum typebook encontrado para a empresa ${company.id}`
+      )
+    }
+
     await fs.mkdir(basePath, { recursive: true })
 
     const manifest: any = {
@@ -234,9 +242,23 @@ export default class AcervoBackupService {
 
   private async getLocalPackage(companyId: number, snapshot: string, typebookId: number) {
     const basePath = Application.tmpPath(`acervoBackups/company_${companyId}/${snapshot}`)
-    const manifest = JSON.parse(await fs.readFile(`${basePath}/manifest.json`, 'utf8'))
+    const manifestPath = `${basePath}/manifest.json`
+    const manifestExists = await this.fileExists(manifestPath)
+
+    if (!manifestExists) {
+      throw new Error(`Snapshot local não encontrado: ${basePath}`)
+    }
+
+    const manifest = JSON.parse(await fs.readFile(manifestPath, 'utf8'))
     const typebook = this.findManifestTypebook(manifest, typebookId)
-    const sqlGz = await fs.readFile(`${basePath}/${typebook.file}`)
+    const sqlPath = `${basePath}/${typebook.file}`
+    const sqlExists = await this.fileExists(sqlPath)
+
+    if (!sqlExists) {
+      throw new Error(`Arquivo SQL do typebook ${typebookId} não encontrado no snapshot local`)
+    }
+
+    const sqlGz = await fs.readFile(sqlPath)
 
     return {
       manifest,
@@ -536,6 +558,10 @@ export default class AcervoBackupService {
 
       await fs.rm(`${companyPath}/${snapshot}`, { recursive: true, force: true })
     }
+  }
+
+  private async fileExists(path: string) {
+    return fs.access(path).then(() => true).catch(() => false)
   }
 
   private async cleanupDriveRetention(company: Company, retentionDays: number) {
