@@ -21,6 +21,7 @@ import {
   sendDownloadFile,
   sendDeleteFile,
   sendListAllFiles,
+  sendListAllFilesMetadata,
   sendRenameFile
 } from "App/Services/googleDrive/googledrive"
 import { file } from "googleapis/build/src/apis/file";
@@ -54,7 +55,7 @@ function safeDriveSearchLog(result) {
 }
 
 const pendingRenameQueue = new Map<string, number>()
-let pendingRenameTimer = null
+let pendingRenameTimer: any = null
 let isPendingRenameQueueRunning = false
 const pendingRenameBatchSize = 5
 const pendingRenameDelayMs = 1000
@@ -235,7 +236,7 @@ function getUploadReportItem(objfileRename: any, image: any, idParent: string) {
 //   const download = await sendDownloadFile(fileId[0].id, extension, cloud_number)
 //   return download
 // }
-async function downloadImage(fileName, typebook_id, company_id, cloud_number: number) {
+async function downloadImage(fileName, typebook_id, company_id, cloud_number: number, driveFileId: string | null = null) {
   // 🔹 Busca o diretório principal
   const directoryParent = await Typebook.query()
     .where('id', typebook_id)
@@ -244,6 +245,21 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 
   if (!directoryParent) {
     throw new Error(`Typebook ${typebook_id} não encontrado para empresa ${company_id}`)
+  }
+
+  const extension = path.extname(fileName)
+
+  if (driveFileId) {
+    try {
+      return await sendDownloadFile(driveFileId, extension, cloud_number)
+    } catch (error) {
+      console.log('downloadImage por drive_file_id falhou, tentando por file_name', {
+        fileName,
+        typebook_id,
+        company_id,
+        driveFileId,
+      })
+    }
   }
 
   // 🔹 Busca a pasta principal na nuvem
@@ -261,7 +277,6 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
   }
 
   // 🔹 Busca o arquivo dentro da pasta principal
-  const extension = path.extname(fileName)
   const fileId = await sendSearchFile(fileName, cloud_number, parent[0].id)
 
   if (!fileId?.length) {
@@ -424,7 +439,7 @@ async function validateFilesNameToId(fileNames, params, companies_id, dataImages
 
 
 
-async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: number, driveFileId = null) {
+async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: number, driveFileId: any = null) {
   try {
     if (driveFileId) {
       await sendRenameFile(driveFileId, newTitle, cloud_number)
@@ -441,6 +456,51 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number: nu
     return true
   } catch (error) {
     return false
+  }
+}
+
+async function renameFileGoogleStrict(filename, folderPath, newTitle, cloud_number: number, driveFileId: any = null) {
+  try {
+    if (!newTitle || filename === newTitle) {
+      return {
+        success: true,
+        skipped: filename === newTitle,
+        drive_file_id: driveFileId,
+      }
+    }
+
+    let fileId = driveFileId
+
+    if (!fileId) {
+      const idFolderPath = await sendSearchFile(folderPath, cloud_number)
+      if (!Array.isArray(idFolderPath) || idFolderPath.length !== 1 || !idFolderPath[0]?.id) {
+        return { success: false, reason: 'folder_not_found_or_duplicated' }
+      }
+
+      const files = await sendSearchFile(filename, cloud_number, idFolderPath[0].id)
+      if (!Array.isArray(files) || files.length !== 1 || !files[0]?.id) {
+        return { success: false, reason: 'file_not_found_or_duplicated' }
+      }
+
+      fileId = files[0].id
+    }
+
+    const updatedFile = await sendRenameFile(fileId, newTitle, cloud_number)
+    if (updatedFile?.data?.name && updatedFile.data.name !== newTitle) {
+      return { success: false, reason: 'rename_not_confirmed', drive_file_id: fileId }
+    }
+
+    return {
+      success: true,
+      skipped: false,
+      drive_file_id: fileId,
+      file_name: newTitle,
+    }
+  } catch (error) {
+    return {
+      success: false,
+      reason: error?.message || error,
+    }
   }
 }
 
@@ -1146,31 +1206,32 @@ async function totalFilesInFolder(folderName, cloud_number: number, book=[]) {
 //import path from 'path'
 
 async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = [], book=[]) {
-  console.log("@@PASSO 66.1")
-  let listFiles = []
+  let listFiles: any[] = []
+  const bookFilter = new Set(
+    Array.isArray(book)
+      ? book.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+      : []
+  )
 
   if (Array.isArray(listFilesImages) && listFilesImages.length > 0) {
-    console.log("@@PASSO 66.2##")
     listFiles = listFilesImages
   } else {
-    console.log("@@PASSO 66.3##")
-    listFiles = await totalFilesInFolder(folderName?.path, cloud_number, book)
+    const idFolder = await sendSearchFile(folderName?.path, cloud_number)
+    if (!Array.isArray(idFolder) || idFolder.length !== 1 || !idFolder[0]?.id) {
+      throw new Error('Pasta Google Drive não encontrada ou duplicada')
+    }
+    listFiles = await sendListAllFilesMetadata(cloud_number, idFolder, book)
   }
 
-  console.log("@@PASSO 66.2")
-
-  const bookRecord = []
-  const indexImages = []
+  const bookRecord: any[] = []
+  const indexImages: any[] = []
   const uniqueIds = new Set()
 
-
-  console.log("@@PASSO 66.3")
-
   for (const file of listFiles) {
-    console.log("@@PASSO 66.4")
-    if (!/^id/i.test(file)) continue
+    const fileName = typeof file === 'string' ? file : file?.name
+    if (!fileName || !/^id/i.test(fileName)) continue
 
-    const fileSplit = file.split('_')
+    const fileSplit = fileName.split('_')
     if (!fileSplit || fileSplit.length < 12) continue
 
     const idMatch = fileSplit[0]?.match(/\d+/g)
@@ -1183,7 +1244,7 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     const typebooks_id = fileSplit[2]
     const bookrecords_id = id
     const seq = seqMatch[0]
-    const ext = path.extname(file)
+    const ext = path.extname(fileName)
 
     const booksMatch = fileSplit[7]?.match(/\d+/g)
     const books_id = booksMatch && booksMatch[0] ? booksMatch[0] : null
@@ -1199,6 +1260,8 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
 
     const yeardoc = fileSplit[4] === '' ? null : fileSplit[4]
     const month = fileSplit[6] === '' ? null : fileSplit[6]
+
+    if (bookFilter.size > 0 && !bookFilter.has(Number(book))) continue
 
     if (!uniqueIds.has(id)) {
       uniqueIds.add(id)
@@ -1228,8 +1291,12 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
       companies_id,
       seq,
       ext,
-      file_name: file,
-      previous_file_name: file,
+      file_name: fileName,
+      drive_file_id: typeof file === 'string' ? null : file?.id || null,
+      drive_file_size: typeof file === 'string' ? null : Number(file?.size || 0) || null,
+      drive_md5_checksum: typeof file === 'string' ? null : file?.md5Checksum || null,
+      drive_folder_id: typeof file === 'string' ? null : file?.parents?.[0] || null,
+      previous_file_name: null,
     })
   }
 
@@ -1240,11 +1307,9 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
     return Number(a.seq) - Number(b.seq)
   })
 
-  console.log("@@PASSO 66.5")
-
   return { bookRecord, indexImages }
 }
 
 
 
-export { transformFilesNameToId, validateFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, mountNameFile, updateFileName }
+export { transformFilesNameToId, validateFilesNameToId, downloadImage, fileRename, deleteFile, indeximagesinitial, totalFilesInFolder, renameFileGoogle, renameFileGoogleStrict, mountNameFile, updateFileName }
