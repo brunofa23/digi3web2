@@ -235,7 +235,7 @@ function getUploadReportItem(objfileRename: any, image: any, idParent: string) {
 //   const download = await sendDownloadFile(fileId[0].id, extension, cloud_number)
 //   return download
 // }
-async function downloadImage(fileName, typebook_id, company_id, cloud_number: number) {
+async function downloadImage(fileName, typebook_id, company_id, cloud_number: number, driveFileId: string | null = null) {
   // 🔹 Busca o diretório principal
   const directoryParent = await Typebook.query()
     .where('id', typebook_id)
@@ -244,6 +244,21 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
 
   if (!directoryParent) {
     throw new Error(`Typebook ${typebook_id} não encontrado para empresa ${company_id}`)
+  }
+
+  const extension = path.extname(fileName)
+
+  if (driveFileId) {
+    try {
+      return await sendDownloadFile(driveFileId, extension, cloud_number)
+    } catch (error) {
+      console.log('downloadImage por drive_file_id falhou, tentando por file_name', {
+        fileName,
+        typebook_id,
+        company_id,
+        driveFileId,
+      })
+    }
   }
 
   // 🔹 Busca a pasta principal na nuvem
@@ -261,7 +276,6 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
   }
 
   // 🔹 Busca o arquivo dentro da pasta principal
-  const extension = path.extname(fileName)
   const fileId = await sendSearchFile(fileName, cloud_number, parent[0].id)
 
   if (!fileId?.length) {

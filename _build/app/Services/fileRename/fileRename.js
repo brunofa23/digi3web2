@@ -181,13 +181,27 @@ function getUploadReportItem(objfileRename, image, idParent) {
         image_height: objfileRename.image_height || null,
     };
 }
-async function downloadImage(fileName, typebook_id, company_id, cloud_number) {
+async function downloadImage(fileName, typebook_id, company_id, cloud_number, driveFileId = null) {
     const directoryParent = await Typebook_1.default.query()
         .where('id', typebook_id)
         .andWhere('companies_id', company_id)
         .first();
     if (!directoryParent) {
         throw new Error(`Typebook ${typebook_id} não encontrado para empresa ${company_id}`);
+    }
+    const extension = path_1.default.extname(fileName);
+    if (driveFileId) {
+        try {
+            return await (0, googledrive_1.sendDownloadFile)(driveFileId, extension, cloud_number);
+        }
+        catch (error) {
+            console.log('downloadImage por drive_file_id falhou, tentando por file_name', {
+                fileName,
+                typebook_id,
+                company_id,
+                driveFileId,
+            });
+        }
     }
     const parent = await (0, googledrive_1.sendSearchFile)(directoryParent.path, cloud_number);
     if (!parent?.length) {
@@ -201,7 +215,6 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number) {
         });
         throw new Error(`Pasta ${directoryParent.path} não encontrada na nuvem`);
     }
-    const extension = path_1.default.extname(fileName);
     const fileId = await (0, googledrive_1.sendSearchFile)(fileName, cloud_number, parent[0].id);
     if (!fileId?.length) {
         throw new Error(`Arquivo ${fileName} não encontrado na pasta ${directoryParent.path}`);
