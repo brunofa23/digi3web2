@@ -254,7 +254,8 @@ async function searchFile(authClient, fileName, parentId = undefined, cloud_numb
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const res = await drive.files.list({
-        q: query
+        q: query,
+        fields: 'files(id, name)',
       });
 
       const driveFiles = res.data.files || []
@@ -307,6 +308,7 @@ async function renameFile(authClient, fileId: String, newTitle: String) {
     const updatedFile = await drive.files.update({
       fileId,
       resource: fileMetadata,
+      fields: 'id, name',
     });
     return updatedFile
   } catch (error) {
@@ -316,7 +318,7 @@ async function renameFile(authClient, fileId: String, newTitle: String) {
 }
 
 //******************************************************************* */
-async function listFiles(authClient, folderId = "") {
+async function listFiles(authClient, folderId: any = "") {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   const res = await drive.files.list({
@@ -380,13 +382,13 @@ async function listFiles(authClient, folderId = "") {
 //     //console.error('Erro ao listar os itens:', error);
 //   }
 // }
-async function listAllFiles(authClient, folderId = "", codigos = []) {
+async function listAllFiles(authClient, folderId: any = "", codigos: any[] = []) {
   const drive = google.drive({ version: "v3", auth: authClient });
 
   try {
     let pageToken = null;
     const pageSize = 100;
-    const listFiles = [];
+    const listFiles: any[] = [];
 
     const folder = folderId[0].id;
 
@@ -426,13 +428,13 @@ async function listAllFiles(authClient, folderId = "", codigos = []) {
   }
 }
 
-async function listAllFilesMetadata(authClient, folderId = "", codigos = []) {
+async function listAllFilesMetadata(authClient, folderId: any = "", codigos: any[] = []) {
   const drive = google.drive({ version: "v3", auth: authClient });
 
   try {
     let pageToken = null;
     const pageSize = 100;
-    const listFiles = [];
+    const listFiles: any[] = [];
     const folder = folderId[0].id;
 
     let query = `'${folder}' in parents and trashed=false`;
@@ -452,7 +454,7 @@ async function listAllFilesMetadata(authClient, folderId = "", codigos = []) {
         q: query,
         pageSize,
         pageToken,
-        fields: "nextPageToken, files(id, name, mimeType)",
+        fields: "nextPageToken, files(id, name, mimeType, size, md5Checksum, parents)",
       });
 
       const items = response.data.files || [];
@@ -462,6 +464,9 @@ async function listAllFilesMetadata(authClient, folderId = "", codigos = []) {
           id: item.id,
           name: item.name,
           mimeType: item.mimeType,
+          size: item.size,
+          md5Checksum: item.md5Checksum,
+          parents: item.parents,
         });
       }
 
@@ -554,21 +559,21 @@ async function sendValidateConnection(cloud_number: number) {
   }
 }
 
-async function sendListFiles(cloud_number: number, folderId = "") {
+async function sendListFiles(cloud_number: number, folderId: any = "") {
   //authorize().then(listFiles(folderId)).catch(console.error);
   const auth = await authorize(cloud_number)
   return listFiles(auth, folderId)
 
 }
 
-async function sendListAllFiles(cloud_number: number, folderId = "", book = []) {
+async function sendListAllFiles(cloud_number: number, folderId: any = "", book: any[] = []) {
   //authorize().then(listFiles(folderId)).catch(console.error);
   const auth = await authorize(cloud_number)
   return listAllFiles(auth, folderId, book)
 
 }
 
-async function sendListAllFilesMetadata(cloud_number: number, folderId = "", book = []) {
+async function sendListAllFilesMetadata(cloud_number: number, folderId: any = "", book: any[] = []) {
   const auth = await authorize(cloud_number)
   return listAllFilesMetadata(auth, folderId, book)
 }

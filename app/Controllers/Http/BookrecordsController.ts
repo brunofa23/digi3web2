@@ -2157,11 +2157,9 @@ export default class BookrecordsController {
   //   }
   // },
   public async indeximagesinitial({ auth, params, request, response }: HttpContextContract) {
-    console.log("passei aqui.........reindexação....")
     const authenticate = await auth.use('api').authenticate()
-
+    const typebooksId = Number(params.typebooks_id)
     const { books } = request.only(['books'])
-    console.log(">>>", books)
 
     const bookNumbers = Array.isArray(books)
       ? books
@@ -2169,103 +2167,199 @@ export default class BookrecordsController {
         .filter((item) => Number.isInteger(item) && item > 0)
       : []
 
-    let listFiles
-    let foldername
+    if (!Number.isInteger(typebooksId) || typebooksId <= 0) {
+      return response.status(400).send({ message: 'typebooks_id inválido' })
+    }
+
+    if (books !== undefined && books !== null && !Array.isArray(books)) {
+      return response.status(400).send({ message: 'books deve ser um array' })
+    }
+
+    if (Array.isArray(books) && books.length > 0 && bookNumbers.length !== books.length) {
+      return response.status(400).send({ message: 'books contém valores inválidos' })
+    }
+
+    let foldername: any = null
 
     try {
       foldername = await Typebook
         .query()
         .preload('company')
-        .where("companies_id", "=", authenticate.companies_id)
-        .andWhere("id", "=", params.typebooks_id)
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('id', typebooksId)
         .first()
 
-      if (foldername) {
-        await Typebook.query()
-          .where('companies_id', '=', authenticate.companies_id)
-          .andWhere('id', '=', foldername?.id)
-          .update({ dateindex: 'Indexing', totalfiles: null })
-      } else {
-        throw "ERROR::SEM PASTA DE IMAGENS"
+      if (!foldername) {
+        return response.status(404).send({ message: 'Typebook não encontrado' })
       }
 
-      const query = Indeximage.query()
-        .where("companies_id", "=", authenticate.companies_id)
-        .andWhere("typebooks_id", "=", params.typebooks_id)
-        .whereNotNull('previous_file_name')
-
-      if (bookNumbers.length > 0) {
-        query.whereHas('bookrecord', (queryBookRecord) => {
-          queryBookRecord.whereIn('book', bookNumbers)
-        })
+      if (!foldername.path) {
+        return response.status(422).send({ message: 'Typebook sem caminho da pasta configurado' })
       }
 
-      const listFilesToModify = await query
-
-      if (listFilesToModify) {
-        for (const iterator of listFilesToModify) {
-          const fileWasRenamed = await fileRename.renameFileGoogle(
-            iterator.file_name,
-            foldername.path,
-            iterator.previous_file_name,
-            foldername.company.cloud,
-            iterator.drive_file_id
-          )
-
-          if (!fileWasRenamed) continue
-
-          await Indeximage.query()
-            .where("companies_id", "=", authenticate.companies_id)
-            .andWhere("typebooks_id", "=", params.typebooks_id)
-            .andWhere("bookrecords_id", iterator.bookrecords_id)
-            .andWhere("seq", iterator.seq)
-            .andWhere("file_name", iterator.file_name)
-            .update({ file_name: iterator.previous_file_name, previous_file_name: null })
-        }
+      if (!foldername.company || !foldername.company.cloud) {
+        return response.status(422).send({ message: 'Empresa sem configuração de cloud' })
       }
 
-      listFiles = await fileRename.indeximagesinitial(
+      await Typebook.query()
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('id', foldername.id)
+        .update({ dateindex: 'Indexing', totalfiles: null })
+
+      const listFiles = await fileRename.indeximagesinitial(
         foldername,
         authenticate.companies_id,
-        foldername.company.cloud
+        foldername.company.cloud,
+        [],
+        bookNumbers
       )
-    } catch (error) {
-      console.log(error)
-    }
 
-    for (const item of listFiles.bookRecord) {
+      if (!listFiles || !Array.isArray(listFiles.bookRecord) || !Array.isArray(listFiles.indexImages)) {
+        throw new Error('Falha ao ler arquivos do Google Drive')
+      }
+
+      const report = {
+        bookrecordsCreated: 0,
+        bookrecordsUpdated: 0,
+        documentsCreated: 0,
+        documentsUpdated: 0,
+        indeximagesCreated: 0,
+        indeximagesUpdated: 0,
+        ignored: 0,
+      }
+      const validBookrecordIds = new Set<number>()
+
+      const trx = await Database.transaction()
+
       try {
-        const { yeardoc, month, ...itemBook } = item
-        const create = await Bookrecord.create(itemBook)
+        for (const item of listFiles.bookRecord) {
+          if (Number(item.typebooks_id) !== typebooksId) {
+            report.ignored++
+            continue
+          }
 
-        if (item.books_id == 13) {
-          await Document.create({
-            bookrecords_id: create.id,
-            month: item.month,
-            yeardoc: item.yeardoc
-          })
+          const { yeardoc, month, ...itemBook } = item
+          if (Number(itemBook.books_id) !== Number(foldername.books_id)) {
+            report.ignored++
+            continue
+          }
+
+          validBookrecordIds.add(Number(item.id))
+          const existingBookrecord = await Bookrecord
+            .query({ client: trx })
+            .where('id', item.id)
+            .andWhere('typebooks_id', typebooksId)
+            .andWhere('companies_id', authenticate.companies_id)
+            .first()
+
+          if (existingBookrecord) {
+            await Bookrecord
+              .query({ client: trx })
+              .where('id', item.id)
+              .andWhere('typebooks_id', typebooksId)
+              .andWhere('companies_id', authenticate.companies_id)
+              .update(itemBook)
+            report.bookrecordsUpdated++
+          } else {
+            await Bookrecord.create(itemBook, { client: trx })
+            report.bookrecordsCreated++
+          }
+
+          if (Number(item.books_id) === 13) {
+            const documentPayload = {
+              bookrecords_id: item.id,
+              typebooks_id: typebooksId,
+              books_id: Number(item.books_id),
+              companies_id: authenticate.companies_id,
+              month,
+              yeardoc,
+            }
+
+            const existingDocument = await Document
+              .query({ client: trx })
+              .where('bookrecords_id', item.id)
+              .andWhere('typebooks_id', typebooksId)
+              .andWhere('companies_id', authenticate.companies_id)
+              .first()
+
+            if (existingDocument) {
+              await Document
+                .query({ client: trx })
+                .where('id', existingDocument.id)
+                .update(documentPayload)
+              report.documentsUpdated++
+            } else {
+              await Document.create(documentPayload, { client: trx })
+              report.documentsCreated++
+            }
+          }
         }
+
+        for (const item of listFiles.indexImages) {
+          if (Number(item.typebooks_id) !== typebooksId) {
+            report.ignored++
+            continue
+          }
+
+          if (!validBookrecordIds.has(Number(item.bookrecords_id))) {
+            report.ignored++
+            continue
+          }
+
+          const existingIndeximage = await Indeximage
+            .query({ client: trx })
+            .where('companies_id', authenticate.companies_id)
+            .andWhere('typebooks_id', typebooksId)
+            .andWhere('bookrecords_id', item.bookrecords_id)
+            .andWhere('seq', item.seq)
+            .first()
+
+          if (existingIndeximage) {
+            await Indeximage
+              .query({ client: trx })
+              .where('companies_id', authenticate.companies_id)
+              .andWhere('typebooks_id', typebooksId)
+              .andWhere('bookrecords_id', item.bookrecords_id)
+              .andWhere('seq', item.seq)
+              .update(item)
+            report.indeximagesUpdated++
+          } else {
+            await Indeximage.create(item, { client: trx })
+            report.indeximagesCreated++
+          }
+        }
+
+        await Typebook.query({ client: trx })
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('id', foldername.id)
+          .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
+
+        await trx.commit()
       } catch (error) {
-
+        await trx.rollback()
+        throw error
       }
-    }
 
-    for (const item of listFiles.indexImages) {
-      try {
-        await Indeximage.create(item)
-      } catch (error) {
-      }
-    }
-
-    try {
-      const typebookPayload = await Typebook.query()
-        .where('companies_id', '=', authenticate.companies_id)
-        .andWhere('id', '=', foldername.id)
-        .update({ dateindex: new Date(), totalfiles: listFiles.indexImages.length })
-
-      return response.status(201).send(typebookPayload)
+      return response.status(201).send({
+        message: 'Banco recuperado pelo Google Drive',
+        typebooks_id: typebooksId,
+        totalfiles: listFiles.indexImages.length,
+        ...report,
+      })
     } catch (error) {
-      return error
+      console.error('Erro em indeximagesinitial:', error)
+
+      if (foldername?.id) {
+        await Typebook.query()
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('id', foldername.id)
+          .update({ dateindex: null })
+      }
+
+      return response.status(500).send({
+        message: 'Erro ao recuperar banco pelo Google Drive',
+        error: error.message || error,
+      })
     }
   }
 
@@ -3859,9 +3953,7 @@ export default class BookrecordsController {
 
 
   public async fullReprocessing({ auth, params, request, response }: HttpContextContract) {
-
     const authenticate = await auth.use('api').authenticate()
-
     const typebooksId = Number(params.typebooks_id)
     const { books } = request.only(['books'])
 
@@ -3888,9 +3980,14 @@ export default class BookrecordsController {
     }
 
     let foldername: any = null
-    let listFiles: any = null
-
-
+    const report = {
+      planned: 0,
+      renamed: 0,
+      alreadyCorrect: 0,
+      missingBookrecord: 0,
+      notFoundOrDuplicated: 0,
+      errors: [] as any[],
+    }
 
     try {
       foldername = await Typebook
@@ -3920,12 +4017,11 @@ export default class BookrecordsController {
         })
       }
 
-      // console.log("@@passo 1.4")
-      // if (foldername.dateindex === 'Indexing') {
-      //   return response.status(409).send({
-      //     message: 'Já existe um reprocessamento em andamento para este Livro',
-      //   })
-      // }
+      if (foldername.dateindex === 'Indexing') {
+        return response.status(409).send({
+          message: 'Já existe um reprocessamento em andamento para este Livro',
+        })
+      }
 
 
       await Typebook
@@ -3953,10 +4049,16 @@ export default class BookrecordsController {
       }
 
       const indeximages = await query
-
+      const processedBookrecords = new Set<number>()
 
       for (const item of indeximages) {
-        if (!item.bookrecord?.$original) continue
+        if (!item.bookrecord?.$original) {
+          report.missingBookrecord++
+          continue
+        }
+
+        if (processedBookrecords.has(item.bookrecords_id)) continue
+        processedBookrecords.add(item.bookrecords_id)
 
         const bookrecordInstance = new Bookrecord()
         bookrecordInstance.fill(item.bookrecord.$original)
@@ -3978,13 +4080,12 @@ export default class BookrecordsController {
       const listFilesToModify = await querylistFilesToModify
 
 
-      const listFilesImages = []
-
-
       for (const iterator of listFilesToModify) {
         if (!iterator.file_name || !iterator.previous_file_name) continue
 
-        const fileWasRenamed = await fileRename.renameFileGoogle(
+        report.planned++
+
+        const renameResult = await fileRename.renameFileGoogleStrict(
           iterator.file_name,
           foldername.path,
           iterator.previous_file_name,
@@ -3992,13 +4093,17 @@ export default class BookrecordsController {
           iterator.drive_file_id
         )
 
-        if (!fileWasRenamed) continue
+        if (!renameResult?.success) {
+          report.notFoundOrDuplicated++
+          report.errors.push({
+            file_name: iterator.file_name,
+            expected_file_name: iterator.previous_file_name,
+            reason: renameResult?.reason || 'rename_failed',
+          })
+          continue
+        }
 
-        //console.log("@@passo 5 Nome atual:", iterator.file_name, "- mudar para:", iterator.previous_file_name)
-        listFilesImages.push(iterator.file_name)
-
-
-        const resultIndeximage = await Indeximage
+        await Indeximage
           .query()
           .where('companies_id', authenticate.companies_id)
           .andWhere('typebooks_id', typebooksId)
@@ -4007,105 +4112,42 @@ export default class BookrecordsController {
           .andWhere('file_name', iterator.file_name)
           .update({
             file_name: iterator.previous_file_name,
+            drive_file_id: renameResult.drive_file_id || iterator.drive_file_id || null,
             previous_file_name: null,
           })
 
-
-      }
-
-     // console.log("@@passo 6", listFilesImages)
-
-      listFiles = await fileRename.indeximagesinitial(
-        foldername,
-        authenticate.companies_id,
-        foldername.company.cloud,
-        [],
-        bookNumbers
-      )
-
-      //console.log("@@passo 6.1", listFiles)
-
-      if (!listFiles || !Array.isArray(listFiles.bookRecord) || !Array.isArray(listFiles.indexImages)) {
-        throw new Error('Falha ao gerar lista de reindexação')
-      }
-
-      const trx = await Database.transaction()
-      console.log("@@passo 7")
-
-      try {
-        for (const item of listFiles.bookRecord) {
-          const existingBookrecord = await Bookrecord
-            .query({ client: trx })
-            .where('id', item.id)
-            .andWhere('typebooks_id', item.typebooks_id)
-            .andWhere('books_id', item.books_id)
-            .andWhere('companies_id', item.companies_id)
-            .first()
-
-          let createdBookrecord = existingBookrecord
-
-          if (!existingBookrecord) {
-            const { yeardoc, month, ...itemBook } = item
-            createdBookrecord = await Bookrecord.create(itemBook, { client: trx })
-          }
-
-          if (item.books_id === 13 && createdBookrecord) {
-            const existingDocument = await Document
-              .query({ client: trx })
-              .where('bookrecords_id', createdBookrecord.id)
-              .first()
-
-            if (!existingDocument) {
-              await Document.create(
-                {
-                  bookrecords_id: createdBookrecord.id,
-                  month: item.month,
-                  yeardoc: item.yeardoc,
-                },
-                { client: trx }
-              )
-            }
-          }
+        if (renameResult.skipped) {
+          report.alreadyCorrect++
+        } else {
+          report.renamed++
         }
-
-        console.log("@@passo 8")
-
-        for (const item of listFiles.indexImages) {
-          try {
-            await Indeximage.create(item, { client: trx })
-          } catch (error) {
-            if (error.code !== 'ER_DUP_ENTRY') {
-              throw error
-            }
-          }
-        }
-
-        console.log("@@passo 9")
-        await Typebook
-          .query({ client: trx })
-          .where('companies_id', authenticate.companies_id)
-          .andWhere('id', foldername.id)
-          .update({
-            dateindex: new Date(),
-            totalfiles: listFiles.indexImages.length,
-          })
-
-        await trx.commit()
-        console.log("@@passo 10")
-      } catch (error) {
-        await trx.rollback()
-        throw error
       }
+
+      const totalfiles = await Indeximage
+        .query()
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('typebooks_id', typebooksId)
+        .count('* as total')
+        .first()
+
+      await Typebook
+        .query()
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('id', foldername.id)
+        .update({
+          dateindex: new Date(),
+          totalfiles: Number(totalfiles?.$extras.total || 0),
+        })
 
       return response.status(201).send({
-        message: 'Reprocessamento concluído com sucesso',
-        totalfiles: listFiles.indexImages.length,
+        message: 'Drive sincronizado pelo banco',
+        totalfiles: Number(totalfiles?.$extras.total || 0),
         typebooks_id: foldername.id,
+        ...report,
       })
     } catch (error) {
       console.error('Erro em fullReprocessing:', error)
 
-      console.log("@@passo 11")
       if (foldername?.id) {
         try {
           await Typebook
@@ -4120,16 +4162,8 @@ export default class BookrecordsController {
         }
       }
 
-      if (error.code === 'ER_DUP_ENTRY') {
-        return response.status(409).send({
-          message: 'Registro duplicado encontrado durante o reprocessamento',
-          error: error.sqlMessage || error.message || error,
-        })
-      }
-
-      console.log("@@passo 12")
       return response.status(500).send({
-        message: 'Erro ao executar reprocessamento completo',
+        message: 'Erro ao sincronizar Drive pelo banco',
         error: error.message || error,
       })
     }

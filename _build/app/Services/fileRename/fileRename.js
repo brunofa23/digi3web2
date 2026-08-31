@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updateFileName = exports.mountNameFile = exports.renameFileGoogle = exports.totalFilesInFolder = exports.indeximagesinitial = exports.deleteFile = exports.fileRename = exports.downloadImage = exports.validateFilesNameToId = exports.transformFilesNameToId = void 0;
+exports.updateFileName = exports.mountNameFile = exports.renameFileGoogleStrict = exports.renameFileGoogle = exports.totalFilesInFolder = exports.indeximagesinitial = exports.deleteFile = exports.fileRename = exports.downloadImage = exports.validateFilesNameToId = exports.transformFilesNameToId = void 0;
 const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Bookrecord"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Indeximage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Indeximage"));
@@ -356,6 +356,46 @@ async function renameFileGoogle(filename, folderPath, newTitle, cloud_number, dr
     }
 }
 exports.renameFileGoogle = renameFileGoogle;
+async function renameFileGoogleStrict(filename, folderPath, newTitle, cloud_number, driveFileId = null) {
+    try {
+        if (!newTitle || filename === newTitle) {
+            return {
+                success: true,
+                skipped: filename === newTitle,
+                drive_file_id: driveFileId,
+            };
+        }
+        let fileId = driveFileId;
+        if (!fileId) {
+            const idFolderPath = await (0, googledrive_1.sendSearchFile)(folderPath, cloud_number);
+            if (!Array.isArray(idFolderPath) || idFolderPath.length !== 1 || !idFolderPath[0]?.id) {
+                return { success: false, reason: 'folder_not_found_or_duplicated' };
+            }
+            const files = await (0, googledrive_1.sendSearchFile)(filename, cloud_number, idFolderPath[0].id);
+            if (!Array.isArray(files) || files.length !== 1 || !files[0]?.id) {
+                return { success: false, reason: 'file_not_found_or_duplicated' };
+            }
+            fileId = files[0].id;
+        }
+        const updatedFile = await (0, googledrive_1.sendRenameFile)(fileId, newTitle, cloud_number);
+        if (updatedFile?.data?.name && updatedFile.data.name !== newTitle) {
+            return { success: false, reason: 'rename_not_confirmed', drive_file_id: fileId };
+        }
+        return {
+            success: true,
+            skipped: false,
+            drive_file_id: fileId,
+            file_name: newTitle,
+        };
+    }
+    catch (error) {
+        return {
+            success: false,
+            reason: error?.message || error,
+        };
+    }
+}
+exports.renameFileGoogleStrict = renameFileGoogleStrict;
 function enqueuePendingRenameProcessing(companiesId, typebooksId) {
     if (!companiesId || !typebooksId)
         return;
@@ -878,26 +918,28 @@ async function totalFilesInFolder(folderName, cloud_number, book = []) {
 }
 exports.totalFilesInFolder = totalFilesInFolder;
 async function indeximagesinitial(folderName, companies_id, cloud_number, listFilesImages = [], book = []) {
-    console.log("@@PASSO 66.1");
     let listFiles = [];
+    const bookFilter = new Set(Array.isArray(book)
+        ? book.map((item) => Number(item)).filter((item) => Number.isInteger(item) && item > 0)
+        : []);
     if (Array.isArray(listFilesImages) && listFilesImages.length > 0) {
-        console.log("@@PASSO 66.2##");
         listFiles = listFilesImages;
     }
     else {
-        console.log("@@PASSO 66.3##");
-        listFiles = await totalFilesInFolder(folderName?.path, cloud_number, book);
+        const idFolder = await (0, googledrive_1.sendSearchFile)(folderName?.path, cloud_number);
+        if (!Array.isArray(idFolder) || idFolder.length !== 1 || !idFolder[0]?.id) {
+            throw new Error('Pasta Google Drive não encontrada ou duplicada');
+        }
+        listFiles = await (0, googledrive_1.sendListAllFilesMetadata)(cloud_number, idFolder, book);
     }
-    console.log("@@PASSO 66.2");
     const bookRecord = [];
     const indexImages = [];
     const uniqueIds = new Set();
-    console.log("@@PASSO 66.3");
     for (const file of listFiles) {
-        console.log("@@PASSO 66.4");
-        if (!/^id/i.test(file))
+        const fileName = typeof file === 'string' ? file : file?.name;
+        if (!fileName || !/^id/i.test(fileName))
             continue;
-        const fileSplit = file.split('_');
+        const fileSplit = fileName.split('_');
         if (!fileSplit || fileSplit.length < 12)
             continue;
         const idMatch = fileSplit[0]?.match(/\d+/g);
@@ -909,7 +951,7 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
         const typebooks_id = fileSplit[2];
         const bookrecords_id = id;
         const seq = seqMatch[0];
-        const ext = path_1.default.extname(file);
+        const ext = path_1.default.extname(fileName);
         const booksMatch = fileSplit[7]?.match(/\d+/g);
         const books_id = booksMatch && booksMatch[0] ? booksMatch[0] : null;
         const cod = codMatch && codMatch[1] ? codMatch[1] : null;
@@ -923,6 +965,8 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
         const year = fileSplit[11] === '' ? null : fileSplit[11];
         const yeardoc = fileSplit[4] === '' ? null : fileSplit[4];
         const month = fileSplit[6] === '' ? null : fileSplit[6];
+        if (bookFilter.size > 0 && !bookFilter.has(Number(book)))
+            continue;
         if (!uniqueIds.has(id)) {
             uniqueIds.add(id);
             bookRecord.push({
@@ -949,8 +993,12 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
             companies_id,
             seq,
             ext,
-            file_name: file,
-            previous_file_name: file,
+            file_name: fileName,
+            drive_file_id: typeof file === 'string' ? null : file?.id || null,
+            drive_file_size: typeof file === 'string' ? null : Number(file?.size || 0) || null,
+            drive_md5_checksum: typeof file === 'string' ? null : file?.md5Checksum || null,
+            drive_folder_id: typeof file === 'string' ? null : file?.parents?.[0] || null,
+            previous_file_name: null,
         });
     }
     bookRecord.sort((a, b) => Number(a.id) - Number(b.id));
@@ -960,7 +1008,6 @@ async function indeximagesinitial(folderName, companies_id, cloud_number, listFi
             return idDiff;
         return Number(a.seq) - Number(b.seq);
     });
-    console.log("@@PASSO 66.5");
     return { bookRecord, indexImages };
 }
 exports.indeximagesinitial = indeximagesinitial;

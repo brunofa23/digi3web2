@@ -219,7 +219,8 @@ async function searchFile(authClient, fileName, parentId = undefined, cloud_numb
     for (let attempt = 1; attempt <= 2; attempt++) {
         try {
             const res = await drive.files.list({
-                q: query
+                q: query,
+                fields: 'files(id, name)',
             });
             const driveFiles = res.data.files || [];
             driveFiles.forEach(function (file) {
@@ -266,6 +267,7 @@ async function renameFile(authClient, fileId, newTitle) {
         const updatedFile = await drive.files.update({
             fileId,
             resource: fileMetadata,
+            fields: 'id, name',
         });
         return updatedFile;
     }
@@ -346,7 +348,7 @@ async function listAllFilesMetadata(authClient, folderId = "", codigos = []) {
                 q: query,
                 pageSize,
                 pageToken,
-                fields: "nextPageToken, files(id, name, mimeType)",
+                fields: "nextPageToken, files(id, name, mimeType, size, md5Checksum, parents)",
             });
             const items = response.data.files || [];
             for (const item of items) {
@@ -354,6 +356,9 @@ async function listAllFilesMetadata(authClient, folderId = "", codigos = []) {
                     id: item.id,
                     name: item.name,
                     mimeType: item.mimeType,
+                    size: item.size,
+                    md5Checksum: item.md5Checksum,
+                    parents: item.parents,
                 });
             }
             pageToken = response.data.nextPageToken;
