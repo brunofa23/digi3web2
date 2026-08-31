@@ -771,7 +771,13 @@ export default class IndeximagesController {
       .andWhere('typebooks_id', typebook_id)
       .andWhere('companies_id', authenticate.companies_id)
       .first()
-    const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud)
+    const fileDownload = await FileRename.downloadImage(
+      fileName,
+      typebook_id,
+      authenticate.companies_id,
+      company?.cloud,
+      indexImage?.drive_file_id
+    )
     await AuditLogger.imageView(ctx, {
       companiesId: authenticate.companies_id,
       userId: authenticate.id,
