@@ -11,6 +11,16 @@ import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
 export default class OrderCertificatesController {
+  private getLatestEmployeeVerification(current: any | null, candidate: any): any {
+    if (!candidate) return current
+    if (!current) return candidate
+
+    const currentTime = new Date(current.date || current.createdAt || 0).getTime()
+    const candidateTime = new Date(candidate.date || candidate.createdAt || 0).getTime()
+
+    return candidateTime > currentTime ? candidate : current
+  }
+
   // =====================================================
   // Helpers de normalização/parse para multipart
   // =====================================================
@@ -737,8 +747,13 @@ export default class OrderCertificatesController {
     const marriedCertificateIds = orders
       .filter((order) => Number(order.bookId) === 2 && order.certificateId)
       .map((order) => order.certificateId)
+    const receiptIds = orders
+      .map((order) => (order as any).receipt?.id)
+      .filter((id) => !!id)
 
     const imageCounts = new Map<number, number>()
+    const latestEmployeeVerificationByMarriedCertificate = new Map<number, any>()
+    const latestEmployeeVerificationByReceipt = new Map<number, any>()
 
     if (marriedCertificateIds.length) {
       const counts = await Database
@@ -754,9 +769,102 @@ export default class OrderCertificatesController {
       })
     }
 
+    if (marriedCertificateIds.length) {
+      const certificateVerificationsQuery = Database
+        .from('employee_verification_x_certificates as evxc')
+        .leftJoin('employee_verifications as ev', 'ev.id', 'evxc.employee_verification_id')
+        .select([
+          'evxc.id',
+          'evxc.married_certificate_id',
+          'evxc.status',
+          'evxc.date',
+          'ev.description',
+          'evxc.created_at',
+        ])
+        .where('evxc.companies_id', authenticate.companies_id)
+        .whereIn('evxc.married_certificate_id', marriedCertificateIds)
+
+      if (employeeVerificationId) {
+        certificateVerificationsQuery.where('evxc.employee_verification_id', employeeVerificationId)
+      }
+
+      const certificateVerifications = await certificateVerificationsQuery
+
+      certificateVerifications.forEach((row) => {
+        const marriedCertificateId = Number(row.married_certificate_id)
+        const candidate = {
+          id: row.id,
+          status: row.status,
+          observation: row.description,
+          date: row.date,
+          createdAt: row.created_at,
+          source: 'certificate',
+        }
+
+        latestEmployeeVerificationByMarriedCertificate.set(
+          marriedCertificateId,
+          this.getLatestEmployeeVerification(
+            latestEmployeeVerificationByMarriedCertificate.get(marriedCertificateId) ?? null,
+            candidate
+          )
+        )
+      })
+    }
+
+    if (receiptIds.length) {
+      const receiptVerificationsQuery = Database
+        .from('employee_verification_x_receipts as evxr')
+        .leftJoin('employee_verifications as ev', 'ev.id', 'evxr.employee_verification_id')
+        .select([
+          'evxr.id',
+          'evxr.receipt_id',
+          'evxr.date',
+          'ev.description',
+          'evxr.created_at',
+        ])
+        .where('evxr.companies_id', authenticate.companies_id)
+        .whereIn('evxr.receipt_id', receiptIds)
+
+      if (employeeVerificationId) {
+        receiptVerificationsQuery.where('evxr.employee_verification_id', employeeVerificationId)
+      }
+
+      const receiptVerifications = await receiptVerificationsQuery
+
+      receiptVerifications.forEach((row) => {
+        const receiptId = Number(row.receipt_id)
+        const candidate = {
+          id: row.id,
+          status: null,
+          observation: row.description,
+          date: row.date,
+          createdAt: row.created_at,
+          source: 'receipt',
+        }
+
+        latestEmployeeVerificationByReceipt.set(
+          receiptId,
+          this.getLatestEmployeeVerification(
+            latestEmployeeVerificationByReceipt.get(receiptId) ?? null,
+            candidate
+          )
+        )
+      })
+    }
+
     const result = orders.map((order) => {
       const json = order.toJSON()
       const imageCertificatesCount = imageCounts.get(Number(order.certificateId)) ?? 0
+      const certificateVerification = latestEmployeeVerificationByMarriedCertificate.get(
+        Number(order.certificateId)
+      )
+      const receiptVerification = json.receipt?.id
+        ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
+        : null
+      const latestEmployeeVerification = this.getLatestEmployeeVerification(
+        certificateVerification ?? null,
+        receiptVerification ?? null
+      )
 
       if (json.receipt) {
         const codeList = (json.receipt.items || [])
@@ -769,6 +877,7 @@ export default class OrderCertificatesController {
       }
 
       json.imageCertificatesCount = imageCertificatesCount
+      json.latestEmployeeVerification = latestEmployeeVerification ?? null
       if (json.marriedCertificate) {
         json.marriedCertificate.imageCertificatesCount = imageCertificatesCount
       }
