@@ -253,18 +253,3 @@ git merge development
 git push origin main
 git checkout development
 
-
-## SCRIPT PARA INCLUIR O CAMPO DRIVE_FILE_ID
-./start.sh node ace indeximages:fill-drive-ids \
-  --company=57 \
-    --limit=200 \
-      --repeat \
-        --sleep=15 \
-          --max-rounds=1000
-
-24
-36
-39
-41
-55
-57
