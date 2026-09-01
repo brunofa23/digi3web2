@@ -33,6 +33,8 @@ RUN npm ci --omit=dev
 # Copia o build TS->JS
 COPY --from=build /app/_build ./_build
 COPY scripts/write-google-credentials.js ./scripts/write-google-credentials.js
+COPY scripts/acervo-backup-job.sh ./scripts/acervo-backup-job.sh
+RUN chmod 755 ./scripts/acervo-backup-job.sh
 # (se tiver /public)
 # COPY --from=build /app/public ./public
 
