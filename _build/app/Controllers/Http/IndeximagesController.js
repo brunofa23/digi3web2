@@ -96,6 +96,9 @@ function normalizeImageOrigin(value) {
     const origin = String(value || '').trim();
     return allowedOrigins.includes(origin) ? origin : 'unknown';
 }
+function isDocumentProtocolFileName(fileName) {
+    return /^P\d+\(\d+\)/i.test(String(fileName || '').trim());
+}
 async function buildImageFromBase64Upload(payload) {
     const match = String(payload.imageBase64 || '').match(/^data:([^;]+);base64,(.+)$/);
     const mimeType = payload.imageType || match?.[1] || 'image/jpeg';
@@ -421,60 +424,63 @@ class IndeximagesController {
                 }
             }
             else if (updateImageDocument) {
-                if (dataImages?.cod === undefined || dataImages?.cod === null || dataImages?.cod === '') {
-                    await updateUploadJob(uploadJob, 'FAILED', {
-                        errorMessage: 'Campo "cod" é obrigatório em dataImages.',
-                    });
-                    return response.status(422).send({
-                        message: 'Campo "cod" é obrigatório em dataImages.',
-                        uploadJob: serializeUploadJob(uploadJob),
-                    });
-                }
-                const verifyExistBookrecord = await Bookrecord_1.default.query()
-                    .where('companies_id', authenticate.companies_id)
-                    .andWhere('cod', dataImages.cod)
-                    .andWhere('typebooks_id', params.typebooks_id)
-                    .first();
-                if (verifyExistBookrecord) {
-                    dataImages.id = verifyExistBookrecord.id;
-                }
-                else {
-                    const trx = await Database_1.default.beginGlobalTransaction();
-                    try {
-                        const bookRecord = await Bookrecord_1.default.create({
-                            typebooks_id: params.typebooks_id,
-                            companies_id: authenticate.companies_id,
-                            cod: dataImages.cod,
-                            book: dataImages.book,
-                            side: dataImages.side,
-                            books_id: 13,
-                        }, trx);
-                        const normalizeIntOrNull = (value) => {
-                            if (value === undefined || value === null || value === '')
-                                return null;
-                            return Number(value);
-                        };
-                        await Document_1.default.create({
-                            bookrecords_id: bookRecord.id,
-                            books_id: 13,
-                            typebooks_id: params.typebooks_id,
-                            companies_id: authenticate.companies_id,
-                            prot: dataImages.prot,
-                            documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
-                            document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
-                            book_name: dataImages.book_name,
-                            book_number: dataImages.book_number,
-                            sheet_number: dataImages.sheet_number,
-                            free: dataImages.free ? 1 : 0,
-                            averb_anot: dataImages.averb_anot ? 1 : 0,
-                            obs: dataImages.obs,
-                        }, trx);
-                        dataImages.id = bookRecord.id;
-                        await trx.commit();
+                const useFileNameDocumentProtocol = images.length > 0 && images.every((image) => isDocumentProtocolFileName(image?.clientName));
+                if (!useFileNameDocumentProtocol) {
+                    if (dataImages?.cod === undefined || dataImages?.cod === null || dataImages?.cod === '') {
+                        await updateUploadJob(uploadJob, 'FAILED', {
+                            errorMessage: 'Campo "cod" é obrigatório em dataImages.',
+                        });
+                        return response.status(422).send({
+                            message: 'Campo "cod" é obrigatório em dataImages.',
+                            uploadJob: serializeUploadJob(uploadJob),
+                        });
                     }
-                    catch (error) {
-                        await trx.rollback();
-                        throw error;
+                    const verifyExistBookrecord = await Bookrecord_1.default.query()
+                        .where('companies_id', authenticate.companies_id)
+                        .andWhere('cod', dataImages.cod)
+                        .andWhere('typebooks_id', params.typebooks_id)
+                        .first();
+                    if (verifyExistBookrecord) {
+                        dataImages.id = verifyExistBookrecord.id;
+                    }
+                    else {
+                        const trx = await Database_1.default.beginGlobalTransaction();
+                        try {
+                            const bookRecord = await Bookrecord_1.default.create({
+                                typebooks_id: params.typebooks_id,
+                                companies_id: authenticate.companies_id,
+                                cod: dataImages.cod,
+                                book: dataImages.book,
+                                side: dataImages.side,
+                                books_id: 13,
+                            }, trx);
+                            const normalizeIntOrNull = (value) => {
+                                if (value === undefined || value === null || value === '')
+                                    return null;
+                                return Number(value);
+                            };
+                            await Document_1.default.create({
+                                bookrecords_id: bookRecord.id,
+                                books_id: 13,
+                                typebooks_id: params.typebooks_id,
+                                companies_id: authenticate.companies_id,
+                                prot: dataImages.prot,
+                                documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
+                                document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
+                                book_name: dataImages.book_name,
+                                book_number: dataImages.book_number,
+                                sheet_number: dataImages.sheet_number,
+                                free: dataImages.free ? 1 : 0,
+                                averb_anot: dataImages.averb_anot ? 1 : 0,
+                                obs: dataImages.obs,
+                            }, trx);
+                            dataImages.id = bookRecord.id;
+                            await trx.commit();
+                        }
+                        catch (error) {
+                            await trx.rollback();
+                            throw error;
+                        }
                     }
                 }
             }
