@@ -15,6 +15,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
+function parseJson(value) {
+    if (!value)
+        return null;
+    if (typeof value === 'string')
+        return JSON.parse(value);
+    return value;
+}
 class PublicOrderCertificateLink extends Orm_1.BaseModel {
 }
 PublicOrderCertificateLink.table = 'public_order_certificate_links';
@@ -41,6 +48,15 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
 ], PublicOrderCertificateLink.prototype, "active", void 0);
+__decorate([
+    (0, Orm_1.column)({
+        columnName: 'form_settings',
+        serializeAs: 'formSettings',
+        prepare: (value) => value === undefined ? null : JSON.stringify(value),
+        consume: parseJson,
+    }),
+    __metadata("design:type", Object)
+], PublicOrderCertificateLink.prototype, "formSettings", void 0);
 __decorate([
     (0, Orm_1.belongsTo)(() => Company_1.default, {
         foreignKey: 'companiesId',

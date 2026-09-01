@@ -8,6 +8,12 @@ import {
 
 import Company from 'App/Models/Company'
 
+function parseJson(value: any) {
+  if (!value) return null
+  if (typeof value === 'string') return JSON.parse(value)
+  return value
+}
+
 export default class PublicOrderCertificateLink extends BaseModel {
   public static table = 'public_order_certificate_links'
 
@@ -28,6 +34,14 @@ export default class PublicOrderCertificateLink extends BaseModel {
 
   @column()
   public active: boolean
+
+  @column({
+    columnName: 'form_settings',
+    serializeAs: 'formSettings',
+    prepare: (value: any) => value === undefined ? null : JSON.stringify(value),
+    consume: parseJson,
+  })
+  public formSettings?: any
 
   @belongsTo(() => Company, {
     foreignKey: 'companiesId',

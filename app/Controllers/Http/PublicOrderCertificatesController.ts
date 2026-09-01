@@ -357,8 +357,15 @@ export default class PublicOrderCertificatesController {
       type: link.type,
       token: link.token,
       active: Boolean(link.active),
+      formSettings: this.normalizePublicFormSettings(link.formSettings),
       createdAt: link.createdAt,
       updatedAt: link.updatedAt,
+    }
+  }
+
+  private normalizePublicFormSettings(settings: any) {
+    return {
+      finalObservation: String(settings?.finalObservation || '').trim(),
     }
   }
 
@@ -872,6 +879,7 @@ export default class PublicOrderCertificatesController {
         city: link.company.city,
         state: link.company.state,
       },
+      formSettings: this.normalizePublicFormSettings(link.formSettings),
       humanChallenge: this.createPublicHumanChallenge(params.token, this.getPublicRequestIp(request)),
     }
   }
@@ -890,12 +898,20 @@ export default class PublicOrderCertificatesController {
 
     const payload = await request.validate({
       schema: schema.create({
-        active: schema.boolean(),
+        active: schema.boolean.optional(),
+        formSettings: schema.object.optional().members({
+          finalObservation: schema.string.optional({ trim: true }, [rules.maxLength(5000)]),
+        }),
       }),
     })
 
     const link = await this.getOrCreateMarriageLink(authenticate.companies_id)
-    link.active = payload.active
+    if (payload.active !== undefined) {
+      link.active = payload.active
+    }
+    if (payload.formSettings !== undefined) {
+      link.formSettings = this.normalizePublicFormSettings(payload.formSettings)
+    }
     await link.save()
 
     return response.status(200).send(this.serializeManageLink(link))
