@@ -348,8 +348,14 @@ class PublicOrderCertificatesController {
             type: link.type,
             token: link.token,
             active: Boolean(link.active),
+            formSettings: this.normalizePublicFormSettings(link.formSettings),
             createdAt: link.createdAt,
             updatedAt: link.updatedAt,
+        };
+    }
+    normalizePublicFormSettings(settings) {
+        return {
+            finalObservation: String(settings?.finalObservation || '').trim(),
         };
     }
     async getOrCreateMarriageLink(companiesId) {
@@ -776,6 +782,7 @@ class PublicOrderCertificatesController {
                 city: link.company.city,
                 state: link.company.state,
             },
+            formSettings: this.normalizePublicFormSettings(link.formSettings),
             humanChallenge: this.createPublicHumanChallenge(params.token, this.getPublicRequestIp(request)),
         };
     }
@@ -792,11 +799,19 @@ class PublicOrderCertificatesController {
             return;
         const payload = await request.validate({
             schema: Validator_1.schema.create({
-                active: Validator_1.schema.boolean(),
+                active: Validator_1.schema.boolean.optional(),
+                formSettings: Validator_1.schema.object.optional().members({
+                    finalObservation: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(5000)]),
+                }),
             }),
         });
         const link = await this.getOrCreateMarriageLink(authenticate.companies_id);
-        link.active = payload.active;
+        if (payload.active !== undefined) {
+            link.active = payload.active;
+        }
+        if (payload.formSettings !== undefined) {
+            link.formSettings = this.normalizePublicFormSettings(payload.formSettings);
+        }
         await link.save();
         return response.status(200).send(this.serializeManageLink(link));
     }
