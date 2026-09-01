@@ -9,6 +9,8 @@ const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
 const luxon_1 = require("luxon");
 const crypto_1 = require("crypto");
 const fs_1 = require("fs");
+const stream_1 = require("stream");
+const promises_1 = require("stream/promises");
 const zlib_1 = require("zlib");
 const util_1 = require("util");
 const promise_1 = __importDefault(require("mysql2/promise"));
@@ -16,12 +18,12 @@ const AuditLog_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Aud
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
-const gzipAsync = (0, util_1.promisify)(zlib_1.gzip);
 const gunzipAsync = (0, util_1.promisify)(zlib_1.gunzip);
 const uploadDriveFile = googledrive_1.sendUploadFiles;
 const createDriveFolder = googledrive_1.sendCreateFolder;
 const listDriveFilesMetadata = googledrive_1.sendListAllFilesMetadata;
 const downloadDriveFileBuffer = googledrive_1.sendDownloadFileBuffer;
+const BACKUP_BATCH_SIZE = 500;
 const TABLES = [
     'bookrecords',
     'indeximages',
@@ -32,6 +34,9 @@ const TABLES = [
 ];
 const INDEX_FILE = 'index.json';
 class AcervoBackupService {
+    constructor() {
+        this.columnCache = new Map();
+    }
     async backup(options) {
         const company = await Company_1.default.findOrFail(options.companyId);
         const typebooks = await this.getTypebooks(company.id, options.typebookId);
@@ -163,13 +168,10 @@ class AcervoBackupService {
         return query;
     }
     async backupTypebook(company, typebook, basePath) {
-        const backups = await this.getTableBackups(company.id, typebook.id);
-        const sql = this.buildRestoreSql(company.id, typebook, backups);
-        const sqlGz = await gzipAsync(Buffer.from(sql, 'utf8'));
         const file = `acervo_company_${company.id}_typebook_${typebook.id}.sql.gz`;
         const filePath = `${basePath}/${file}`;
-        await fs_1.promises.writeFile(filePath, sqlGz);
-        const checksum = (0, crypto_1.createHash)('sha256').update(sqlGz).digest('hex');
+        const summary = await this.writeRestoreSqlGz(company.id, typebook, filePath);
+        const checksum = await this.hashFile(filePath);
         const stat = await fs_1.promises.stat(filePath);
         return {
             typebooks_id: typebook.id,
@@ -179,11 +181,8 @@ class AcervoBackupService {
             file_size: stat.size,
             checksum_sha256: checksum,
             drive_file_id: null,
-            tables: backups.reduce((summary, item) => {
-                summary[item.table] = item.rows.length;
-                return summary;
-            }, {}),
-            total_rows: backups.reduce((total, item) => total + item.rows.length, 0),
+            tables: summary.tables,
+            total_rows: summary.totalRows,
         };
     }
     async getLocalPackage(companyId, snapshot, typebookId) {
@@ -417,47 +416,124 @@ class AcervoBackupService {
         }
         return file;
     }
-    async getTableBackups(companyId, typebookId) {
-        const typebookRows = await Database_1.default.from('typebooks')
-            .where('companies_id', companyId)
-            .andWhere('id', typebookId);
-        const bookrecordRows = await Database_1.default.from('bookrecords')
-            .where('companies_id', companyId)
-            .andWhere('typebooks_id', typebookId);
-        const bookrecordIds = bookrecordRows.map((row) => row.id);
-        const result = [
-            {
-                table: 'typebooks',
-                rows: typebookRows,
-                columns: await this.getColumns('typebooks'),
-            },
-        ];
-        for (const table of TABLES) {
-            const columns = await this.getColumns(table);
-            const query = Database_1.default.from(table)
-                .where('companies_id', companyId)
-                .andWhere('typebooks_id', typebookId);
-            if (table === 'bookrecords') {
-                query.whereIn('id', bookrecordIds);
+    async writeRestoreSqlGz(companyId, typebook, filePath) {
+        const input = new stream_1.PassThrough();
+        const gzipStream = (0, zlib_1.createGzip)();
+        const output = (0, fs_1.createWriteStream)(filePath);
+        const pipelinePromise = (0, promises_1.pipeline)(input, gzipStream, output);
+        const tables = {};
+        let totalRows = 0;
+        try {
+            await this.writeBackupStream(input, [
+                `-- Backup acervo company_id=${companyId} typebooks_id=${typebook.id}`,
+                `-- Gerado em ${luxon_1.DateTime.now().toISO()}`,
+                'START TRANSACTION;',
+                '',
+                `DELETE FROM indeximage_ocr_entities WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+                `DELETE FROM indeximage_ocr_checks WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+                `DELETE FROM document_configs WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+                `DELETE FROM documents WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+                `DELETE FROM indeximages WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+                `DELETE FROM bookrecords WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+                '',
+            ].join('\n'));
+            for (const table of ['typebooks', ...TABLES]) {
+                const columns = await this.getColumns(table);
+                const rowCount = await this.writeTableBackupSql(input, table, columns, companyId, typebook.id);
+                tables[table] = rowCount;
+                totalRows += rowCount;
             }
-            else if (columns.includes('bookrecords_id')) {
-                if (bookrecordIds.length === 0) {
-                    query.whereRaw('1 = 0');
-                }
-                else {
-                    query.whereIn('bookrecords_id', bookrecordIds);
-                }
+            await this.writeBackupStream(input, ['COMMIT;', ''].join('\n'));
+            input.end();
+            await pipelinePromise;
+            return { tables, totalRows };
+        }
+        catch (error) {
+            input.destroy(error);
+            await pipelinePromise.catch(() => null);
+            throw error;
+        }
+    }
+    async writeTableBackupSql(stream, table, columns, companyId, typebookId) {
+        const hasIdColumn = columns.includes('id');
+        let totalRows = 0;
+        let lastId = 0;
+        let offset = 0;
+        while (true) {
+            const query = Database_1.default.from(table)
+                .select(columns)
+                .limit(BACKUP_BATCH_SIZE);
+            this.applyBackupTableScope(query, table, columns, companyId, typebookId);
+            if (hasIdColumn) {
+                query.where('id', '>', lastId).orderBy('id', 'asc');
+            }
+            else {
+                query.offset(offset);
             }
             const rows = await query;
-            result.push({
-                table,
-                rows,
-                columns,
-            });
+            if (rows.length === 0)
+                break;
+            totalRows += rows.length;
+            await this.writeBackupStream(stream, `${this.buildInsertSql({ table, rows, columns }).join('\n')}\n`);
+            if (hasIdColumn) {
+                lastId = Number(rows[rows.length - 1].id);
+            }
+            else {
+                offset += rows.length;
+            }
         }
-        return result;
+        if (totalRows === 0) {
+            await this.writeBackupStream(stream, `-- ${table}: 0 registros\n\n`);
+        }
+        return totalRows;
+    }
+    applyBackupTableScope(query, table, columns, companyId, typebookId) {
+        if (table === 'typebooks') {
+            query.where('companies_id', companyId).andWhere('id', typebookId);
+            return;
+        }
+        query.where('companies_id', companyId).andWhere('typebooks_id', typebookId);
+        if (table !== 'bookrecords' && columns.includes('bookrecords_id')) {
+            query.whereIn('bookrecords_id', Database_1.default.from('bookrecords')
+                .select('id')
+                .where('companies_id', companyId)
+                .andWhere('typebooks_id', typebookId));
+        }
+    }
+    async writeBackupStream(stream, content) {
+        if (stream.write(content))
+            return;
+        await new Promise((resolve, reject) => {
+            const cleanup = () => {
+                stream.off('drain', onDrain);
+                stream.off('error', onError);
+            };
+            const onDrain = () => {
+                cleanup();
+                resolve();
+            };
+            const onError = (error) => {
+                cleanup();
+                reject(error);
+            };
+            stream.once('drain', onDrain);
+            stream.once('error', onError);
+        });
+    }
+    async hashFile(filePath) {
+        const hash = (0, crypto_1.createHash)('sha256');
+        await new Promise((resolve, reject) => {
+            const input = (0, fs_1.createReadStream)(filePath);
+            input.on('data', (chunk) => hash.update(chunk));
+            input.on('error', reject);
+            input.on('end', resolve);
+        });
+        return hash.digest('hex');
     }
     async getColumns(table) {
+        const cachedColumns = this.columnCache.get(table);
+        if (cachedColumns)
+            return cachedColumns;
         const result = await Database_1.default.rawQuery(`
         SELECT COLUMN_NAME
         FROM information_schema.COLUMNS
@@ -466,27 +542,9 @@ class AcervoBackupService {
         ORDER BY ORDINAL_POSITION
       `, [table]);
         const rows = Array.isArray(result?.[0]) ? result[0] : result;
-        return rows.map((row) => row.COLUMN_NAME);
-    }
-    buildRestoreSql(companyId, typebook, backups) {
-        const lines = [
-            `-- Backup acervo company_id=${companyId} typebooks_id=${typebook.id}`,
-            `-- Gerado em ${luxon_1.DateTime.now().toISO()}`,
-            'START TRANSACTION;',
-            '',
-            `DELETE FROM indeximage_ocr_entities WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-            `DELETE FROM indeximage_ocr_checks WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-            `DELETE FROM document_configs WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-            `DELETE FROM documents WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-            `DELETE FROM indeximages WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-            `DELETE FROM bookrecords WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-            '',
-        ];
-        for (const backup of backups) {
-            lines.push(...this.buildInsertSql(backup));
-        }
-        lines.push('COMMIT;', '');
-        return lines.join('\n');
+        const columns = rows.map((row) => row.COLUMN_NAME);
+        this.columnCache.set(table, columns);
+        return columns;
     }
     validateManifestPackage(manifest, options) {
         if (manifest?.scope !== 'acervo') {

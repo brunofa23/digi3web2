@@ -3,8 +3,10 @@ import Database from '@ioc:Adonis/Lucid/Database'
 import Env from '@ioc:Adonis/Core/Env'
 import { DateTime } from 'luxon'
 import { createHash } from 'crypto'
-import { promises as fs } from 'fs'
-import { gzip, gunzip } from 'zlib'
+import { createReadStream, createWriteStream, promises as fs } from 'fs'
+import { PassThrough } from 'stream'
+import { pipeline } from 'stream/promises'
+import { createGzip, gunzip } from 'zlib'
 import { promisify } from 'util'
 import mysql from 'mysql2/promise'
 import AuditLog from 'App/Models/AuditLog'
@@ -18,12 +20,12 @@ import {
   sendUploadFiles,
 } from 'App/Services/googleDrive/googledrive'
 
-const gzipAsync = promisify(gzip)
 const gunzipAsync = promisify(gunzip)
 const uploadDriveFile = sendUploadFiles as any
 const createDriveFolder = sendCreateFolder as any
 const listDriveFilesMetadata = sendListAllFilesMetadata as any
 const downloadDriveFileBuffer = sendDownloadFileBuffer as any
+const BACKUP_BATCH_SIZE = 500
 
 type BackupOptions = {
   companyId: number
@@ -69,6 +71,8 @@ const TABLES = [
 const INDEX_FILE = 'index.json'
 
 export default class AcervoBackupService {
+  private columnCache = new Map<string, string[]>()
+
   public async backup(options: BackupOptions) {
     const company = await Company.findOrFail(options.companyId)
     const typebooks = await this.getTypebooks(company.id, options.typebookId)
@@ -253,15 +257,11 @@ export default class AcervoBackupService {
   }
 
   private async backupTypebook(company: Company, typebook: Typebook, basePath: string) {
-    const backups = await this.getTableBackups(company.id, typebook.id)
-    const sql = this.buildRestoreSql(company.id, typebook, backups)
-    const sqlGz = await gzipAsync(Buffer.from(sql, 'utf8'))
     const file = `acervo_company_${company.id}_typebook_${typebook.id}.sql.gz`
     const filePath = `${basePath}/${file}`
+    const summary = await this.writeRestoreSqlGz(company.id, typebook, filePath)
 
-    await fs.writeFile(filePath, sqlGz)
-
-    const checksum = createHash('sha256').update(sqlGz).digest('hex')
+    const checksum = await this.hashFile(filePath)
     const stat = await fs.stat(filePath)
 
     return {
@@ -272,11 +272,8 @@ export default class AcervoBackupService {
       file_size: stat.size,
       checksum_sha256: checksum,
       drive_file_id: null,
-      tables: backups.reduce((summary, item) => {
-        summary[item.table] = item.rows.length
-        return summary
-      }, {}),
-      total_rows: backups.reduce((total, item) => total + item.rows.length, 0),
+      tables: summary.tables,
+      total_rows: summary.totalRows,
     }
   }
 
@@ -584,52 +581,163 @@ export default class AcervoBackupService {
     return file
   }
 
-  private async getTableBackups(companyId: number, typebookId: number): Promise<TableBackup[]> {
-    const typebookRows = await Database.from('typebooks')
-      .where('companies_id', companyId)
-      .andWhere('id', typebookId)
-    const bookrecordRows = await Database.from('bookrecords')
-      .where('companies_id', companyId)
-      .andWhere('typebooks_id', typebookId)
-    const bookrecordIds = bookrecordRows.map((row) => row.id)
+  private async writeRestoreSqlGz(companyId: number, typebook: Typebook, filePath: string) {
+    const input = new PassThrough()
+    const gzipStream = createGzip()
+    const output = createWriteStream(filePath)
+    const pipelinePromise = pipeline(input, gzipStream, output)
+    const tables: Record<string, number> = {}
+    let totalRows = 0
 
-    const result: TableBackup[] = [
-      {
-        table: 'typebooks',
-        rows: typebookRows,
-        columns: await this.getColumns('typebooks'),
-      },
-    ]
+    try {
+      await this.writeBackupStream(input, [
+        `-- Backup acervo company_id=${companyId} typebooks_id=${typebook.id}`,
+        `-- Gerado em ${DateTime.now().toISO()}`,
+        'START TRANSACTION;',
+        '',
+        `DELETE FROM indeximage_ocr_entities WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+        `DELETE FROM indeximage_ocr_checks WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+        `DELETE FROM document_configs WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+        `DELETE FROM documents WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+        `DELETE FROM indeximages WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+        `DELETE FROM bookrecords WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
+        '',
+      ].join('\n'))
 
-    for (const table of TABLES) {
-      const columns = await this.getColumns(table)
+      for (const table of ['typebooks', ...TABLES]) {
+        const columns = await this.getColumns(table)
+        const rowCount = await this.writeTableBackupSql(input, table, columns, companyId, typebook.id)
+
+        tables[table] = rowCount
+        totalRows += rowCount
+      }
+
+      await this.writeBackupStream(input, ['COMMIT;', ''].join('\n'))
+      input.end()
+      await pipelinePromise
+
+      return { tables, totalRows }
+    } catch (error) {
+      input.destroy(error as Error)
+      await pipelinePromise.catch(() => null)
+      throw error
+    }
+  }
+
+  private async writeTableBackupSql(
+    stream: PassThrough,
+    table: string,
+    columns: string[],
+    companyId: number,
+    typebookId: number
+  ) {
+    const hasIdColumn = columns.includes('id')
+    let totalRows = 0
+    let lastId = 0
+    let offset = 0
+
+    while (true) {
       const query = Database.from(table)
-        .where('companies_id', companyId)
-        .andWhere('typebooks_id', typebookId)
+        .select(columns)
+        .limit(BACKUP_BATCH_SIZE)
 
-      if (table === 'bookrecords') {
-        query.whereIn('id', bookrecordIds)
-      } else if (columns.includes('bookrecords_id')) {
-        if (bookrecordIds.length === 0) {
-          query.whereRaw('1 = 0')
-        } else {
-          query.whereIn('bookrecords_id', bookrecordIds)
-        }
+      this.applyBackupTableScope(query, table, columns, companyId, typebookId)
+
+      if (hasIdColumn) {
+        query.where('id', '>', lastId).orderBy('id', 'asc')
+      } else {
+        query.offset(offset)
       }
 
       const rows = await query
 
-      result.push({
-        table,
-        rows,
-        columns,
-      })
+      if (rows.length === 0) break
+
+      totalRows += rows.length
+      await this.writeBackupStream(
+        stream,
+        `${this.buildInsertSql({ table, rows, columns }).join('\n')}\n`
+      )
+
+      if (hasIdColumn) {
+        lastId = Number(rows[rows.length - 1].id)
+      } else {
+        offset += rows.length
+      }
     }
 
-    return result
+    if (totalRows === 0) {
+      await this.writeBackupStream(stream, `-- ${table}: 0 registros\n\n`)
+    }
+
+    return totalRows
+  }
+
+  private applyBackupTableScope(
+    query: any,
+    table: string,
+    columns: string[],
+    companyId: number,
+    typebookId: number
+  ) {
+    if (table === 'typebooks') {
+      query.where('companies_id', companyId).andWhere('id', typebookId)
+      return
+    }
+
+    query.where('companies_id', companyId).andWhere('typebooks_id', typebookId)
+
+    if (table !== 'bookrecords' && columns.includes('bookrecords_id')) {
+      query.whereIn(
+        'bookrecords_id',
+        Database.from('bookrecords')
+          .select('id')
+          .where('companies_id', companyId)
+          .andWhere('typebooks_id', typebookId)
+      )
+    }
+  }
+
+  private async writeBackupStream(stream: PassThrough, content: string) {
+    if (stream.write(content)) return
+
+    await new Promise<void>((resolve, reject) => {
+      const cleanup = () => {
+        stream.off('drain', onDrain)
+        stream.off('error', onError)
+      }
+      const onDrain = () => {
+        cleanup()
+        resolve()
+      }
+      const onError = (error) => {
+        cleanup()
+        reject(error)
+      }
+
+      stream.once('drain', onDrain)
+      stream.once('error', onError)
+    })
+  }
+
+  private async hashFile(filePath: string) {
+    const hash = createHash('sha256')
+
+    await new Promise<void>((resolve, reject) => {
+      const input = createReadStream(filePath)
+
+      input.on('data', (chunk) => hash.update(chunk))
+      input.on('error', reject)
+      input.on('end', resolve)
+    })
+
+    return hash.digest('hex')
   }
 
   private async getColumns(table: string) {
+    const cachedColumns = this.columnCache.get(table)
+    if (cachedColumns) return cachedColumns
+
     const result = await Database.rawQuery(
       `
         SELECT COLUMN_NAME
@@ -642,30 +750,10 @@ export default class AcervoBackupService {
     )
 
     const rows = Array.isArray(result?.[0]) ? result[0] : result
-    return rows.map((row) => row.COLUMN_NAME)
-  }
+    const columns = rows.map((row) => row.COLUMN_NAME)
 
-  private buildRestoreSql(companyId: number, typebook: Typebook, backups: TableBackup[]) {
-    const lines: string[] = [
-      `-- Backup acervo company_id=${companyId} typebooks_id=${typebook.id}`,
-      `-- Gerado em ${DateTime.now().toISO()}`,
-      'START TRANSACTION;',
-      '',
-      `DELETE FROM indeximage_ocr_entities WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-      `DELETE FROM indeximage_ocr_checks WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-      `DELETE FROM document_configs WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-      `DELETE FROM documents WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-      `DELETE FROM indeximages WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-      `DELETE FROM bookrecords WHERE companies_id = ${companyId} AND typebooks_id = ${typebook.id};`,
-      '',
-    ]
-
-    for (const backup of backups) {
-      lines.push(...this.buildInsertSql(backup))
-    }
-
-    lines.push('COMMIT;', '')
-    return lines.join('\n')
+    this.columnCache.set(table, columns)
+    return columns
   }
 
   private validateManifestPackage(manifest: any, options: RestoreOptions) {
