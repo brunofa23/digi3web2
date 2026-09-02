@@ -69,6 +69,24 @@
           "propertyName": "includeWithoutBooksModule",
           "type": "boolean",
           "description": "Ignora filtro do módulo de livros"
+        },
+        {
+          "name": "dry-run",
+          "propertyName": "dryRun",
+          "type": "boolean",
+          "description": "Lista empresas selecionadas sem gerar backup"
+        },
+        {
+          "name": "shard-total",
+          "propertyName": "shardTotal",
+          "type": "number",
+          "description": "Quantidade total de partes para dividir o backup"
+        },
+        {
+          "name": "shard-index",
+          "propertyName": "shardIndex",
+          "type": "number",
+          "description": "Parte atual do backup dividido, iniciando em 1"
         }
       ]
     },

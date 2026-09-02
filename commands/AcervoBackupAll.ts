@@ -22,15 +22,37 @@ export default class AcervoBackupAll extends BaseCommand {
   @flags.boolean({ description: 'Ignora filtro do módulo de livros' })
   public includeWithoutBooksModule: boolean = false
 
+  @flags.boolean({ description: 'Lista empresas selecionadas sem gerar backup' })
+  public dryRun: boolean = false
+
+  @flags.number({ description: 'Quantidade total de partes para dividir o backup' })
+  public shardTotal: number = 1
+
+  @flags.number({ description: 'Parte atual do backup dividido, iniciando em 1' })
+  public shardIndex: number = 1
+
   public async run() {
     const retentionDays = Number(this.retentionDays || 30)
+    const shardTotal = Number(this.shardTotal || 1)
+    const shardIndex = Number(this.shardIndex || 1)
 
     if (!Number.isInteger(retentionDays) || retentionDays < 1 || retentionDays > 3650) {
       this.logger.error('Informe retenção entre 1 e 3650 dias.')
       return
     }
 
-    const companies = await this.getCompanies()
+    if (!Number.isInteger(shardTotal) || shardTotal < 1 || shardTotal > 20) {
+      this.logger.error('Informe shard-total entre 1 e 20.')
+      return
+    }
+
+    if (!Number.isInteger(shardIndex) || shardIndex < 1 || shardIndex > shardTotal) {
+      this.logger.error('Informe shard-index entre 1 e o valor de shard-total.')
+      return
+    }
+
+    const allCompanies = await this.getCompanies()
+    const companies = this.filterCompaniesByShard(allCompanies, shardTotal, shardIndex)
 
     if (companies.length === 0) {
       this.logger.warning('Nenhuma empresa encontrada para backup do acervo.')
@@ -41,7 +63,20 @@ export default class AcervoBackupAll extends BaseCommand {
     let success = 0
     let errors = 0
 
-    this.logger.info(`Empresas selecionadas: ${companies.length}`)
+    this.logger.info(
+      shardTotal > 1
+        ? `Empresas selecionadas: ${companies.length} de ${allCompanies.length} (parte ${shardIndex}/${shardTotal})`
+        : `Empresas selecionadas: ${companies.length}`
+    )
+
+    if (this.dryRun) {
+      for (const company of companies) {
+        this.logger.info(`Empresa ${company.id} - ${company.name}`)
+      }
+
+      this.logger.warning('Dry-run executado. Nenhum backup foi gerado.')
+      return
+    }
 
     for (const company of companies) {
       try {
@@ -82,5 +117,13 @@ export default class AcervoBackupAll extends BaseCommand {
     }
 
     return query
+  }
+
+  private filterCompaniesByShard(companies: Company[], shardTotal: number, shardIndex: number) {
+    if (shardTotal === 1) return companies
+
+    return companies.filter((_company, index) => {
+      return index % shardTotal === shardIndex - 1
+    })
   }
 }

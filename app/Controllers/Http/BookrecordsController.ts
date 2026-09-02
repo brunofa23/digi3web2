@@ -3648,8 +3648,6 @@ export default class BookrecordsController {
             .andWhere('bookrecords_id', indeximage.bookrecords_id)
             .andWhere('seq', indeximage.seq)
             .update({
-              book,
-              sheet,
               register,
               ready: true,
             })

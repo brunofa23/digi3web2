@@ -53,6 +53,82 @@ function hasDataImageLookup(dataImages) {
         dataImages?.approximateTerm ||
         dataImages?.indexBook);
 }
+const documentLookupFields = [
+    'obs',
+    'book_name',
+    'stringfield1',
+    'stringfield2',
+    'stringfield3',
+    'stringfield4',
+    'stringfield5',
+    'stringfield6',
+    'stringfield7',
+    'stringfield8',
+    'stringfield9',
+    'stringfield10',
+    'stringfield11',
+    'stringfield12',
+    'stringfield13',
+];
+function getDocumentLookupField(dataImages) {
+    const field = String(dataImages?.documentLookupField || '').trim();
+    return documentLookupFields.includes(field) ? field : null;
+}
+function normalizeDocumentLookup(value) {
+    return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[_\-]+/g, ' ')
+        .replace(/[^\w\s]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toUpperCase();
+}
+function extractDocumentLookupValue(value) {
+    let text = String(value || '').trim();
+    if (!text)
+        return null;
+    const prefixMatch = text.match(/^[A-Z0-9]{2,30}[_-](.+)$/i);
+    if (prefixMatch?.[1]) {
+        text = prefixMatch[1].trim();
+    }
+    text = text.replace(/\s*\([^)]*\)\s*-\d+\s*$/i, '').trim();
+    return text || null;
+}
+function documentFieldMatches(fieldValue, lookupValue, rawLookupValue) {
+    const field = normalizeDocumentLookup(fieldValue);
+    const lookup = normalizeDocumentLookup(lookupValue);
+    const rawLookup = normalizeDocumentLookup(rawLookupValue);
+    if (!field || !lookup)
+        return false;
+    if (field.length < 3 || lookup.length < 3)
+        return field === lookup;
+    return field === lookup || field.includes(lookup) || lookup.includes(field) || rawLookup.includes(field);
+}
+async function resolveDocumentBookrecord(query, objFileName, dataImages, originalFileName) {
+    const candidates = await query.preload('document');
+    const lookupField = getDocumentLookupField(dataImages);
+    const lookupValue = lookupField ? extractDocumentLookupValue(objFileName.obs) : null;
+    if (lookupField && lookupValue) {
+        const matches = candidates.filter((bookRecord) => documentFieldMatches(bookRecord.document?.[lookupField], lookupValue, objFileName.obs));
+        if (matches.length === 1)
+            return { bookRecord: matches[0], lookupField, lookupValue };
+        if (matches.length > 1) {
+            return {
+                invalid: invalidFileRename(originalFileName, `Mais de um documento encontrado para protocolo ${objFileName.prot} e segunda chave ${lookupValue}.`),
+            };
+        }
+        return { bookRecord: null, lookupField, lookupValue };
+    }
+    if (candidates.length === 1)
+        return { bookRecord: candidates[0], lookupField, lookupValue };
+    if (candidates.length > 1) {
+        return {
+            invalid: invalidFileRename(originalFileName, `Mais de um documento encontrado para protocolo ${objFileName.prot}. Informe a segunda chave no nome do arquivo.`),
+        };
+    }
+    return { bookRecord: null, lookupField, lookupValue };
+}
 function invalidFileRename(fileName, reason) {
     return {
         isInvalidFileRename: true,
@@ -85,7 +161,7 @@ function getBookRecordNotFoundReason(objFileName, matchedFilePattern) {
             return 'Nenhum bookrecord encontrado para os dados informados.';
     }
 }
-const acceptedFileNameFormats = 'L1(1).jpg, L1_5_F.jpg, L1F(5)F.jpg, L1F(5)V.jpg, T1(123).jpg ou P1(123).jpg.';
+const acceptedFileNameFormats = 'L1(1).jpg, L1_5_F.jpg, L1F(5)F.jpg, L1F(5)V.jpg, T1(123).jpg, P1(123).jpg ou P1(123)NOME_MARIA.jpg.';
 function throwInvalidFiles(invalidFiles) {
     const hasInvalidFormat = invalidFiles.some((file) => String(file.reason || '').includes('Formato não aceito'));
     const message = [
@@ -736,7 +812,20 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
         }
     }
     try {
-        let bookRecord = await query.first();
+        let lookupField = null;
+        let lookupValue = null;
+        let bookRecord;
+        if (matchedFilePattern === 'document_prot') {
+            const resolvedDocument = await resolveDocumentBookrecord(query, objFileName, dataImages, originalFileName);
+            if (resolvedDocument.invalid)
+                return resolvedDocument.invalid;
+            bookRecord = resolvedDocument.bookRecord;
+            lookupField = resolvedDocument.lookupField;
+            lookupValue = resolvedDocument.lookupValue;
+        }
+        else {
+            bookRecord = await query.first();
+        }
         let seq = 0;
         if (bookRecord === null || isCreateCover) {
             if (isCreateBookrecord || isCreateCover) {
@@ -772,14 +861,18 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                         ...objFileNameWithoutExt
                     };
                     bookRecord = await Bookrecord_1.default.create(objectInsert);
-                    await Document_1.default.create({
+                    const documentInsert = {
                         bookrecords_id: bookRecord.id,
                         typebooks_id: bookRecord.typebooks_id,
                         books_id: bookRecord.books_id,
                         companies_id: bookRecord.companies_id,
                         prot: prot == 0 ? null : prot,
                         obs
-                    });
+                    };
+                    if (lookupField && lookupValue) {
+                        documentInsert[lookupField] = lookupValue;
+                    }
+                    await Document_1.default.create(documentInsert);
                     seq = 1;
                 }
                 catch (error) {
