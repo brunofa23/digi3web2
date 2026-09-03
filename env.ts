@@ -29,6 +29,8 @@ export default Env.rules({
   BACKUP_MONITOR_WEBHOOK_URL: Env.schema.string.optional(),
   BACKUP_MONITOR_HEARTBEAT_SECONDS: Env.schema.number.optional(),
   BACKUP_HEARTBEAT_TIMEOUT_MINUTES: Env.schema.number.optional(),
+  RCLONE_BACKUP_COMMAND: Env.schema.string.optional(),
+  RCLONE_BACKUP_LOG_FILE: Env.schema.string.optional(),
   DRIVE_DISK: Env.schema.enum(['local'] as const),
   GOOGLE_APPLICATION_CREDENTIALS: Env.schema.string.optional(),
   SMTP_HOST: Env.schema.string.optional(),

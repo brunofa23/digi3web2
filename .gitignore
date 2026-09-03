@@ -4,6 +4,7 @@ coverage
 .vscode
 .DS_STORE
 .env
+.backup-monitor.env
 .history
 config/tokens
 config/credentials/*.json

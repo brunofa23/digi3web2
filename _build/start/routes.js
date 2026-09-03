@@ -77,6 +77,7 @@ Route_1.default.group(() => {
     Route_1.default.get('/auditlogs', 'AuditLogsController.index').middleware('auth');
     Route_1.default.post('/internal/backup-runs/events', 'BackupRunsController.event');
     Route_1.default.get('/backup-runs/database/latest', 'BackupRunsController.latestDatabase').middleware('auth');
+    Route_1.default.get('/backup-runs/rclone/latest', 'BackupRunsController.latestRclone').middleware('auth');
     Route_1.default.get('/acervo-backups/snapshots', 'AcervoBackupsController.snapshots').middleware('auth');
     Route_1.default.post('/acervo-backups/backup', 'AcervoBackupsController.backup').middleware('auth');
     Route_1.default.post('/acervo-backups/restore/dry-run', 'AcervoBackupsController.dryRun').middleware('auth');
