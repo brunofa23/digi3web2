@@ -94,6 +94,7 @@ Route.group(() => {
   Route.get('/auditlogs', 'AuditLogsController.index').middleware('auth')
   Route.post('/internal/backup-runs/events', 'BackupRunsController.event')
   Route.get('/backup-runs/database/latest', 'BackupRunsController.latestDatabase').middleware('auth')
+  Route.get('/backup-runs/rclone/latest', 'BackupRunsController.latestRclone').middleware('auth')
   Route.get('/acervo-backups/snapshots', 'AcervoBackupsController.snapshots').middleware('auth')
   Route.post('/acervo-backups/backup', 'AcervoBackupsController.backup').middleware('auth')
   Route.post('/acervo-backups/restore/dry-run', 'AcervoBackupsController.dryRun').middleware('auth')

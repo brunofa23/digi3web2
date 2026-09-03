@@ -19,6 +19,8 @@ exports.default = Env_1.default.rules({
     BACKUP_MONITOR_WEBHOOK_URL: Env_1.default.schema.string.optional(),
     BACKUP_MONITOR_HEARTBEAT_SECONDS: Env_1.default.schema.number.optional(),
     BACKUP_HEARTBEAT_TIMEOUT_MINUTES: Env_1.default.schema.number.optional(),
+    RCLONE_BACKUP_COMMAND: Env_1.default.schema.string.optional(),
+    RCLONE_BACKUP_LOG_FILE: Env_1.default.schema.string.optional(),
     DRIVE_DISK: Env_1.default.schema.enum(['local']),
     GOOGLE_APPLICATION_CREDENTIALS: Env_1.default.schema.string.optional(),
     SMTP_HOST: Env_1.default.schema.string.optional(),

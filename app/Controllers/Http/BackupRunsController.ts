@@ -11,7 +11,8 @@ type ExpectedCompany = {
 }
 
 export default class BackupRunsController {
-  private kind = 'DATABASE_ACERVO'
+  private databaseKind = 'DATABASE_ACERVO'
+  private rcloneKind = 'GDRIVE_RCLONE'
 
   private getNow() {
     return DateTime.now()
@@ -80,6 +81,13 @@ export default class BackupRunsController {
     return allowedEvents.includes(event) ? event : null
   }
 
+  private getKind(value: any) {
+    const kind = String(value || this.databaseKind).trim().toUpperCase()
+    const allowedKinds = [this.databaseKind, this.rcloneKind]
+
+    return allowedKinds.includes(kind) ? kind : null
+  }
+
   private normalizeCompanies(value: any): ExpectedCompany[] {
     if (!Array.isArray(value)) return []
 
@@ -96,17 +104,17 @@ export default class BackupRunsController {
       .filter((item) => item.companies_id > 0)
   }
 
-  private async findOrCreateRun(runId: string) {
+  private async findOrCreateRun(runId: string, kind: string) {
     const existing = await BackupRun.query()
       .where('run_id', runId)
-      .andWhere('kind', this.kind)
+      .andWhere('kind', kind)
       .first()
 
     if (existing) return existing
 
     return BackupRun.create({
       runId,
-      kind: this.kind,
+      kind,
       status: 'RUNNING',
       startedAt: this.getNow(),
       lastHeartbeatAt: this.getNow(),
@@ -259,6 +267,7 @@ export default class BackupRunsController {
       const payload = ctx.request.body()
       const runId = this.getRunId(payload?.run_id)
       const event = this.getEvent(payload?.event)
+      const kind = this.getKind(payload?.kind)
 
       if (!runId) {
         return ctx.response.status(400).send({ message: 'run_id obrigatório.' })
@@ -268,7 +277,11 @@ export default class BackupRunsController {
         return ctx.response.status(400).send({ message: 'Evento de backup inválido.' })
       }
 
-      const run = await this.findOrCreateRun(runId)
+      if (!kind) {
+        return ctx.response.status(400).send({ message: 'Tipo de backup inválido.' })
+      }
+
+      const run = await this.findOrCreateRun(runId, kind)
       const now = this.getNow()
 
       run.lastHeartbeatAt = now
@@ -280,39 +293,44 @@ export default class BackupRunsController {
         run.errorMessage = null
         run.metadata = payload.metadata || run.metadata || null
         await run.save()
-        await this.syncExpectedCompanies(run, this.normalizeCompanies(payload.expected_companies))
+        if (kind === this.databaseKind) {
+          await this.syncExpectedCompanies(run, this.normalizeCompanies(payload.expected_companies))
+        }
       }
 
       if (event === 'HEARTBEAT') {
         await run.save()
       }
 
-      if (event === 'COMPANY_STARTED') {
+      if (kind === this.databaseKind && event === 'COMPANY_STARTED') {
         await this.updateCompanyStatus(run, payload, 'RUNNING')
       }
 
-      if (event === 'COMPANY_SUCCESS') {
+      if (kind === this.databaseKind && event === 'COMPANY_SUCCESS') {
         await this.updateCompanyStatus(run, payload, 'SUCCESS')
       }
 
-      if (event === 'COMPANY_ERROR') {
+      if (kind === this.databaseKind && event === 'COMPANY_ERROR') {
         await this.updateCompanyStatus(run, payload, 'ERROR')
       }
 
       if (event === 'RUN_SUCCESS') {
+        run.status = 'SUCCESS'
         run.finishedAt = now
         run.errorMessage = null
+        run.metadata = payload.metadata || run.metadata || null
       }
 
       if (event === 'RUN_ERROR') {
         run.status = 'ERROR'
         run.finishedAt = now
         run.errorMessage = String(payload.error_message || 'Backup finalizado com erro.').slice(0, 5000)
+        run.metadata = payload.metadata || run.metadata || null
       }
 
       await this.updateCounters(run)
 
-      if (event === 'RUN_SUCCESS') {
+      if (kind === this.databaseKind && event === 'RUN_SUCCESS') {
         run.status = run.errorCompanies === 0 && run.pendingCompanies === 0 ? 'SUCCESS' : 'ERROR'
         run.errorMessage = run.status === 'SUCCESS' ? null : 'Backup finalizado com empresas pendentes ou com erro.'
         await run.save()
@@ -332,13 +350,13 @@ export default class BackupRunsController {
     }
   }
 
-  public async latestDatabase(ctx: HttpContextContract) {
+  private async latestByKind(ctx: HttpContextContract, kind: string) {
     try {
       const user = await this.authorize(ctx)
       if (!user) return
 
       const run = await BackupRun.query()
-        .where('kind', this.kind)
+        .where('kind', kind)
         .orderBy('started_at', 'desc')
         .preload('companies', (query) => query.orderBy('company_name', 'asc'))
         .first()
@@ -353,5 +371,13 @@ export default class BackupRunsController {
         error: error.message || String(error),
       })
     }
+  }
+
+  public async latestDatabase(ctx: HttpContextContract) {
+    return this.latestByKind(ctx, this.databaseKind)
+  }
+
+  public async latestRclone(ctx: HttpContextContract) {
+    return this.latestByKind(ctx, this.rcloneKind)
   }
 }
