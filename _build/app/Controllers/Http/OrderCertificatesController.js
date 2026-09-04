@@ -61,6 +61,10 @@ class OrderCertificatesController {
         }
         return person;
     }
+    normalizeCpfValue(value) {
+        const cpf = String(value ?? '').replace(/\D/g, '').trim();
+        return cpf === '' ? null : cpf;
+    }
     normalizeDateBoundary(value, boundary) {
         if (value === null || value === undefined || value === '')
             return null;
@@ -100,7 +104,7 @@ class OrderCertificatesController {
             companiesId,
             name: personData.name ?? '',
             nameMarried: personData.nameMarried ?? '',
-            cpf: String(personData.cpf ?? '').trim() === '' ? null : String(personData.cpf),
+            cpf: this.normalizeCpfValue(personData.cpf),
             gender: personData.gender ?? '',
             deceased: personData.deceased ?? false,
             dateBirth: personData.dateBirth

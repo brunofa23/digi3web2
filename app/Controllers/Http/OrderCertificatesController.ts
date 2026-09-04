@@ -84,6 +84,11 @@ export default class OrderCertificatesController {
     return person
   }
 
+  private normalizeCpfValue(value: any): string | null {
+    const cpf = String(value ?? '').replace(/\D/g, '').trim()
+    return cpf === '' ? null : cpf
+  }
+
   private normalizeDateBoundary(value: any, boundary: 'start' | 'end'): string | null {
     if (value === null || value === undefined || value === '') return null
 
@@ -140,7 +145,7 @@ export default class OrderCertificatesController {
 
       name: personData.name ?? '',
       nameMarried: personData.nameMarried ?? '',
-      cpf: String(personData.cpf ?? '').trim() === '' ? null : String(personData.cpf),
+      cpf: this.normalizeCpfValue(personData.cpf),
 
       gender: personData.gender ?? '',
       deceased: personData.deceased ?? false,
