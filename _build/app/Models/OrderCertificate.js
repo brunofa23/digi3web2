@@ -17,6 +17,7 @@ const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const MarriedCertificate_1 = __importDefault(require("./MarriedCertificate"));
 const SecondcopyCertificate_1 = __importDefault(require("./SecondcopyCertificate"));
+const BornCertificate_1 = __importDefault(require("./BornCertificate"));
 const Book_1 = __importDefault(require("./Book"));
 const Receipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Receipt"));
 class OrderCertificate extends Orm_1.BaseModel {
@@ -97,6 +98,10 @@ __decorate([
     (0, Orm_1.belongsTo)(() => SecondcopyCertificate_1.default, { foreignKey: 'certificateId' }),
     __metadata("design:type", Object)
 ], OrderCertificate.prototype, "secondcopyCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => BornCertificate_1.default, { foreignKey: 'certificateId' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "bornCertificate", void 0);
 __decorate([
     (0, Orm_1.hasOne)(() => Receipt_1.default, { foreignKey: 'orderCertificateId' }),
     __metadata("design:type", Object)
