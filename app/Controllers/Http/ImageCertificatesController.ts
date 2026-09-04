@@ -387,16 +387,26 @@ export default class ImageCertificatesController {
       })
     }
 
-    const marriedCertificateId = Number(params.marriedCertificateId)
+    const bornCertificateId = params.bornCertificateId ? Number(params.bornCertificateId) : null
+    const marriedCertificateId = params.marriedCertificateId ? Number(params.marriedCertificateId) : null
+    const certificateId = bornCertificateId ?? marriedCertificateId
+    const bookId = bornCertificateId ? 3 : 2
 
-    if (!Number.isFinite(marriedCertificateId)) {
-      return response.badRequest({ error: 'marriedCertificateId inválido' })
+    if (!certificateId || !Number.isFinite(certificateId)) {
+      return response.badRequest({ error: 'certificateId inválido' })
     }
 
-    const images = await ImageCertificate.query()
+    const query = ImageCertificate.query()
       .where('companies_id', authenticate.companies_id)
-      .andWhere('book_id', 2)
-      .andWhere('married_certificate_id', marriedCertificateId)
+      .andWhere('book_id', bookId)
+
+    if (bornCertificateId) {
+      query.andWhere('born_certificate_id', bornCertificateId)
+    } else {
+      query.andWhere('married_certificate_id', marriedCertificateId)
+    }
+
+    const images = await query
       .orderBy('seq', 'asc')
 
     return response.ok({
@@ -414,6 +424,7 @@ export default class ImageCertificatesController {
         extracted_data: image.extractedData,
         ready: image.ready,
         marriedCertificateId: image.marriedCertificateId,
+        bornCertificateId: image.bornCertificateId,
         createdAt: image.createdAt,
       })),
     })
@@ -548,6 +559,7 @@ export default class ImageCertificatesController {
       entityKey: {
         id: image.id,
         married_certificate_id: image.marriedCertificateId,
+        born_certificate_id: image.bornCertificateId,
         file_name: image.fileName,
       },
       description: `Usuário ${authenticate.name || authenticate.username} extraiu texto do anexo ${image.fileName}`,
@@ -580,10 +592,14 @@ export default class ImageCertificatesController {
         return response.badRequest({ error: 'companyId inválido nos parâmetros da rota' })
       }
 
-      // marriedCertificateId pode vir no body (form-data ou json)
+      // IDs podem vir no body (form-data ou json)
       const marriedCertificateIdInput = request.input('marriedCertificateId')
       const marriedCertificateId = marriedCertificateIdInput
         ? Number(marriedCertificateIdInput)
+        : null
+      const bornCertificateIdInput = request.input('bornCertificateId')
+      const bornCertificateId = bornCertificateIdInput
+        ? Number(bornCertificateIdInput)
         : null
 
       const file = request.file('file', {
@@ -598,6 +614,7 @@ export default class ImageCertificatesController {
       const result = await uploadImage({
         companiesId,
         marriedCertificateId,
+        bornCertificateId,
         file,
         description: request.input('description'),
       })

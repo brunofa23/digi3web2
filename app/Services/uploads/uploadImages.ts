@@ -14,7 +14,8 @@ import type { MultipartFileContract } from '@ioc:Adonis/Core/BodyParser'
 
 interface UploadImageParams {
   companiesId: number
-  marriedCertificateId: number | null
+  marriedCertificateId?: number | null
+  bornCertificateId?: number | null
   file: MultipartFileContract
   description?: string
 }
@@ -22,6 +23,7 @@ interface UploadImageParams {
 async function uploadImage({
   companiesId,
   marriedCertificateId,
+  bornCertificateId,
   file,
   description,
 }: UploadImageParams) {
@@ -43,14 +45,20 @@ async function uploadImage({
     query.andWhere('married_certificate_id', marriedCertificateId)
   }
 
+  if (bornCertificateId) {
+    bookId = 3
+    query.andWhere('born_certificate_id', bornCertificateId)
+  }
+
   const lastImage = await query.orderBy('seq', 'desc').first()
   const newSeq = lastImage?.seq ? lastImage.seq + 1 : 1
 
   const timestamp = DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss')
   const baseName = file.clientName.split('.').slice(0, -1).join('.')
 
-  if (bookId === 2) {
-    clientName = `${description || ''}_${baseName}_id${marriedCertificateId}_${timestamp}.${file.extname}`
+  if (bookId === 2 || bookId === 3) {
+    const certificateId = bookId === 2 ? marriedCertificateId : bornCertificateId
+    clientName = `${description || ''}_${baseName}_id${certificateId}_${timestamp}.${file.extname}`
   } else {
     clientName = `${baseName}_${timestamp}.${file.extname}`
   }
@@ -79,7 +87,8 @@ async function uploadImage({
   await ImageCertificate.create({
     companiesId,
     bookId,
-    marriedCertificateId,
+    marriedCertificateId: marriedCertificateId ?? null,
+    bornCertificateId: bornCertificateId ?? null,
     ext: file.extname,
     fileName: clientName,
     description: description,
