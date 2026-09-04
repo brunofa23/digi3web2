@@ -264,6 +264,7 @@ Route.group(() => {
 
   //IMAGE CERTIFICATES
   Route.get('/imagecertificates/married/:marriedCertificateId', 'ImageCertificatesController.index').middleware('auth')
+  Route.get('/imagecertificates/born/:bornCertificateId', 'ImageCertificatesController.index').middleware('auth')
   Route.get('/imagecertificates/:id/open', 'ImageCertificatesController.show').middleware('auth')
   Route.post('/imagecertificates/:id/visionocr', 'ImageCertificatesController.visionOcr').middleware('auth')
   Route.post('/imagecertificates/uploads', 'ImageCertificatesController.store')

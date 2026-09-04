@@ -662,10 +662,14 @@ class OrderCertificatesController {
         const marriedCertificateIds = orders
             .filter((order) => Number(order.bookId) === 2 && order.certificateId)
             .map((order) => order.certificateId);
+        const bornCertificateIds = orders
+            .filter((order) => Number(order.bookId) === 3 && order.certificateId)
+            .map((order) => order.certificateId);
         const receiptIds = orders
             .map((order) => order.receipt?.id)
             .filter((id) => !!id);
-        const imageCounts = new Map();
+        const marriedImageCounts = new Map();
+        const bornImageCounts = new Map();
         const latestEmployeeVerificationByMarriedCertificate = new Map();
         const latestEmployeeVerificationByReceipt = new Map();
         if (marriedCertificateIds.length) {
@@ -677,7 +681,19 @@ class OrderCertificatesController {
                 .whereIn('married_certificate_id', marriedCertificateIds)
                 .groupBy('married_certificate_id');
             counts.forEach((row) => {
-                imageCounts.set(Number(row.married_certificate_id), Number(row.total ?? 0));
+                marriedImageCounts.set(Number(row.married_certificate_id), Number(row.total ?? 0));
+            });
+        }
+        if (bornCertificateIds.length) {
+            const counts = await Database_1.default
+                .from('image_certificates')
+                .select('born_certificate_id')
+                .count('* as total')
+                .where('companies_id', authenticate.companies_id)
+                .whereIn('born_certificate_id', bornCertificateIds)
+                .groupBy('born_certificate_id');
+            counts.forEach((row) => {
+                bornImageCounts.set(Number(row.born_certificate_id), Number(row.total ?? 0));
             });
         }
         if (marriedCertificateIds.length) {
@@ -743,7 +759,10 @@ class OrderCertificatesController {
         }
         const result = orders.map((order) => {
             const json = order.toJSON();
-            const imageCertificatesCount = imageCounts.get(Number(order.certificateId)) ?? 0;
+            const bookId = Number(order.bookId);
+            const imageCertificatesCount = bookId === 3
+                ? bornImageCounts.get(Number(order.certificateId)) ?? 0
+                : marriedImageCounts.get(Number(order.certificateId)) ?? 0;
             const certificateVerification = latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId));
             const receiptVerification = json.receipt?.id
                 ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
@@ -761,6 +780,9 @@ class OrderCertificatesController {
             json.latestEmployeeVerification = latestEmployeeVerification ?? null;
             if (json.marriedCertificate) {
                 json.marriedCertificate.imageCertificatesCount = imageCertificatesCount;
+            }
+            if (json.bornCertificate) {
+                json.bornCertificate.imageCertificatesCount = imageCertificatesCount;
             }
             return json;
         });
@@ -947,6 +969,34 @@ class OrderCertificatesController {
                     });
                 }
             }
+            if (orderCertificate.bookId === 3 && orderCertificate.certificateId) {
+                const companiesId = user.companies_id;
+                const fileFields = [
+                    { field: 'DocumentRegistered', description: 'DocRegistrado' },
+                    { field: 'DnvDocument', description: 'DNV' },
+                    { field: 'DocumentFiliation1', description: 'DocFiliacao1' },
+                    { field: 'ProofResidenceFiliation1', description: 'ResidenciaFiliacao1' },
+                    { field: 'DocumentFiliation2', description: 'DocFiliacao2' },
+                    { field: 'ProofResidenceFiliation2', description: 'ResidenciaFiliacao2' },
+                    { field: 'DocumentDeclarant', description: 'DocDeclarante' },
+                    { field: 'ProofResidenceDeclarant', description: 'ResidenciaDeclarante' },
+                ];
+                const fileOptions = {
+                    size: '8mb',
+                    extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+                };
+                for (const cfg of fileFields) {
+                    const file = request.file(cfg.field, fileOptions);
+                    if (!file)
+                        continue;
+                    await (0, uploadImages_1.uploadImage)({
+                        companiesId,
+                        bornCertificateId: orderCertificate.certificateId,
+                        file,
+                        description: cfg.description,
+                    });
+                }
+            }
             await orderCertificate.load('book');
             if (orderCertificate.bookId === 2)
                 await orderCertificate.load('marriedCertificate');
@@ -1096,6 +1146,34 @@ class OrderCertificatesController {
                     await (0, uploadImages_1.uploadImage)({
                         companiesId,
                         marriedCertificateId: orderCertificate.certificateId,
+                        file,
+                        description: cfg.description,
+                    });
+                }
+            }
+            if (orderCertificate.bookId === 3 && orderCertificate.certificateId) {
+                const companiesId = user.companies_id;
+                const fileFields = [
+                    { field: 'DocumentRegistered', description: 'DocRegistrado' },
+                    { field: 'DnvDocument', description: 'DNV' },
+                    { field: 'DocumentFiliation1', description: 'DocFiliacao1' },
+                    { field: 'ProofResidenceFiliation1', description: 'ResidenciaFiliacao1' },
+                    { field: 'DocumentFiliation2', description: 'DocFiliacao2' },
+                    { field: 'ProofResidenceFiliation2', description: 'ResidenciaFiliacao2' },
+                    { field: 'DocumentDeclarant', description: 'DocDeclarante' },
+                    { field: 'ProofResidenceDeclarant', description: 'ResidenciaDeclarante' },
+                ];
+                const fileOptions = {
+                    size: '8mb',
+                    extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+                };
+                for (const cfg of fileFields) {
+                    const file = request.file(cfg.field, fileOptions);
+                    if (!file)
+                        continue;
+                    await (0, uploadImages_1.uploadImage)({
+                        companiesId,
+                        bornCertificateId: orderCertificate.certificateId,
                         file,
                         description: cfg.description,
                     });

@@ -890,11 +890,15 @@ export default class OrderCertificatesController {
     const marriedCertificateIds = orders
       .filter((order) => Number(order.bookId) === 2 && order.certificateId)
       .map((order) => order.certificateId)
+    const bornCertificateIds = orders
+      .filter((order) => Number(order.bookId) === 3 && order.certificateId)
+      .map((order) => order.certificateId)
     const receiptIds = orders
       .map((order) => (order as any).receipt?.id)
       .filter((id) => !!id)
 
-    const imageCounts = new Map<number, number>()
+    const marriedImageCounts = new Map<number, number>()
+    const bornImageCounts = new Map<number, number>()
     const latestEmployeeVerificationByMarriedCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
 
@@ -908,7 +912,21 @@ export default class OrderCertificatesController {
         .groupBy('married_certificate_id')
 
       counts.forEach((row) => {
-        imageCounts.set(Number(row.married_certificate_id), Number(row.total ?? 0))
+        marriedImageCounts.set(Number(row.married_certificate_id), Number(row.total ?? 0))
+      })
+    }
+
+    if (bornCertificateIds.length) {
+      const counts = await Database
+        .from('image_certificates')
+        .select('born_certificate_id')
+        .count('* as total')
+        .where('companies_id', authenticate.companies_id)
+        .whereIn('born_certificate_id', bornCertificateIds)
+        .groupBy('born_certificate_id')
+
+      counts.forEach((row) => {
+        bornImageCounts.set(Number(row.born_certificate_id), Number(row.total ?? 0))
       })
     }
 
@@ -997,7 +1015,10 @@ export default class OrderCertificatesController {
 
     const result = orders.map((order) => {
       const json = order.toJSON()
-      const imageCertificatesCount = imageCounts.get(Number(order.certificateId)) ?? 0
+      const bookId = Number(order.bookId)
+      const imageCertificatesCount = bookId === 3
+        ? bornImageCounts.get(Number(order.certificateId)) ?? 0
+        : marriedImageCounts.get(Number(order.certificateId)) ?? 0
       const certificateVerification = latestEmployeeVerificationByMarriedCertificate.get(
         Number(order.certificateId)
       )
@@ -1023,6 +1044,9 @@ export default class OrderCertificatesController {
       json.latestEmployeeVerification = latestEmployeeVerification ?? null
       if (json.marriedCertificate) {
         json.marriedCertificate.imageCertificatesCount = imageCertificatesCount
+      }
+      if (json.bornCertificate) {
+        json.bornCertificate.imageCertificatesCount = imageCertificatesCount
       }
 
       return json
@@ -1252,6 +1276,38 @@ export default class OrderCertificatesController {
         }
       }
 
+      if (orderCertificate.bookId === 3 && orderCertificate.certificateId) {
+        const companiesId = user.companies_id
+
+        const fileFields: { field: string; description: string }[] = [
+          { field: 'DocumentRegistered', description: 'DocRegistrado' },
+          { field: 'DnvDocument', description: 'DNV' },
+          { field: 'DocumentFiliation1', description: 'DocFiliacao1' },
+          { field: 'ProofResidenceFiliation1', description: 'ResidenciaFiliacao1' },
+          { field: 'DocumentFiliation2', description: 'DocFiliacao2' },
+          { field: 'ProofResidenceFiliation2', description: 'ResidenciaFiliacao2' },
+          { field: 'DocumentDeclarant', description: 'DocDeclarante' },
+          { field: 'ProofResidenceDeclarant', description: 'ResidenciaDeclarante' },
+        ]
+
+        const fileOptions = {
+          size: '8mb',
+          extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+        } as const
+
+        for (const cfg of fileFields) {
+          const file = request.file(cfg.field, fileOptions)
+          if (!file) continue
+
+          await uploadImage({
+            companiesId,
+            bornCertificateId: orderCertificate.certificateId,
+            file,
+            description: cfg.description,
+          })
+        }
+      }
+
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
       if (orderCertificate.bookId === 3) await orderCertificate.load('bornCertificate')
@@ -1437,6 +1493,38 @@ export default class OrderCertificatesController {
           await uploadImage({
             companiesId,
             marriedCertificateId: orderCertificate.certificateId,
+            file,
+            description: cfg.description,
+          })
+        }
+      }
+
+      if (orderCertificate.bookId === 3 && orderCertificate.certificateId) {
+        const companiesId = user.companies_id
+
+        const fileFields: { field: string; description: string }[] = [
+          { field: 'DocumentRegistered', description: 'DocRegistrado' },
+          { field: 'DnvDocument', description: 'DNV' },
+          { field: 'DocumentFiliation1', description: 'DocFiliacao1' },
+          { field: 'ProofResidenceFiliation1', description: 'ResidenciaFiliacao1' },
+          { field: 'DocumentFiliation2', description: 'DocFiliacao2' },
+          { field: 'ProofResidenceFiliation2', description: 'ResidenciaFiliacao2' },
+          { field: 'DocumentDeclarant', description: 'DocDeclarante' },
+          { field: 'ProofResidenceDeclarant', description: 'ResidenciaDeclarante' },
+        ]
+
+        const fileOptions = {
+          size: '8mb',
+          extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+        } as const
+
+        for (const cfg of fileFields) {
+          const file = request.file(cfg.field, fileOptions)
+          if (!file) continue
+
+          await uploadImage({
+            companiesId,
+            bornCertificateId: orderCertificate.certificateId,
             file,
             description: cfg.description,
           })

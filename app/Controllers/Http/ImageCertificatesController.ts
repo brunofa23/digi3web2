@@ -602,6 +602,10 @@ export default class ImageCertificatesController {
         ? Number(bornCertificateIdInput)
         : null
 
+      if (!marriedCertificateId && !bornCertificateId) {
+        return response.badRequest({ error: 'Informe marriedCertificateId ou bornCertificateId' })
+      }
+
       const file = request.file('file', {
         size: '15mb',
         extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF'],
