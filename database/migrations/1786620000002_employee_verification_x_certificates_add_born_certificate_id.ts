@@ -10,8 +10,7 @@ export default class EmployeeVerificationXCertificatesAddBornCertificateId exten
       return
     }
 
-    await this.dropForeignKeyIfExists('fk_empver_x_cert_married')
-    await this.dropUniqueIfExists('uniq_empver_x_cert')
+    await this.addMarriedForeignKeyIfMissing()
 
     await this.schema.raw(`
       ALTER TABLE ${this.tableName}
@@ -21,18 +20,11 @@ export default class EmployeeVerificationXCertificatesAddBornCertificateId exten
     await this.schema.raw(`
       ALTER TABLE ${this.tableName}
       ADD COLUMN born_certificate_id INT UNSIGNED NULL AFTER married_certificate_id,
-      ADD CONSTRAINT fk_empver_x_cert_married
-        FOREIGN KEY (married_certificate_id)
-        REFERENCES married_certificates(id)
-        ON UPDATE RESTRICT
-        ON DELETE RESTRICT,
       ADD CONSTRAINT fk_empver_x_cert_born
         FOREIGN KEY (born_certificate_id)
         REFERENCES born_certificates(id)
         ON UPDATE RESTRICT
         ON DELETE RESTRICT,
-      ADD UNIQUE INDEX uniq_empver_x_cert_married
-        (married_certificate_id, employee_verification_id),
       ADD UNIQUE INDEX uniq_empver_x_cert_born
         (born_certificate_id, employee_verification_id),
       ADD INDEX idx_empver_x_cert_comp_born
@@ -42,27 +34,32 @@ export default class EmployeeVerificationXCertificatesAddBornCertificateId exten
 
   public async down () {
     await this.dropForeignKeyIfExists('fk_empver_x_cert_married')
+    await this.dropForeignKeyIfExists('fk_empver_x_cert_born')
+    await this.dropIndexIfExists('idx_empver_x_cert_comp_born')
+    await this.dropIndexIfExists('uniq_empver_x_cert_born')
+    await this.dropIndexIfExists('uniq_empver_x_cert_married')
 
-    await this.schema.raw(`
-      ALTER TABLE ${this.tableName}
-        DROP INDEX idx_empver_x_cert_comp_born,
-        DROP INDEX uniq_empver_x_cert_born,
-        DROP INDEX uniq_empver_x_cert_married,
-        DROP FOREIGN KEY fk_empver_x_cert_born,
+    if (await this.hasColumn('born_certificate_id')) {
+      await this.schema.raw(`
+        ALTER TABLE ${this.tableName}
         DROP COLUMN born_certificate_id
-    `)
+      `)
+    }
 
     await this.schema.raw(`
       ALTER TABLE ${this.tableName}
-      MODIFY married_certificate_id INT UNSIGNED NOT NULL,
-      ADD UNIQUE INDEX uniq_empver_x_cert
-        (married_certificate_id, employee_verification_id),
-      ADD CONSTRAINT fk_empver_x_cert_married
-        FOREIGN KEY (married_certificate_id)
-        REFERENCES married_certificates(id)
-        ON UPDATE RESTRICT
-        ON DELETE RESTRICT
+      MODIFY married_certificate_id INT UNSIGNED NOT NULL
     `)
+
+    if (!(await this.hasIndex('uniq_empver_x_cert'))) {
+      await this.schema.raw(`
+        ALTER TABLE ${this.tableName}
+        ADD UNIQUE INDEX uniq_empver_x_cert
+          (married_certificate_id, employee_verification_id)
+      `)
+    }
+
+    await this.addMarriedForeignKeyIfMissing()
   }
 
   private async dropForeignKeyIfExists(constraintName: string) {
@@ -74,7 +71,7 @@ export default class EmployeeVerificationXCertificatesAddBornCertificateId exten
     `)
   }
 
-  private async dropUniqueIfExists(indexName: string) {
+  private async dropIndexIfExists(indexName: string) {
     const result = await Database.rawQuery(
       `
         SELECT INDEX_NAME
@@ -101,6 +98,22 @@ export default class EmployeeVerificationXCertificatesAddBornCertificateId exten
         throw error
       }
     }
+  }
+
+  private async hasIndex(indexName: string) {
+    const result = await Database.rawQuery(
+      `
+        SELECT INDEX_NAME
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND INDEX_NAME = ?
+        LIMIT 1
+      `,
+      [this.tableName, indexName]
+    )
+
+    return result[0].length > 0
   }
 
   private async hasColumn(columnName: string) {

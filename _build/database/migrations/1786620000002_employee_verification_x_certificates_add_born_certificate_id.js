@@ -15,8 +15,7 @@ class EmployeeVerificationXCertificatesAddBornCertificateId extends Schema_1.def
             await this.addMarriedForeignKeyIfMissing();
             return;
         }
-        await this.dropForeignKeyIfExists('fk_empver_x_cert_married');
-        await this.dropUniqueIfExists('uniq_empver_x_cert');
+        await this.addMarriedForeignKeyIfMissing();
         await this.schema.raw(`
       ALTER TABLE ${this.tableName}
       MODIFY married_certificate_id INT UNSIGNED NULL
@@ -24,18 +23,11 @@ class EmployeeVerificationXCertificatesAddBornCertificateId extends Schema_1.def
         await this.schema.raw(`
       ALTER TABLE ${this.tableName}
       ADD COLUMN born_certificate_id INT UNSIGNED NULL AFTER married_certificate_id,
-      ADD CONSTRAINT fk_empver_x_cert_married
-        FOREIGN KEY (married_certificate_id)
-        REFERENCES married_certificates(id)
-        ON UPDATE RESTRICT
-        ON DELETE RESTRICT,
       ADD CONSTRAINT fk_empver_x_cert_born
         FOREIGN KEY (born_certificate_id)
         REFERENCES born_certificates(id)
         ON UPDATE RESTRICT
         ON DELETE RESTRICT,
-      ADD UNIQUE INDEX uniq_empver_x_cert_married
-        (married_certificate_id, employee_verification_id),
       ADD UNIQUE INDEX uniq_empver_x_cert_born
         (born_certificate_id, employee_verification_id),
       ADD INDEX idx_empver_x_cert_comp_born
@@ -44,25 +36,28 @@ class EmployeeVerificationXCertificatesAddBornCertificateId extends Schema_1.def
     }
     async down() {
         await this.dropForeignKeyIfExists('fk_empver_x_cert_married');
-        await this.schema.raw(`
-      ALTER TABLE ${this.tableName}
-        DROP INDEX idx_empver_x_cert_comp_born,
-        DROP INDEX uniq_empver_x_cert_born,
-        DROP INDEX uniq_empver_x_cert_married,
-        DROP FOREIGN KEY fk_empver_x_cert_born,
+        await this.dropForeignKeyIfExists('fk_empver_x_cert_born');
+        await this.dropIndexIfExists('idx_empver_x_cert_comp_born');
+        await this.dropIndexIfExists('uniq_empver_x_cert_born');
+        await this.dropIndexIfExists('uniq_empver_x_cert_married');
+        if (await this.hasColumn('born_certificate_id')) {
+            await this.schema.raw(`
+        ALTER TABLE ${this.tableName}
         DROP COLUMN born_certificate_id
-    `);
+      `);
+        }
         await this.schema.raw(`
       ALTER TABLE ${this.tableName}
-      MODIFY married_certificate_id INT UNSIGNED NOT NULL,
-      ADD UNIQUE INDEX uniq_empver_x_cert
-        (married_certificate_id, employee_verification_id),
-      ADD CONSTRAINT fk_empver_x_cert_married
-        FOREIGN KEY (married_certificate_id)
-        REFERENCES married_certificates(id)
-        ON UPDATE RESTRICT
-        ON DELETE RESTRICT
+      MODIFY married_certificate_id INT UNSIGNED NOT NULL
     `);
+        if (!(await this.hasIndex('uniq_empver_x_cert'))) {
+            await this.schema.raw(`
+        ALTER TABLE ${this.tableName}
+        ADD UNIQUE INDEX uniq_empver_x_cert
+          (married_certificate_id, employee_verification_id)
+      `);
+        }
+        await this.addMarriedForeignKeyIfMissing();
     }
     async dropForeignKeyIfExists(constraintName) {
         if (!(await this.hasForeignKey(constraintName)))
@@ -72,7 +67,7 @@ class EmployeeVerificationXCertificatesAddBornCertificateId extends Schema_1.def
       DROP FOREIGN KEY ${constraintName}
     `);
     }
-    async dropUniqueIfExists(indexName) {
+    async dropIndexIfExists(indexName) {
         const result = await Database_1.default.rawQuery(`
         SELECT INDEX_NAME
         FROM information_schema.STATISTICS
@@ -96,6 +91,17 @@ class EmployeeVerificationXCertificatesAddBornCertificateId extends Schema_1.def
                 throw error;
             }
         }
+    }
+    async hasIndex(indexName) {
+        const result = await Database_1.default.rawQuery(`
+        SELECT INDEX_NAME
+        FROM information_schema.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND INDEX_NAME = ?
+        LIMIT 1
+      `, [this.tableName, indexName]);
+        return result[0].length > 0;
     }
     async hasColumn(columnName) {
         const result = await Database_1.default.rawQuery(`
