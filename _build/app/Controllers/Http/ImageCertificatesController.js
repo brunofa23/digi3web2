@@ -340,14 +340,23 @@ class ImageCertificatesController {
                 message: 'Acesso aos anexos não autorizado para este usuário/dispositivo',
             });
         }
-        const marriedCertificateId = Number(params.marriedCertificateId);
-        if (!Number.isFinite(marriedCertificateId)) {
-            return response.badRequest({ error: 'marriedCertificateId inválido' });
+        const bornCertificateId = params.bornCertificateId ? Number(params.bornCertificateId) : null;
+        const marriedCertificateId = params.marriedCertificateId ? Number(params.marriedCertificateId) : null;
+        const certificateId = bornCertificateId ?? marriedCertificateId;
+        const bookId = bornCertificateId ? 3 : 2;
+        if (!certificateId || !Number.isFinite(certificateId)) {
+            return response.badRequest({ error: 'certificateId inválido' });
         }
-        const images = await ImageCertificate_1.default.query()
+        const query = ImageCertificate_1.default.query()
             .where('companies_id', authenticate.companies_id)
-            .andWhere('book_id', 2)
-            .andWhere('married_certificate_id', marriedCertificateId)
+            .andWhere('book_id', bookId);
+        if (bornCertificateId) {
+            query.andWhere('born_certificate_id', bornCertificateId);
+        }
+        else {
+            query.andWhere('married_certificate_id', marriedCertificateId);
+        }
+        const images = await query
             .orderBy('seq', 'asc');
         return response.ok({
             data: images.map((image) => ({
@@ -364,6 +373,7 @@ class ImageCertificatesController {
                 extracted_data: image.extractedData,
                 ready: image.ready,
                 marriedCertificateId: image.marriedCertificateId,
+                bornCertificateId: image.bornCertificateId,
                 createdAt: image.createdAt,
             })),
         });
@@ -469,6 +479,7 @@ class ImageCertificatesController {
             entityKey: {
                 id: image.id,
                 married_certificate_id: image.marriedCertificateId,
+                born_certificate_id: image.bornCertificateId,
                 file_name: image.fileName,
             },
             description: `Usuário ${authenticate.name || authenticate.username} extraiu texto do anexo ${image.fileName}`,
@@ -501,6 +512,13 @@ class ImageCertificatesController {
             const marriedCertificateId = marriedCertificateIdInput
                 ? Number(marriedCertificateIdInput)
                 : null;
+            const bornCertificateIdInput = request.input('bornCertificateId');
+            const bornCertificateId = bornCertificateIdInput
+                ? Number(bornCertificateIdInput)
+                : null;
+            if (!marriedCertificateId && !bornCertificateId) {
+                return response.badRequest({ error: 'Informe marriedCertificateId ou bornCertificateId' });
+            }
             const file = request.file('file', {
                 size: '15mb',
                 extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF'],
@@ -511,6 +529,7 @@ class ImageCertificatesController {
             const result = await (0, uploadImages_1.uploadImage)({
                 companiesId,
                 marriedCertificateId,
+                bornCertificateId,
                 file,
                 description: request.input('description'),
             });

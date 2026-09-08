@@ -7,6 +7,7 @@ import {
 } from '@ioc:Adonis/Lucid/Orm'
 
 import MarriedCertificate from 'App/Models/MarriedCertificate'
+import BornCertificate from 'App/Models/BornCertificate'
 import EmployeeVerification from 'App/Models/EmployeeVerification'
 import Company from 'App/Models/Company'
 import User from 'App/Models/User'
@@ -18,7 +19,10 @@ export default class EmployeeVerificationXCertificate extends BaseModel {
   public id: number
 
   @column({ columnName: 'married_certificate_id' })
-  public marriedCertificateId: number
+  public marriedCertificateId: number | null
+
+  @column({ columnName: 'born_certificate_id' })
+  public bornCertificateId: number | null
 
   @column({ columnName: 'companies_id' })
   public companiesId: number
@@ -45,6 +49,11 @@ export default class EmployeeVerificationXCertificate extends BaseModel {
     foreignKey: 'marriedCertificateId',
   })
   public marriedCertificate: BelongsTo<typeof MarriedCertificate>
+
+  @belongsTo(() => BornCertificate, {
+    foreignKey: 'bornCertificateId',
+  })
+  public bornCertificate: BelongsTo<typeof BornCertificate>
 
   @belongsTo(() => EmployeeVerification, {
     foreignKey: 'employeeVerificationId',

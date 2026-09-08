@@ -176,6 +176,7 @@ Route_1.default.group(() => {
     Route_1.default.post('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.storeMarriage');
     Route_1.default.resource('/order-certificates', 'OrderCertificatesController').apiOnly();
     Route_1.default.get('/imagecertificates/married/:marriedCertificateId', 'ImageCertificatesController.index').middleware('auth');
+    Route_1.default.get('/imagecertificates/born/:bornCertificateId', 'ImageCertificatesController.index').middleware('auth');
     Route_1.default.get('/imagecertificates/:id/open', 'ImageCertificatesController.show').middleware('auth');
     Route_1.default.post('/imagecertificates/:id/visionocr', 'ImageCertificatesController.visionOcr').middleware('auth');
     Route_1.default.post('/imagecertificates/uploads', 'ImageCertificatesController.store');

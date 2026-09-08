@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MarriedCertificate"));
+const BornCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BornCertificate"));
 const EmployeeVerification_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerification"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
@@ -27,8 +28,12 @@ __decorate([
 ], EmployeeVerificationXCertificate.prototype, "id", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'married_certificate_id' }),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], EmployeeVerificationXCertificate.prototype, "marriedCertificateId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'born_certificate_id' }),
+    __metadata("design:type", Object)
+], EmployeeVerificationXCertificate.prototype, "bornCertificateId", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'companies_id' }),
     __metadata("design:type", Number)
@@ -63,6 +68,12 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], EmployeeVerificationXCertificate.prototype, "marriedCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => BornCertificate_1.default, {
+        foreignKey: 'bornCertificateId',
+    }),
+    __metadata("design:type", Object)
+], EmployeeVerificationXCertificate.prototype, "bornCertificate", void 0);
 __decorate([
     (0, Orm_1.belongsTo)(() => EmployeeVerification_1.default, {
         foreignKey: 'employeeVerificationId',

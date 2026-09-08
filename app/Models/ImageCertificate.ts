@@ -10,6 +10,7 @@ import {
 import Company from 'App/Models/Company'
 import Book from 'App/Models/Book'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
+import BornCertificate from 'App/Models/BornCertificate'
 
 export default class ImageCertificate extends BaseModel {
   @column({ isPrimary: true })
@@ -23,6 +24,9 @@ export default class ImageCertificate extends BaseModel {
 
   @column({ columnName: 'married_certificate_id' })
   public marriedCertificateId: number | null
+
+  @column({ columnName: 'born_certificate_id' })
+  public bornCertificateId: number | null
 
   @column()
   public seq: number
@@ -70,4 +74,9 @@ export default class ImageCertificate extends BaseModel {
     foreignKey: 'marriedCertificateId',
   })
   public marriedCertificate: BelongsTo<typeof MarriedCertificate>
+
+  @belongsTo(() => BornCertificate, {
+    foreignKey: 'bornCertificateId',
+  })
+  public bornCertificate: BelongsTo<typeof BornCertificate>
 }

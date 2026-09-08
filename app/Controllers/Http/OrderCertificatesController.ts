@@ -7,6 +7,7 @@ import { DateTime } from 'luxon'
 import OrderCertificate from 'App/Models/OrderCertificate'
 import Person from 'App/Models/Person'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
+import BornCertificate from 'App/Models/BornCertificate'
 import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
@@ -83,6 +84,11 @@ export default class OrderCertificatesController {
     return person
   }
 
+  private normalizeCpfValue(value: any): string | null {
+    const cpf = String(value ?? '').replace(/\D/g, '').trim()
+    return cpf === '' ? null : cpf
+  }
+
   private normalizeDateBoundary(value: any, boundary: 'start' | 'end'): string | null {
     if (value === null || value === undefined || value === '') return null
 
@@ -139,7 +145,7 @@ export default class OrderCertificatesController {
 
       name: personData.name ?? '',
       nameMarried: personData.nameMarried ?? '',
-      cpf: String(personData.cpf ?? '').trim() === '' ? null : String(personData.cpf),
+      cpf: this.normalizeCpfValue(personData.cpf),
 
       gender: personData.gender ?? '',
       deceased: personData.deceased ?? false,
@@ -365,6 +371,109 @@ export default class OrderCertificatesController {
     }
   }
 
+  // 🔹 Salva o formulário de nascimento (pessoas + born_certificates)
+  private async saveBorn(
+    bornData: any,
+    companiesId: number,
+    usrId: number | null,
+    trx: TransactionClientContract
+  ): Promise<number> {
+    try {
+      const registered = await this.upsertPerson(bornData.registered, companiesId, trx)
+      if (!registered) throw new Error('Registered (registrado) é obrigatório')
+
+      const filiation1 = await this.upsertPerson(bornData.filiation1, companiesId, trx)
+      const filiation2 = await this.upsertPerson(bornData.filiation2, companiesId, trx)
+      const declarant = await this.upsertPerson(bornData.declarant, companiesId, trx)
+
+      const bornCertificateId = this.toNumber(bornData.id)
+
+      let bornCertificate: BornCertificate
+      if (bornCertificateId) {
+        bornCertificate = await BornCertificate.findOrFail(bornCertificateId, { client: trx })
+      } else {
+        bornCertificate = new BornCertificate()
+      }
+
+      bornCertificate.useTransaction(trx)
+      bornCertificate.merge({
+        companiesId,
+        usrId: usrId ?? null,
+
+        registeredPersonId: registered.id,
+        filiation1PersonId: filiation1?.id ?? null,
+        filiation2PersonId: filiation2?.id ?? null,
+        declarantPersonId: declarant?.id ?? null,
+
+        statusId: bornData.statusId ?? null,
+        registeredNameAltered: bornData.registeredNameAltered ?? false,
+        birthDate: bornData.birthDate ? DateTime.fromISO(String(bornData.birthDate)) : null,
+        birthTime: bornData.birthTime ?? null,
+        birthTimeIgnored: bornData.birthTimeIgnored ?? false,
+        twins: bornData.twins ?? false,
+        dnvNumber: bornData.dnvNumber ?? '',
+        dnvNotFound: bornData.dnvNotFound ?? false,
+        dnvMissingReason: bornData.dnvMissingReason ?? '',
+
+        naturalnessState: bornData.naturalnessState ?? '',
+        naturalnessCity: bornData.naturalnessCity ?? '',
+
+        occurrenceLocationType: bornData.occurrenceLocationType ?? '',
+        occurrencePlace: bornData.occurrencePlace ?? '',
+        occurrenceZipCode: bornData.occurrenceZipCode ?? '',
+        occurrenceAddress: bornData.occurrenceAddress ?? '',
+        occurrenceStreetNumber: bornData.occurrenceStreetNumber ?? '',
+        occurrenceDistrict: bornData.occurrenceDistrict ?? '',
+        occurrenceCountry: bornData.occurrenceCountry ?? '',
+        occurrenceState: bornData.occurrenceState ?? '',
+        occurrenceCity: bornData.occurrenceCity ?? '',
+        occurrenceSubdistrict: bornData.occurrenceSubdistrict ?? '',
+
+        filiation1ConsideredMother: bornData.filiation1ConsideredMother ?? false,
+        filiation1NameAltered: bornData.filiation1NameAltered ?? false,
+        filiation1OtherOccupation: bornData.filiation1OtherOccupation ?? false,
+        filiation1BirthState: bornData.filiation1BirthState ?? '',
+        filiation1BirthCity: bornData.filiation1BirthCity ?? '',
+        filiation1BirthPlace: bornData.filiation1BirthPlace ?? '',
+        filiation1ResidenceCountry: bornData.filiation1ResidenceCountry ?? '',
+        filiation1ResidenceSubdistrict: bornData.filiation1ResidenceSubdistrict ?? '',
+
+        filiation2ConsideredMother: bornData.filiation2ConsideredMother ?? false,
+        filiation2NameAltered: bornData.filiation2NameAltered ?? false,
+        filiation2OtherOccupation: bornData.filiation2OtherOccupation ?? false,
+        filiation2BirthState: bornData.filiation2BirthState ?? '',
+        filiation2BirthCity: bornData.filiation2BirthCity ?? '',
+        filiation2BirthPlace: bornData.filiation2BirthPlace ?? '',
+        filiation2ResidenceCountry: bornData.filiation2ResidenceCountry ?? '',
+        filiation2ResidenceSubdistrict: bornData.filiation2ResidenceSubdistrict ?? '',
+
+        grandfatherFiliation1: bornData.grandfatherFiliation1 ?? '',
+        grandmotherFiliation1: bornData.grandmotherFiliation1 ?? '',
+        grandfatherFiliation2: bornData.grandfatherFiliation2 ?? '',
+        grandmotherFiliation2: bornData.grandmotherFiliation2 ?? '',
+
+        declarantType: bornData.declarantType ?? '',
+        declarantOtherOccupation: bornData.declarantOtherOccupation ?? false,
+        declarantBirthState: bornData.declarantBirthState ?? '',
+        declarantBirthCity: bornData.declarantBirthCity ?? '',
+        declarantResidenceCountry: bornData.declarantResidenceCountry ?? '',
+        declarantResidenceSubdistrict: bornData.declarantResidenceSubdistrict ?? '',
+
+        electronicAddress: bornData.electronicAddress ?? '',
+        phone: bornData.phone ?? '',
+        obs: bornData.obs ?? '',
+        inactive: bornData.inactive ?? false,
+        statusForm: bornData.statusForm ?? 'draft',
+      })
+
+      await bornCertificate.save()
+      return bornCertificate.id
+    } catch (error) {
+      console.error('ERRO AO SALVAR BORN:', error)
+      throw error
+    }
+  }
+
   // =====================================================
   // Index / Show
   // =====================================================
@@ -466,6 +575,13 @@ export default class OrderCertificatesController {
         query.select('id', 'groomPersonId', 'bridePersonId', 'documentScheduleDate', 'dateMarriedReal')
         query.preload('groom', (q) => q.select('name', 'cpf'))
         query.preload('bride', (q) => q.select('name', 'cpf'))
+      })
+      .preload('bornCertificate', (query) => {
+        query.select('id', 'registeredPersonId', 'filiation1PersonId', 'filiation2PersonId', 'declarantPersonId', 'birthDate')
+        query.preload('registered', (q) => q.select('name', 'cpf'))
+        query.preload('filiation1', (q) => q.select('name', 'cpf'))
+        query.preload('filiation2', (q) => q.select('name', 'cpf'))
+        query.preload('declarant', (q) => q.select('name', 'cpf'))
       })
       .preload('secondcopyCertificate', (q) => {
         q.select('*')
@@ -658,6 +774,13 @@ export default class OrderCertificatesController {
               .where('companiesId', authenticate.companies_id)
           })
         })
+        q.orWhereHas('bornCertificate', (bc) => {
+          bc.whereHas('employeeVerificationXCertificates', (evxc) => {
+            evxc
+              .where('employeeVerificationId', employeeVerificationId)
+              .where('companiesId', authenticate.companies_id)
+          })
+        })
       })
     }
 
@@ -674,8 +797,7 @@ export default class OrderCertificatesController {
     }
 
     // ***********************************************************
-    // 🔍 Filtro por CPF em marriedCertificate -> groom ou bride
-    //     OU em secondcopyCertificate (applicant/registered1/registered2)
+    // 🔍 Filtro por CPF em marriedCertificate, bornCertificate ou secondcopyCertificate
     if (cpf) {
       query.where((q) => {
         // --- marriedCertificate: groom ou bride ---
@@ -686,6 +808,23 @@ export default class OrderCertificatesController {
             })
             .orWhereHas('bride', (b) => {
               b.where('cpf', cpf)
+            })
+        })
+
+        // --- bornCertificate: registered / filiações / declarante ---
+        q.orWhereHas('bornCertificate', (bc) => {
+          bc
+            .whereHas('registered', (p) => {
+              p.where('cpf', cpf)
+            })
+            .orWhereHas('filiation1', (p) => {
+              p.where('cpf', cpf)
+            })
+            .orWhereHas('filiation2', (p) => {
+              p.where('cpf', cpf)
+            })
+            .orWhereHas('declarant', (p) => {
+              p.where('cpf', cpf)
             })
         })
 
@@ -706,8 +845,7 @@ export default class OrderCertificatesController {
     }
 
     // ***********************************************************
-    // 🔍 Filtro por NAME em marriedCertificate -> groom ou bride
-    //     OU em secondcopyCertificate (applicant/registered1/registered2)
+    // 🔍 Filtro por NAME em marriedCertificate, bornCertificate ou secondcopyCertificate
     if (name) {
       const likeName = `%${name}%`
 
@@ -720,6 +858,23 @@ export default class OrderCertificatesController {
             })
             .orWhereHas('bride', (b) => {
               b.where('name', 'like', likeName)
+            })
+        })
+
+        // --- bornCertificate: registered / filiações / declarante ---
+        q.orWhereHas('bornCertificate', (bc) => {
+          bc
+            .whereHas('registered', (p) => {
+              p.where('name', 'like', likeName)
+            })
+            .orWhereHas('filiation1', (p) => {
+              p.where('name', 'like', likeName)
+            })
+            .orWhereHas('filiation2', (p) => {
+              p.where('name', 'like', likeName)
+            })
+            .orWhereHas('declarant', (p) => {
+              p.where('name', 'like', likeName)
             })
         })
 
@@ -747,12 +902,17 @@ export default class OrderCertificatesController {
     const marriedCertificateIds = orders
       .filter((order) => Number(order.bookId) === 2 && order.certificateId)
       .map((order) => order.certificateId)
+    const bornCertificateIds = orders
+      .filter((order) => Number(order.bookId) === 3 && order.certificateId)
+      .map((order) => order.certificateId)
     const receiptIds = orders
       .map((order) => (order as any).receipt?.id)
       .filter((id) => !!id)
 
-    const imageCounts = new Map<number, number>()
+    const marriedImageCounts = new Map<number, number>()
+    const bornImageCounts = new Map<number, number>()
     const latestEmployeeVerificationByMarriedCertificate = new Map<number, any>()
+    const latestEmployeeVerificationByBornCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
 
     if (marriedCertificateIds.length) {
@@ -765,24 +925,47 @@ export default class OrderCertificatesController {
         .groupBy('married_certificate_id')
 
       counts.forEach((row) => {
-        imageCounts.set(Number(row.married_certificate_id), Number(row.total ?? 0))
+        marriedImageCounts.set(Number(row.married_certificate_id), Number(row.total ?? 0))
       })
     }
 
-    if (marriedCertificateIds.length) {
+    if (bornCertificateIds.length) {
+      const counts = await Database
+        .from('image_certificates')
+        .select('born_certificate_id')
+        .count('* as total')
+        .where('companies_id', authenticate.companies_id)
+        .whereIn('born_certificate_id', bornCertificateIds)
+        .groupBy('born_certificate_id')
+
+      counts.forEach((row) => {
+        bornImageCounts.set(Number(row.born_certificate_id), Number(row.total ?? 0))
+      })
+    }
+
+    if (marriedCertificateIds.length || bornCertificateIds.length) {
       const certificateVerificationsQuery = Database
         .from('employee_verification_x_certificates as evxc')
         .leftJoin('employee_verifications as ev', 'ev.id', 'evxc.employee_verification_id')
         .select([
           'evxc.id',
           'evxc.married_certificate_id',
+          'evxc.born_certificate_id',
           'evxc.status',
           'evxc.date',
           'ev.description',
           'evxc.created_at',
         ])
         .where('evxc.companies_id', authenticate.companies_id)
-        .whereIn('evxc.married_certificate_id', marriedCertificateIds)
+
+      certificateVerificationsQuery.where((q) => {
+        if (marriedCertificateIds.length) {
+          q.whereIn('evxc.married_certificate_id', marriedCertificateIds)
+        }
+        if (bornCertificateIds.length) {
+          q.orWhereIn('evxc.born_certificate_id', bornCertificateIds)
+        }
+      })
 
       if (employeeVerificationId) {
         certificateVerificationsQuery.where('evxc.employee_verification_id', employeeVerificationId)
@@ -791,7 +974,6 @@ export default class OrderCertificatesController {
       const certificateVerifications = await certificateVerificationsQuery
 
       certificateVerifications.forEach((row) => {
-        const marriedCertificateId = Number(row.married_certificate_id)
         const candidate = {
           id: row.id,
           status: row.status,
@@ -801,13 +983,27 @@ export default class OrderCertificatesController {
           source: 'certificate',
         }
 
-        latestEmployeeVerificationByMarriedCertificate.set(
-          marriedCertificateId,
-          this.getLatestEmployeeVerification(
-            latestEmployeeVerificationByMarriedCertificate.get(marriedCertificateId) ?? null,
-            candidate
+        if (row.married_certificate_id) {
+          const marriedCertificateId = Number(row.married_certificate_id)
+          latestEmployeeVerificationByMarriedCertificate.set(
+            marriedCertificateId,
+            this.getLatestEmployeeVerification(
+              latestEmployeeVerificationByMarriedCertificate.get(marriedCertificateId) ?? null,
+              candidate
+            )
           )
-        )
+        }
+
+        if (row.born_certificate_id) {
+          const bornCertificateId = Number(row.born_certificate_id)
+          latestEmployeeVerificationByBornCertificate.set(
+            bornCertificateId,
+            this.getLatestEmployeeVerification(
+              latestEmployeeVerificationByBornCertificate.get(bornCertificateId) ?? null,
+              candidate
+            )
+          )
+        }
       })
     }
 
@@ -854,10 +1050,13 @@ export default class OrderCertificatesController {
 
     const result = orders.map((order) => {
       const json = order.toJSON()
-      const imageCertificatesCount = imageCounts.get(Number(order.certificateId)) ?? 0
-      const certificateVerification = latestEmployeeVerificationByMarriedCertificate.get(
-        Number(order.certificateId)
-      )
+      const bookId = Number(order.bookId)
+      const imageCertificatesCount = bookId === 3
+        ? bornImageCounts.get(Number(order.certificateId)) ?? 0
+        : marriedImageCounts.get(Number(order.certificateId)) ?? 0
+      const certificateVerification = bookId === 3
+        ? latestEmployeeVerificationByBornCertificate.get(Number(order.certificateId))
+        : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId))
       const receiptVerification = json.receipt?.id
         ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
         : null
@@ -880,6 +1079,9 @@ export default class OrderCertificatesController {
       json.latestEmployeeVerification = latestEmployeeVerification ?? null
       if (json.marriedCertificate) {
         json.marriedCertificate.imageCertificatesCount = imageCertificatesCount
+      }
+      if (json.bornCertificate) {
+        json.bornCertificate.imageCertificatesCount = imageCertificatesCount
       }
 
       return json
@@ -910,6 +1112,15 @@ export default class OrderCertificatesController {
         q.preload('fatherBride', (qq) => qq.select('*'))
         q.preload('witness1', (qq) => qq.select('*'))
         q.preload('witness2', (qq) => qq.select('*'))
+      })
+    }
+
+    if (book_id == 3) {
+      query.preload('bornCertificate', (q) => {
+        q.preload('registered', (qq) => qq.select('*'))
+        q.preload('filiation1', (qq) => qq.select('*'))
+        q.preload('filiation2', (qq) => qq.select('*'))
+        q.preload('declarant', (qq) => qq.select('*'))
       })
     }
 
@@ -981,6 +1192,27 @@ export default class OrderCertificatesController {
           finalCertificateId = await this.saveMarriage(parsedMarriage, user.companies_id, user.id, trx)
         }
 
+        // ✅ NASCIMENTO
+        if (bookId === 3 && body.bornCertificate) {
+          const parsedBorn = this.parseJsonFieldOrFail(response, body.bornCertificate, 'bornCertificate')
+          if (!parsedBorn) return null as any
+
+          await validator.validate({
+            schema: schema.create({
+              registered: schema.object().members({
+                name: schema.string({ trim: true }),
+              }),
+            }),
+            data: parsedBorn,
+            messages: {
+              'registered.required': 'O registrado é obrigatório',
+              'registered.name.required': 'Nome do registrado é obrigatório',
+            },
+          })
+
+          finalCertificateId = await this.saveBorn(parsedBorn, user.companies_id, user.id, trx)
+        }
+
         // ✅ 2ª VIA
         if (bookId === 21 && (body.secondcopyCertificate || body.secondCopyCertificate)) {
           const rawSecond = body.secondcopyCertificate ?? body.secondCopyCertificate
@@ -1020,6 +1252,10 @@ export default class OrderCertificatesController {
           finalCertificateId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
         }
 
+        if (finalCertificateId === null) {
+          return null as any
+        }
+
         const oc = new OrderCertificate()
         oc.useTransaction(trx)
 
@@ -1034,7 +1270,11 @@ export default class OrderCertificatesController {
         return oc
       })
 
-      if (!orderCertificate) return
+      if (!orderCertificate) {
+        return response.badRequest({
+          message: 'Não foi possível determinar o ID da certidão. Envie os dados do formulário correspondente ao tipo selecionado.',
+        })
+      }
 
       // Upload após commit (apenas casamento)
       if (orderCertificate.bookId === 2 && orderCertificate.certificateId) {
@@ -1071,8 +1311,41 @@ export default class OrderCertificatesController {
         }
       }
 
+      if (orderCertificate.bookId === 3 && orderCertificate.certificateId) {
+        const companiesId = user.companies_id
+
+        const fileFields: { field: string; description: string }[] = [
+          { field: 'DocumentRegistered', description: 'DocRegistrado' },
+          { field: 'DnvDocument', description: 'DNV' },
+          { field: 'DocumentFiliation1', description: 'DocFiliacao1' },
+          { field: 'ProofResidenceFiliation1', description: 'ResidenciaFiliacao1' },
+          { field: 'DocumentFiliation2', description: 'DocFiliacao2' },
+          { field: 'ProofResidenceFiliation2', description: 'ResidenciaFiliacao2' },
+          { field: 'DocumentDeclarant', description: 'DocDeclarante' },
+          { field: 'ProofResidenceDeclarant', description: 'ResidenciaDeclarante' },
+        ]
+
+        const fileOptions = {
+          size: '8mb',
+          extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+        } as const
+
+        for (const cfg of fileFields) {
+          const file = request.file(cfg.field, fileOptions)
+          if (!file) continue
+
+          await uploadImage({
+            companiesId,
+            bornCertificateId: orderCertificate.certificateId,
+            file,
+            description: cfg.description,
+          })
+        }
+      }
+
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
+      if (orderCertificate.bookId === 3) await orderCertificate.load('bornCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
 
       return response.created(orderCertificate)
@@ -1128,6 +1401,44 @@ export default class OrderCertificatesController {
           if (!parsedMarriage) return
 
           await this.saveMarriage(parsedMarriage, user.companies_id, user.id, trx)
+        }
+
+        // ✅ Atualiza NASCIMENTO
+        if (bookId === 3 && body.bornCertificate) {
+          const parsedBorn = this.parseJsonFieldOrFail(response, body.bornCertificate, 'bornCertificate')
+          if (!parsedBorn) return
+
+          await validator.validate({
+            schema: schema.create({
+              registered: schema.object().members({
+                name: schema.string({ trim: true }),
+              }),
+            }),
+            data: parsedBorn,
+            messages: {
+              'registered.required': 'O registrado é obrigatório',
+              'registered.name.required': 'Nome do registrado é obrigatório',
+            },
+          })
+
+          const bornCertificateId =
+            this.toNumber(body.certificateId ?? body.certificate_id) ??
+            orderCertificate.certificateId ??
+            this.toNumber(parsedBorn?.id)
+
+          if (!bornCertificateId) {
+            return response.badRequest({
+              message: 'Não foi possível determinar o ID da certidão (nascimento). Envie certificateId ou garanta o vínculo no pedido.',
+            })
+          }
+
+          parsedBorn.id = bornCertificateId
+          const savedBornId = await this.saveBorn(parsedBorn, user.companies_id, user.id, trx)
+
+          if (!orderCertificate.certificateId) {
+            orderCertificate.certificateId = savedBornId
+            await orderCertificate.save()
+          }
         }
 
         // ✅ Atualiza 2ª via
@@ -1223,8 +1534,41 @@ export default class OrderCertificatesController {
         }
       }
 
+      if (orderCertificate.bookId === 3 && orderCertificate.certificateId) {
+        const companiesId = user.companies_id
+
+        const fileFields: { field: string; description: string }[] = [
+          { field: 'DocumentRegistered', description: 'DocRegistrado' },
+          { field: 'DnvDocument', description: 'DNV' },
+          { field: 'DocumentFiliation1', description: 'DocFiliacao1' },
+          { field: 'ProofResidenceFiliation1', description: 'ResidenciaFiliacao1' },
+          { field: 'DocumentFiliation2', description: 'DocFiliacao2' },
+          { field: 'ProofResidenceFiliation2', description: 'ResidenciaFiliacao2' },
+          { field: 'DocumentDeclarant', description: 'DocDeclarante' },
+          { field: 'ProofResidenceDeclarant', description: 'ResidenciaDeclarante' },
+        ]
+
+        const fileOptions = {
+          size: '8mb',
+          extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls', 'JPG', 'PNG', 'JPEG', 'PDF', 'XLS'],
+        } as const
+
+        for (const cfg of fileFields) {
+          const file = request.file(cfg.field, fileOptions)
+          if (!file) continue
+
+          await uploadImage({
+            companiesId,
+            bornCertificateId: orderCertificate.certificateId,
+            file,
+            description: cfg.description,
+          })
+        }
+      }
+
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
+      if (orderCertificate.bookId === 3) await orderCertificate.load('bornCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
 
       const check = await SecondcopyCertificate.find(orderCertificate.certificateId)
