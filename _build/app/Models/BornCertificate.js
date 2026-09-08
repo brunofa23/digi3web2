@@ -18,6 +18,7 @@ const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Comp
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
 const Status_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Status"));
 const Person_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Person"));
+const EmployeeVerificationXCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerificationXCertificate"));
 class BornCertificate extends Orm_1.BaseModel {
 }
 BornCertificate.table = 'born_certificates';
@@ -285,6 +286,10 @@ __decorate([
     (0, Orm_1.belongsTo)(() => Person_1.default, { foreignKey: 'declarantPersonId' }),
     __metadata("design:type", Object)
 ], BornCertificate.prototype, "declarant", void 0);
+__decorate([
+    (0, Orm_1.hasMany)(() => EmployeeVerificationXCertificate_1.default, { foreignKey: 'bornCertificateId' }),
+    __metadata("design:type", Object)
+], BornCertificate.prototype, "employeeVerificationXCertificates", void 0);
 __decorate([
     Orm_1.column.dateTime({ columnName: 'created_at', serializeAs: 'createdAt', autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

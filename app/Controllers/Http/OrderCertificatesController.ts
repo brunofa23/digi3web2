@@ -774,6 +774,13 @@ export default class OrderCertificatesController {
               .where('companiesId', authenticate.companies_id)
           })
         })
+        q.orWhereHas('bornCertificate', (bc) => {
+          bc.whereHas('employeeVerificationXCertificates', (evxc) => {
+            evxc
+              .where('employeeVerificationId', employeeVerificationId)
+              .where('companiesId', authenticate.companies_id)
+          })
+        })
       })
     }
 
@@ -905,6 +912,7 @@ export default class OrderCertificatesController {
     const marriedImageCounts = new Map<number, number>()
     const bornImageCounts = new Map<number, number>()
     const latestEmployeeVerificationByMarriedCertificate = new Map<number, any>()
+    const latestEmployeeVerificationByBornCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
 
     if (marriedCertificateIds.length) {
@@ -935,20 +943,29 @@ export default class OrderCertificatesController {
       })
     }
 
-    if (marriedCertificateIds.length) {
+    if (marriedCertificateIds.length || bornCertificateIds.length) {
       const certificateVerificationsQuery = Database
         .from('employee_verification_x_certificates as evxc')
         .leftJoin('employee_verifications as ev', 'ev.id', 'evxc.employee_verification_id')
         .select([
           'evxc.id',
           'evxc.married_certificate_id',
+          'evxc.born_certificate_id',
           'evxc.status',
           'evxc.date',
           'ev.description',
           'evxc.created_at',
         ])
         .where('evxc.companies_id', authenticate.companies_id)
-        .whereIn('evxc.married_certificate_id', marriedCertificateIds)
+
+      certificateVerificationsQuery.where((q) => {
+        if (marriedCertificateIds.length) {
+          q.whereIn('evxc.married_certificate_id', marriedCertificateIds)
+        }
+        if (bornCertificateIds.length) {
+          q.orWhereIn('evxc.born_certificate_id', bornCertificateIds)
+        }
+      })
 
       if (employeeVerificationId) {
         certificateVerificationsQuery.where('evxc.employee_verification_id', employeeVerificationId)
@@ -957,7 +974,6 @@ export default class OrderCertificatesController {
       const certificateVerifications = await certificateVerificationsQuery
 
       certificateVerifications.forEach((row) => {
-        const marriedCertificateId = Number(row.married_certificate_id)
         const candidate = {
           id: row.id,
           status: row.status,
@@ -967,13 +983,27 @@ export default class OrderCertificatesController {
           source: 'certificate',
         }
 
-        latestEmployeeVerificationByMarriedCertificate.set(
-          marriedCertificateId,
-          this.getLatestEmployeeVerification(
-            latestEmployeeVerificationByMarriedCertificate.get(marriedCertificateId) ?? null,
-            candidate
+        if (row.married_certificate_id) {
+          const marriedCertificateId = Number(row.married_certificate_id)
+          latestEmployeeVerificationByMarriedCertificate.set(
+            marriedCertificateId,
+            this.getLatestEmployeeVerification(
+              latestEmployeeVerificationByMarriedCertificate.get(marriedCertificateId) ?? null,
+              candidate
+            )
           )
-        )
+        }
+
+        if (row.born_certificate_id) {
+          const bornCertificateId = Number(row.born_certificate_id)
+          latestEmployeeVerificationByBornCertificate.set(
+            bornCertificateId,
+            this.getLatestEmployeeVerification(
+              latestEmployeeVerificationByBornCertificate.get(bornCertificateId) ?? null,
+              candidate
+            )
+          )
+        }
       })
     }
 
@@ -1024,9 +1054,9 @@ export default class OrderCertificatesController {
       const imageCertificatesCount = bookId === 3
         ? bornImageCounts.get(Number(order.certificateId)) ?? 0
         : marriedImageCounts.get(Number(order.certificateId)) ?? 0
-      const certificateVerification = latestEmployeeVerificationByMarriedCertificate.get(
-        Number(order.certificateId)
-      )
+      const certificateVerification = bookId === 3
+        ? latestEmployeeVerificationByBornCertificate.get(Number(order.certificateId))
+        : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId))
       const receiptVerification = json.receipt?.id
         ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
         : null

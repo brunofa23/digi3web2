@@ -4,12 +4,15 @@ import {
   column,
   belongsTo,
   BelongsTo,
+  hasMany,
+  HasMany,
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
 import User from 'App/Models/User'
 import Status from 'App/Models/Status'
 import Person from 'App/Models/Person'
+import EmployeeVerificationXCertificate from 'App/Models/EmployeeVerificationXCertificate'
 
 export default class BornCertificate extends BaseModel {
   public static table = 'born_certificates'
@@ -211,6 +214,9 @@ export default class BornCertificate extends BaseModel {
 
   @belongsTo(() => Person, { foreignKey: 'declarantPersonId' })
   public declarant: BelongsTo<typeof Person>
+
+  @hasMany(() => EmployeeVerificationXCertificate, { foreignKey: 'bornCertificateId' })
+  public employeeVerificationXCertificates: HasMany<typeof EmployeeVerificationXCertificate>
 
   @column.dateTime({ columnName: 'created_at', serializeAs: 'createdAt', autoCreate: true })
   public createdAt: DateTime

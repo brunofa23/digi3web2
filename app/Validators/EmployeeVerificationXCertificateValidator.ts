@@ -5,9 +5,13 @@ export default class EmployeeVerificationXCertificateValidator {
   constructor (protected ctx: HttpContextContract) {}
 
   public static createSchema = schema.create({
-    marriedCertificateId: schema.number([
+    marriedCertificateId: schema.number.optional([
       rules.unsigned(),
       rules.exists({ table: 'married_certificates', column: 'id' }),
+    ]),
+    bornCertificateId: schema.number.optional([
+      rules.unsigned(),
+      rules.exists({ table: 'born_certificates', column: 'id' }),
     ]),
     employeeVerificationId: schema.number([
       rules.unsigned(),
@@ -26,6 +30,10 @@ export default class EmployeeVerificationXCertificateValidator {
       rules.unsigned(),
       rules.exists({ table: 'married_certificates', column: 'id' }),
     ]),
+    bornCertificateId: schema.number.optional([
+      rules.unsigned(),
+      rules.exists({ table: 'born_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: schema.number.optional([
       rules.unsigned(),
       rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -39,7 +47,7 @@ export default class EmployeeVerificationXCertificateValidator {
   })
 
   public static messages = {
-    'marriedCertificateId.required': 'O campo marriedCertificateId é obrigatório',
+    'bornCertificateId.exists': 'O certificado de nascimento informado não foi encontrado',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
     'date.required': 'O campo date é obrigatório',
 
