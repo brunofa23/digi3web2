@@ -11,15 +11,24 @@ class default_1 extends Schema_1.default {
         this.tableName = 'companies';
     }
     async up() {
-        await this.schema.alterTable(this.tableName, (table) => {
-            table.integer('max_upload_size_mb').nullable().defaultTo(10);
-        });
-        await Database_1.default.from(this.tableName).update({ max_upload_size_mb: 10 });
+        const hasUploadLimitColumn = await this.schema.hasColumn(this.tableName, 'max_upload_size_mb');
+        if (!hasUploadLimitColumn) {
+            await this.schema.alterTable(this.tableName, (table) => {
+                table.integer('max_upload_size_mb').nullable().defaultTo(10);
+            });
+        }
+        await Database_1.default.from(this.tableName)
+            .whereNull('max_upload_size_mb')
+            .orWhere('max_upload_size_mb', 0)
+            .update({ max_upload_size_mb: 10 });
     }
     async down() {
-        await this.schema.alterTable(this.tableName, (table) => {
-            table.dropColumn('max_upload_size_mb');
-        });
+        const hasUploadLimitColumn = await this.schema.hasColumn(this.tableName, 'max_upload_size_mb');
+        if (hasUploadLimitColumn) {
+            await this.schema.alterTable(this.tableName, (table) => {
+                table.dropColumn('max_upload_size_mb');
+            });
+        }
     }
 }
 exports.default = default_1;
