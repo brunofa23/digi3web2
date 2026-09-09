@@ -37,6 +37,7 @@ export default class Company extends BaseModel {
       'licence_value',
       'due_date',
       'fin_entity_id',
+      'max_upload_size_mb',
       'created_at',
       'updated_at'
     ]
@@ -151,6 +152,9 @@ export default class Company extends BaseModel {
 
   @column()
   public fin_entity_id: number | null
+
+  @column()
+  public max_upload_size_mb: number | null
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

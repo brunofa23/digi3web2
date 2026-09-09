@@ -122,6 +122,7 @@ export default class TypebooksController {
     const authenticate = await auth.use('api').authenticate()
     const data = await Typebook.query()
       .preload('documentconfig')
+      .preload('company')
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).firstOrFail()
     return response.status(200).send(data)

@@ -10,6 +10,11 @@ const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const CompanyValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/CompanyValidator"));
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 class CompaniesController {
+    validateUploadLimit(value) {
+        if (value !== null && value !== undefined && (value < 0 || value > 150)) {
+            throw new BadRequestException_1.default('O limite de upload deve ser 0 ou um valor entre 1 MB e 150 MB.', 422, 'company_error_upload_limit');
+        }
+    }
     async validateFinEntityLink(authenticate, finEntityId, companyId) {
         if (!finEntityId)
             return;
@@ -72,6 +77,7 @@ class CompaniesController {
         }
         const body = await request.validate(CompanyValidator_1.default);
         const { situation_ids: situationIds, ...companyPayload } = body;
+        this.validateUploadLimit(companyPayload.max_upload_size_mb);
         await this.validateFinEntityLink(authenticate, companyPayload.fin_entity_id);
         const companyByName = await Company_1.default.findBy('name', companyPayload.name);
         if (companyByName) {
@@ -122,6 +128,7 @@ class CompaniesController {
         }
         const body = await request.validate(CompanyValidator_1.default);
         const situationIds = body.situation_ids || [];
+        this.validateUploadLimit(body.max_upload_size_mb);
         const data = await Company_1.default.findOrFail(companyId);
         await this.validateFinEntityLink(authenticate, body.fin_entity_id, companyId);
         if (body.name !== data.name) {
@@ -169,6 +176,7 @@ class CompaniesController {
             licence_value: body.licence_value || null,
             due_date: body.due_date || null,
             fin_entity_id: body.fin_entity_id || null,
+            max_upload_size_mb: body.max_upload_size_mb ?? null,
         });
         await data.save();
         await data.related('situations').sync(situationIds);
