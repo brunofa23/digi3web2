@@ -277,6 +277,19 @@ async function getLocalFileMetadata(filePath: string) {
   }
 }
 
+async function getOriginalFileSha256(filePath: string) {
+  const hash = crypto.createHash('sha256')
+  const stream = fs.createReadStream(filePath)
+
+  await new Promise<void>((resolve, reject) => {
+    stream.on('data', (chunk) => hash.update(chunk))
+    stream.on('end', () => resolve())
+    stream.on('error', reject)
+  })
+
+  return hash.digest('hex')
+}
+
 function normalizeImageOrigin(value: any) {
   const allowedOrigins = [
     'desktop_file_input',
@@ -295,10 +308,25 @@ async function findDuplicateIndeximage(
   typebooksId: number,
   bookrecordsId: number,
   driveFolderId: string,
+  originalSha256: string,
   md5Checksum: string,
   fileSize: number
 ) {
-  if (!companiesId || !typebooksId || !bookrecordsId || !driveFolderId || !md5Checksum || !fileSize) return null
+  if (!companiesId || !typebooksId || !bookrecordsId || !driveFolderId) return null
+
+  if (originalSha256) {
+    const duplicateByOriginalHash = await Indeximage.query()
+      .where('companies_id', companiesId)
+      .andWhere('typebooks_id', typebooksId)
+      .andWhere('bookrecords_id', bookrecordsId)
+      .andWhere('drive_folder_id', driveFolderId)
+      .andWhere('original_sha256', originalSha256)
+      .first()
+
+    if (duplicateByOriginalHash) return duplicateByOriginalHash
+  }
+
+  if (!md5Checksum || !fileSize) return null
 
   return Indeximage.query()
     .where('companies_id', companiesId)
@@ -706,13 +734,16 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
   try {
     let localFilePath = path.join(folderPath, objfileRename.file_name)
+    let originalSha256: string | null = null
 
     //copia o arquivo para servidor
     if (capture) {
       localFilePath = path.join(path.dirname(image), objfileRename.file_name)
       await fsp.rename(image, localFilePath)
+      originalSha256 = await getOriginalFileSha256(localFilePath)
     }
     else {
+      originalSha256 = await getOriginalFileSha256(image.tmpPath)
       const newPath = path.join(folderPath, objfileRename.file_name)//`${folderPath}/${objfileRename.file_name}`
 
       await image.move(folderPath, { name: objfileRename.file_name, overwrite: true })
@@ -738,6 +769,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       objfileRename.typebooks_id,
       objfileRename.bookrecords_id,
       idParent,
+      originalSha256,
       localMetadata.md5Checksum,
       localMetadata.size
     )
@@ -753,6 +785,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
         message: 'Arquivo já enviado anteriormente para esta pasta.',
         drive_file_size: localMetadata.size,
         drive_md5_checksum: localMetadata.md5Checksum,
+        original_sha256: originalSha256,
         drive_folder_id: idParent,
         image_origin: objfileRename.image_origin || 'unknown',
         image_width: localMetadata.width,
@@ -796,6 +829,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
       objfileRename.drive_file_id = sendUpload.data?.id || null
       objfileRename.drive_file_size = driveFileSize
       objfileRename.drive_md5_checksum = driveMd5Checksum
+      objfileRename.original_sha256 = originalSha256
       objfileRename.drive_folder_id = driveFolderId
       objfileRename.image_width = localMetadata.width
       objfileRename.image_height = localMetadata.height
