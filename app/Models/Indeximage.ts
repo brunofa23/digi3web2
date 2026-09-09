@@ -17,6 +17,7 @@ export default class Indeximage extends BaseModel {
       'drive_file_id',
       'drive_file_size',
       'drive_md5_checksum',
+      'original_sha256',
       'drive_folder_id',
       'image_origin',
       'image_width',
@@ -80,6 +81,9 @@ export default class Indeximage extends BaseModel {
 
   @column()
   public drive_md5_checksum: string | null
+
+  @column()
+  public original_sha256: string | null
 
   @column()
   public drive_folder_id: string | null

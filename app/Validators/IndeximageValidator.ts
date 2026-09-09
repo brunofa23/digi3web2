@@ -14,6 +14,7 @@ export default class IndeximageValidator {
     drive_file_id: schema.string.nullableAndOptional({ trim: true }),
     drive_file_size: schema.number.nullableAndOptional(),
     drive_md5_checksum: schema.string.nullableAndOptional({ trim: true }),
+    original_sha256: schema.string.nullableAndOptional({ trim: true }),
     drive_folder_id: schema.string.nullableAndOptional({ trim: true }),
     previous_file_name: schema.string.nullableAndOptional({ trim: true }),
     book: schema.number.nullableAndOptional(),
