@@ -23,6 +23,20 @@ const formatDate = new format_1.default(new Date);
 const FileRename = require('../../Services/fileRename/fileRename');
 const fs = require('fs');
 const path = require('path');
+const DEFAULT_UPLOAD_LIMIT_MB = 50;
+const MAX_UPLOAD_LIMIT_MB = 150;
+function getCompanyUploadLimitMb(company) {
+    const configuredLimit = Number(company?.max_upload_size_mb);
+    if (!Number.isFinite(configuredLimit) || configuredLimit <= 0)
+        return DEFAULT_UPLOAD_LIMIT_MB;
+    return Math.min(configuredLimit, MAX_UPLOAD_LIMIT_MB);
+}
+function formatUploadSize(bytes) {
+    return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+function isFileSizeError(file) {
+    return Array.isArray(file?.errors) && file.errors.some((error) => String(error?.rule || error?.message || error).toLowerCase().includes('size'));
+}
 async function createUploadJob(payload) {
     try {
         await (0, imageUploadJobs_1.cleanupOldImageUploadJobs)();
@@ -268,8 +282,10 @@ class IndeximagesController {
         const { auth, request, params, response } = ctx;
         const authenticate = await auth.use('api').authenticate();
         const company = await Company_1.default.find(authenticate.companies_id);
+        const uploadLimitMb = getCompanyUploadLimitMb(company);
+        const uploadLimitBytes = uploadLimitMb * 1024 * 1024;
         let images = request.files('images', {
-            size: '100mb',
+            size: `${uploadLimitMb}mb`,
             extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF', 'tiff', 'TIFF', 'bmp', 'BMP', 'tif', 'TIF', 'webp', 'WEBP'],
         });
         let dataImagesRaw = request.input('dataImages');
@@ -296,6 +312,7 @@ class IndeximagesController {
                 }),
             ];
         }
+        const oversizedImages = images.filter((image) => Number(image?.size) > uploadLimitBytes || isFileSizeError(image));
         const indexImagesInitial = request.input('indexImagesInitial') === 'true';
         const updateImage = request.input('updateImage') === 'true';
         const updateImageDocument = request.input('updateImageDocument') === 'true';
@@ -328,16 +345,26 @@ class IndeximagesController {
                     uploadJob: serializeUploadJob(uploadJob),
                 });
             }
-            const invalidImages = images.filter((image) => !image.isValid);
+            const invalidImages = images.filter((image) => !image.isValid || oversizedImages.includes(image));
             if (invalidImages.length) {
-                const errorMessage = invalidImages
-                    .map((image) => `${image.clientName}: ${JSON.stringify(image.errors || [])}`)
-                    .join('; ');
+                const oversizedMessages = oversizedImages.map((image) => {
+                    const fileSize = Number(image?.size);
+                    const actualSize = Number.isFinite(fileSize) && fileSize > 0
+                        ? ` possui ${formatUploadSize(fileSize)}`
+                        : '';
+                    return `${image.clientName || 'Arquivo'}${actualSize} e excede o limite de ${uploadLimitMb} MB. Para aumentar o limite, entre em contato com a Digi3.`;
+                });
+                const otherInvalidMessages = invalidImages
+                    .filter((image) => !oversizedImages.includes(image))
+                    .map((image) => `${image.clientName}: ${JSON.stringify(image.errors || [])}`);
+                const errorMessage = [...oversizedMessages, ...otherInvalidMessages].join('; ');
                 await updateUploadJob(uploadJob, 'FAILED', {
                     errorMessage: errorMessage.slice(0, 1000),
                 });
                 return response.status(422).send({
-                    message: 'Um ou mais arquivos enviados são inválidos.',
+                    message: oversizedMessages.length
+                        ? oversizedMessages.join(' ')
+                        : 'Um ou mais arquivos enviados são inválidos.',
                     errors: invalidImages.map((image) => ({
                         fileName: image.clientName,
                         errors: image.errors,

@@ -29,6 +29,7 @@ export default class CompanyValidator {
     licence_value: schema.number.nullableAndOptional(),
     due_date: schema.string.nullableAndOptional({}, [rules.maxLength(10)]),
     fin_entity_id: schema.number.nullableAndOptional(),
+    max_upload_size_mb: schema.number.nullableAndOptional(),
     situation_ids: schema.array.optional().members(
       schema.number([
         rules.exists({ table: 'situation', column: 'id' }),

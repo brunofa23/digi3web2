@@ -9,6 +9,15 @@ import { sendSearchOrCreateFolder } from "App/Services/googleDrive/googledrive"
 //const authorize = require('App/Services/googleDrive/googledrive')
 
 export default class CompaniesController {
+  private validateUploadLimit(value: number | null | undefined) {
+    if (value !== null && value !== undefined && (value < 0 || value > 150)) {
+      throw new BadRequest(
+        'O limite de upload deve ser 0 ou um valor entre 1 MB e 150 MB.',
+        422,
+        'company_error_upload_limit'
+      )
+    }
+  }
   private async validateFinEntityLink(authenticate: any, finEntityId?: number | null, companyId?: number) {
     if (!finEntityId) return
 
@@ -83,6 +92,7 @@ export default class CompaniesController {
     }
     const body = await request.validate(CompanyValidator)
     const { situation_ids: situationIds, ...companyPayload } = body
+    this.validateUploadLimit(companyPayload.max_upload_size_mb)
     await this.validateFinEntityLink(authenticate, companyPayload.fin_entity_id)
     const companyByName = await Company.findBy('name', companyPayload.name)
 
@@ -147,6 +157,7 @@ export default class CompaniesController {
 
     const body = await request.validate(CompanyValidator)
     const situationIds = body.situation_ids || []
+    this.validateUploadLimit(body.max_upload_size_mb)
     const data = await Company.findOrFail(companyId)
     await this.validateFinEntityLink(authenticate, body.fin_entity_id, companyId)
 
@@ -199,6 +210,7 @@ export default class CompaniesController {
       licence_value: body.licence_value || null,
       due_date: body.due_date || null,
       fin_entity_id: body.fin_entity_id || null,
+      max_upload_size_mb: body.max_upload_size_mb ?? null,
     })
 
     await data.save()

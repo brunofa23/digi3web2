@@ -48,6 +48,7 @@ class Company extends Orm_1.BaseModel {
             'licence_value',
             'due_date',
             'fin_entity_id',
+            'max_upload_size_mb',
             'created_at',
             'updated_at'
         ];
@@ -201,6 +202,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
 ], Company.prototype, "fin_entity_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Company.prototype, "max_upload_size_mb", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

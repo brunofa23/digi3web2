@@ -29,6 +29,7 @@ class CompanyValidator {
             licence_value: Validator_1.schema.number.nullableAndOptional(),
             due_date: Validator_1.schema.string.nullableAndOptional({}, [Validator_1.rules.maxLength(10)]),
             fin_entity_id: Validator_1.schema.number.nullableAndOptional(),
+            max_upload_size_mb: Validator_1.schema.number.nullableAndOptional(),
             situation_ids: Validator_1.schema.array.optional().members(Validator_1.schema.number([
                 Validator_1.rules.exists({ table: 'situation', column: 'id' }),
             ]))
