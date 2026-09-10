@@ -6,10 +6,16 @@ export default class extends BaseSchema {
 
   public async up () {
     if (!(await this.hasColumn('death_certificate_id'))) {
-      await this.schema.raw(`
-        ALTER TABLE ${this.tableName}
-        ADD COLUMN death_certificate_id INT UNSIGNED NULL AFTER born_certificate_id
-      `)
+      try {
+        await this.schema.raw(`
+          ALTER TABLE ${this.tableName}
+          ADD COLUMN death_certificate_id INT UNSIGNED NULL AFTER born_certificate_id
+        `)
+      } catch (error) {
+        const errorCode = (error as any)?.code
+        const errorNumber = (error as any)?.errno
+        if (errorCode !== 'ER_DUP_FIELDNAME' && errorNumber !== 1060) throw error
+      }
     }
 
     if (!(await this.hasForeignKey('fk_empver_x_cert_death'))) {
