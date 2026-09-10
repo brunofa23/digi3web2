@@ -217,6 +217,16 @@ async function getLocalFileMetadata(filePath) {
         height,
     };
 }
+async function getOriginalFileSha256(filePath) {
+    const hash = crypto_1.default.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+    await new Promise((resolve, reject) => {
+        stream.on('data', (chunk) => hash.update(chunk));
+        stream.on('end', () => resolve());
+        stream.on('error', reject);
+    });
+    return hash.digest('hex');
+}
 function normalizeImageOrigin(value) {
     const allowedOrigins = [
         'desktop_file_input',
@@ -228,8 +238,21 @@ function normalizeImageOrigin(value) {
     const origin = String(value || '').trim();
     return allowedOrigins.includes(origin) ? origin : 'unknown';
 }
-async function findDuplicateIndeximage(companiesId, typebooksId, bookrecordsId, driveFolderId, md5Checksum, fileSize) {
-    if (!companiesId || !typebooksId || !bookrecordsId || !driveFolderId || !md5Checksum || !fileSize)
+async function findDuplicateIndeximage(companiesId, typebooksId, bookrecordsId, driveFolderId, originalSha256, md5Checksum, fileSize) {
+    if (!companiesId || !typebooksId || !bookrecordsId || !driveFolderId)
+        return null;
+    if (originalSha256) {
+        const duplicateByOriginalHash = await Indeximage_1.default.query()
+            .where('companies_id', companiesId)
+            .andWhere('typebooks_id', typebooksId)
+            .andWhere('bookrecords_id', bookrecordsId)
+            .andWhere('drive_folder_id', driveFolderId)
+            .andWhere('original_sha256', originalSha256)
+            .first();
+        if (duplicateByOriginalHash)
+            return duplicateByOriginalHash;
+    }
+    if (!md5Checksum || !fileSize)
         return null;
     return Indeximage_1.default.query()
         .where('companies_id', companiesId)
@@ -552,11 +575,14 @@ async function processPendingRenameBatch(companiesId, typebooksId) {
 async function pushImageToGoogle(image, folderPath, objfileRename, idParent, cloud_number, capture = false) {
     try {
         let localFilePath = path_1.default.join(folderPath, objfileRename.file_name);
+        let originalSha256 = null;
         if (capture) {
             localFilePath = path_1.default.join(path_1.default.dirname(image), objfileRename.file_name);
             await fs_1.promises.rename(image, localFilePath);
+            originalSha256 = await getOriginalFileSha256(localFilePath);
         }
         else {
+            originalSha256 = await getOriginalFileSha256(image.tmpPath);
             const newPath = path_1.default.join(folderPath, objfileRename.file_name);
             await image.move(folderPath, { name: objfileRename.file_name, overwrite: true });
             if (image.subtype.toLowerCase() === 'pdf') {
@@ -565,7 +591,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
             }
         }
         const localMetadata = await getLocalFileMetadata(localFilePath);
-        const duplicateIndeximage = await findDuplicateIndeximage(objfileRename.companies_id, objfileRename.typebooks_id, objfileRename.bookrecords_id, idParent, localMetadata.md5Checksum, localMetadata.size);
+        const duplicateIndeximage = await findDuplicateIndeximage(objfileRename.companies_id, objfileRename.typebooks_id, objfileRename.bookrecords_id, idParent, originalSha256, localMetadata.md5Checksum, localMetadata.size);
         if (duplicateIndeximage) {
             await deleteImage(localFilePath);
             return {
@@ -576,6 +602,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
                 message: 'Arquivo já enviado anteriormente para esta pasta.',
                 drive_file_size: localMetadata.size,
                 drive_md5_checksum: localMetadata.md5Checksum,
+                original_sha256: originalSha256,
                 drive_folder_id: idParent,
                 image_origin: objfileRename.image_origin || 'unknown',
                 image_width: localMetadata.width,
@@ -608,6 +635,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
             objfileRename.drive_file_id = sendUpload.data?.id || null;
             objfileRename.drive_file_size = driveFileSize;
             objfileRename.drive_md5_checksum = driveMd5Checksum;
+            objfileRename.original_sha256 = originalSha256;
             objfileRename.drive_folder_id = driveFolderId;
             objfileRename.image_width = localMetadata.width;
             objfileRename.image_height = localMetadata.height;

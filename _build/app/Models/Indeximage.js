@@ -29,6 +29,7 @@ class Indeximage extends Orm_1.BaseModel {
             'drive_file_id',
             'drive_file_size',
             'drive_md5_checksum',
+            'original_sha256',
             'drive_folder_id',
             'image_origin',
             'image_width',
@@ -105,6 +106,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
 ], Indeximage.prototype, "drive_md5_checksum", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Indeximage.prototype, "original_sha256", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)

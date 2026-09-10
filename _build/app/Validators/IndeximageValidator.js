@@ -14,6 +14,7 @@ class IndeximageValidator {
             drive_file_id: Validator_1.schema.string.nullableAndOptional({ trim: true }),
             drive_file_size: Validator_1.schema.number.nullableAndOptional(),
             drive_md5_checksum: Validator_1.schema.string.nullableAndOptional({ trim: true }),
+            original_sha256: Validator_1.schema.string.nullableAndOptional({ trim: true }),
             drive_folder_id: Validator_1.schema.string.nullableAndOptional({ trim: true }),
             previous_file_name: Validator_1.schema.string.nullableAndOptional({ trim: true }),
             book: Validator_1.schema.number.nullableAndOptional(),

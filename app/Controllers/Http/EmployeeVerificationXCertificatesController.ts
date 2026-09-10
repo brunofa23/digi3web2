@@ -5,6 +5,7 @@ import EmployeeVerification from 'App/Models/EmployeeVerification'
 import EmployeeVerificationXCertificate from 'App/Models/EmployeeVerificationXCertificate'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
 import BornCertificate from 'App/Models/BornCertificate'
+import DeathCertificate from 'App/Models/DeathCertificate'
 import EmployeeVerificationXCertificateValidator from 'App/Validators/EmployeeVerificationXCertificateValidator'
 
 export default class EmployeeVerificationXCertificatesController {
@@ -12,7 +13,7 @@ export default class EmployeeVerificationXCertificatesController {
     const authenticate = await auth.use('api').authenticate()
     const companiesId = authenticate.companies_id
 
-    const { married_certificate_id, born_certificate_id, employee_verification_id } = request.qs()
+    const { married_certificate_id, born_certificate_id, death_certificate_id, employee_verification_id } = request.qs()
 
     const query = EmployeeVerificationXCertificate.query()
       .where('companiesId', companiesId)
@@ -25,6 +26,10 @@ export default class EmployeeVerificationXCertificatesController {
       query.where('bornCertificateId', Number(born_certificate_id))
     }
 
+    if (death_certificate_id) {
+      query.where('deathCertificateId', Number(death_certificate_id))
+    }
+
     if (employee_verification_id) {
       query.where('employeeVerificationId', Number(employee_verification_id))
     }
@@ -32,6 +37,7 @@ export default class EmployeeVerificationXCertificatesController {
     return query
       .preload('marriedCertificate')
       .preload('bornCertificate')
+      .preload('deathCertificate')
       .preload('employeeVerification')
       .preload('company')
       .preload('user')
@@ -49,28 +55,41 @@ export default class EmployeeVerificationXCertificatesController {
 
     const hasMarriedCertificate = payload.marriedCertificateId !== undefined
     const hasBornCertificate = payload.bornCertificateId !== undefined
+    const hasDeathCertificate = payload.deathCertificateId !== undefined
 
-    if (hasMarriedCertificate === hasBornCertificate) {
+    if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate].filter(Boolean).length !== 1) {
       return response.status(422).json({
-        message: 'Informe exatamente um certificado de casamento ou de nascimento',
+        message: 'Informe exatamente um certificado de casamento, nascimento ou óbito',
       })
     }
 
-    const certificate = hasMarriedCertificate
-      ? await MarriedCertificate.query()
+    let certificate: MarriedCertificate | BornCertificate | null = null
+    if (hasMarriedCertificate) {
+      certificate = await MarriedCertificate.query()
         .where('id', payload.marriedCertificateId)
         .where('companiesId', companiesId)
         .first()
-      : await BornCertificate.query()
+    } else if (hasBornCertificate) {
+      certificate = await BornCertificate.query()
         .where('id', payload.bornCertificateId)
         .where('companiesId', companiesId)
         .first()
+    }
 
-    if (!certificate) {
+    const deathCertificate = hasDeathCertificate
+      ? await DeathCertificate.query()
+        .where('id', payload.deathCertificateId)
+        .where('companiesId', companiesId)
+        .first()
+      : null
+
+    if (!certificate && !deathCertificate) {
       return response.status(422).json({
         message: hasMarriedCertificate
           ? 'O certificado de casamento informado não pertence a esta empresa'
-          : 'O certificado de nascimento informado não pertence a esta empresa',
+          : hasBornCertificate
+            ? 'O certificado de nascimento informado não pertence a esta empresa'
+            : 'O certificado de óbito informado não pertence a esta empresa',
       })
     }
 
@@ -93,8 +112,10 @@ export default class EmployeeVerificationXCertificatesController {
 
     if (hasMarriedCertificate) {
       alreadyExistsQuery.where('marriedCertificateId', payload.marriedCertificateId)
-    } else {
+    } else if (hasBornCertificate) {
       alreadyExistsQuery.where('bornCertificateId', payload.bornCertificateId)
+    } else {
+      alreadyExistsQuery.where('deathCertificateId', payload.deathCertificateId)
     }
 
     const alreadyExists = await alreadyExistsQuery.first()
@@ -108,6 +129,7 @@ export default class EmployeeVerificationXCertificatesController {
     const item = await EmployeeVerificationXCertificate.create({
       marriedCertificateId: payload.marriedCertificateId ?? null,
       bornCertificateId: payload.bornCertificateId ?? null,
+      deathCertificateId: payload.deathCertificateId ?? null,
       companiesId,
       employeeVerificationId: payload.employeeVerificationId,
       userId,
@@ -128,6 +150,7 @@ export default class EmployeeVerificationXCertificatesController {
       .where('companiesId', companiesId)
       .preload('marriedCertificate')
       .preload('bornCertificate')
+      .preload('deathCertificate')
       .preload('employeeVerification')
       .preload('company')
       .preload('user')
@@ -164,10 +187,11 @@ export default class EmployeeVerificationXCertificatesController {
 
     const hasMarriedCertificate = payload.marriedCertificateId !== undefined
     const hasBornCertificate = payload.bornCertificateId !== undefined
+    const hasDeathCertificate = payload.deathCertificateId !== undefined
 
-    if (hasMarriedCertificate && hasBornCertificate) {
+    if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate].filter(Boolean).length > 1) {
       return response.status(422).json({
-        message: 'Informe apenas um certificado de casamento ou de nascimento',
+        message: 'Informe apenas um certificado de casamento, nascimento ou óbito',
       })
     }
 
@@ -202,6 +226,7 @@ export default class EmployeeVerificationXCertificatesController {
 
       item.marriedCertificateId = payload.marriedCertificateId
       item.bornCertificateId = null
+      item.deathCertificateId = null
     }
 
     if (payload.bornCertificateId !== undefined) {
@@ -218,6 +243,24 @@ export default class EmployeeVerificationXCertificatesController {
 
       item.bornCertificateId = payload.bornCertificateId
       item.marriedCertificateId = null
+      item.deathCertificateId = null
+    }
+
+    if (payload.deathCertificateId !== undefined) {
+      const certificate = await DeathCertificate.query()
+        .where('id', payload.deathCertificateId)
+        .where('companiesId', companiesId)
+        .first()
+
+      if (!certificate) {
+        return response.status(422).json({
+          message: 'O certificado de óbito informado não pertence a esta empresa',
+        })
+      }
+
+      item.deathCertificateId = payload.deathCertificateId
+      item.marriedCertificateId = null
+      item.bornCertificateId = null
     }
     if (payload.status !== undefined) {
       item.status = payload.status

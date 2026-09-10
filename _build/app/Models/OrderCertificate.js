@@ -18,6 +18,7 @@ const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Comp
 const MarriedCertificate_1 = __importDefault(require("./MarriedCertificate"));
 const SecondcopyCertificate_1 = __importDefault(require("./SecondcopyCertificate"));
 const BornCertificate_1 = __importDefault(require("./BornCertificate"));
+const DeathCertificate_1 = __importDefault(require("./DeathCertificate"));
 const Book_1 = __importDefault(require("./Book"));
 const Receipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Receipt"));
 class OrderCertificate extends Orm_1.BaseModel {
@@ -102,6 +103,10 @@ __decorate([
     (0, Orm_1.belongsTo)(() => BornCertificate_1.default, { foreignKey: 'certificateId' }),
     __metadata("design:type", Object)
 ], OrderCertificate.prototype, "bornCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => DeathCertificate_1.default, { foreignKey: 'certificateId' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "deathCertificate", void 0);
 __decorate([
     (0, Orm_1.hasOne)(() => Receipt_1.default, { foreignKey: 'orderCertificateId' }),
     __metadata("design:type", Object)
