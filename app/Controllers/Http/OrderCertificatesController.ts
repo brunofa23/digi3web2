@@ -8,6 +8,7 @@ import OrderCertificate from 'App/Models/OrderCertificate'
 import Person from 'App/Models/Person'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
 import BornCertificate from 'App/Models/BornCertificate'
+import DeathCertificate from 'App/Models/DeathCertificate'
 import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
@@ -31,6 +32,14 @@ export default class OrderCertificatesController {
     if (v === null || v === undefined || v === '') return null
     const n = Number(v)
     return Number.isFinite(n) ? n : null
+  }
+
+  private toBoolean(v: any, defaultValue = false): boolean {
+    if (v === null || v === undefined || v === '') return defaultValue
+    if (typeof v === 'boolean') return v
+    if (typeof v === 'number') return v !== 0
+
+    return ['true', '1', 'on', 'yes', 'sim'].includes(String(v).trim().toLowerCase())
   }
 
   /**
@@ -474,6 +483,130 @@ export default class OrderCertificatesController {
     }
   }
 
+  // Salva o formulário de óbito (pessoas + death_certificates)
+  private async saveDeath(
+    deathData: any,
+    companiesId: number,
+    usrId: number | null,
+    trx: TransactionClientContract
+  ): Promise<number> {
+    try {
+      const deceasedUnknown = this.toBoolean(deathData.deceasedUnknown)
+      const deceasedData = deathData.deceased
+        ? {
+            ...deathData.deceased,
+            deceased: true,
+            dateBirth: deathData.deceased.dateBirth ?? deathData.birthDate ?? null,
+            dateDeath: deathData.deceased.dateDeath ?? deathData.deathDate ?? null,
+            maritalStatus: deathData.deceased.maritalStatus ?? deathData.maritalStatus ?? null,
+          }
+        : null
+
+      const deceased = await this.upsertPerson(deceasedData, companiesId, trx)
+      if (!deceased && !deceasedUnknown) {
+        throw new Error('Deceased (falecido) é obrigatório')
+      }
+
+      const filiation1 = await this.upsertPerson(deathData.filiation1, companiesId, trx)
+      const filiation2 = await this.upsertPerson(deathData.filiation2, companiesId, trx)
+      const declarant = await this.upsertPerson(deathData.declarant, companiesId, trx)
+
+      const deathCertificateId = this.toNumber(deathData.id)
+      let deathCertificate: DeathCertificate
+
+      if (deathCertificateId) {
+        deathCertificate = await DeathCertificate.findOrFail(deathCertificateId, { client: trx })
+      } else {
+        deathCertificate = new DeathCertificate()
+      }
+
+      deathCertificate.useTransaction(trx)
+      deathCertificate.merge({
+        companiesId,
+        usrId: usrId ?? null,
+        deceasedPersonId: deceased?.id ?? null,
+        filiation1PersonId: filiation1?.id ?? null,
+        filiation2PersonId: filiation2?.id ?? null,
+        declarantPersonId: declarant?.id ?? null,
+        statusId: this.toNumber(deathData.statusId),
+
+        deathDeclarationNumber: deathData.deathDeclarationNumber ?? '',
+        deathDeclarationNotFound: this.toBoolean(deathData.deathDeclarationNotFound),
+        deceasedUnknown,
+        naturalnessState: deathData.naturalnessState ?? '',
+        naturalnessCity: deathData.naturalnessCity ?? '',
+        birthDate: deathData.birthDate ? DateTime.fromISO(String(deathData.birthDate)) : null,
+        deathDate: deathData.deathDate ? DateTime.fromISO(String(deathData.deathDate)) : null,
+        deathDateUnknown: this.toBoolean(deathData.deathDateUnknown),
+        deathTime: deathData.deathTime ?? null,
+        deathTimeUnknown: this.toBoolean(deathData.deathTimeUnknown),
+        age: this.toNumber(deathData.age),
+        ageType: deathData.ageType ?? '',
+        stableUnion: this.toBoolean(deathData.stableUnion),
+        maritalStatus: deathData.maritalStatus ?? '',
+        race: deathData.race ?? '',
+        otherOccupation: this.toBoolean(deathData.otherOccupation),
+
+        formerSpouseName: deathData.formerSpouseName ?? '',
+        formerSpouseBookNumber: this.toNumber(deathData.formerSpouseBookNumber),
+        formerSpouseSheetNumber: this.toNumber(deathData.formerSpouseSheetNumber),
+        formerSpouseTermNumber: deathData.formerSpouseTermNumber ?? '',
+        formerSpouseRegistryOffice: deathData.formerSpouseRegistryOffice ?? '',
+
+        occurrenceFoundAlive: this.toBoolean(deathData.occurrenceFoundAlive),
+        occurrenceLocationType: deathData.occurrenceLocationType ?? '',
+        occurrenceZipCode: deathData.occurrenceZipCode ?? '',
+        occurrenceAddress: deathData.occurrenceAddress ?? '',
+        occurrenceStreetNumber: deathData.occurrenceStreetNumber ?? '',
+        occurrenceDistrict: deathData.occurrenceDistrict ?? '',
+        occurrenceCountry: deathData.occurrenceCountry ?? '',
+        occurrenceState: deathData.occurrenceState ?? '',
+        occurrenceCity: deathData.occurrenceCity ?? '',
+        occurrenceSubdistrict: deathData.occurrenceSubdistrict ?? '',
+        deceasedResidenceCountry: deathData.deceasedResidenceCountry ?? '',
+
+        burialStatus: deathData.burialStatus ?? '',
+        cremationManifestation: this.toBoolean(deathData.cremationManifestation),
+        burialWitnesses: deathData.burialWitnesses ?? '',
+        burialState: deathData.burialState ?? '',
+        burialCity: deathData.burialCity ?? '',
+        willBeCremated: this.toBoolean(deathData.willBeCremated),
+        burialPlace: deathData.burialPlace ?? '',
+        burialDoctor: deathData.burialDoctor ?? '',
+        burialDoctorCrm: deathData.burialDoctorCrm ?? '',
+        burialObservation: deathData.burialObservation ?? '',
+
+        filiation1NaturalnessIgnored: this.toBoolean(deathData.filiation1NaturalnessIgnored),
+        filiation1BirthState: deathData.filiation1BirthState ?? '',
+        filiation1BirthCity: deathData.filiation1BirthCity ?? '',
+        filiation1OtherOccupation: this.toBoolean(deathData.filiation1OtherOccupation),
+        filiation1ResidenceCountry: deathData.filiation1ResidenceCountry ?? '',
+        filiation2NaturalnessIgnored: this.toBoolean(deathData.filiation2NaturalnessIgnored),
+        filiation2BirthState: deathData.filiation2BirthState ?? '',
+        filiation2BirthCity: deathData.filiation2BirthCity ?? '',
+        filiation2OtherOccupation: this.toBoolean(deathData.filiation2OtherOccupation),
+        filiation2ResidenceCountry: deathData.filiation2ResidenceCountry ?? '',
+
+        declarantType: deathData.declarantType ?? '',
+        declarantOtherOccupation: this.toBoolean(deathData.declarantOtherOccupation),
+        declarantBirthState: deathData.declarantBirthState ?? '',
+        declarantBirthCity: deathData.declarantBirthCity ?? '',
+        declarantResidenceCountry: deathData.declarantResidenceCountry ?? '',
+        electronicAddress: deathData.electronicAddress ?? '',
+        phone: deathData.phone ?? '',
+        obs: deathData.obs ?? '',
+        inactive: this.toBoolean(deathData.inactive),
+        statusForm: deathData.statusForm ?? 'draft',
+      })
+
+      await deathCertificate.save()
+      return deathCertificate.id
+    } catch (error) {
+      console.error('ERRO AO SALVAR DEATH:', error)
+      throw error
+    }
+  }
+
   // =====================================================
   // Index / Show
   // =====================================================
@@ -579,6 +712,13 @@ export default class OrderCertificatesController {
       .preload('bornCertificate', (query) => {
         query.select('id', 'registeredPersonId', 'filiation1PersonId', 'filiation2PersonId', 'declarantPersonId', 'birthDate')
         query.preload('registered', (q) => q.select('name', 'cpf'))
+        query.preload('filiation1', (q) => q.select('name', 'cpf'))
+        query.preload('filiation2', (q) => q.select('name', 'cpf'))
+        query.preload('declarant', (q) => q.select('name', 'cpf'))
+      })
+      .preload('deathCertificate', (query) => {
+        query.select('id', 'deceasedPersonId', 'filiation1PersonId', 'filiation2PersonId', 'declarantPersonId', 'deathDate')
+        query.preload('deceased', (q) => q.select('name', 'cpf'))
         query.preload('filiation1', (q) => q.select('name', 'cpf'))
         query.preload('filiation2', (q) => q.select('name', 'cpf'))
         query.preload('declarant', (q) => q.select('name', 'cpf'))
@@ -781,6 +921,13 @@ export default class OrderCertificatesController {
               .where('companiesId', authenticate.companies_id)
           })
         })
+        q.orWhereHas('deathCertificate', (dc) => {
+          dc.whereHas('employeeVerificationXCertificates', (evxc) => {
+            evxc
+              .where('employeeVerificationId', employeeVerificationId)
+              .where('companiesId', authenticate.companies_id)
+          })
+        })
       })
     }
 
@@ -808,6 +955,22 @@ export default class OrderCertificatesController {
             })
             .orWhereHas('bride', (b) => {
               b.where('cpf', cpf)
+            })
+        })
+
+        q.orWhereHas('deathCertificate', (dc) => {
+          dc
+            .whereHas('deceased', (p) => {
+              p.where('cpf', cpf)
+            })
+            .orWhereHas('filiation1', (p) => {
+              p.where('cpf', cpf)
+            })
+            .orWhereHas('filiation2', (p) => {
+              p.where('cpf', cpf)
+            })
+            .orWhereHas('declarant', (p) => {
+              p.where('cpf', cpf)
             })
         })
 
@@ -878,6 +1041,22 @@ export default class OrderCertificatesController {
             })
         })
 
+        q.orWhereHas('deathCertificate', (dc) => {
+          dc
+            .whereHas('deceased', (p) => {
+              p.where('name', 'like', likeName)
+            })
+            .orWhereHas('filiation1', (p) => {
+              p.where('name', 'like', likeName)
+            })
+            .orWhereHas('filiation2', (p) => {
+              p.where('name', 'like', likeName)
+            })
+            .orWhereHas('declarant', (p) => {
+              p.where('name', 'like', likeName)
+            })
+        })
+
         // --- secondcopyCertificate: applicant / registered1 / registered2 ---
         q.orWhereHas('secondcopyCertificate', (sc) => {
           sc
@@ -905,6 +1084,9 @@ export default class OrderCertificatesController {
     const bornCertificateIds = orders
       .filter((order) => Number(order.bookId) === 3 && order.certificateId)
       .map((order) => order.certificateId)
+    const deathCertificateIds = orders
+      .filter((order) => Number(order.bookId) === 4 && order.certificateId)
+      .map((order) => order.certificateId)
     const receiptIds = orders
       .map((order) => (order as any).receipt?.id)
       .filter((id) => !!id)
@@ -913,6 +1095,7 @@ export default class OrderCertificatesController {
     const bornImageCounts = new Map<number, number>()
     const latestEmployeeVerificationByMarriedCertificate = new Map<number, any>()
     const latestEmployeeVerificationByBornCertificate = new Map<number, any>()
+    const latestEmployeeVerificationByDeathCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
 
     if (marriedCertificateIds.length) {
@@ -943,7 +1126,7 @@ export default class OrderCertificatesController {
       })
     }
 
-    if (marriedCertificateIds.length || bornCertificateIds.length) {
+    if (marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length) {
       const certificateVerificationsQuery = Database
         .from('employee_verification_x_certificates as evxc')
         .leftJoin('employee_verifications as ev', 'ev.id', 'evxc.employee_verification_id')
@@ -951,6 +1134,7 @@ export default class OrderCertificatesController {
           'evxc.id',
           'evxc.married_certificate_id',
           'evxc.born_certificate_id',
+          'evxc.death_certificate_id',
           'evxc.status',
           'evxc.date',
           'ev.description',
@@ -964,6 +1148,9 @@ export default class OrderCertificatesController {
         }
         if (bornCertificateIds.length) {
           q.orWhereIn('evxc.born_certificate_id', bornCertificateIds)
+        }
+        if (deathCertificateIds.length) {
+          q.orWhereIn('evxc.death_certificate_id', deathCertificateIds)
         }
       })
 
@@ -1000,6 +1187,17 @@ export default class OrderCertificatesController {
             bornCertificateId,
             this.getLatestEmployeeVerification(
               latestEmployeeVerificationByBornCertificate.get(bornCertificateId) ?? null,
+              candidate
+            )
+          )
+        }
+
+        if (row.death_certificate_id) {
+          const deathCertificateId = Number(row.death_certificate_id)
+          latestEmployeeVerificationByDeathCertificate.set(
+            deathCertificateId,
+            this.getLatestEmployeeVerification(
+              latestEmployeeVerificationByDeathCertificate.get(deathCertificateId) ?? null,
               candidate
             )
           )
@@ -1053,10 +1251,14 @@ export default class OrderCertificatesController {
       const bookId = Number(order.bookId)
       const imageCertificatesCount = bookId === 3
         ? bornImageCounts.get(Number(order.certificateId)) ?? 0
-        : marriedImageCounts.get(Number(order.certificateId)) ?? 0
+        : bookId === 2
+          ? marriedImageCounts.get(Number(order.certificateId)) ?? 0
+          : 0
       const certificateVerification = bookId === 3
         ? latestEmployeeVerificationByBornCertificate.get(Number(order.certificateId))
-        : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId))
+        : bookId === 4
+          ? latestEmployeeVerificationByDeathCertificate.get(Number(order.certificateId))
+          : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId))
       const receiptVerification = json.receipt?.id
         ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
         : null
@@ -1118,6 +1320,15 @@ export default class OrderCertificatesController {
     if (book_id == 3) {
       query.preload('bornCertificate', (q) => {
         q.preload('registered', (qq) => qq.select('*'))
+        q.preload('filiation1', (qq) => qq.select('*'))
+        q.preload('filiation2', (qq) => qq.select('*'))
+        q.preload('declarant', (qq) => qq.select('*'))
+      })
+    }
+
+    if (book_id == 4) {
+      query.preload('deathCertificate', (q) => {
+        q.preload('deceased', (qq) => qq.select('*'))
         q.preload('filiation1', (qq) => qq.select('*'))
         q.preload('filiation2', (qq) => qq.select('*'))
         q.preload('declarant', (qq) => qq.select('*'))
@@ -1211,6 +1422,31 @@ export default class OrderCertificatesController {
           })
 
           finalCertificateId = await this.saveBorn(parsedBorn, user.companies_id, user.id, trx)
+        }
+
+        // ÓBITO
+        if (bookId === 4 && body.deathCertificate) {
+          const parsedDeath = this.parseJsonFieldOrFail(response, body.deathCertificate, 'deathCertificate')
+          if (!parsedDeath) return null as any
+
+          const deceased = this.normalizeOptionalCpf(parsedDeath.deceased)
+          if (!parsedDeath.deceasedUnknown) {
+            await validator.validate({
+              schema: schema.create({
+                deceased: schema.object().members({
+                  name: schema.string({ trim: true }),
+                }),
+              }),
+              data: { deceased },
+              messages: {
+                'deceased.required': 'O falecido é obrigatório',
+                'deceased.name.required': 'Nome do falecido é obrigatório',
+              },
+            })
+          }
+
+          parsedDeath.deceased = deceased
+          finalCertificateId = await this.saveDeath(parsedDeath, user.companies_id, user.id, trx)
         }
 
         // ✅ 2ª VIA
@@ -1346,6 +1582,7 @@ export default class OrderCertificatesController {
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
       if (orderCertificate.bookId === 3) await orderCertificate.load('bornCertificate')
+      if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
 
       return response.created(orderCertificate)
@@ -1437,6 +1674,48 @@ export default class OrderCertificatesController {
 
           if (!orderCertificate.certificateId) {
             orderCertificate.certificateId = savedBornId
+            await orderCertificate.save()
+          }
+        }
+
+        // Atualiza ÓBITO
+        if (bookId === 4 && body.deathCertificate) {
+          const parsedDeath = this.parseJsonFieldOrFail(response, body.deathCertificate, 'deathCertificate')
+          if (!parsedDeath) return
+
+          const deceased = this.normalizeOptionalCpf(parsedDeath.deceased)
+          if (!parsedDeath.deceasedUnknown) {
+            await validator.validate({
+              schema: schema.create({
+                deceased: schema.object().members({
+                  name: schema.string({ trim: true }),
+                }),
+              }),
+              data: { deceased },
+              messages: {
+                'deceased.required': 'O falecido é obrigatório',
+                'deceased.name.required': 'Nome do falecido é obrigatório',
+              },
+            })
+          }
+
+          const deathCertificateId =
+            this.toNumber(body.certificateId ?? body.certificate_id) ??
+            orderCertificate.certificateId ??
+            this.toNumber(parsedDeath?.id)
+
+          if (!deathCertificateId) {
+            return response.badRequest({
+              message: 'Não foi possível determinar o ID da certidão (óbito). Envie certificateId ou garanta o vínculo no pedido.',
+            })
+          }
+
+          parsedDeath.id = deathCertificateId
+          parsedDeath.deceased = deceased
+          const savedDeathId = await this.saveDeath(parsedDeath, user.companies_id, user.id, trx)
+
+          if (!orderCertificate.certificateId) {
+            orderCertificate.certificateId = savedDeathId
             await orderCertificate.save()
           }
         }
@@ -1569,6 +1848,7 @@ export default class OrderCertificatesController {
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
       if (orderCertificate.bookId === 3) await orderCertificate.load('bornCertificate')
+      if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
 
       const check = await SecondcopyCertificate.find(orderCertificate.certificateId)

@@ -16,6 +16,10 @@ EmployeeVerificationXCertificateValidator.createSchema = Validator_1.schema.crea
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'born_certificates', column: 'id' }),
     ]),
+    deathCertificateId: Validator_1.schema.number.optional([
+        Validator_1.rules.unsigned(),
+        Validator_1.rules.exists({ table: 'death_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: Validator_1.schema.number([
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -36,6 +40,10 @@ EmployeeVerificationXCertificateValidator.updateSchema = Validator_1.schema.crea
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'born_certificates', column: 'id' }),
     ]),
+    deathCertificateId: Validator_1.schema.number.optional([
+        Validator_1.rules.unsigned(),
+        Validator_1.rules.exists({ table: 'death_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: Validator_1.schema.number.optional([
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -49,6 +57,7 @@ EmployeeVerificationXCertificateValidator.updateSchema = Validator_1.schema.crea
 });
 EmployeeVerificationXCertificateValidator.messages = {
     'bornCertificateId.exists': 'O certificado de nascimento informado não foi encontrado',
+    'deathCertificateId.exists': 'O certificado de óbito informado não foi encontrado',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
     'date.required': 'O campo date é obrigatório',
     'marriedCertificateId.exists': 'O certificado de casamento informado não foi encontrado',

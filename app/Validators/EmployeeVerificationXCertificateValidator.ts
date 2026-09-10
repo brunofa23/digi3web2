@@ -13,6 +13,10 @@ export default class EmployeeVerificationXCertificateValidator {
       rules.unsigned(),
       rules.exists({ table: 'born_certificates', column: 'id' }),
     ]),
+    deathCertificateId: schema.number.optional([
+      rules.unsigned(),
+      rules.exists({ table: 'death_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: schema.number([
       rules.unsigned(),
       rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -34,6 +38,10 @@ export default class EmployeeVerificationXCertificateValidator {
       rules.unsigned(),
       rules.exists({ table: 'born_certificates', column: 'id' }),
     ]),
+    deathCertificateId: schema.number.optional([
+      rules.unsigned(),
+      rules.exists({ table: 'death_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: schema.number.optional([
       rules.unsigned(),
       rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -48,6 +56,7 @@ export default class EmployeeVerificationXCertificateValidator {
 
   public static messages = {
     'bornCertificateId.exists': 'O certificado de nascimento informado não foi encontrado',
+    'deathCertificateId.exists': 'O certificado de óbito informado não foi encontrado',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
     'date.required': 'O campo date é obrigatório',
 

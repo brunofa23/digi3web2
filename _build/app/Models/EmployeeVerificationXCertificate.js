@@ -16,6 +16,7 @@ const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MarriedCertificate"));
 const BornCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BornCertificate"));
+const DeathCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DeathCertificate"));
 const EmployeeVerification_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerification"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
@@ -34,6 +35,10 @@ __decorate([
     (0, Orm_1.column)({ columnName: 'born_certificate_id' }),
     __metadata("design:type", Object)
 ], EmployeeVerificationXCertificate.prototype, "bornCertificateId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'death_certificate_id' }),
+    __metadata("design:type", Object)
+], EmployeeVerificationXCertificate.prototype, "deathCertificateId", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'companies_id' }),
     __metadata("design:type", Number)
@@ -74,6 +79,12 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], EmployeeVerificationXCertificate.prototype, "bornCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => DeathCertificate_1.default, {
+        foreignKey: 'deathCertificateId',
+    }),
+    __metadata("design:type", Object)
+], EmployeeVerificationXCertificate.prototype, "deathCertificate", void 0);
 __decorate([
     (0, Orm_1.belongsTo)(() => EmployeeVerification_1.default, {
         foreignKey: 'employeeVerificationId',
