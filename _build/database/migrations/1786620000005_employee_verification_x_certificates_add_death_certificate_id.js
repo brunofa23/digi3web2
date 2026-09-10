@@ -12,10 +12,18 @@ class default_1 extends Schema_1.default {
     }
     async up() {
         if (!(await this.hasColumn('death_certificate_id'))) {
-            await this.schema.raw(`
-        ALTER TABLE ${this.tableName}
-        ADD COLUMN death_certificate_id INT UNSIGNED NULL AFTER born_certificate_id
-      `);
+            try {
+                await this.schema.raw(`
+          ALTER TABLE ${this.tableName}
+          ADD COLUMN death_certificate_id INT UNSIGNED NULL AFTER born_certificate_id
+        `);
+            }
+            catch (error) {
+                const errorCode = error?.code;
+                const errorNumber = error?.errno;
+                if (errorCode !== 'ER_DUP_FIELDNAME' && errorNumber !== 1060)
+                    throw error;
+            }
         }
         if (!(await this.hasForeignKey('fk_empver_x_cert_death'))) {
             try {
