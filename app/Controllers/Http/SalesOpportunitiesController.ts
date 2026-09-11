@@ -14,6 +14,13 @@ export default class SalesOpportunitiesController {
   private async ensureActiveStage(stageId: number) {
     const stage = await SalesStage.query().where('id', stageId).first()
     if (!stage || !stage.active) throw new BadRequest('Etapa de vendas inválida ou inativa', 422, 'sales_stage_inactive')
+    return stage
+  }
+
+  private validateCompanyLink(companyId: number | null | undefined, stage: SalesStage) {
+    if (companyId && stage.final_result !== 'won') {
+      throw new BadRequest('A empresa só pode ser vinculada quando a oportunidade estiver fechada como ganha', 422, 'sales_company_link_stage')
+    }
   }
 
   public async stages({ auth, response }: HttpContextContract) {
@@ -62,14 +69,16 @@ export default class SalesOpportunitiesController {
   public async store({ auth, request, response }: HttpContextContract) {
     await this.authenticateSuperuser(auth)
     const body = await request.validate(SalesOpportunityValidator)
-    await this.ensureActiveStage(body.sales_stage_id)
+    const stage = await this.ensureActiveStage(body.sales_stage_id)
+    this.validateCompanyLink(body.company_id, stage)
     return response.created(await SalesOpportunity.create(body as any))
   }
 
   public async update({ auth, request, response }: HttpContextContract) {
     await this.authenticateSuperuser(auth)
     const body = await request.validate(SalesOpportunityValidator)
-    await this.ensureActiveStage(body.sales_stage_id)
+    const stage = await this.ensureActiveStage(body.sales_stage_id)
+    this.validateCompanyLink(body.company_id, stage)
     const opportunity = await SalesOpportunity.findOrFail(request.param('id'))
     opportunity.merge(body as any)
     await opportunity.save()

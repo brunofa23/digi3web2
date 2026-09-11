@@ -10,8 +10,8 @@ export default class SalesOpportunityValidator {
     phone: schema.string.optional({ trim: true }, [rules.maxLength(30)]),
     interest: schema.string.optional({ trim: true }, [rules.maxLength(255)]),
     notes: schema.string.optional(),
-    last_contact_date: schema.date.optional(),
-    next_contact_date: schema.date.optional(),
+    last_contact_date: schema.date.nullableAndOptional(),
+    next_contact_date: schema.date.nullableAndOptional(),
     proposal_value: schema.number.nullableAndOptional(),
   })
 }
