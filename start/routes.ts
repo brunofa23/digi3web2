@@ -30,6 +30,17 @@ Route.group(() => {
   Route.get("/companies/:companyId/attachments/:id/download", 'CompanyAttachmentsController.download')
   Route.delete("/companies/:companyId/attachments/:id", 'CompanyAttachmentsController.destroy')
 
+  // SALES CRM
+  Route.get('/sales-stages', 'SalesOpportunitiesController.stages')
+  Route.patch('/sales-stages/:id/active', 'SalesOpportunitiesController.updateStage')
+  Route.get('/sales-opportunities/funnel', 'SalesOpportunitiesController.funnel')
+  Route.get('/sales-opportunities/follow-ups', 'SalesOpportunitiesController.followUps')
+  Route.get('/sales-opportunities', 'SalesOpportunitiesController.index')
+  Route.get('/sales-opportunities/:id', 'SalesOpportunitiesController.show')
+  Route.post('/sales-opportunities', 'SalesOpportunitiesController.store')
+  Route.patch('/sales-opportunities/:id', 'SalesOpportunitiesController.update')
+  Route.delete('/sales-opportunities/:id', 'SalesOpportunitiesController.destroy')
+
   //SPEDY COMPANIES
   Route.get('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.showIntegration')
   Route.put('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.saveIntegration')
