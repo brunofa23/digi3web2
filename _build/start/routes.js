@@ -26,6 +26,15 @@ Route_1.default.group(() => {
     Route_1.default.post("/companies/:companyId/attachments", 'CompanyAttachmentsController.store');
     Route_1.default.get("/companies/:companyId/attachments/:id/download", 'CompanyAttachmentsController.download');
     Route_1.default.delete("/companies/:companyId/attachments/:id", 'CompanyAttachmentsController.destroy');
+    Route_1.default.get('/sales-stages', 'SalesOpportunitiesController.stages');
+    Route_1.default.patch('/sales-stages/:id/active', 'SalesOpportunitiesController.updateStage');
+    Route_1.default.get('/sales-opportunities/funnel', 'SalesOpportunitiesController.funnel');
+    Route_1.default.get('/sales-opportunities/follow-ups', 'SalesOpportunitiesController.followUps');
+    Route_1.default.get('/sales-opportunities', 'SalesOpportunitiesController.index');
+    Route_1.default.get('/sales-opportunities/:id', 'SalesOpportunitiesController.show');
+    Route_1.default.post('/sales-opportunities', 'SalesOpportunitiesController.store');
+    Route_1.default.patch('/sales-opportunities/:id', 'SalesOpportunitiesController.update');
+    Route_1.default.delete('/sales-opportunities/:id', 'SalesOpportunitiesController.destroy');
     Route_1.default.get('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.showIntegration');
     Route_1.default.put('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.saveIntegration');
     Route_1.default.post('/spedy/companies/local/:companyId/sync', 'Spedy/CompaniesController.syncIntegration');
