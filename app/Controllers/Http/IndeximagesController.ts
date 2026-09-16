@@ -782,9 +782,7 @@ export default class IndeximagesController {
     const dateNow = formatDate.formatDate(new Date)
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
 
-    fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
-      console.log('File created', { folderPath })
-    });
+    await fs.promises.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' })
 
     const file = await FileRename.transformFilesNameToId(
       `${folderPath}/${file_name}.jpeg`,
