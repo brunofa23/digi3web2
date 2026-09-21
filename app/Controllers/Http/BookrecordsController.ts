@@ -24,6 +24,7 @@ import {
   sendSearchFile,
 } from 'App/Services/googleDrive/googledrive'
 import AuditLogger from 'App/Services/Audit/AuditLogger'
+import DriveDeletionQueueService from 'App/Services/DriveDeletionQueueService'
 
 const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
@@ -223,6 +224,7 @@ export default class BookrecordsController {
       fin_entity_List,
       name,
       cpf,
+      id: recordId,
       indeximagefield
     } = request.qs()
     const filterNoAttachment = noAttachment || noattachment
@@ -232,6 +234,9 @@ export default class BookrecordsController {
     const nameField = name || request.input('name')
     const cpfField = cpf || request.input('cpf')
     const indexImageField = indeximagefield || request.input('indexImageField') || request.input('indeximagefield')
+    const parsedRecordId = recordId !== undefined && recordId !== null && recordId !== ''
+      ? Number(recordId)
+      : null
     const hasDocumentCustomFilter = this.documentCustomFields().some((field) => {
       const value = request.input(field)
       return value !== undefined && value !== null && value !== ''
@@ -245,7 +250,7 @@ export default class BookrecordsController {
 
     let query = " 1=1 "
     const showRecentRecords = !codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-      !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter && !codmax
+      !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !parsedRecordId && !hasDocumentFilter && !codmax
     //last pages of each book****************************
     if (onlyLastPagesOfEachBook) {
       query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `
@@ -354,6 +359,9 @@ export default class BookrecordsController {
         queryExecute.where('book', '>=', bookstart)
     if (bookend != undefined)
       queryExecute.where('book', '<=', bookend)
+
+    if (parsedRecordId !== null && Number.isInteger(parsedRecordId) && parsedRecordId > 0)
+      queryExecute.where('bookrecords.id', parsedRecordId)
 
     //BOOK FOR DOCUMENTS IN BOOKS
     if (book_number && document != 'true')
@@ -1034,24 +1042,45 @@ export default class BookrecordsController {
     const { companies_id } = authenticate
     const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages'])
     const book = Number(Book)
-    const startCode = Number(startCod)
-    const endCode = Number(endCod)
     const action = Number(deleteImages)
+    const hasBookEnd = Bookend !== undefined && Bookend !== null && Bookend !== ''
+    const hasStartCode = startCod !== undefined && startCod !== null && startCod !== ''
+    const hasEndCode = endCod !== undefined && endCod !== null && endCod !== ''
+    const bookEnd = hasBookEnd ? Number(Bookend) : null
+    const startCode = hasStartCode ? Number(startCod) : null
+    const endCode = hasEndCode ? Number(endCod) : null
 
     if (!Number.isInteger(Number(typebooks_id)) || Number(typebooks_id) <= 0 ||
       !Number.isInteger(book) || book <= 0 ||
-      Bookend !== undefined && Bookend !== null && Bookend !== '' ||
-      !Number.isInteger(startCode) || startCode <= 0 ||
-      !Number.isInteger(endCode) || endCode < startCode ||
       ![1, 2, 3].includes(action)) {
-      throw new BadRequest('Informe um livro, código inicial e código final válidos. Livro final não é permitido.', 422, 'bookrecord_batch_delete_invalid_filter')
+      throw new BadRequest('Informe uma modalidade e um livro válidos.', 422, 'bookrecord_batch_delete_invalid_filter')
     }
 
-    const records = await Bookrecord.query()
+    if (action === 1) {
+      if ((hasBookEnd && (!Number.isInteger(Number(bookEnd)) || Number(bookEnd) < book)) ||
+        (hasStartCode && (!Number.isInteger(Number(startCode)) || Number(startCode) <= 0)) ||
+        (hasEndCode && (!Number.isInteger(Number(endCode)) || Number(endCode) <= 0))) {
+        throw new BadRequest('Livro final e códigos informados devem ser válidos.', 422, 'bookrecord_batch_delete_invalid_filter')
+      }
+    } else if (hasBookEnd || !hasStartCode || !hasEndCode ||
+      !Number.isInteger(Number(startCode)) || Number(startCode) <= 0 ||
+      !Number.isInteger(Number(endCode)) || Number(endCode) < Number(startCode)) {
+      throw new BadRequest('Para excluir imagens, informe somente um livro e os códigos inicial e final.', 422, 'bookrecord_batch_delete_invalid_filter')
+    }
+
+    const recordsQuery = Bookrecord.query()
       .where('companies_id', companies_id)
       .where('typebooks_id', Number(typebooks_id))
-      .where('book', book)
-      .whereBetween('cod', [startCode, endCode])
+
+    if (action === 1 && bookEnd !== null) {
+      recordsQuery.where('book', '>=', book).where('book', '<=', bookEnd)
+    } else {
+      recordsQuery.where('book', book)
+    }
+    if (startCode !== null) recordsQuery.where('cod', '>=', startCode)
+    if (endCode !== null) recordsQuery.where('cod', '<=', endCode)
+
+    const records = await recordsQuery
 
     const recordIds = records.map((record) => record.id)
     const images = recordIds.length
@@ -1116,6 +1145,9 @@ export default class BookrecordsController {
         return id
       })
       batchId = batch
+      await DriveDeletionQueueService.processPending(1, batchId).catch((error) => {
+        console.error('Erro ao processar exclusão do Drive imediatamente; lote mantido para retry:', error)
+      })
     } else if (action === 3 && recordIds.length) {
       deletedBookrecords = normalizeDeleteCount(await Bookrecord.query()
         .where('companies_id', companies_id)
@@ -1129,10 +1161,10 @@ export default class BookrecordsController {
       userId: authenticate.id,
       action: 'bookrecord_batch_delete',
       entityTable: 'bookrecords',
-      resourceKey: `bookrecords:batch-delete:${typebooks_id}:${book}:${startCode}:${endCode}`,
-      entityKey: { typebooks_id: Number(typebooks_id), book, startCod: startCode, endCod: endCode },
-      description: `Usuário ${authenticate.name || authenticate.username} solicitou exclusão do livro ${book}, códigos ${startCode} a ${endCode}.`,
-      beforeData: { typebooks_id, Book: book, Bookend: null, startCod: startCode, endCod: endCode, deleteImages: action },
+      resourceKey: `bookrecords:batch-delete:${typebooks_id}:${book}:${bookEnd || 0}:${startCode || 0}:${endCode || 0}`,
+      entityKey: { typebooks_id: Number(typebooks_id), book, bookEnd, startCod: startCode, endCod: endCode },
+      description: `Usuário ${authenticate.name || authenticate.username} solicitou exclusão. Livro: ${book}${bookEnd !== null ? ` até ${bookEnd}` : ''}. Códigos: ${startCode || 'todos'} a ${endCode || 'todos'}.`,
+      beforeData: { typebooks_id, Book: book, Bookend: bookEnd, startCod: startCode, endCod: endCode, deleteImages: action },
       metadata: {
         deleteImages: action,
         queued_drive_deletion_batch: batchId,

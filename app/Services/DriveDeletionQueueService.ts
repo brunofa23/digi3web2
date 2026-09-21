@@ -7,22 +7,26 @@ import Indeximage from 'App/Models/Indeximage'
 import { sendDeleteFile } from 'App/Services/googleDrive/googledrive'
 
 export default class DriveDeletionQueueService {
-  public static async processPending(limit = 20) {
-    const staleBefore = DateTime.now().minus({ minutes: 30 }).toSQL()
+  public static async processPending(limit = 20, batchId: number | null = null) {
+    const now = DateTime.now()
+    const staleBefore = now.minus({ minutes: 30 }).toJSDate()
 
     await Database.from('drive_deletion_batches')
       .where('status', 'processing')
       .where('updated_at', '<', staleBefore)
-      .update({ status: 'pending', updated_at: DateTime.now().toJSDate() })
+      .update({ status: 'pending', updated_at: now.toJSDate() })
 
-    const batches = await DriveDeletionBatch.query()
+    const batchesQuery = DriveDeletionBatch.query()
       .whereIn('status', ['pending', 'processing', 'failed'])
       .where((query) => {
         query.where('status', '!=', 'failed')
           .orWhere((retryQuery) => retryQuery.where('status', 'failed').where('failed_items', '<', 5))
       })
       .orderBy('id', 'asc')
-      .limit(limit)
+
+    if (batchId !== null) batchesQuery.where('id', batchId)
+
+    const batches = await batchesQuery.limit(limit)
 
     const result = { batches: 0, processed: 0, failed: 0 }
 
