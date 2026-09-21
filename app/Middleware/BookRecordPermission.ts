@@ -4,7 +4,7 @@ import type { GuardsList } from '@ioc:Adonis/Addons/Auth'
 
 export default class BookRecordPermission {
   public async handle(
-    { auth, response }: HttpContextContract,
+    { auth, request, response }: HttpContextContract,
     next: () => Promise<void>,
     customGuards: (keyof GuardsList)[]
   ) {
@@ -45,6 +45,12 @@ export default class BookRecordPermission {
       }
 
       if (guard === 'destroyManyBookRecords' && verifyPermission(user.superuser, permissions, 20)) {
+        const deleteImages = Number(request.input('deleteImages'))
+        if ([2, 3].includes(deleteImages) && !verifyPermission(user.superuser, permissions, 46)) {
+          return response.unauthorized({
+            error: 'Você não tem permissão para excluir imagens do Google Drive.',
+          })
+        }
         allowed = true
         break
       }
