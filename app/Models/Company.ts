@@ -33,6 +33,7 @@ export default class Company extends BaseModel {
       'module_books',
       'module_financial',
       'module_lgpd',
+      'module_order_certificates',
       'obs',
       'licence_value',
       'due_date',
@@ -140,6 +141,9 @@ export default class Company extends BaseModel {
 
   @column()
   public module_lgpd: boolean
+
+  @column()
+  public module_order_certificates: boolean
 
   @column()
   public obs: string

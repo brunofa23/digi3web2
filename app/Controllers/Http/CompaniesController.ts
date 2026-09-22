@@ -200,6 +200,7 @@ export default class CompaniesController {
       module_books: body.module_books || false,
       module_financial: body.module_financial || false,
       module_lgpd: body.module_lgpd || false,
+      module_order_certificates: body.module_order_certificates || false,
       obs: body.obs || '',
       licence_value: body.licence_value || null,
       due_date: body.due_date || null,

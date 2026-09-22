@@ -137,7 +137,8 @@ export default class AuthenticationController {
           'responsablename',
           'status',
           'use_device_control',
-          'use_device_cookie_control'
+          'use_device_cookie_control',
+          'module_order_certificates'
         )
       })
       .preload('usergroup', query => {
@@ -537,8 +538,8 @@ export default class AuthenticationController {
       // 3. Verificar autorização (permGroup 30 ou superuser = 1)
       const hasPermission = await User
         .query()
-        .where('username', usernameAutorization)
-        .andWhere('companies_id', companies_id)
+        .where('users.username', usernameAutorization)
+        .andWhere('users.companies_id', companies_id)
         .join('groupxpermissions', 'users.usergroup_id', 'groupxpermissions.usergroup_id')
         .where(query => {
           query.where('groupxpermissions.permissiongroup_id', 30).orWhere('users.superuser', 1)

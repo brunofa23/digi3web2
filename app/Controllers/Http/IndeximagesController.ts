@@ -7,6 +7,7 @@ import Bookrecord from 'App/Models/Bookrecord'
 import Company from 'App/Models/Company'
 import Typebook from 'App/Models/Typebook'
 import Document from 'App/Models/Document'
+import OrderCertificate from 'App/Models/OrderCertificate'
 import ImageUploadJob from 'App/Models/ImageUploadJob'
 import Database from '@ioc:Adonis/Lucid/Database'
 import AuditLogger from 'App/Services/Audit/AuditLogger'
@@ -172,6 +173,30 @@ async function buildImageFromBase64Upload(payload: {
 
 
 export default class IndeximagesController {
+  private async validateOrderCertificateLink(
+    orderCertificateId: number | null | undefined,
+    companiesId: number,
+    client: any,
+    documentId?: number,
+  ) {
+    if (!orderCertificateId) return
+
+    const company = await Company.query({ client }).where('id', companiesId).firstOrFail()
+    const orderCertificate = await OrderCertificate.query({ client })
+      .where('id', orderCertificateId)
+      .andWhere('companies_id', companiesId)
+      .first()
+
+    if (!orderCertificate) throw new BadRequestException('Formulário não encontrado para a empresa logada', 422)
+    if (!company.module_order_certificates) throw new BadRequestException('A empresa não possui o módulo de formulários habilitado', 422)
+
+    const linkedDocument = await Document.query({ client })
+      .where('order_certificate_id', orderCertificateId)
+      .if(documentId, query => query.andWhereNot('id', documentId!))
+      .first()
+
+    if (linkedDocument) throw new BadRequestException('Este formulário já está vinculado a outro documento', 422)
+  }
   private imageDeviceCookieName = 'digi3_image_device_token'
 
   private hashImageDeviceCookie(token: string) {
@@ -597,11 +622,14 @@ export default class IndeximagesController {
               .andWhere('companies_id', authenticate.companies_id)
               .first()
 
+            const normalizeIntOrNull = (value: any) => {
+              if (value === undefined || value === null || value === '') return null
+              return Number(value)
+            }
+
             if (!document) {
-              const normalizeIntOrNull = (value: any) => {
-                if (value === undefined || value === null || value === '') return null
-                return Number(value)
-              }
+              const orderCertificateId = normalizeIntOrNull(dataImages.order_certificate_id)
+              await this.validateOrderCertificateLink(orderCertificateId, authenticate.companies_id, trx)
 
               await Document.create(
                 {
@@ -609,7 +637,7 @@ export default class IndeximagesController {
                   books_id: 13,
                   typebooks_id: params.typebooks_id,
                   companies_id: authenticate.companies_id,
-                  prot: dataImages.prot,
+                  prot: normalizeIntOrNull(dataImages.prot),
                   documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
                   document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
                   book_name: dataImages.book_name,
@@ -618,9 +646,16 @@ export default class IndeximagesController {
                   free: dataImages.free ? 1 : 0,
                   averb_anot: dataImages.averb_anot ? 1 : 0,
                   obs: dataImages.obs,
+                  order_certificate_id: orderCertificateId,
                 },
                 { client: trx }
               )
+            } else if (dataImages.order_certificate_id !== undefined) {
+              const orderCertificateId = normalizeIntOrNull(dataImages.order_certificate_id)
+              await this.validateOrderCertificateLink(orderCertificateId, authenticate.companies_id, trx, document.id)
+              document.order_certificate_id = orderCertificateId
+              document.useTransaction(trx)
+              await document.save()
             }
 
             const documentAfterSave = await Document.query({ client: trx })
@@ -660,13 +695,16 @@ export default class IndeximagesController {
             }
 
 
+            const orderCertificateId = normalizeIntOrNull(dataImages.order_certificate_id)
+            await this.validateOrderCertificateLink(orderCertificateId, authenticate.companies_id, trx)
+
             await Document.create(
               {
                 bookrecords_id: bookRecord.id,
                 books_id: 13,
                 typebooks_id: params.typebooks_id,
                 companies_id: authenticate.companies_id,
-                prot: dataImages.prot,
+                prot: normalizeIntOrNull(dataImages.prot),
                 documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
                 document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
                 book_name: dataImages.book_name,
@@ -675,6 +713,7 @@ export default class IndeximagesController {
                 free: dataImages.free ? 1 : 0,
                 averb_anot: dataImages.averb_anot ? 1 : 0,
                 obs: dataImages.obs,
+                order_certificate_id: orderCertificateId,
               },
               { client: trx }
             )

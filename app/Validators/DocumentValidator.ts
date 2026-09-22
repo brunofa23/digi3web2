@@ -14,6 +14,7 @@ export default class DocumentValidator {
     documenttype_id: schema.number.optional(),
     document_type_book_id: schema.number.optional(),
     fin_entities_id:schema.number.optional(),
+    order_certificate_id: schema.number.nullableAndOptional(),
     intfield1: schema.number.nullableAndOptional(),
     stringfield1: schema.string.nullableAndOptional(),
     datefield1: schema.date.nullableAndOptional(),
