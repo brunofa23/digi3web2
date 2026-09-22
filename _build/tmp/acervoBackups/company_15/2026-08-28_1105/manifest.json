@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "scope": "acervo",
+  "generated_at": "2026-08-28T11:05:07.992-03:00",
+  "snapshot": "2026-08-28_1105",
+  "company": {
+    "id": 15,
+    "name": "RG CIVIL E NOTAS ITAU",
+    "foldername": "Client_15",
+    "cloud": 1
+  },
+  "retention_days": 30,
+  "tables_included": [
+    "typebooks",
+    "bookrecords",
+    "indeximages",
+    "documents",
+    "document_configs",
+    "indeximage_ocr_checks",
+    "indeximage_ocr_entities"
+  ],
+  "typebooks": []
+}

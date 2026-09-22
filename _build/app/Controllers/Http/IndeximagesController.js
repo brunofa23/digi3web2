@@ -11,6 +11,7 @@ const Bookrecord_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/B
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
+const OrderCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/OrderCertificate"));
 const ImageUploadJob_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/ImageUploadJob"));
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Audit/AuditLogger"));
@@ -147,6 +148,25 @@ async function buildImageFromBase64Upload(payload) {
 class IndeximagesController {
     constructor() {
         this.imageDeviceCookieName = 'digi3_image_device_token';
+    }
+    async validateOrderCertificateLink(orderCertificateId, companiesId, client, documentId) {
+        if (!orderCertificateId)
+            return;
+        const company = await Company_1.default.query({ client }).where('id', companiesId).firstOrFail();
+        const orderCertificate = await OrderCertificate_1.default.query({ client })
+            .where('id', orderCertificateId)
+            .andWhere('companies_id', companiesId)
+            .first();
+        if (!orderCertificate)
+            throw new BadRequestException_1.default('Formulário não encontrado para a empresa logada', 422);
+        if (!company.module_order_certificates)
+            throw new BadRequestException_1.default('A empresa não possui o módulo de formulários habilitado', 422);
+        const linkedDocument = await Document_1.default.query({ client })
+            .where('order_certificate_id', orderCertificateId)
+            .if(documentId, query => query.andWhereNot('id', documentId))
+            .first();
+        if (linkedDocument)
+            throw new BadRequestException_1.default('Este formulário já está vinculado a outro documento', 422);
     }
     hashImageDeviceCookie(token) {
         return crypto_1.default.createHash('sha256').update(token).digest('hex');
@@ -475,18 +495,20 @@ class IndeximagesController {
                                 .andWhere('typebooks_id', params.typebooks_id)
                                 .andWhere('companies_id', authenticate.companies_id)
                                 .first();
+                            const normalizeIntOrNull = (value) => {
+                                if (value === undefined || value === null || value === '')
+                                    return null;
+                                return Number(value);
+                            };
                             if (!document) {
-                                const normalizeIntOrNull = (value) => {
-                                    if (value === undefined || value === null || value === '')
-                                        return null;
-                                    return Number(value);
-                                };
+                                const orderCertificateId = normalizeIntOrNull(dataImages.order_certificate_id);
+                                await this.validateOrderCertificateLink(orderCertificateId, authenticate.companies_id, trx);
                                 await Document_1.default.create({
                                     bookrecords_id: verifyExistBookrecord.id,
                                     books_id: 13,
                                     typebooks_id: params.typebooks_id,
                                     companies_id: authenticate.companies_id,
-                                    prot: dataImages.prot,
+                                    prot: normalizeIntOrNull(dataImages.prot),
                                     documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
                                     document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
                                     book_name: dataImages.book_name,
@@ -495,7 +517,15 @@ class IndeximagesController {
                                     free: dataImages.free ? 1 : 0,
                                     averb_anot: dataImages.averb_anot ? 1 : 0,
                                     obs: dataImages.obs,
+                                    order_certificate_id: orderCertificateId,
                                 }, { client: trx });
+                            }
+                            else if (dataImages.order_certificate_id !== undefined) {
+                                const orderCertificateId = normalizeIntOrNull(dataImages.order_certificate_id);
+                                await this.validateOrderCertificateLink(orderCertificateId, authenticate.companies_id, trx, document.id);
+                                document.order_certificate_id = orderCertificateId;
+                                document.useTransaction(trx);
+                                await document.save();
                             }
                             const documentAfterSave = await Document_1.default.query({ client: trx })
                                 .where('bookrecords_id', verifyExistBookrecord.id)
@@ -529,12 +559,14 @@ class IndeximagesController {
                                     return null;
                                 return Number(value);
                             };
+                            const orderCertificateId = normalizeIntOrNull(dataImages.order_certificate_id);
+                            await this.validateOrderCertificateLink(orderCertificateId, authenticate.companies_id, trx);
                             await Document_1.default.create({
                                 bookrecords_id: bookRecord.id,
                                 books_id: 13,
                                 typebooks_id: params.typebooks_id,
                                 companies_id: authenticate.companies_id,
-                                prot: dataImages.prot,
+                                prot: normalizeIntOrNull(dataImages.prot),
                                 documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
                                 document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
                                 book_name: dataImages.book_name,
@@ -543,6 +575,7 @@ class IndeximagesController {
                                 free: dataImages.free ? 1 : 0,
                                 averb_anot: dataImages.averb_anot ? 1 : 0,
                                 obs: dataImages.obs,
+                                order_certificate_id: orderCertificateId,
                             }, { client: trx });
                             const documentAfterSave = await Document_1.default.query({ client: trx })
                                 .where('bookrecords_id', bookRecord.id)

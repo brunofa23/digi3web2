@@ -12,6 +12,8 @@ const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const BadRequestException_2 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typebook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
+const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
+const OrderCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/OrderCertificate"));
 const IndeximageOcrEntity_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/IndeximageOcrEntity"));
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const BookrecordValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/BookrecordValidator"));
@@ -23,6 +25,29 @@ const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Service
 const DriveDeletionQueueService_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/DriveDeletionQueueService"));
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
+    async validateOrderCertificateLink(orderCertificateId, companiesId, documentId) {
+        if (!orderCertificateId)
+            return null;
+        const company = await Company_1.default.findOrFail(companiesId);
+        const orderCertificate = await OrderCertificate_1.default.query()
+            .where('id', orderCertificateId)
+            .andWhere('companies_id', companiesId)
+            .first();
+        if (!orderCertificate) {
+            throw new BadRequestException_1.default('Formulário não encontrado para a empresa logada', 422);
+        }
+        if (!company.module_order_certificates) {
+            throw new BadRequestException_1.default('A empresa não possui o módulo de formulários habilitado', 422);
+        }
+        const alreadyLinked = await Document_1.default.query()
+            .where('order_certificate_id', orderCertificateId)
+            .if(documentId, (query) => query.andWhereNot('id', documentId))
+            .first();
+        if (alreadyLinked) {
+            throw new BadRequestException_1.default('Este formulário já está vinculado a outro documento', 422);
+        }
+        return orderCertificate;
+    }
     documentCustomFields() {
         const fields = [];
         for (let number = 1; number <= 13; number++) {
@@ -202,6 +227,22 @@ class BookrecordsController {
                 })
                     .preload('entity', query => {
                     query.select('description');
+                })
+                    .preload('orderCertificate', query => {
+                    query.preload('book', bookQuery => bookQuery.select('id', 'name'));
+                    query.preload('marriedCertificate', certificateQuery => {
+                        certificateQuery.preload('groom', personQuery => personQuery.select('id', 'name', 'cpf'));
+                        certificateQuery.preload('bride', personQuery => personQuery.select('id', 'name', 'cpf'));
+                    });
+                    query.preload('bornCertificate', certificateQuery => {
+                        certificateQuery.preload('registered', personQuery => personQuery.select('id', 'name', 'cpf'));
+                    });
+                    query.preload('deathCertificate', certificateQuery => {
+                        certificateQuery.preload('deceased', personQuery => personQuery.select('id', 'name', 'cpf'));
+                    });
+                    query.preload('secondcopyCertificate', certificateQuery => {
+                        certificateQuery.preload('applicantPerson', personQuery => personQuery.select('id', 'name', 'cpf'));
+                    });
                 });
             })
                 .whereNotExists((subquery) => {
@@ -243,6 +284,22 @@ class BookrecordsController {
                 })
                     .preload('entity', query => {
                     query.select('description');
+                })
+                    .preload('orderCertificate', query => {
+                    query.preload('book', bookQuery => bookQuery.select('id', 'name'));
+                    query.preload('marriedCertificate', certificateQuery => {
+                        certificateQuery.preload('groom', personQuery => personQuery.select('id', 'name', 'cpf'));
+                        certificateQuery.preload('bride', personQuery => personQuery.select('id', 'name', 'cpf'));
+                    });
+                    query.preload('bornCertificate', certificateQuery => {
+                        certificateQuery.preload('registered', personQuery => personQuery.select('id', 'name', 'cpf'));
+                    });
+                    query.preload('deathCertificate', certificateQuery => {
+                        certificateQuery.preload('deceased', personQuery => personQuery.select('id', 'name', 'cpf'));
+                    });
+                    query.preload('secondcopyCertificate', certificateQuery => {
+                        certificateQuery.preload('applicantPerson', personQuery => personQuery.select('id', 'name', 'cpf'));
+                    });
                 });
             });
             if (params.typebooks_id == 0)
@@ -596,6 +653,7 @@ class BookrecordsController {
                 cleanDocument.typebooks_id = bookrecord.typebooks_id;
                 cleanDocument.books_id = bookrecord.books_id;
                 cleanDocument.companies_id = bookrecord.companies_id;
+                await this.validateOrderCertificateLink(cleanDocument.order_certificate_id, authenticate.companies_id);
                 createdDocument = await Document_1.default.create(cleanDocument);
                 await AuditLogger_1.default.created(ctx, {
                     companiesId: authenticate.companies_id,
@@ -618,7 +676,8 @@ class BookrecordsController {
                     .preload('document', (documentQuery) => {
                     documentQuery
                         .preload('documenttype')
-                        .preload('documenttypebook');
+                        .preload('documenttypebook')
+                        .preload('orderCertificate', (orderQuery) => orderQuery.preload('book'));
                 });
             });
             await fileRename.updateFileName(bookrecord);
@@ -679,6 +738,7 @@ class BookrecordsController {
                     const cleanDocument = { ...document };
                     delete cleanDocument.documenttype;
                     delete cleanDocument.documenttypebook;
+                    await this.validateOrderCertificateLink(cleanDocument.order_certificate_id, authenticate.companies_id, doc.id);
                     doc.merge(cleanDocument);
                     await doc.save();
                     updatedDocument = doc;
@@ -705,7 +765,8 @@ class BookrecordsController {
                     .preload('document', (documentQuery) => {
                     documentQuery
                         .preload('documenttype')
-                        .preload('documenttypebook');
+                        .preload('documenttypebook')
+                        .preload('orderCertificate', (orderQuery) => orderQuery.preload('book'));
                 });
             });
             await fileRename.updateFileName(bookrecord);

@@ -16,10 +16,12 @@ const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Company_1 = __importDefault(require("./Company"));
 const SalesStage_1 = __importDefault(require("./SalesStage"));
+const SalesOpportunityActivity_1 = __importDefault(require("./SalesOpportunityActivity"));
+const User_1 = __importDefault(require("./User"));
 class SalesOpportunity extends Orm_1.BaseModel {
 }
 SalesOpportunity.table = 'sales_opportunities';
-SalesOpportunity.fillable = ['company_id', 'sales_stage_id', 'name', 'city', 'contact_name', 'phone', 'interest', 'notes', 'last_contact_date', 'next_contact_date', 'proposal_value'];
+SalesOpportunity.fillable = ['companies_id', 'company_id', 'sales_stage_id', 'name', 'city', 'state', 'contact_name', 'phone', 'email', 'whatsapp', 'source', 'interest', 'notes', 'last_contact_date', 'next_contact_date', 'next_action', 'assigned_user_id', 'proposal_value'];
 __decorate([
     (0, Orm_1.belongsTo)(() => Company_1.default, { foreignKey: 'company_id' }),
     __metadata("design:type", Object)
@@ -29,9 +31,21 @@ __decorate([
     __metadata("design:type", Object)
 ], SalesOpportunity.prototype, "stage", void 0);
 __decorate([
+    (0, Orm_1.belongsTo)(() => User_1.default, { foreignKey: 'assigned_user_id' }),
+    __metadata("design:type", Object)
+], SalesOpportunity.prototype, "assignedUser", void 0);
+__decorate([
+    (0, Orm_1.hasMany)(() => SalesOpportunityActivity_1.default, { foreignKey: 'sales_opportunity_id' }),
+    __metadata("design:type", Object)
+], SalesOpportunity.prototype, "activities", void 0);
+__decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
 ], SalesOpportunity.prototype, "id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], SalesOpportunity.prototype, "companies_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
@@ -51,11 +65,27 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
+], SalesOpportunity.prototype, "state", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
 ], SalesOpportunity.prototype, "contact_name", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
 ], SalesOpportunity.prototype, "phone", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], SalesOpportunity.prototype, "email", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], SalesOpportunity.prototype, "whatsapp", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], SalesOpportunity.prototype, "source", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
@@ -72,6 +102,14 @@ __decorate([
     Orm_1.column.date(),
     __metadata("design:type", Object)
 ], SalesOpportunity.prototype, "next_contact_date", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], SalesOpportunity.prototype, "next_action", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], SalesOpportunity.prototype, "assigned_user_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
