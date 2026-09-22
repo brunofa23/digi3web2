@@ -20,6 +20,7 @@ const googleVision_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/googleVis
 const indexImageOcrConference_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/indexImageOcrConference");
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Audit/AuditLogger"));
+const DriveDeletionQueueService_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/DriveDeletionQueueService"));
 const fileRename = require('../../Services/fileRename/fileRename');
 class BookrecordsController {
     documentCustomFields() {
@@ -154,7 +155,7 @@ class BookrecordsController {
     }
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
-        const { codstart, codend, bookstart, bookend, approximateterm, approximatetermend, indexbook, indexbookend, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, noattachment, lastPagesOfEachBook, lastpagesofeachbook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List, name, cpf, indeximagefield } = request.qs();
+        const { codstart, codend, bookstart, bookend, approximateterm, approximatetermend, indexbook, indexbookend, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, noattachment, lastPagesOfEachBook, lastpagesofeachbook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List, name, cpf, id: recordId, indeximagefield } = request.qs();
         const filterNoAttachment = noAttachment || noattachment;
         const filterLastPagesOfEachBook = lastPagesOfEachBook || lastpagesofeachbook;
         const onlyNoAttachment = filterNoAttachment === true || filterNoAttachment == 'true';
@@ -162,6 +163,9 @@ class BookrecordsController {
         const nameField = name || request.input('name');
         const cpfField = cpf || request.input('cpf');
         const indexImageField = indeximagefield || request.input('indexImageField') || request.input('indeximagefield');
+        const parsedRecordId = recordId !== undefined && recordId !== null && recordId !== ''
+            ? Number(recordId)
+            : null;
         const hasDocumentCustomFilter = this.documentCustomFields().some((field) => {
             const value = request.input(field);
             return value !== undefined && value !== null && value !== '';
@@ -172,7 +176,7 @@ class BookrecordsController {
             !!yeardoc || !!obs_document || !!fin_entity_List || hasDocumentCustomFilter);
         let query = " 1=1 ";
         const showRecentRecords = !codstart && !codend && !approximateterm && !year && !indexbook && !letter && !bookstart && !bookend && !sheetstart && !sheetend && !side && (!sheetzero || sheetzero == 'false') &&
-            !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !hasDocumentFilter && !codmax;
+            !onlyLastPagesOfEachBook && !onlyNoAttachment && !obs && !nameField && !cpfField && !indexImageField && !parsedRecordId && !hasDocumentFilter && !codmax;
         if (onlyLastPagesOfEachBook) {
             query += ` and sheet in (select max(sheet) from bookrecords bookrecords1 where (bookrecords1.book = bookrecords.book) and (bookrecords1.typebooks_id=bookrecords.typebooks_id)) `;
         }
@@ -263,6 +267,8 @@ class BookrecordsController {
             queryExecute.where('book', '>=', bookstart);
         if (bookend != undefined)
             queryExecute.where('book', '<=', bookend);
+        if (parsedRecordId !== null && Number.isInteger(parsedRecordId) && parsedRecordId > 0)
+            queryExecute.where('bookrecords.id', parsedRecordId);
         if (book_number && document != 'true')
             queryExecute.where('book', book_number);
         const includeNullSheetFromZero = sheetstart !== undefined && Number(sheetstart) === 0;
@@ -765,133 +771,142 @@ class BookrecordsController {
         const authenticate = await auth.use('api').authenticate();
         const { companies_id } = authenticate;
         const { typebooks_id, Book, Bookend, startCod, endCod, deleteImages } = request.only(['typebooks_id', 'Book', 'Bookend', 'startCod', 'endCod', 'deleteImages']);
-        async function deleteIndexImages(query) {
-            try {
-                const deleteData = await Database_1.default
-                    .from('indeximages')
-                    .where('indeximages.typebooks_id', typebooks_id)
-                    .andWhere('indeximages.companies_id', companies_id)
-                    .whereIn('indeximages.bookrecords_id', Database_1.default.from('bookrecords')
-                    .select('id')
-                    .where('typebooks_id', typebooks_id)
-                    .andWhere('companies_id', companies_id)
-                    .whereRaw(query))
-                    .delete();
-                return deleteData;
-            }
-            catch (error) {
-                throw error;
+        const book = Number(Book);
+        const action = Number(deleteImages);
+        const hasBookEnd = Bookend !== undefined && Bookend !== null && Bookend !== '';
+        const hasStartCode = startCod !== undefined && startCod !== null && startCod !== '';
+        const hasEndCode = endCod !== undefined && endCod !== null && endCod !== '';
+        const bookEnd = hasBookEnd ? Number(Bookend) : null;
+        const startCode = hasStartCode ? Number(startCod) : null;
+        const endCode = hasEndCode ? Number(endCod) : null;
+        if (!Number.isInteger(Number(typebooks_id)) || Number(typebooks_id) <= 0 ||
+            !Number.isInteger(book) || book <= 0 ||
+            ![1, 2, 3].includes(action)) {
+            throw new BadRequestException_2.default('Informe uma modalidade e um livro válidos.', 422, 'bookrecord_batch_delete_invalid_filter');
+        }
+        if (action === 1) {
+            if ((hasBookEnd && (!Number.isInteger(Number(bookEnd)) || Number(bookEnd) < book)) ||
+                (hasStartCode && (!Number.isInteger(Number(startCode)) || Number(startCode) <= 0)) ||
+                (hasEndCode && (!Number.isInteger(Number(endCode)) || Number(endCode) <= 0))) {
+                throw new BadRequestException_2.default('Livro final e códigos informados devem ser válidos.', 422, 'bookrecord_batch_delete_invalid_filter');
             }
         }
-        async function deleteBookrecord(query) {
-            try {
-                const data = await Bookrecord_1.default
-                    .query()
-                    .where('typebooks_id', typebooks_id)
-                    .andWhere('companies_id', companies_id)
-                    .whereRaw(query)
-                    .delete();
-                return data;
-            }
-            catch (error) {
-                throw error;
-            }
+        else if (hasBookEnd || !hasStartCode || !hasEndCode ||
+            !Number.isInteger(Number(startCode)) || Number(startCode) <= 0 ||
+            !Number.isInteger(Number(endCode)) || Number(endCode) < Number(startCode)) {
+            throw new BadRequestException_2.default('Para excluir imagens, informe somente um livro e os códigos inicial e final.', 422, 'bookrecord_batch_delete_invalid_filter');
         }
-        async function deleteImagesGoogle(query) {
-            try {
-                const listOfImagesToDeleteGDrive = await Indeximage_1.default
-                    .query()
-                    .preload('typebooks', (query) => {
-                    query.where('id', typebooks_id)
-                        .andWhere('companies_id', companies_id);
-                })
-                    .whereIn("bookrecords_id", Database_1.default.from('bookrecords')
-                    .select('id')
-                    .where('typebooks_id', '=', typebooks_id)
-                    .andWhere('companies_id', '=', companies_id)
-                    .whereRaw(query));
-                if (listOfImagesToDeleteGDrive.length > 0) {
-                    var file_name = listOfImagesToDeleteGDrive.map(function (item) {
-                        return { file_name: item.file_name, path: item.typebooks.path };
-                    });
-                    fileRename.deleteFile(file_name);
-                }
-            }
-            catch (error) {
-                throw error;
-            }
+        const recordsQuery = Bookrecord_1.default.query()
+            .where('companies_id', companies_id)
+            .where('typebooks_id', Number(typebooks_id));
+        if (action === 1 && bookEnd !== null) {
+            recordsQuery.where('book', '>=', book).where('book', '<=', bookEnd);
         }
-        function normalizeDeleteCount(value) {
-            if (Array.isArray(value))
-                return Number(value[0] || 0);
-            return Number(value || 0);
+        else {
+            recordsQuery.where('book', book);
         }
-        let query = '1 = 1';
-        if (Book == undefined)
-            return null;
-        if (typebooks_id != undefined) {
-            if (Book != undefined && (Bookend > 0 && Bookend !== undefined)) {
-                query += ` and book >=${Book} and book <=${Bookend}`;
-            }
-            else if (Book != undefined) {
-                query += ` and book=${Book} `;
-            }
-            if (startCod > 0 && (endCod == undefined || endCod == 0))
-                query += ` and cod=${startCod} `;
-            else if (startCod != undefined && endCod != undefined && startCod > 0 && endCod > 0)
-                query += ` and cod>=${startCod} and cod <=${endCod} `;
-            try {
-                let deletedIndexImages = 0;
-                let deletedBookrecords = 0;
-                if (deleteImages == 1) {
-                    deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query));
-                    deletedBookrecords = normalizeDeleteCount(await deleteBookrecord(query));
+        if (startCode !== null)
+            recordsQuery.where('cod', '>=', startCode);
+        if (endCode !== null)
+            recordsQuery.where('cod', '<=', endCode);
+        const records = await recordsQuery;
+        const recordIds = records.map((record) => record.id);
+        const images = recordIds.length
+            ? await Indeximage_1.default.query()
+                .where('companies_id', companies_id)
+                .where('typebooks_id', Number(typebooks_id))
+                .whereIn('bookrecords_id', recordIds)
+            : [];
+        let deletedBookrecords = 0;
+        let deletedIndexImages = 0;
+        let batchId = null;
+        const normalizeDeleteCount = (value) => Array.isArray(value) ? Number(value[0] || 0) : Number(value || 0);
+        if (action === 1) {
+            await Database_1.default.transaction(async (trx) => {
+                if (recordIds.length) {
+                    deletedIndexImages = normalizeDeleteCount(await trx.from('indeximages')
+                        .where('companies_id', companies_id)
+                        .where('typebooks_id', Number(typebooks_id))
+                        .whereIn('bookrecords_id', recordIds)
+                        .delete());
+                    deletedBookrecords = normalizeDeleteCount(await trx.from('bookrecords')
+                        .where('companies_id', companies_id)
+                        .where('typebooks_id', Number(typebooks_id))
+                        .whereIn('id', recordIds)
+                        .delete());
                 }
-                else if (deleteImages == 2) {
-                    deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query));
-                }
-                else if (deleteImages == 3) {
-                    deletedIndexImages = normalizeDeleteCount(await deleteIndexImages(query));
-                    deletedBookrecords = normalizeDeleteCount(await deleteBookrecord(query));
-                }
-                await AuditLogger_1.default.deleted(ctx, {
-                    companiesId: companies_id,
-                    userId: authenticate.id,
-                    action: 'bookrecord_batch_delete',
-                    entityTable: 'bookrecords',
-                    resourceKey: `bookrecords:batch-delete:${typebooks_id}:${Book || 0}:${Bookend || 0}:${startCod || 0}:${endCod || 0}`,
-                    entityKey: {
-                        typebooks_id: Number(typebooks_id),
-                        book: Number(Book || 0),
-                        bookend: Number(Bookend || 0),
-                        startCod: Number(startCod || 0),
-                        endCod: Number(endCod || 0),
-                    },
-                    description: `Usuário ${authenticate.name || authenticate.username} realizou exclusão de lotes. Livro: ${Book || 0}. Livro Final: ${Bookend || 0}. Código Inicial: ${startCod || 0}. Código Final: ${endCod || 0}.`,
-                    beforeData: {
-                        typebooks_id,
-                        Book,
-                        Bookend,
-                        startCod,
-                        endCod,
-                        deleteImages,
-                    },
-                    metadata: {
-                        deleteImages,
-                        deleted_indeximages: deletedIndexImages,
-                        deleted_bookrecords: deletedBookrecords,
-                    },
+            });
+        }
+        else if (images.length) {
+            const now = luxon_1.DateTime.now().toJSDate();
+            const batch = await Database_1.default.transaction(async (trx) => {
+                const inserted = await trx.table('drive_deletion_batches').insert({
+                    companies_id,
+                    typebooks_id: Number(typebooks_id),
+                    user_id: authenticate.id,
+                    action: action === 3 ? 'records_images' : 'images',
+                    status: 'pending',
+                    book,
+                    start_cod: startCode,
+                    end_cod: endCode,
+                    total_items: images.length,
+                    processed_items: 0,
+                    failed_items: 0,
+                    created_at: now,
+                    updated_at: now,
                 });
-                return response.status(201).send({
-                    data: deletedBookrecords,
-                    deleteData: deletedIndexImages,
-                    message: "Excluido com sucesso!!",
-                });
-            }
-            catch (error) {
-                throw new BadRequestException_2.default('Bad Request update', 401, 'bookrecord_error_102');
-            }
+                const id = Number(inserted[0]);
+                await trx.table('drive_deletion_items').insert(images.map((image) => ({
+                    batch_id: id,
+                    companies_id,
+                    typebooks_id: Number(typebooks_id),
+                    bookrecords_id: image.bookrecords_id,
+                    seq: image.seq,
+                    drive_file_id: image.drive_file_id || null,
+                    file_name: image.file_name || null,
+                    status: 'pending',
+                    attempts: 0,
+                    created_at: now,
+                    updated_at: now,
+                })));
+                return id;
+            });
+            batchId = batch;
+            await DriveDeletionQueueService_1.default.processPending(1, batchId).catch((error) => {
+                console.error('Erro ao processar exclusão do Drive imediatamente; lote mantido para retry:', error);
+            });
         }
+        else if (action === 3 && recordIds.length) {
+            deletedBookrecords = normalizeDeleteCount(await Bookrecord_1.default.query()
+                .where('companies_id', companies_id)
+                .where('typebooks_id', Number(typebooks_id))
+                .whereIn('id', recordIds)
+                .delete());
+        }
+        await AuditLogger_1.default.deleted(ctx, {
+            companiesId: companies_id,
+            userId: authenticate.id,
+            action: 'bookrecord_batch_delete',
+            entityTable: 'bookrecords',
+            resourceKey: `bookrecords:batch-delete:${typebooks_id}:${book}:${bookEnd || 0}:${startCode || 0}:${endCode || 0}`,
+            entityKey: { typebooks_id: Number(typebooks_id), book, bookEnd, startCod: startCode, endCod: endCode },
+            description: `Usuário ${authenticate.name || authenticate.username} solicitou exclusão. Livro: ${book}${bookEnd !== null ? ` até ${bookEnd}` : ''}. Códigos: ${startCode || 'todos'} a ${endCode || 'todos'}.`,
+            beforeData: { typebooks_id, Book: book, Bookend: bookEnd, startCod: startCode, endCod: endCode, deleteImages: action },
+            metadata: {
+                deleteImages: action,
+                queued_drive_deletion_batch: batchId,
+                queued_indeximages: batchId ? images.length : 0,
+                deleted_indeximages: deletedIndexImages,
+                deleted_bookrecords: deletedBookrecords,
+            },
+        });
+        return response.status(batchId ? 202 : 201).send({
+            data: deletedBookrecords,
+            deleteData: deletedIndexImages,
+            batch_id: batchId,
+            queued_images: batchId ? images.length : 0,
+            message: batchId ? 'Exclusão enfileirada para processamento seguro.' : 'Excluído com sucesso.',
+        });
     }
     async createorupdatebookrecords({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();

@@ -468,7 +468,50 @@ class IndeximagesController {
                         .andWhere('typebooks_id', params.typebooks_id)
                         .first();
                     if (verifyExistBookrecord) {
-                        dataImages.id = verifyExistBookrecord.id;
+                        const trx = await Database_1.default.beginGlobalTransaction();
+                        try {
+                            const document = await Document_1.default.query({ client: trx })
+                                .where('bookrecords_id', verifyExistBookrecord.id)
+                                .andWhere('typebooks_id', params.typebooks_id)
+                                .andWhere('companies_id', authenticate.companies_id)
+                                .first();
+                            if (!document) {
+                                const normalizeIntOrNull = (value) => {
+                                    if (value === undefined || value === null || value === '')
+                                        return null;
+                                    return Number(value);
+                                };
+                                await Document_1.default.create({
+                                    bookrecords_id: verifyExistBookrecord.id,
+                                    books_id: 13,
+                                    typebooks_id: params.typebooks_id,
+                                    companies_id: authenticate.companies_id,
+                                    prot: dataImages.prot,
+                                    documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
+                                    document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
+                                    book_name: dataImages.book_name,
+                                    book_number: dataImages.book_number,
+                                    sheet_number: dataImages.sheet_number,
+                                    free: dataImages.free ? 1 : 0,
+                                    averb_anot: dataImages.averb_anot ? 1 : 0,
+                                    obs: dataImages.obs,
+                                }, { client: trx });
+                            }
+                            const documentAfterSave = await Document_1.default.query({ client: trx })
+                                .where('bookrecords_id', verifyExistBookrecord.id)
+                                .andWhere('typebooks_id', params.typebooks_id)
+                                .andWhere('companies_id', authenticate.companies_id)
+                                .first();
+                            if (!documentAfterSave) {
+                                throw new Error('Documento não foi persistido para o bookrecord.');
+                            }
+                            dataImages.id = verifyExistBookrecord.id;
+                            await trx.commit();
+                        }
+                        catch (error) {
+                            await trx.rollback();
+                            throw error;
+                        }
                     }
                     else {
                         const trx = await Database_1.default.beginGlobalTransaction();
@@ -480,7 +523,7 @@ class IndeximagesController {
                                 book: dataImages.book,
                                 side: dataImages.side,
                                 books_id: 13,
-                            }, trx);
+                            }, { client: trx });
                             const normalizeIntOrNull = (value) => {
                                 if (value === undefined || value === null || value === '')
                                     return null;
@@ -500,7 +543,15 @@ class IndeximagesController {
                                 free: dataImages.free ? 1 : 0,
                                 averb_anot: dataImages.averb_anot ? 1 : 0,
                                 obs: dataImages.obs,
-                            }, trx);
+                            }, { client: trx });
+                            const documentAfterSave = await Document_1.default.query({ client: trx })
+                                .where('bookrecords_id', bookRecord.id)
+                                .andWhere('typebooks_id', params.typebooks_id)
+                                .andWhere('companies_id', authenticate.companies_id)
+                                .first();
+                            if (!documentAfterSave) {
+                                throw new Error('Documento não foi persistido para o bookrecord.');
+                            }
                             dataImages.id = bookRecord.id;
                             await trx.commit();
                         }
@@ -627,9 +678,7 @@ class IndeximagesController {
         }
         const dateNow = formatDate.formatDate(new Date);
         const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`;
-        fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
-            console.log('File created', { folderPath });
-        });
+        await fs.promises.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' });
         const file = await FileRename.transformFilesNameToId(`${folderPath}/${file_name}.jpeg`, params, authenticate.companies_id, company?.cloud, true, { id, cod, image_origin: normalizeImageOrigin(image_origin) });
         return { sucesso: "sucesso", file, typebook: params.typebooks_id };
     }

@@ -228,6 +228,24 @@
         }
       ]
     },
+    "drive:process-deletions": {
+      "settings": {
+        "loadApp": true
+      },
+      "commandPath": "./commands/ProcessDriveDeletions",
+      "commandName": "drive:process-deletions",
+      "description": "Processa a fila segura de exclusão de imagens do Google Drive",
+      "args": [],
+      "aliases": [],
+      "flags": [
+        {
+          "name": "limit",
+          "propertyName": "limit",
+          "type": "number",
+          "description": "Quantidade máxima de lotes por execução"
+        }
+      ]
+    },
     "vision:test": {
       "settings": {},
       "commandPath": "./commands/VisionTest",

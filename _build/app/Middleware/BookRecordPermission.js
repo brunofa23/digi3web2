@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class BookRecordPermission {
-    async handle({ auth, response }, next, customGuards) {
+    async handle({ auth, request, response }, next, customGuards) {
         const user = await auth.use('api').authenticate();
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
         let allowed = false;
@@ -32,6 +32,12 @@ class BookRecordPermission {
                 break;
             }
             if (guard === 'destroyManyBookRecords' && (0, util_1.verifyPermission)(user.superuser, permissions, 20)) {
+                const deleteImages = Number(request.input('deleteImages'));
+                if ([2, 3].includes(deleteImages) && !(0, util_1.verifyPermission)(user.superuser, permissions, 46)) {
+                    return response.unauthorized({
+                        error: 'Você não tem permissão para excluir imagens do Google Drive.',
+                    });
+                }
                 allowed = true;
                 break;
             }
