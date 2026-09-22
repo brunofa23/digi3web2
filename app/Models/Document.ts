@@ -4,6 +4,10 @@ import Bookrecord from './Bookrecord'
 import Documenttype from './Documenttype'
 import DocumentTypeBook from './DocumentTypeBook'
 import Entity from './Entity'
+import OrderCertificate from './OrderCertificate'
+import Indeximage from './Indeximage'
+import Typebook from './Typebook'
+import Company from './Company'
 
 export default class Document extends BaseModel {
 
@@ -14,6 +18,7 @@ export default class Document extends BaseModel {
       'typebooks_id',
       'books_id',
       'companies_id',
+      'order_certificate_id',
       'fin_entities_id',
       'box2',
       'prot',
@@ -99,6 +104,11 @@ export default class Document extends BaseModel {
   })
   public entity: BelongsTo<typeof Entity>
 
+  @belongsTo(() => OrderCertificate, {
+    foreignKey: 'order_certificate_id',
+  })
+  public orderCertificate: BelongsTo<typeof OrderCertificate>
+
 
   @column({ isPrimary: true })
   public id: number
@@ -110,6 +120,8 @@ export default class Document extends BaseModel {
   public books_id: number
   @column()
   public companies_id: number
+  @column()
+  public order_certificate_id: number | null
   @column()
   public fin_entities_id: number
   @column()

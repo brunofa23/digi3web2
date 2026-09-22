@@ -8,6 +8,8 @@ import validations from 'App/Services/Validations/validations'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import Typebook from 'App/Models/Typebook'
 import Document from 'App/Models/Document'
+import Company from 'App/Models/Company'
+import OrderCertificate from 'App/Models/OrderCertificate'
 import IndeximageOcrEntity from 'App/Models/IndeximageOcrEntity'
 import { schema } from '@ioc:Adonis/Core/Validator'
 import BookrecordValidator from 'App/Validators/BookrecordValidator'
@@ -28,6 +30,39 @@ import DriveDeletionQueueService from 'App/Services/DriveDeletionQueueService'
 
 const fileRename = require('../../Services/fileRename/fileRename')
 export default class BookrecordsController {
+  private async validateOrderCertificateLink(
+    orderCertificateId: number | null | undefined,
+    companiesId: number,
+    documentId?: number,
+  ) {
+    if (!orderCertificateId) return null
+
+    const company = await Company.findOrFail(companiesId)
+    const orderCertificate = await OrderCertificate.query()
+      .where('id', orderCertificateId)
+      .andWhere('companies_id', companiesId)
+      .first()
+
+    if (!orderCertificate) {
+      throw new BadRequestException('Formulário não encontrado para a empresa logada', 422)
+    }
+
+    if (!company.module_order_certificates) {
+      throw new BadRequestException('A empresa não possui o módulo de formulários habilitado', 422)
+    }
+
+    const alreadyLinked = await Document.query()
+      .where('order_certificate_id', orderCertificateId)
+      .if(documentId, (query) => query.andWhereNot('id', documentId!))
+      .first()
+
+    if (alreadyLinked) {
+      throw new BadRequestException('Este formulário já está vinculado a outro documento', 422)
+    }
+
+    return orderCertificate
+  }
+
   private documentCustomFields() {
     const fields: string[] = []
 
@@ -281,6 +316,22 @@ export default class BookrecordsController {
             .preload('entity', query => {
               query.select('description')
             })
+            .preload('orderCertificate', query => {
+              query.preload('book', bookQuery => bookQuery.select('id', 'name'))
+              query.preload('marriedCertificate', certificateQuery => {
+                certificateQuery.preload('groom', personQuery => personQuery.select('id', 'name', 'cpf'))
+                certificateQuery.preload('bride', personQuery => personQuery.select('id', 'name', 'cpf'))
+              })
+              query.preload('bornCertificate', certificateQuery => {
+                certificateQuery.preload('registered', personQuery => personQuery.select('id', 'name', 'cpf'))
+              })
+              query.preload('deathCertificate', certificateQuery => {
+                certificateQuery.preload('deceased', personQuery => personQuery.select('id', 'name', 'cpf'))
+              })
+              query.preload('secondcopyCertificate', certificateQuery => {
+                certificateQuery.preload('applicantPerson', personQuery => personQuery.select('id', 'name', 'cpf'))
+              })
+            })
         })
         .whereNotExists((subquery) => {
           subquery
@@ -328,6 +379,22 @@ export default class BookrecordsController {
             })
             .preload('entity', query => {
               query.select('description')
+            })
+            .preload('orderCertificate', query => {
+              query.preload('book', bookQuery => bookQuery.select('id', 'name'))
+              query.preload('marriedCertificate', certificateQuery => {
+                certificateQuery.preload('groom', personQuery => personQuery.select('id', 'name', 'cpf'))
+                certificateQuery.preload('bride', personQuery => personQuery.select('id', 'name', 'cpf'))
+              })
+              query.preload('bornCertificate', certificateQuery => {
+                certificateQuery.preload('registered', personQuery => personQuery.select('id', 'name', 'cpf'))
+              })
+              query.preload('deathCertificate', certificateQuery => {
+                certificateQuery.preload('deceased', personQuery => personQuery.select('id', 'name', 'cpf'))
+              })
+              query.preload('secondcopyCertificate', certificateQuery => {
+                certificateQuery.preload('applicantPerson', personQuery => personQuery.select('id', 'name', 'cpf'))
+              })
             })
         })
 
@@ -818,6 +885,11 @@ export default class BookrecordsController {
         cleanDocument.books_id = bookrecord.books_id
         cleanDocument.companies_id = bookrecord.companies_id
 
+        await this.validateOrderCertificateLink(
+          cleanDocument.order_certificate_id,
+          authenticate.companies_id,
+        )
+
         // Cria o Document
         createdDocument = await Document.create(cleanDocument)
         await AuditLogger.created(ctx, {
@@ -844,6 +916,7 @@ export default class BookrecordsController {
             documentQuery
               .preload('documenttype')
               .preload('documenttypebook')
+              .preload('orderCertificate', (orderQuery) => orderQuery.preload('book'))
           })
       })
 
@@ -919,6 +992,12 @@ export default class BookrecordsController {
           delete cleanDocument.documenttype
           delete cleanDocument.documenttypebook
 
+          await this.validateOrderCertificateLink(
+            cleanDocument.order_certificate_id,
+            authenticate.companies_id,
+            doc.id,
+          )
+
           doc.merge(cleanDocument)
           await doc.save()
           updatedDocument = doc
@@ -948,6 +1027,7 @@ export default class BookrecordsController {
             documentQuery
               .preload('documenttype')
               .preload('documenttypebook')
+              .preload('orderCertificate', (orderQuery) => orderQuery.preload('book'))
           })
       })
 

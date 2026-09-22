@@ -6,15 +6,19 @@ import Database from '@ioc:Adonis/Lucid/Database'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 
 export default class GroupxpermissionsController {
+  private ensureDigi3Superuser(authenticate: any) {
+    if (!authenticate.superuser || Number(authenticate.companies_id) !== 1) {
+      throw new BadRequestException('Acesso permitido somente ao superusuário da empresa Digi3', 403, 'group_permission_admin_forbidden')
+    }
+  }
 
   public async index({ auth, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequestException('not superuser', 402, 'error_10')
+    this.ensureDigi3Superuser(authenticate)
 
     try {
       const data = await Groupxpermission.query()
-        .where('excluded', false)
+        .where('companies_id', authenticate.companies_id)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -24,8 +28,7 @@ export default class GroupxpermissionsController {
 
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequestException('not superuser', 402, 'error_10')
+    this.ensureDigi3Superuser(authenticate)
 
     try {
 
@@ -38,10 +41,12 @@ export default class GroupxpermissionsController {
       //1 - Deletar toda lista do Grupo
       await Groupxpermission.query()
         .where('usergroup_id', params.id)
+        .where('companies_id', authenticate.companies_id)
         .delete()
       const createManyPermission = permissions.map((id) => ({
         usergroup_id: params.id,
         permissiongroup_id: id,
+        companies_id: authenticate.companies_id,
       }))
 
       if (permissions.length === 0) {
@@ -61,8 +66,7 @@ export default class GroupxpermissionsController {
 
   public async PermissiongroupXUsergroup({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequestException('not superuser', 402, 'error_10')
+    this.ensureDigi3Superuser(authenticate)
 
     try {
       const data = await Database
@@ -71,6 +75,7 @@ export default class GroupxpermissionsController {
           this
             .on('p.id', '=', 'gp.permissiongroup_id')
             .andOnVal('gp.usergroup_id', '=', params.usergroup_id)
+            .andOnVal('gp.companies_id', '=', authenticate.companies_id)
         })
         .select(
           'p.id',

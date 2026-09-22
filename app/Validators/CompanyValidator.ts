@@ -25,6 +25,7 @@ export default class CompanyValidator {
     module_books: schema.boolean.optional(),
     module_financial: schema.boolean.optional(),
     module_lgpd: schema.boolean.optional(),
+    module_order_certificates: schema.boolean.optional(),
     obs: schema.string.nullableAndOptional({}, [rules.maxLength(255)]),
     licence_value: schema.number.nullableAndOptional(),
     due_date: schema.string.nullableAndOptional({}, [rules.maxLength(10)]),

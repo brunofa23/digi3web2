@@ -15,6 +15,7 @@ import BornCertificate from './BornCertificate'
 import DeathCertificate from './DeathCertificate'
 import Book from './Book'
 import Receipt from 'App/Models/Receipt'
+import Document from 'App/Models/Document'
 
 export default class OrderCertificate extends BaseModel {
   public static table = 'order_certificates'
@@ -88,6 +89,9 @@ export default class OrderCertificate extends BaseModel {
   // ✅ NOVO: 1 OrderCertificate tem 1 Receipt
   @hasOne(() => Receipt, { foreignKey: 'orderCertificateId' })
   public receipt: HasOne<typeof Receipt>
+
+  @hasOne(() => Document, { foreignKey: 'order_certificate_id' })
+  public document: HasOne<typeof Document>
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

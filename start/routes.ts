@@ -31,15 +31,18 @@ Route.group(() => {
   Route.delete("/companies/:companyId/attachments/:id", 'CompanyAttachmentsController.destroy')
 
   // SALES CRM
-  Route.get('/sales-stages', 'SalesOpportunitiesController.stages')
-  Route.patch('/sales-stages/:id/active', 'SalesOpportunitiesController.updateStage')
-  Route.get('/sales-opportunities/funnel', 'SalesOpportunitiesController.funnel')
-  Route.get('/sales-opportunities/follow-ups', 'SalesOpportunitiesController.followUps')
-  Route.get('/sales-opportunities', 'SalesOpportunitiesController.index')
-  Route.get('/sales-opportunities/:id', 'SalesOpportunitiesController.show')
-  Route.post('/sales-opportunities', 'SalesOpportunitiesController.store')
-  Route.patch('/sales-opportunities/:id', 'SalesOpportunitiesController.update')
-  Route.delete('/sales-opportunities/:id', 'SalesOpportunitiesController.destroy')
+  Route.get('/sales-stages', 'SalesOpportunitiesController.stages').middleware('crm_permission')
+  Route.get('/sales-opportunities/users', 'SalesOpportunitiesController.users').middleware('crm_permission')
+  Route.patch('/sales-stages/:id/active', 'SalesOpportunitiesController.updateStage').middleware('crm_permission')
+  Route.get('/sales-opportunities/funnel', 'SalesOpportunitiesController.funnel').middleware('crm_permission')
+  Route.get('/sales-opportunities/follow-ups', 'SalesOpportunitiesController.followUps').middleware('crm_permission')
+  Route.get('/sales-opportunities', 'SalesOpportunitiesController.index').middleware('crm_permission')
+  Route.get('/sales-opportunities/:id', 'SalesOpportunitiesController.show').middleware('crm_permission')
+  Route.get('/sales-opportunities/:id/activities', 'SalesOpportunitiesController.activities').middleware('crm_permission')
+  Route.post('/sales-opportunities/:id/activities', 'SalesOpportunitiesController.storeActivity').middleware('crm_permission')
+  Route.post('/sales-opportunities', 'SalesOpportunitiesController.store').middleware('crm_permission')
+  Route.patch('/sales-opportunities/:id', 'SalesOpportunitiesController.update').middleware('crm_permission')
+  Route.delete('/sales-opportunities/:id', 'SalesOpportunitiesController.destroy').middleware('crm_permission')
 
   //SPEDY COMPANIES
   Route.get('/spedy/companies/local/:companyId/integration', 'Spedy/CompaniesController.showIntegration')
@@ -203,6 +206,7 @@ Route.group(() => {
   //TOKENTOIMAGES
   Route.post("/tokentoimages", "TokenToImagesController.store")//.middleware('tokentoimages_permission:post')
   Route.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
+  Route.post("/tokentoimages/access-status", "TokenToImagesController.accessStatus")
 
   //READFILES
   Route.post("/readfile", "ReadFilesController.readFile")
