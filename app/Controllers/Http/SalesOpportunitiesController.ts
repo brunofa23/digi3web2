@@ -31,6 +31,12 @@ export default class SalesOpportunitiesController {
     if (!assignedUser) throw new BadRequest('O responsável deve pertencer à empresa do CRM', 422, 'sales_assigned_user_company')
   }
 
+  private validateFollowUp(body: any, stage: SalesStage) {
+    if (!stage.is_final && (!body.next_action || !body.next_contact_date || !body.assigned_user_id)) {
+      throw new BadRequest('Oportunidades abertas precisam de próxima ação, data e responsável', 422, 'sales_follow_up_required')
+    }
+  }
+
   public async stages({ auth, response }: HttpContextContract) {
     await this.authenticateUser(auth)
     return response.ok(await SalesStage.query().where('active', true).orderBy('position'))
@@ -71,8 +77,9 @@ export default class SalesOpportunitiesController {
   public async followUps({ auth, request, response }: HttpContextContract) {
     const user = await this.authenticateUser(auth)
     const today = request.input('date') || DateTime.local().toISODate()
+    const nextWeek = DateTime.fromISO(today).plus({ days: 7 }).toISODate()
     const data = await SalesOpportunity.query().if(!user.superuser, q => q.where('companies_id', user.companies_id)).preload('stage').preload('assignedUser', q => q.select(['id', 'name'])).preload('company', q => q.select(['id', 'name']))
-      .whereNotNull('next_contact_date').where('next_contact_date', '<=', today)
+      .where(q => q.whereNull('next_action').orWhereNull('next_contact_date').orWhereBetween('next_contact_date', [today, nextWeek]).orWhere('next_contact_date', '<', today))
       .whereHas('stage', q => q.where('is_final', false)).orderBy('next_contact_date', 'asc')
     return response.ok(data)
   }
@@ -92,8 +99,13 @@ export default class SalesOpportunitiesController {
     const user = await this.authenticateUser(auth)
     const opportunity = await SalesOpportunity.query().where('id', params.id).if(!user.superuser, q => q.where('companies_id', user.companies_id)).firstOrFail()
     const body = await request.validate(SalesOpportunityActivityValidator)
-    const activity = await SalesOpportunityActivity.create({ ...body, sales_opportunity_id: opportunity.id, user_id: user.id })
+    const stage = await opportunity.related('stage').query().firstOrFail()
+    this.validateFollowUp({ ...opportunity.serialize(), ...body, assigned_user_id: opportunity.assigned_user_id }, stage)
+    const { next_action, next_contact_date, ...activityBody } = body
+    const activity = await SalesOpportunityActivity.create({ ...activityBody, sales_opportunity_id: opportunity.id, user_id: user.id })
     opportunity.last_contact_date = body.activity_date
+    if (next_action !== undefined) opportunity.next_action = next_action
+    if (next_contact_date !== undefined) opportunity.next_contact_date = next_contact_date
     await opportunity.save()
     return response.created(await SalesOpportunityActivity.query().where('id', activity.id).preload('user', query => query.select(['id', 'name'])).firstOrFail())
   }
@@ -104,6 +116,7 @@ export default class SalesOpportunitiesController {
     const stage = await this.ensureActiveStage(body.sales_stage_id)
     this.validateCompanyLink(body.company_id, stage)
     await this.validateAssignedUser(user, body.assigned_user_id)
+    this.validateFollowUp(body, stage)
     return response.created(await SalesOpportunity.create({ ...body, companies_id: user.companies_id } as any))
   }
 
@@ -113,6 +126,7 @@ export default class SalesOpportunitiesController {
     const stage = await this.ensureActiveStage(body.sales_stage_id)
     this.validateCompanyLink(body.company_id, stage)
     await this.validateAssignedUser(user, body.assigned_user_id)
+    this.validateFollowUp(body, stage)
     const opportunity = await SalesOpportunity.query().where('id', request.param('id')).if(!user.superuser, q => q.where('companies_id', user.companies_id)).firstOrFail()
     opportunity.merge(body as any)
     await opportunity.save()
