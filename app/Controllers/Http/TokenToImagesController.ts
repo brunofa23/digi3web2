@@ -142,6 +142,19 @@ export default class TokenToImagesController {
     return response.status(200).send(data ? this.serializeImageDevice(data) : null)
   }
 
+  public async accessStatus({ auth, response, request }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const device = await this.findImageDeviceByCookie(request, authenticate.companies_id)
+    const accessUntil = authenticate.access_image
+    const accessValid = Boolean(accessUntil && accessUntil >= DateTime.now())
+
+    return response.status(200).send({
+      allowed: Boolean(device && accessValid),
+      device_confirmed: Boolean(device),
+      access_until: accessUntil || null,
+    })
+  }
+
   // public async show({auth, response, request}: HttpContextContract) {}
   //public async update({}: HttpContextContract) {}
   //public async destroy({}: HttpContextContract) {}

@@ -3,21 +3,26 @@ import BadRequestException from 'App/Exceptions/BadRequestException'
 import Usergroup from 'App/Models/Usergroup'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 export default class UsergroupsController {
+  private ensureDigi3Superuser(authenticate: any) {
+    if (!authenticate.superuser || Number(authenticate.companies_id) !== 1) {
+      throw new BadRequestException('Acesso permitido somente ao superusuário da empresa Digi3', 403, 'usergroup_admin_forbidden')
+    }
+  }
 
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    this.ensureDigi3Superuser(authenticate)
     const { permissiongroup_id } = request.only(['permissiongroup_id'])
     const permissiongroupId = Number(permissiongroup_id)
     //const body = request.only(Usergroup.fillable)
     try {
       const data = await Usergroup.query()
         .where('inactive', false)
-        .if(!authenticate.superuser, query => {
-          query.where('available_for_user_creation', true)
-        })
+        .where('available_for_user_creation', true)
         .if(Number.isInteger(permissiongroupId) && permissiongroupId > 0, query => {
           query.whereHas('groupxpermission', subQuery => {
             subQuery.where('permissiongroup_id', permissiongroupId)
+              .where('companies_id', authenticate.companies_id)
           })
         })
         .orderBy('name')
@@ -30,8 +35,7 @@ export default class UsergroupsController {
 
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequestException('not superuser', 402, 'error_10')
+    this.ensureDigi3Superuser(authenticate)
 
     const body = await request.validate({
       schema: schema.create({
@@ -51,8 +55,7 @@ export default class UsergroupsController {
 
   public async update({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser)
-      throw new BadRequestException('not superuser', 402, 'error_10')
+    this.ensureDigi3Superuser(authenticate)
 
     const body = await request.validate({
       schema: schema.create({

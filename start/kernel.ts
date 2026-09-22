@@ -14,7 +14,7 @@ Server.middleware.registerNamed({
   indeximage_permission: () => import('App/Middleware/IndexImagePermission'),
   tokentoimages_permission: () => import('App/Middleware/TokenToImagesPermission'),
   finaccount_permission: () => import('App/Middleware/FinAccountPermission'),
+  crm_permission: () => import('App/Middleware/CrmPermission'),
   stampPermission: () => import('App/Middleware/StampPermission'),
   tributationPermission:() => import('App/Middleware/TributationPermission')
 })
-

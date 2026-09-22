@@ -701,8 +701,10 @@ export default class OrderCertificatesController {
     // emolument code (para filtrar por código de emolumento)
     const emolumentCode = request.input('emolumentCode') || null
     const origin = request.input('origin') || null
+    const orderCertificateId = request.input('id') || null
 
     const query = OrderCertificate.query()
+      .if(orderCertificateId, (orderQuery) => orderQuery.where('order_certificates.id', orderCertificateId))
       .preload('book', (query) => query.select('id', 'name'))
       .preload('marriedCertificate', (query) => {
         query.select('id', 'groomPersonId', 'bridePersonId', 'documentScheduleDate', 'dateMarriedReal')

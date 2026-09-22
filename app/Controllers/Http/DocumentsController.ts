@@ -5,10 +5,32 @@ import Indeximage from 'App/Models/Indeximage'
 import Database from '@ioc:Adonis/Lucid/Database'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import AuditLogger from 'App/Services/Audit/AuditLogger'
+import Company from 'App/Models/Company'
+import OrderCertificate from 'App/Models/OrderCertificate'
 const fileRename = require('../../Services/fileRename/fileRename')
 
 
 export default class DocumentsController {
+    private async validateOrderCertificateLink(orderCertificateId: number | null | undefined, companiesId: number, documentId?: number) {
+        if (!orderCertificateId) return
+
+        const company = await Company.findOrFail(companiesId)
+        const orderCertificate = await OrderCertificate.query()
+            .where('id', orderCertificateId)
+            .andWhere('companies_id', companiesId)
+            .first()
+
+        if (!orderCertificate) throw new BadRequestException('Formulário não encontrado para a empresa logada', 422)
+        if (!company.module_order_certificates) throw new BadRequestException('A empresa não possui o módulo de formulários habilitado', 422)
+
+        const alreadyLinked = await Document.query()
+            .where('order_certificate_id', orderCertificateId)
+            .if(documentId, (query) => query.andWhereNot('id', documentId!))
+            .first()
+
+        if (alreadyLinked) throw new BadRequestException('Este formulário já está vinculado a outro documento', 422)
+    }
+
 
     public async index({ auth, request, params, response }: HttpContextContract) {
         const documentPayload = request.only(Document.fillable)
@@ -26,6 +48,7 @@ export default class DocumentsController {
       const authenticate = await auth.use('api').authenticate()
         const documentPayload = request.only(Document.fillable)
         documentPayload.companies_id = authenticate.companies_id
+        await this.validateOrderCertificateLink(documentPayload.order_certificate_id, authenticate.companies_id)
         try {
             const data = await Document.create(documentPayload)
             await AuditLogger.created(ctx, {
@@ -61,6 +84,7 @@ export default class DocumentsController {
 
         try {
             const data = await Document.findOrFail(body.id)
+            await this.validateOrderCertificateLink(body.order_certificate_id, companies_id, data.id)
             const beforeDocument = data.serialize()
             await data.fill(body).save()
             await AuditLogger.updated(ctx, {
