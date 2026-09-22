@@ -4,7 +4,7 @@ export default class SalesOpportunityValidator {
   public schema = schema.create({
     company_id: schema.number.nullableAndOptional([rules.exists({ table: 'companies', column: 'id' })]),
     sales_stage_id: schema.number([rules.exists({ table: 'sales_stages', column: 'id' })]),
-    name: schema.string({ trim: true }, [rules.maxLength(120)]),
+    name: schema.string({ trim: true }, [rules.maxLength(255)]),
     city: schema.string.optional({ trim: true }, [rules.maxLength(100)]),
     state: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(2)]),
     contact_name: schema.string.optional({ trim: true }, [rules.maxLength(120)]),
