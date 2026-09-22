@@ -9,6 +9,12 @@ import { sendSearchOrCreateFolder } from "App/Services/googleDrive/googledrive"
 //const authorize = require('App/Services/googleDrive/googledrive')
 
 export default class CompaniesController {
+  private ensureDigi3Superuser(authenticate: any) {
+    if (!authenticate.superuser || Number(authenticate.companies_id) !== 1) {
+      throw new BadRequest('Acesso permitido somente ao superusuário da empresa Digi3', 403, 'company_admin_forbidden')
+    }
+  }
+
   private validateUploadLimit(value: number | null | undefined) {
     if (value !== null && value !== undefined && (value < 0 || value > 150)) {
       throw new BadRequest(
@@ -47,10 +53,7 @@ export default class CompaniesController {
   public async index({ auth, response, request }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser) {
-      let errorValidation: any = await new validations('company_error_100')
-      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-    }
+    this.ensureDigi3Superuser(authenticate)
 
     const { status, cloud } = request.only(['status', 'cloud'])
     const cloudFilter = cloud !== undefined && cloud !== null && cloud !== '' ? Number(cloud) : null
@@ -86,10 +89,7 @@ export default class CompaniesController {
   //inserir
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser) {
-      let errorValidation: any = await new validations('company_error_100')
-      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-    }
+    this.ensureDigi3Superuser(authenticate)
     const body = await request.validate(CompanyValidator)
     const { situation_ids: situationIds, ...companyPayload } = body
     this.validateUploadLimit(companyPayload.max_upload_size_mb)
@@ -127,10 +127,7 @@ export default class CompaniesController {
   public async show({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
-    if (!authenticate.superuser && Number(params.id) !== Number(authenticate.companies_id)) {
-      let errorValidation: any = await new validations('company_error_100')
-      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-    }
+    this.ensureDigi3Superuser(authenticate)
 
     const data = await Company
       .query()
@@ -145,10 +142,7 @@ export default class CompaniesController {
   public async update({ auth, request, response }: HttpContextContract) {
 
     const authenticate = await auth.use('api').authenticate()
-    if (!authenticate.superuser) {
-      let errorValidation: any = await new validations('company_error_100')
-      throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
-    }
+    this.ensureDigi3Superuser(authenticate)
 
     const companyId = Number(request.param('id'))
     if (!companyId) {

@@ -99,11 +99,12 @@ export default class AuthenticationController {
     return auth.use('api').generate(user, {
       expiresIn: '7 days',
       name: username,
-      payload: {
-        permissions: permissions.map(p => ({
-          usergroup_id: p.usergroup_id,
-          permissiongroup_id: p.permissiongroup_id,
-        }))
+        payload: {
+          permissions: permissions.filter(p => !p.companies_id || Number(p.companies_id) === Number(user.companies_id)).map(p => ({
+            usergroup_id: p.usergroup_id,
+            permissiongroup_id: p.permissiongroup_id,
+            companies_id: p.companies_id,
+          }))
       }
     })
   }
@@ -141,7 +142,7 @@ export default class AuthenticationController {
       })
       .preload('usergroup', query => {
         query.preload('groupxpermission', query => {
-          query.select('usergroup_id', 'permissiongroup_id')
+          query.select('usergroup_id', 'permissiongroup_id', 'companies_id')
         })
       })
       .where('username', username)
@@ -166,7 +167,9 @@ export default class AuthenticationController {
       throw new BadRequest(errorValidation.messages, errorValidation.status, errorValidation.code)
     }
 
-    const permissions = (user as any)?.$preloaded?.usergroup?.$preloaded?.groupxpermission || []
+    const permissions = ((user as any)?.$preloaded?.usergroup?.$preloaded?.groupxpermission || [])
+      .filter((permission: any) => !permission.companies_id || Number(permission.companies_id) === Number(user.companies_id))
+    if ((user as any).usergroup) (user as any).usergroup.groupxpermission = permissions
     const canBypassDeviceControl = verifyPermission(Boolean(user.superuser), permissions, 39)
 
     if (clientType === 'digi3_capture_mobile' && !this.hasDigi3CaptureAccess(permissions)) {
@@ -304,7 +307,8 @@ export default class AuthenticationController {
       .query()
       .preload('usergroup', query => {
         query.preload('groupxpermission', query => {
-          query.select('usergroup_id', 'permissiongroup_id')
+          query.select('usergroup_id', 'permissiongroup_id', 'companies_id')
+            .where('companies_id', authenticate.companies_id)
         })
       })
       .where('id', authenticate.id)
@@ -450,7 +454,7 @@ export default class AuthenticationController {
         })
         .preload('usergroup', query => {
           query.preload('groupxpermission', query => {
-            query.select('usergroup_id', 'permissiongroup_id')
+            query.select('usergroup_id', 'permissiongroup_id', 'companies_id')
           })
         })
         .where('id', challenge.userId)
