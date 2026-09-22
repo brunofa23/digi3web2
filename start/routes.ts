@@ -206,6 +206,7 @@ Route.group(() => {
   //TOKENTOIMAGES
   Route.post("/tokentoimages", "TokenToImagesController.store")//.middleware('tokentoimages_permission:post')
   Route.post("/verifytokentoimages", "TokenToImagesController.verifyTokenToImages")
+  Route.post("/tokentoimages/access-status", "TokenToImagesController.accessStatus")
 
   //READFILES
   Route.post("/readfile", "ReadFilesController.readFile")
