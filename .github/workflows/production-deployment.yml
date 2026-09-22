@@ -41,10 +41,11 @@ jobs:
           git merge --no-edit origin/main || {
             conflicts="$(git diff --name-only --diff-filter=U)"
 
-            if [ "$conflicts" = "_build/.adonisrc.json" ] || \
-               [ "$conflicts" = "_build/tsconfig.tsbuildinfo" ]; then
-              git checkout --theirs $conflicts
-              git add $conflicts
+            if [ -n "$conflicts" ] && ! printf '%s\n' "$conflicts" | grep -qv '^_build/'; then
+              while IFS= read -r conflict; do
+                git checkout --ours -- "$conflict"
+                git add -- "$conflict"
+              done <<< "$conflicts"
               git commit --no-edit
             else
               echo "Merge conflicts:"
@@ -69,6 +70,8 @@ jobs:
         run: |
           git checkout --detach
           git add -A
+          git add -Af _build
+          git reset -- _build/config/credentials 2>/dev/null || true
           git commit -m "chore(build): publish from ${GITHUB_SHA} [skip ci]" || echo "No changes to commit"
 
           git push origin HEAD:main-production
