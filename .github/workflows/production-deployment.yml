@@ -44,7 +44,7 @@ jobs:
             if [ -n "$conflicts" ] && ! printf '%s\n' "$conflicts" | grep -qv '^_build/'; then
               while IFS= read -r conflict; do
                 git checkout --ours -- "$conflict"
-                git add -- "$conflict"
+                git add -f -- "$conflict"
               done <<< "$conflicts"
               git commit --no-edit
             else
