@@ -100,10 +100,13 @@ export default class SalesOpportunitiesController {
     const opportunity = await SalesOpportunity.query().where('id', params.id).if(!user.superuser, q => q.where('companies_id', user.companies_id)).firstOrFail()
     const body = await request.validate(SalesOpportunityActivityValidator)
     const stage = await opportunity.related('stage').query().firstOrFail()
-    this.validateFollowUp({ ...opportunity.serialize(), ...body, assigned_user_id: opportunity.assigned_user_id }, stage)
-    const { next_action, next_contact_date, ...activityBody } = body
+    const assignedUserId = body.assigned_user_id ?? opportunity.assigned_user_id
+    await this.validateAssignedUser(user, assignedUserId)
+    this.validateFollowUp({ ...opportunity.serialize(), ...body, assigned_user_id: assignedUserId }, stage)
+    const { next_action, next_contact_date, assigned_user_id, ...activityBody } = body
     const activity = await SalesOpportunityActivity.create({ ...activityBody, sales_opportunity_id: opportunity.id, user_id: user.id })
     opportunity.last_contact_date = body.activity_date
+    if (assigned_user_id !== undefined) opportunity.assigned_user_id = assigned_user_id
     if (next_action !== undefined) opportunity.next_action = next_action
     if (next_contact_date !== undefined) opportunity.next_contact_date = next_contact_date
     await opportunity.save()
