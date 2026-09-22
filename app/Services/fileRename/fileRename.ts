@@ -488,11 +488,11 @@ async function transformFilesNameToId(images, params, companies_id, cloud_number
 
     try {
       // IMPORTANTE: `await` aqui já garante que o upload terminou no Google
-      await pushImageToGoogle(images, Application.tmpPath(`/uploads/Client_${companies_id}`), _fileRename, parentId, cloud_number, true)
-      return images
+      const uploadResult = await pushImageToGoogle(images, Application.tmpPath(`/uploads/Client_${companies_id}`), _fileRename, parentId, cloud_number, true)
+      return uploadResult
     } catch (error) {
       console.log(error)
-      return error
+      throw error
     }
   }
 

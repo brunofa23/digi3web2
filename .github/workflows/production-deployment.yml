@@ -41,9 +41,10 @@ jobs:
           git merge --no-edit origin/main || {
             conflicts="$(git diff --name-only --diff-filter=U)"
 
-            if [ "$conflicts" = "_build/.adonisrc.json" ]; then
-              git checkout --theirs _build/.adonisrc.json
-              git add _build/.adonisrc.json
+            if [ "$conflicts" = "_build/.adonisrc.json" ] || \
+               [ "$conflicts" = "_build/tsconfig.tsbuildinfo" ]; then
+              git checkout --theirs $conflicts
+              git add $conflicts
               git commit --no-edit
             else
               echo "Merge conflicts:"

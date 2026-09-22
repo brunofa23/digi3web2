@@ -580,7 +580,7 @@ export default class IndeximagesController {
           })
         }
 
-        // SEMPRE CRIAR UM NOVO REGISTRO
+        // Reutiliza o bookrecord, mas garante que o documento exista.
         const verifyExistBookrecord = await Bookrecord.query()
           .where('companies_id', authenticate.companies_id)
           .andWhere('cod', dataImages.cod)
@@ -589,7 +589,56 @@ export default class IndeximagesController {
 
         // SE EXISTIR CODIGO E LIVRO DE DOCUMENTO INCLUI IMAGEM NO MESMO REGISTRO
         if (verifyExistBookrecord) {
-          dataImages.id = verifyExistBookrecord.id
+          const trx = await Database.beginGlobalTransaction()
+          try {
+            const document = await Document.query({ client: trx })
+              .where('bookrecords_id', verifyExistBookrecord.id)
+              .andWhere('typebooks_id', params.typebooks_id)
+              .andWhere('companies_id', authenticate.companies_id)
+              .first()
+
+            if (!document) {
+              const normalizeIntOrNull = (value: any) => {
+                if (value === undefined || value === null || value === '') return null
+                return Number(value)
+              }
+
+              await Document.create(
+                {
+                  bookrecords_id: verifyExistBookrecord.id,
+                  books_id: 13,
+                  typebooks_id: params.typebooks_id,
+                  companies_id: authenticate.companies_id,
+                  prot: dataImages.prot,
+                  documenttype_id: normalizeIntOrNull(dataImages?.documenttype_id),
+                  document_type_book_id: normalizeIntOrNull(dataImages.document_type_book_id),
+                  book_name: dataImages.book_name,
+                  book_number: dataImages.book_number,
+                  sheet_number: dataImages.sheet_number,
+                  free: dataImages.free ? 1 : 0,
+                  averb_anot: dataImages.averb_anot ? 1 : 0,
+                  obs: dataImages.obs,
+                },
+                { client: trx }
+              )
+            }
+
+            const documentAfterSave = await Document.query({ client: trx })
+              .where('bookrecords_id', verifyExistBookrecord.id)
+              .andWhere('typebooks_id', params.typebooks_id)
+              .andWhere('companies_id', authenticate.companies_id)
+              .first()
+
+            if (!documentAfterSave) {
+              throw new Error('Documento não foi persistido para o bookrecord.')
+            }
+
+            dataImages.id = verifyExistBookrecord.id
+            await trx.commit()
+          } catch (error) {
+            await trx.rollback()
+            throw error
+          }
         } else {
           const trx = await Database.beginGlobalTransaction()
           try {
@@ -602,7 +651,7 @@ export default class IndeximagesController {
                 side: dataImages.side,
                 books_id: 13,
               },
-              trx
+              { client: trx }
             )
 
             const normalizeIntOrNull = (value: any) => {
@@ -627,8 +676,18 @@ export default class IndeximagesController {
                 averb_anot: dataImages.averb_anot ? 1 : 0,
                 obs: dataImages.obs,
               },
-              trx
+              { client: trx }
             )
+
+            const documentAfterSave = await Document.query({ client: trx })
+              .where('bookrecords_id', bookRecord.id)
+              .andWhere('typebooks_id', params.typebooks_id)
+              .andWhere('companies_id', authenticate.companies_id)
+              .first()
+
+            if (!documentAfterSave) {
+              throw new Error('Documento não foi persistido para o bookrecord.')
+            }
 
             dataImages.id = bookRecord.id
             await trx.commit()
@@ -782,9 +841,7 @@ export default class IndeximagesController {
     const dateNow = formatDate.formatDate(new Date)
     const file_name = `Id${id}_(${cod})_${params.typebooks_id}_${dateNow}`
 
-    fs.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' }, function (err) {
-      console.log('File created', { folderPath })
-    });
+    await fs.promises.writeFile(`${folderPath}/${file_name}.jpeg`, base64Image, { encoding: 'base64' })
 
     const file = await FileRename.transformFilesNameToId(
       `${folderPath}/${file_name}.jpeg`,
