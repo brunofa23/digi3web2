@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import Usergroup from 'App/Models/Usergroup'
+import { verifyPermission } from 'App/Services/util'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 export default class UsergroupsController {
   private ensureDigi3Superuser(authenticate: any) {
@@ -11,12 +12,22 @@ export default class UsergroupsController {
 
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
-    this.ensureDigi3Superuser(authenticate)
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
+    const canManageUsers = verifyPermission(Boolean(authenticate.superuser), permissions, 5)
+
+    if (!canManageUsers) {
+      throw new BadRequestException('Acesso permitido somente para usuários com permissão de cadastro de usuários', 403, 'user_permission_forbidden')
+    }
+
     const { permissiongroup_id } = request.only(['permissiongroup_id'])
     const permissiongroupId = Number(permissiongroup_id)
     //const body = request.only(Usergroup.fillable)
     try {
       const data = await Usergroup.query()
+        .if(!authenticate.superuser, query => {
+          query.where('inactive', false)
+            .where('available_for_user_creation', true)
+        })
         .if(Number.isInteger(permissiongroupId) && permissiongroupId > 0, query => {
           query.whereHas('groupxpermission', subQuery => {
             subQuery.where('permissiongroup_id', permissiongroupId)
