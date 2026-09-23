@@ -18,7 +18,7 @@ const WebauthnCredential_1 = __importDefault(global[Symbol.for('ioc.use')]("App/
 const WebauthnChallenge_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/WebauthnChallenge"));
 const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Audit/AuditLogger"));
 const Tokentoimage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Tokentoimage"));
-const DIGI3_CAPTURE_ACCESS_PERMISSION_ID = 41;
+const DIGI3_CAPTURE_ACCESS_PERMISSION_ID = 39;
 class AuthenticationController {
     constructor() {
         this.deviceCookieName = 'digi3_device_token';
@@ -127,7 +127,7 @@ class AuthenticationController {
             .filter((permission) => !permission.companies_id || Number(permission.companies_id) === Number(user.companies_id));
         if (user.usergroup)
             user.usergroup.groupxpermission = permissions;
-        const canBypassDeviceControl = (0, util_1.verifyPermission)(Boolean(user.superuser), permissions, 39);
+        const canBypassDeviceControl = (0, util_1.verifyPermission)(Boolean(user.superuser), permissions, DIGI3_CAPTURE_ACCESS_PERMISSION_ID);
         if (clientType === 'digi3_capture_mobile' && !this.hasDigi3CaptureAccess(permissions)) {
             return response.status(403).send({
                 code: 'digi3_capture_access_denied',
@@ -238,7 +238,11 @@ class AuthenticationController {
             .preload('usergroup', query => {
             query.preload('groupxpermission', query => {
                 query.select('usergroup_id', 'permissiongroup_id', 'companies_id')
-                    .where('companies_id', authenticate.companies_id);
+                    .where((permissionQuery) => {
+                    permissionQuery
+                        .whereNull('companies_id')
+                        .orWhere('companies_id', authenticate.companies_id);
+                });
             });
         })
             .where('id', authenticate.id)
