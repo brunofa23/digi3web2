@@ -19,12 +19,9 @@ class UsergroupsController {
         const permissiongroupId = Number(permissiongroup_id);
         try {
             const data = await Usergroup_1.default.query()
-                .where('inactive', false)
-                .where('available_for_user_creation', true)
                 .if(Number.isInteger(permissiongroupId) && permissiongroupId > 0, query => {
                 query.whereHas('groupxpermission', subQuery => {
-                    subQuery.where('permissiongroup_id', permissiongroupId)
-                        .where('companies_id', authenticate.companies_id);
+                    subQuery.where('permissiongroup_id', permissiongroupId);
                 });
             })
                 .orderBy('name');
