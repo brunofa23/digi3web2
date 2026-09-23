@@ -17,8 +17,7 @@ class GroupxpermissionsController {
         const authenticate = await auth.use('api').authenticate();
         this.ensureDigi3Superuser(authenticate);
         try {
-            const data = await Groupxpermission_1.default.query()
-                .where('companies_id', authenticate.companies_id);
+            const data = await Groupxpermission_1.default.query();
             return response.status(200).send(data);
         }
         catch (error) {
@@ -33,19 +32,22 @@ class GroupxpermissionsController {
                 permissions: Validator_1.schema.array().members(Validator_1.schema.number([Validator_1.rules.exists({ table: 'permissiongroups', column: 'id' })])),
             });
             const { permissions } = await request.validate({ schema: updateSchema });
-            await Groupxpermission_1.default.query()
-                .where('usergroup_id', params.id)
-                .where('companies_id', authenticate.companies_id)
-                .delete();
-            const createManyPermission = permissions.map((id) => ({
-                usergroup_id: params.id,
-                permissiongroup_id: id,
-                companies_id: authenticate.companies_id,
-            }));
-            if (permissions.length === 0) {
-                return response.status(200).send([]);
-            }
-            const result = await Groupxpermission_1.default.createMany(createManyPermission);
+            const result = await Database_1.default.transaction(async (trx) => {
+                const companies = await trx.from('companies').select('id');
+                await trx
+                    .from('groupxpermissions')
+                    .where('usergroup_id', params.id)
+                    .delete();
+                if (permissions.length === 0)
+                    return [];
+                const permissionRows = companies.flatMap((company) => permissions.map((permissiongroup_id) => ({
+                    usergroup_id: params.id,
+                    permissiongroup_id,
+                    companies_id: company.id,
+                })));
+                await trx.table('groupxpermissions').insert(permissionRows);
+                return permissionRows;
+            });
             return response.status(201).send(result);
         }
         catch (error) {
@@ -61,8 +63,7 @@ class GroupxpermissionsController {
                 .leftJoin('groupxpermissions as gp', function () {
                 this
                     .on('p.id', '=', 'gp.permissiongroup_id')
-                    .andOnVal('gp.usergroup_id', '=', params.usergroup_id)
-                    .andOnVal('gp.companies_id', '=', authenticate.companies_id);
+                    .andOnVal('gp.usergroup_id', '=', params.usergroup_id);
             })
                 .select('p.id', 'p.name as permissiongroups', Database_1.default.raw('CASE WHEN gp.usergroup_id IS NOT NULL THEN true ELSE false END AS have_permission'))
                 .distinct()

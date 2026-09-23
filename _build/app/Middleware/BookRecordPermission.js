@@ -5,6 +5,12 @@ class BookRecordPermission {
     async handle({ auth, request, response }, next, customGuards) {
         const user = await auth.use('api').authenticate();
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        const isReadOnlyRequest = customGuards.every(guard => guard === 'get');
+        if (!isReadOnlyRequest && !user.superuser && (0, util_1.verifyPermission)(false, permissions, 37)) {
+            return response.unauthorized({
+                error: 'Você não tem permissão para acessar os livros.',
+            });
+        }
         let allowed = false;
         for (const guard of customGuards) {
             if (guard === 'get') {
