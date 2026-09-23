@@ -17,12 +17,9 @@ export default class UsergroupsController {
     //const body = request.only(Usergroup.fillable)
     try {
       const data = await Usergroup.query()
-        .where('inactive', false)
-        .where('available_for_user_creation', true)
         .if(Number.isInteger(permissiongroupId) && permissiongroupId > 0, query => {
           query.whereHas('groupxpermission', subQuery => {
             subQuery.where('permissiongroup_id', permissiongroupId)
-              .where('companies_id', authenticate.companies_id)
           })
         })
         .orderBy('name')
