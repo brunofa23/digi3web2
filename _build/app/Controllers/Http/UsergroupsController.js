@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const Usergroup_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Usergroup"));
+const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 class UsergroupsController {
     ensureDigi3Superuser(authenticate) {
@@ -14,11 +15,19 @@ class UsergroupsController {
     }
     async index({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        this.ensureDigi3Superuser(authenticate);
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        const canManageUsers = (0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, 5);
+        if (!canManageUsers) {
+            throw new BadRequestException_1.default('Acesso permitido somente para usuários com permissão de cadastro de usuários', 403, 'user_permission_forbidden');
+        }
         const { permissiongroup_id } = request.only(['permissiongroup_id']);
         const permissiongroupId = Number(permissiongroup_id);
         try {
             const data = await Usergroup_1.default.query()
+                .if(!authenticate.superuser, query => {
+                query.where('inactive', false)
+                    .where('available_for_user_creation', true);
+            })
                 .if(Number.isInteger(permissiongroupId) && permissiongroupId > 0, query => {
                 query.whereHas('groupxpermission', subQuery => {
                     subQuery.where('permissiongroup_id', permissiongroupId);
