@@ -23,7 +23,7 @@ import Tokentoimage from 'App/Models/Tokentoimage'
 //import Groupxpermission from 'App/Models/Groupxpermission'
 //teste
 
-const DIGI3_CAPTURE_ACCESS_PERMISSION_ID = 41
+const DIGI3_CAPTURE_ACCESS_PERMISSION_ID = 39
 
 export default class AuthenticationController {
   private deviceCookieName = 'digi3_device_token'
@@ -171,7 +171,11 @@ export default class AuthenticationController {
     const permissions = ((user as any)?.$preloaded?.usergroup?.$preloaded?.groupxpermission || [])
       .filter((permission: any) => !permission.companies_id || Number(permission.companies_id) === Number(user.companies_id))
     if ((user as any).usergroup) (user as any).usergroup.groupxpermission = permissions
-    const canBypassDeviceControl = verifyPermission(Boolean(user.superuser), permissions, 39)
+    const canBypassDeviceControl = verifyPermission(
+      Boolean(user.superuser),
+      permissions,
+      DIGI3_CAPTURE_ACCESS_PERMISSION_ID
+    )
 
     if (clientType === 'digi3_capture_mobile' && !this.hasDigi3CaptureAccess(permissions)) {
       return response.status(403).send({
@@ -309,7 +313,11 @@ export default class AuthenticationController {
       .preload('usergroup', query => {
         query.preload('groupxpermission', query => {
           query.select('usergroup_id', 'permissiongroup_id', 'companies_id')
-            .where('companies_id', authenticate.companies_id)
+            .where((permissionQuery) => {
+              permissionQuery
+                .whereNull('companies_id')
+                .orWhere('companies_id', authenticate.companies_id)
+            })
         })
       })
       .where('id', authenticate.id)
