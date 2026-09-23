@@ -21,6 +21,8 @@ export default class User extends BaseModel {
       'remember_me_token',
       'permission_level',
       'status',
+      'cargo',
+      'obs',
       'work_schedule',
       'access_image',
       'access_images_permanent',
@@ -85,6 +87,12 @@ export default class User extends BaseModel {
 
   @column()
   public status: Boolean
+
+  @column()
+  public cargo: string | null
+
+  @column()
+  public obs: string | null
 
   @column()
   public work_schedule: string

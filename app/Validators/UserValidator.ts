@@ -17,6 +17,8 @@ export default class UserValidator {
     permission_level: schema.number(),
     superuser: schema.boolean(),
     status: schema.boolean(),
+    cargo: schema.string.nullableAndOptional({}, [rules.maxLength(50)]),
+    obs: schema.string.nullableAndOptional({}, [rules.maxLength(100)]),
     access_images_permanent:schema.boolean.nullableAndOptional()
   })
 
