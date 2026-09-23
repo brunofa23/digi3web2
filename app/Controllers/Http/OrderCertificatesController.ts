@@ -10,6 +10,7 @@ import MarriedCertificate from 'App/Models/MarriedCertificate'
 import BornCertificate from 'App/Models/BornCertificate'
 import DeathCertificate from 'App/Models/DeathCertificate'
 import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
+import Document from 'App/Models/Document'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
 export default class OrderCertificatesController {
@@ -731,6 +732,9 @@ export default class OrderCertificatesController {
         q.preload('registered1Person', (p) => p.select('name', 'cpf'))
         q.preload('registered2Person', (p) => p.select('name', 'cpf'))
       })
+      .preload('document', (q) => {
+        q.select(['id', 'order_certificate_id', 'typebooks_id', 'bookrecords_id', 'companies_id'])
+      })
       .preload('receipt', (q) => {
         q.select([
           'id',
@@ -1295,6 +1299,32 @@ export default class OrderCertificatesController {
       meta: paginated.getMeta(),
       data: result,
     }
+  }
+
+  public async documentImages({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+
+    const document = await Document.query()
+      .select(['id', 'order_certificate_id', 'typebooks_id', 'bookrecords_id'])
+      .where('order_certificate_id', params.id)
+      .andWhere('companies_id', authenticate.companies_id)
+      .first()
+
+    if (!document) {
+      return response.notFound({ message: 'Nenhum documento vinculado a este formulário' })
+    }
+
+    const images = await Database
+      .from('indeximages')
+      .select(['file_name', 'typebooks_id', 'companies_id', 'bookrecords_id', 'seq'])
+      .where('bookrecords_id', document.bookrecords_id)
+      .andWhere('companies_id', authenticate.companies_id)
+      .orderBy('seq', 'asc')
+
+    return response.ok({
+      document,
+      data: images,
+    })
   }
 
   public async show({ auth, params, request, response }: HttpContextContract) {
