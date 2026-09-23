@@ -11,6 +11,14 @@ export default class BookRecordPermission {
     const user = await auth.use('api').authenticate()
     const permissions = auth.use('api').token?.meta.payload.permissions || []
 
+    const isReadOnlyRequest = customGuards.every(guard => guard === 'get')
+
+    if (!isReadOnlyRequest && !user.superuser && verifyPermission(false, permissions, 37)) {
+      return response.unauthorized({
+        error: 'Você não tem permissão para acessar os livros.',
+      })
+    }
+
     let allowed = false
 
     for (const guard of customGuards) {
