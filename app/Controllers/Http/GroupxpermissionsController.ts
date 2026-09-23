@@ -18,7 +18,6 @@ export default class GroupxpermissionsController {
 
     try {
       const data = await Groupxpermission.query()
-        .where('companies_id', authenticate.companies_id)
       return response.status(200).send(data)
     } catch (error) {
       throw new BadRequestException('Bad Request', 401, error)
@@ -38,22 +37,26 @@ export default class GroupxpermissionsController {
         ),
       })
       const { permissions } = await request.validate({ schema: updateSchema })
-      //1 - Deletar toda lista do Grupo
-      await Groupxpermission.query()
-        .where('usergroup_id', params.id)
-        .where('companies_id', authenticate.companies_id)
-        .delete()
-      const createManyPermission = permissions.map((id) => ({
-        usergroup_id: params.id,
-        permissiongroup_id: id,
-        companies_id: authenticate.companies_id,
-      }))
+      const result = await Database.transaction(async (trx) => {
+        const companies = await trx.from('companies').select('id')
 
-      if (permissions.length === 0) {
-        return response.status(200).send([]) // ou 204
-      }
+        await trx
+          .from('groupxpermissions')
+          .where('usergroup_id', params.id)
+          .delete()
 
-      const result = await Groupxpermission.createMany(createManyPermission)
+        if (permissions.length === 0) return []
+
+        const permissionRows = companies.flatMap((company) => permissions.map((permissiongroup_id) => ({
+          usergroup_id: params.id,
+          permissiongroup_id,
+          companies_id: company.id,
+        })))
+
+        await trx.table('groupxpermissions').insert(permissionRows)
+        return permissionRows
+      })
+
       return response.status(201).send(result)
 
     } catch (error) {
@@ -75,7 +78,6 @@ export default class GroupxpermissionsController {
           this
             .on('p.id', '=', 'gp.permissiongroup_id')
             .andOnVal('gp.usergroup_id', '=', params.usergroup_id)
-            .andOnVal('gp.companies_id', '=', authenticate.companies_id)
         })
         .select(
           'p.id',
