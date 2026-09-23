@@ -82,6 +82,7 @@ export default class GroupxpermissionsController {
           'p.name as permissiongroups',
           Database.raw('CASE WHEN gp.usergroup_id IS NOT NULL THEN true ELSE false END AS have_permission')
         )
+        .distinct()
         .orderBy('p.id')
 
       return response.status(200).send(data)
