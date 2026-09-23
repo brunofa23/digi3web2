@@ -33,6 +33,8 @@ class User extends Orm_1.BaseModel {
             'remember_me_token',
             'permission_level',
             'status',
+            'cargo',
+            'obs',
             'work_schedule',
             'access_image',
             'access_images_permanent',
@@ -110,6 +112,14 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Boolean)
 ], User.prototype, "status", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], User.prototype, "cargo", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], User.prototype, "obs", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)

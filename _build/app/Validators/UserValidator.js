@@ -16,6 +16,8 @@ class UserValidator {
             permission_level: Validator_1.schema.number(),
             superuser: Validator_1.schema.boolean(),
             status: Validator_1.schema.boolean(),
+            cargo: Validator_1.schema.string.nullableAndOptional({}, [Validator_1.rules.maxLength(50)]),
+            obs: Validator_1.schema.string.nullableAndOptional({}, [Validator_1.rules.maxLength(100)]),
             access_images_permanent: Validator_1.schema.boolean.nullableAndOptional()
         });
     }
