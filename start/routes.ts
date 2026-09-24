@@ -274,6 +274,7 @@ Route.group(() => {
   Route.get('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.showMarriage')
   Route.post('/public/order-certificates/marriage/:token/visionocr', 'PublicOrderCertificatesController.visionOcrMarriageDocument')
   Route.post('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.storeMarriage')
+  Route.get('/order-certificates/:id/document-images', 'OrderCertificatesController.documentImages')
   Route.resource('/order-certificates', 'OrderCertificatesController').apiOnly()
 
 
