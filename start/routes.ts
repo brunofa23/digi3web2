@@ -134,6 +134,7 @@ Route.group(() => {
 
   Route.get("/fastfinddocuments", 'BookrecordsController.fastFindDocuments').middleware('bookrecord_permission:fastfind')
   Route.get("/maxbookrecord", 'BookrecordsController.maxBookRecord').middleware('bookrecord_permission:maxbookrecord')
+  Route.get('/typebooks/:typebooks_id/bookrecords/resolve-document-by-protocol', 'BookrecordsController.resolveDocumentByProtocol').middleware('bookrecord_permission:get')
   Route.post("/imagesforitem", 'BookrecordsController.imagesForItem').middleware('bookrecord_permission:get')
   Route.get("/sheetwithside/:typebooks_id/:book", 'BookrecordsController.sheetWithSide').middleware('bookrecord_permission:get')
 
