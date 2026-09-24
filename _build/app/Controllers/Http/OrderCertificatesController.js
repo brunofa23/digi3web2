@@ -12,6 +12,7 @@ const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/
 const BornCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BornCertificate"));
 const DeathCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DeathCertificate"));
 const SecondcopyCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SecondcopyCertificate"));
+const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
 class OrderCertificatesController {
     getLatestEmployeeVerification(current, candidate) {
@@ -540,6 +541,9 @@ class OrderCertificatesController {
             q.preload('registered1Person', (p) => p.select('name', 'cpf'));
             q.preload('registered2Person', (p) => p.select('name', 'cpf'));
         })
+            .preload('document', (q) => {
+            q.select(['id', 'order_certificate_id', 'typebooks_id', 'bookrecords_id', 'companies_id']);
+        })
             .preload('receipt', (q) => {
             q.select([
                 'id',
@@ -997,6 +1001,27 @@ class OrderCertificatesController {
             meta: paginated.getMeta(),
             data: result,
         };
+    }
+    async documentImages({ auth, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const document = await Document_1.default.query()
+            .select(['id', 'order_certificate_id', 'typebooks_id', 'bookrecords_id'])
+            .where('order_certificate_id', params.id)
+            .andWhere('companies_id', authenticate.companies_id)
+            .first();
+        if (!document) {
+            return response.notFound({ message: 'Nenhum documento vinculado a este formulário' });
+        }
+        const images = await Database_1.default
+            .from('indeximages')
+            .select(['file_name', 'typebooks_id', 'companies_id', 'bookrecords_id', 'seq'])
+            .where('bookrecords_id', document.bookrecords_id)
+            .andWhere('companies_id', authenticate.companies_id)
+            .orderBy('seq', 'asc');
+        return response.ok({
+            document,
+            data: images,
+        });
     }
     async show({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
