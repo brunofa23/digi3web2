@@ -11,7 +11,7 @@ export default class BookRecordPermission {
     const user = await auth.use('api').authenticate()
     const permissions = auth.use('api').token?.meta.payload.permissions || []
 
-    const isReadOnlyRequest = customGuards.every(guard => guard === 'get')
+    const isReadOnlyRequest = customGuards.every(guard => ['get', 'maxbookrecord'].includes(guard))
 
     if (!isReadOnlyRequest && !user.superuser && verifyPermission(false, permissions, 37)) {
       return response.unauthorized({
