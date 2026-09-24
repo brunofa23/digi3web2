@@ -94,6 +94,7 @@ Route.group(() => {
 
   //BOOKRECORDS
   Route.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index').middleware('bookrecord_permission:get')
+  Route.get('/typebooks/:typebooks_id/bookrecords/resolve-document-by-protocol', 'BookrecordsController.resolveDocumentByProtocol').middleware('bookrecord_permission:get')
   Route.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show').middleware('bookrecord_permission:get')
   Route.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary').middleware('bookrecord_permission:get')
   Route.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post')
@@ -134,7 +135,6 @@ Route.group(() => {
 
   Route.get("/fastfinddocuments", 'BookrecordsController.fastFindDocuments').middleware('bookrecord_permission:fastfind')
   Route.get("/maxbookrecord", 'BookrecordsController.maxBookRecord').middleware('bookrecord_permission:maxbookrecord')
-  Route.get('/typebooks/:typebooks_id/bookrecords/resolve-document-by-protocol', 'BookrecordsController.resolveDocumentByProtocol').middleware('bookrecord_permission:get')
   Route.post("/imagesforitem", 'BookrecordsController.imagesForItem').middleware('bookrecord_permission:get')
   Route.get("/sheetwithside/:typebooks_id/:book", 'BookrecordsController.sheetWithSide').middleware('bookrecord_permission:get')
 
