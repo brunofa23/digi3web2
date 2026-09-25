@@ -75,6 +75,7 @@ Route_1.default.group(() => {
     Route_1.default.resource("/groupxpermissions", "GroupxpermissionsController").apiOnly();
     Route_1.default.get("/permissiongroupxusergroup/:usergroup_id", "GroupxpermissionsController.PermissiongroupXUsergroup");
     Route_1.default.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index').middleware('bookrecord_permission:get');
+    Route_1.default.get('/typebooks/:typebooks_id/bookrecords/resolve-document-by-protocol', 'BookrecordsController.resolveDocumentByProtocol').middleware('bookrecord_permission:get');
     Route_1.default.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show').middleware('bookrecord_permission:get');
     Route_1.default.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary').middleware('bookrecord_permission:get');
     Route_1.default.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post');

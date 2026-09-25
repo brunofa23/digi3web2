@@ -486,6 +486,7 @@ class IndeximagesController {
                         .where('companies_id', authenticate.companies_id)
                         .andWhere('cod', dataImages.cod)
                         .andWhere('typebooks_id', params.typebooks_id)
+                        .orderBy('id', 'asc')
                         .first();
                     if (verifyExistBookrecord) {
                         const trx = await Database_1.default.beginGlobalTransaction();
@@ -544,6 +545,20 @@ class IndeximagesController {
                         }
                     }
                     else {
+                        const maxCod = await Bookrecord_1.default.query()
+                            .where('companies_id', authenticate.companies_id)
+                            .andWhere('typebooks_id', params.typebooks_id)
+                            .max('cod as max_cod')
+                            .first();
+                        const nextCod = Number(maxCod?.$extras.max_cod || 0) + 1;
+                        if (Number(dataImages.cod) !== nextCod) {
+                            const errorMessage = `O código informado não é o próximo código válido. Informe ${nextCod}.`;
+                            await updateUploadJob(uploadJob, 'FAILED', { errorMessage });
+                            return response.status(422).send({
+                                message: errorMessage,
+                                uploadJob: serializeUploadJob(uploadJob),
+                            });
+                        }
                         const trx = await Database_1.default.beginGlobalTransaction();
                         try {
                             const bookRecord = await Bookrecord_1.default.create({
