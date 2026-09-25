@@ -94,6 +94,7 @@ Route.group(() => {
 
   //BOOKRECORDS
   Route.get("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.index').middleware('bookrecord_permission:get')
+  Route.get('/typebooks/:typebooks_id/bookrecords/resolve-document-by-protocol', 'BookrecordsController.resolveDocumentByProtocol').middleware('bookrecord_permission:get')
   Route.get("/typebooks/:typebooks_id/bookrecords/:id", 'BookrecordsController.show').middleware('bookrecord_permission:get')
   Route.get("/bookrecords/booksummary/:typebooks_id", 'BookrecordsController.bookSummary').middleware('bookrecord_permission:get')
   Route.post("/typebooks/:typebooks_id/bookrecords", 'BookrecordsController.store').middleware('bookrecord_permission:post')

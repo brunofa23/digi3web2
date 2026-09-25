@@ -3453,8 +3453,8 @@ export default class BookrecordsController {
 
     }
     const query = Bookrecord.query()
-      .where('books_id', 13)
-      .andWhere('companies_id', authenticate.companies_id)
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('typebooks_id', typebooks_id)
       .max('cod as max_cod')
 
     //console.log("passo:::",query.toQuery())
@@ -3465,6 +3465,33 @@ export default class BookrecordsController {
       max_sheet: maxSheet?.$extras.max_sheet,
       max_cod_document: maxCodDocument?.$extras.max_cod,
       max_cod: maxCod?.$extras.max_cod
+    })
+  }
+
+  public async resolveDocumentByProtocol({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const protocol = request.input('prot')
+
+    if (protocol === undefined || protocol === null || protocol === '') {
+      return response.status(422).send({ message: 'O protocolo é obrigatório.' })
+    }
+
+    const document = await Document.query()
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('typebooks_id', params.typebooks_id)
+      .andWhere('prot', protocol)
+      .preload('bookrecord')
+      .orderBy('bookrecords_id', 'asc')
+      .first()
+
+    if (!document?.bookrecord) {
+      return response.status(404).send({ message: 'Nenhum código foi encontrado para este protocolo.' })
+    }
+
+    return response.status(200).send({
+      cod: document.bookrecord.cod,
+      bookrecord_id: document.bookrecord.id,
+      prot: document.prot,
     })
   }
 
