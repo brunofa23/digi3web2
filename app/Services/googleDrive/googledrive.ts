@@ -522,7 +522,7 @@ async function downloadFile(authClient, fileId, extension) {
   }
 }
 
-async function downloadFileBuffer(authClient, fileId) {
+async function downloadFileBuffer(authClient, fileId, limits: { timeout?: number; maxContentLength?: number } = {}) {
   const drive = google.drive({ version: 'v3', auth: authClient });
 
   const file = await drive.files.get({
@@ -530,6 +530,7 @@ async function downloadFileBuffer(authClient, fileId) {
     alt: 'media',
   }, {
     responseType: 'arraybuffer',
+    ...limits,
   });
 
   return Buffer.from(file.data);
@@ -643,9 +644,9 @@ async function sendDownloadFile(fileId, extension, cloud_number: number) {
   return downloadFile(auth, fileId, extension)
 }
 
-async function sendDownloadFileBuffer(fileId, cloud_number: number) {
+async function sendDownloadFileBuffer(fileId, cloud_number: number, limits: { timeout?: number; maxContentLength?: number } = {}) {
   const auth = await authorize(cloud_number)
-  return downloadFileBuffer(auth, fileId)
+  return downloadFileBuffer(auth, fileId, limits)
 }
 
 async function sendRenameFile(fileId, newTitle, cloud_number: number) {

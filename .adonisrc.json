@@ -44,6 +44,7 @@
     "@japa/preset-adonis/TestsProvider"
   ],
   "metaFiles": [
+    "poc/image-analysis/analyze.py",
     "tmp/uploads/*",
     ".env.example",
     "config/credentials/*",

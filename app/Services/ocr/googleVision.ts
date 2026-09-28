@@ -39,6 +39,47 @@ export async function extractDocumentTextFromBuffer(imageBuffer: Buffer): Promis
   return result.fullTextAnnotation?.text || result.textAnnotations?.[0]?.description || ''
 }
 
+export interface SheetNumberLine {
+  text: string
+  confidence: number | null
+}
+
+// Usado somente pela POC; o buffer contém apenas o recorte da numeração.
+export async function extractSheetNumberLines(imageBuffer: Buffer): Promise<SheetNumberLine[]> {
+  const [result] = await getClient().documentTextDetection(
+    { image: { content: imageBuffer } },
+    { timeout: 15000, retry: null }
+  )
+  if (result.error?.message) throw new Error('Falha no reconhecimento do recorte')
+  const lines: SheetNumberLine[] = []
+  for (const page of result.fullTextAnnotation?.pages || []) {
+    for (const block of page.blocks || []) {
+      for (const paragraph of block.paragraphs || []) {
+        let words: string[] = []
+        let confidences: (number | null)[] = []
+        const flush = () => {
+          if (!words.length) return
+          lines.push({
+            text: words.join(' '),
+            confidence: confidences.some((value) => value === null) ? null : Math.min(...confidences as number[]),
+          })
+          words = []
+          confidences = []
+        }
+        for (const word of paragraph.words || []) {
+          const symbols = word.symbols || []
+          words.push(symbols.map((symbol) => symbol.text || '').join(''))
+          confidences.push(typeof word.confidence === 'number' ? word.confidence : null)
+          const breakType = symbols[symbols.length - 1]?.property?.detectedBreak?.type
+          if ([3, 5, 'EOL_SURE_SPACE', 'LINE_BREAK'].includes(breakType as any)) flush()
+        }
+        flush()
+      }
+    }
+  }
+  return lines
+}
+
 function normalizeExtractedText(value: string) {
   return String(value || '')
     .replace(/\r/g, '\n')
