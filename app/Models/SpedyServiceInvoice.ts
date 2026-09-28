@@ -1,4 +1,6 @@
 import { DateTime } from 'luxon'
+import { isDeepStrictEqual } from 'util'
+import Database from '@ioc:Adonis/Lucid/Database'
 import { BaseModel, belongsTo, BelongsTo, column } from '@ioc:Adonis/Lucid/Orm'
 import Company from './Company'
 import Receipt from './Receipt'
@@ -71,6 +73,57 @@ export default class SpedyServiceInvoice extends BaseModel {
     consume: parseJson,
   })
   public processingDetail?: any
+
+  @column({
+    serializeAs: null,
+    prepare: (value: any) => value == null ? null : JSON.stringify(value),
+    consume: parseJson,
+  })
+  public processingHistory?: any[] | null
+
+  public getProcessingHistory() {
+    if (this.processingHistory?.length) return [...this.processingHistory]
+    if (!this.$isPersisted || (!this.status && !this.processingDetail)) return []
+
+    return [this.historyEntry('previous', this.updatedAt?.toISO() || null)]
+  }
+
+  private historyEntry(source: string, recordedAt: string | null) {
+    return {
+      source,
+      recordedAt,
+      status: this.status || null,
+      number: this.number || null,
+      processingDetail: this.processingDetail || null,
+    }
+  }
+
+  public applyWithHistory(values: any, source: string) {
+    const history = this.getProcessingHistory()
+    this.merge(values)
+    const entry = this.historyEntry(source, DateTime.utc().toISO())
+    const last = history[history.length - 1]
+
+    // O MySQL pode reordenar as chaves JSON. Comparar os objetos evita
+    // duplicar acontecimentos ao consultar novamente o mesmo retorno.
+    if (source !== 'sync' || !last || last.status !== entry.status
+      || last.number !== entry.number || !isDeepStrictEqual(last.processingDetail, entry.processingDetail)) {
+      history.push(entry)
+    }
+    this.processingHistory = history
+  }
+
+  public static async saveWithHistory(values: any, source: string, invoiceId?: number) {
+    return Database.transaction(async (trx) => {
+      const invoice = invoiceId
+        ? await this.query({ client: trx }).where('id', invoiceId).forUpdate().firstOrFail()
+        : new SpedyServiceInvoice()
+      invoice.useTransaction(trx)
+      invoice.applyWithHistory(values, source)
+      await invoice.save()
+      return invoice
+    })
+  }
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime

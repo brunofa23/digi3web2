@@ -224,6 +224,10 @@ export default class ServiceInvoicesController {
     const status = request.input('status')
     if (status) query.where('status', status)
 
+    if (String(request.input('pendingSync', false)) === 'true') {
+      query.where((builder) => builder.whereNull('status').orWhereNot('status', 'authorized'))
+    }
+
     const dateStart = request.input('dateStart') || request.input('date_start')
     if (dateStart) {
       const parsedDateStart = DateTime.fromISO(String(dateStart))
@@ -285,24 +289,7 @@ export default class ServiceInvoicesController {
     const remote = await this.spedy.createServiceInvoice(integration, requestPayload)
     const normalized = this.normalizeInvoice(remote)
 
-    if (existing) {
-      existing.merge({
-        environment,
-        spedyCompanyId: integration.spedyCompanyId,
-        amount: payload.amount,
-        receiverName: payload.receiver?.name || null,
-        receiverFederalTaxNumber: payload.receiver?.federalTaxNumber || null,
-        description: payload.description,
-        effectiveDate: requestPayload.effectiveDate ? DateTime.fromISO(requestPayload.effectiveDate) : null,
-        requestPayload,
-        ...normalized,
-      })
-
-      await existing.save()
-      return existing
-    }
-
-    return SpedyServiceInvoice.create({
+    return SpedyServiceInvoice.saveWithHistory({
       companiesId,
       environment,
       spedyCompanyId: integration.spedyCompanyId,
@@ -314,22 +301,24 @@ export default class ServiceInvoicesController {
       effectiveDate: requestPayload.effectiveDate ? DateTime.fromISO(requestPayload.effectiveDate) : null,
       requestPayload,
       ...normalized,
-    })
+    }, existing ? 'correction' : 'emission', existing?.id)
   }
 
   public async show({ auth, params }: HttpContextContract) {
     const user = await this.authenticateWithPermission(auth)
-    return this.getLocalInvoice(user, params.id)
+    const local = await this.getLocalInvoice(user, params.id)
+    return { ...local.serialize(), processingHistory: local.getProcessingHistory() }
   }
 
-  public async sync({ auth, params }: HttpContextContract) {
+  public async sync({ auth, params, request }: HttpContextContract) {
     const user = await this.authenticateWithPermission(auth)
+    if (request.input('skipAuthorized') === true) {
+      const current = await this.getLocalInvoice(user, params.id)
+      if (current.status === 'authorized') return current
+    }
     const { local, integration } = await this.getDownloadContext(user, params.id)
     const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId!)
-    local.merge(this.normalizeInvoice(remote))
-    await local.save()
-
-    return local
+    return SpedyServiceInvoice.saveWithHistory(this.normalizeInvoice(remote), 'sync', local.id)
   }
 
   public async cancel({ auth, params, request }: HttpContextContract) {
@@ -349,10 +338,7 @@ export default class ServiceInvoicesController {
     const { local, integration } = await this.getDownloadContext(user, params.id)
     await this.spedy.cancelServiceInvoice(integration, local.spedyInvoiceId!, justification)
     const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId!)
-    local.merge(this.normalizeInvoice(remote))
-    await local.save()
-
-    return local
+    return SpedyServiceInvoice.saveWithHistory(this.normalizeInvoice(remote), 'cancellation', local.id)
   }
 
   public async issue({ auth, params }: HttpContextContract) {
@@ -360,10 +346,7 @@ export default class ServiceInvoicesController {
     const { local, integration } = await this.getDownloadContext(user, params.id)
     await this.spedy.issueServiceInvoice(integration, local.spedyInvoiceId!)
     const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId!)
-    local.merge(this.normalizeInvoice(remote))
-    await local.save()
-
-    return local
+    return SpedyServiceInvoice.saveWithHistory(this.normalizeInvoice(remote), 'reissue', local.id)
   }
 
   public async xml({ auth, params, response }: HttpContextContract) {
