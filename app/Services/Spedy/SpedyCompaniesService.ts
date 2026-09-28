@@ -86,6 +86,9 @@ export default class SpedyCompaniesService {
       })
 
       req.on('error', reject)
+      if (method === 'GET') {
+        req.setTimeout(30000, () => req.destroy(new Error('Tempo limite ao consultar a Spedy. Tente novamente.')))
+      }
       if (body) req.write(body)
       req.end()
     })
