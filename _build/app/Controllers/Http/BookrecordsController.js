@@ -2406,13 +2406,17 @@ class BookrecordsController {
         if (protocol === undefined || protocol === null || protocol === '') {
             return response.status(422).send({ message: 'O protocolo é obrigatório.' });
         }
-        const document = await Document_1.default.query()
+        const documents = await Document_1.default.query()
             .where('companies_id', authenticate.companies_id)
             .andWhere('typebooks_id', params.typebooks_id)
             .andWhere('prot', protocol)
             .preload('bookrecord')
             .orderBy('bookrecords_id', 'asc')
-            .first();
+            .limit(2);
+        if (documents.length > 1) {
+            return response.status(409).send({ message: 'Mais de um documento possui este protocolo. Confira o cadastro antes de capturar.' });
+        }
+        const document = documents[0];
         if (!document?.bookrecord) {
             return response.status(404).send({ message: 'Nenhum código foi encontrado para este protocolo.' });
         }

@@ -482,12 +482,29 @@ class IndeximagesController {
                             uploadJob: serializeUploadJob(uploadJob),
                         });
                     }
+                    const captureIncrement = dataImages.capture_increment;
+                    const incrementalCapture = captureIncrement === 'code' || captureIncrement === 'protocol';
+                    if (incrementalCapture && (!Number.isSafeInteger(Number(dataImages.cod)) || Number(dataImages.cod) < 1 ||
+                        (captureIncrement === 'protocol' && (dataImages.prot === null || dataImages.prot === undefined || dataImages.prot === '' ||
+                            !Number.isSafeInteger(Number(dataImages.prot)) || Number(dataImages.prot) < 1)))) {
+                        throw new BadRequestException_1.default('Informe código e protocolo válidos para a captura sequencial.', 422, 'invalid_capture_sequence');
+                    }
                     const verifyExistBookrecord = await Bookrecord_1.default.query()
                         .where('companies_id', authenticate.companies_id)
                         .andWhere('cod', dataImages.cod)
                         .andWhere('typebooks_id', params.typebooks_id)
                         .orderBy('id', 'asc')
                         .first();
+                    if (captureIncrement === 'protocol') {
+                        const matches = await Document_1.default.query()
+                            .where('companies_id', authenticate.companies_id)
+                            .andWhere('typebooks_id', params.typebooks_id)
+                            .andWhere('prot', dataImages.prot)
+                            .limit(2);
+                        if (matches.length > 1 || (matches.length === 1 && matches[0].bookrecords_id !== verifyExistBookrecord?.id)) {
+                            throw new BadRequestException_1.default('O vínculo do protocolo mudou ou está duplicado. Busque o protocolo novamente antes de capturar.', 409, 'capture_protocol_conflict');
+                        }
+                    }
                     if (verifyExistBookrecord) {
                         const trx = await Database_1.default.beginGlobalTransaction();
                         try {
@@ -501,6 +518,9 @@ class IndeximagesController {
                                     return null;
                                 return Number(value);
                             };
+                            if (incrementalCapture && document && normalizeIntOrNull(document.prot) !== normalizeIntOrNull(dataImages.prot)) {
+                                throw new BadRequestException_1.default('Este código possui outro protocolo. Busque o registro novamente antes de capturar.', 409, 'capture_code_conflict');
+                            }
                             if (!document) {
                                 const orderCertificateId = normalizeIntOrNull(dataImages.order_certificate_id);
                                 await this.validateOrderCertificateLink(orderCertificateId, authenticate.companies_id, trx);
@@ -551,7 +571,7 @@ class IndeximagesController {
                             .max('cod as max_cod')
                             .first();
                         const nextCod = Number(maxCod?.$extras.max_cod || 0) + 1;
-                        if (Number(dataImages.cod) !== nextCod) {
+                        if (captureIncrement !== 'code' && Number(dataImages.cod) !== nextCod) {
                             const errorMessage = `O código informado não é o próximo código válido. Informe ${nextCod}.`;
                             await updateUploadJob(uploadJob, 'FAILED', { errorMessage });
                             return response.status(422).send({
