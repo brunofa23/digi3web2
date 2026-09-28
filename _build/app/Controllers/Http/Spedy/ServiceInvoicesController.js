@@ -192,6 +192,9 @@ class ServiceInvoicesController {
         const status = request.input('status');
         if (status)
             query.where('status', status);
+        if (String(request.input('pendingSync', false)) === 'true') {
+            query.where((builder) => builder.whereNull('status').orWhereNot('status', 'authorized'));
+        }
         const dateStart = request.input('dateStart') || request.input('date_start');
         if (dateStart) {
             const parsedDateStart = luxon_1.DateTime.fromISO(String(dateStart));
@@ -242,22 +245,7 @@ class ServiceInvoicesController {
         }
         const remote = await this.spedy.createServiceInvoice(integration, requestPayload);
         const normalized = this.normalizeInvoice(remote);
-        if (existing) {
-            existing.merge({
-                environment,
-                spedyCompanyId: integration.spedyCompanyId,
-                amount: payload.amount,
-                receiverName: payload.receiver?.name || null,
-                receiverFederalTaxNumber: payload.receiver?.federalTaxNumber || null,
-                description: payload.description,
-                effectiveDate: requestPayload.effectiveDate ? luxon_1.DateTime.fromISO(requestPayload.effectiveDate) : null,
-                requestPayload,
-                ...normalized,
-            });
-            await existing.save();
-            return existing;
-        }
-        return SpedyServiceInvoice_1.default.create({
+        return SpedyServiceInvoice_1.default.saveWithHistory({
             companiesId,
             environment,
             spedyCompanyId: integration.spedyCompanyId,
@@ -269,19 +257,23 @@ class ServiceInvoicesController {
             effectiveDate: requestPayload.effectiveDate ? luxon_1.DateTime.fromISO(requestPayload.effectiveDate) : null,
             requestPayload,
             ...normalized,
-        });
+        }, existing ? 'correction' : 'emission', existing?.id);
     }
     async show({ auth, params }) {
         const user = await this.authenticateWithPermission(auth);
-        return this.getLocalInvoice(user, params.id);
+        const local = await this.getLocalInvoice(user, params.id);
+        return { ...local.serialize(), processingHistory: local.getProcessingHistory() };
     }
-    async sync({ auth, params }) {
+    async sync({ auth, params, request }) {
         const user = await this.authenticateWithPermission(auth);
+        if (request.input('skipAuthorized') === true) {
+            const current = await this.getLocalInvoice(user, params.id);
+            if (current.status === 'authorized')
+                return current;
+        }
         const { local, integration } = await this.getDownloadContext(user, params.id);
         const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId);
-        local.merge(this.normalizeInvoice(remote));
-        await local.save();
-        return local;
+        return SpedyServiceInvoice_1.default.saveWithHistory(this.normalizeInvoice(remote), 'sync', local.id);
     }
     async cancel({ auth, params, request }) {
         const user = await this.authenticateWithPermission(auth);
@@ -295,18 +287,14 @@ class ServiceInvoicesController {
         const { local, integration } = await this.getDownloadContext(user, params.id);
         await this.spedy.cancelServiceInvoice(integration, local.spedyInvoiceId, justification);
         const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId);
-        local.merge(this.normalizeInvoice(remote));
-        await local.save();
-        return local;
+        return SpedyServiceInvoice_1.default.saveWithHistory(this.normalizeInvoice(remote), 'cancellation', local.id);
     }
     async issue({ auth, params }) {
         const user = await this.authenticateWithPermission(auth);
         const { local, integration } = await this.getDownloadContext(user, params.id);
         await this.spedy.issueServiceInvoice(integration, local.spedyInvoiceId);
         const remote = await this.spedy.getServiceInvoice(integration, local.spedyInvoiceId);
-        local.merge(this.normalizeInvoice(remote));
-        await local.save();
-        return local;
+        return SpedyServiceInvoice_1.default.saveWithHistory(this.normalizeInvoice(remote), 'reissue', local.id);
     }
     async xml({ auth, params, response }) {
         const user = await this.authenticateWithPermission(auth);

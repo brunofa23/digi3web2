@@ -13,6 +13,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
+const util_1 = require("util");
+const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Company_1 = __importDefault(require("./Company"));
 const Receipt_1 = __importDefault(require("./Receipt"));
@@ -24,6 +26,44 @@ function parseJson(value) {
     return value;
 }
 class SpedyServiceInvoice extends Orm_1.BaseModel {
+    getProcessingHistory() {
+        if (this.processingHistory?.length)
+            return [...this.processingHistory];
+        if (!this.$isPersisted || (!this.status && !this.processingDetail))
+            return [];
+        return [this.historyEntry('previous', this.updatedAt?.toISO() || null)];
+    }
+    historyEntry(source, recordedAt) {
+        return {
+            source,
+            recordedAt,
+            status: this.status || null,
+            number: this.number || null,
+            processingDetail: this.processingDetail || null,
+        };
+    }
+    applyWithHistory(values, source) {
+        const history = this.getProcessingHistory();
+        this.merge(values);
+        const entry = this.historyEntry(source, luxon_1.DateTime.utc().toISO());
+        const last = history[history.length - 1];
+        if (source !== 'sync' || !last || last.status !== entry.status
+            || last.number !== entry.number || !(0, util_1.isDeepStrictEqual)(last.processingDetail, entry.processingDetail)) {
+            history.push(entry);
+        }
+        this.processingHistory = history;
+    }
+    static async saveWithHistory(values, source, invoiceId) {
+        return Database_1.default.transaction(async (trx) => {
+            const invoice = invoiceId
+                ? await this.query({ client: trx }).where('id', invoiceId).forUpdate().firstOrFail()
+                : new SpedyServiceInvoice();
+            invoice.useTransaction(trx);
+            invoice.applyWithHistory(values, source);
+            await invoice.save();
+            return invoice;
+        });
+    }
 }
 SpedyServiceInvoice.table = 'spedy_service_invoices';
 __decorate([
@@ -103,6 +143,14 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], SpedyServiceInvoice.prototype, "processingDetail", void 0);
+__decorate([
+    (0, Orm_1.column)({
+        serializeAs: null,
+        prepare: (value) => value == null ? null : JSON.stringify(value),
+        consume: parseJson,
+    }),
+    __metadata("design:type", Object)
+], SpedyServiceInvoice.prototype, "processingHistory", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
