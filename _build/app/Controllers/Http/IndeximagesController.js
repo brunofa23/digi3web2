@@ -483,6 +483,7 @@ class IndeximagesController {
                         });
                     }
                     const captureIncrement = dataImages.capture_increment;
+                    const updateMode = captureIncrement ? undefined : dataImages.update_mode;
                     const incrementalCapture = captureIncrement === 'code' || captureIncrement === 'protocol';
                     if (incrementalCapture && (!Number.isSafeInteger(Number(dataImages.cod)) || Number(dataImages.cod) < 1 ||
                         (captureIncrement === 'protocol' && (dataImages.prot === null || dataImages.prot === undefined || dataImages.prot === '' ||
@@ -520,6 +521,33 @@ class IndeximagesController {
                             };
                             if (incrementalCapture && document && normalizeIntOrNull(document.prot) !== normalizeIntOrNull(dataImages.prot)) {
                                 throw new BadRequestException_1.default('Este código possui outro protocolo. Busque o registro novamente antes de capturar.', 409, 'capture_code_conflict');
+                            }
+                            if (updateMode === 'code') {
+                                const hasValue = (value) => value !== undefined && value !== null && value !== '';
+                                if (hasValue(dataImages.book))
+                                    verifyExistBookrecord.book = Number(dataImages.book);
+                                if (hasValue(dataImages.side))
+                                    verifyExistBookrecord.side = dataImages.side;
+                                verifyExistBookrecord.useTransaction(trx);
+                                await verifyExistBookrecord.save();
+                                if (document) {
+                                    const fields = {};
+                                    for (const field of ['prot', 'documenttype_id', 'document_type_book_id', 'book_number', 'sheet_number']) {
+                                        if (hasValue(dataImages[field]))
+                                            fields[field] = Number(dataImages[field]);
+                                    }
+                                    for (const field of ['book_name', 'obs']) {
+                                        if (hasValue(dataImages[field]))
+                                            fields[field] = dataImages[field];
+                                    }
+                                    for (const field of ['free', 'averb_anot']) {
+                                        if (hasValue(dataImages[field]))
+                                            fields[field] = [true, 1, '1', 'true'].includes(dataImages[field]);
+                                    }
+                                    document.merge(fields);
+                                    document.useTransaction(trx);
+                                    await document.save();
+                                }
                             }
                             if (!document) {
                                 const orderCertificateId = normalizeIntOrNull(dataImages.order_certificate_id);
@@ -571,7 +599,7 @@ class IndeximagesController {
                             .max('cod as max_cod')
                             .first();
                         const nextCod = Number(maxCod?.$extras.max_cod || 0) + 1;
-                        if (captureIncrement !== 'code' && Number(dataImages.cod) !== nextCod) {
+                        if (captureIncrement !== 'code' && updateMode !== 'code' && Number(dataImages.cod) !== nextCod) {
                             const errorMessage = `O código informado não é o próximo código válido. Informe ${nextCod}.`;
                             await updateUploadJob(uploadJob, 'FAILED', { errorMessage });
                             return response.status(422).send({
