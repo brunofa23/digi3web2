@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { DateTime } from 'luxon'
 import AuditLog from 'App/Models/AuditLog'
+import Bookrecord from 'App/Models/Bookrecord'
 import User from 'App/Models/User'
 import Company from 'App/Models/Company'
 import Typebook from 'App/Models/Typebook'
@@ -22,6 +23,17 @@ export default class AuditLogsController {
     }
 
     return null
+  }
+
+  private getBookrecordId(item: AuditLog) {
+    const sources = [item.entityKey, item.metadata, item.beforeData, item.afterData]
+
+    for (const source of sources) {
+      const id = Number(source?.bookrecords_id || source?.bookrecord_id || source?.bookrecordId)
+      if (Number.isInteger(id) && id > 0) return id
+    }
+
+    return item.entityTable === 'bookrecords' && item.entityId ? item.entityId : null
   }
 
   public async index({ auth, request, response }: HttpContextContract) {
@@ -94,6 +106,9 @@ export default class AuditLogsController {
           builder
             .where('description', 'like', `%${search}%`)
             .orWhere('resource_key', 'like', `%${search}%`)
+            .orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(entity_key, '$.bookrecord_cod')) LIKE ?", [`%${search}%`])
+            .orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(entity_key, '$.bookrecords_id')) LIKE ?", [`%${search}%`])
+            .orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(entity_key, '$.document_id')) LIKE ?", [`%${search}%`])
         })
       }
 
@@ -101,6 +116,7 @@ export default class AuditLogsController {
       const userIds = Array.from(new Set(data.map((item) => item.userId).filter(Boolean)))
       const companyIds = Array.from(new Set(data.map((item) => item.companiesId).filter(Boolean)))
       const typebookIds = Array.from(new Set(data.map((item) => this.getTypebookId(item)).filter(Boolean)))
+      const bookrecordIds = Array.from(new Set(data.map((item) => this.getBookrecordId(item)).filter(Boolean)))
 
       const users = userIds.length
         ? await User.query().whereIn('id', userIds as number[]).select('id', 'name', 'username')
@@ -114,13 +130,26 @@ export default class AuditLogsController {
           .whereIn('id', typebookIds as number[])
           .select('id', 'name')
         : []
+      const bookrecords = bookrecordIds.length
+        ? await Bookrecord.query()
+          .where('companies_id', effectiveCompanyId)
+          .whereIn('id', bookrecordIds as number[])
+          .select('id', 'cod', 'typebooks_id')
+        : []
 
       const usersById = new Map(users.map((user) => [user.id, user]))
       const companiesById = new Map(companies.map((company) => [company.id, company]))
       const typebooksById = new Map(typebooks.map((typebook) => [typebook.id, typebook]))
+      const bookrecordsById = new Map(bookrecords.map((bookrecord) => [bookrecord.id, bookrecord]))
 
       return response.status(200).send(data.map((item) => {
         const typebookId = this.getTypebookId(item)
+        const bookrecordId = this.getBookrecordId(item)
+        const bookrecord = bookrecordId ? bookrecordsById.get(bookrecordId) : null
+        const entityKey = item.entityKey || {}
+        const documentId = Number(entityKey.document_id || (item.entityTable === 'documents' ? item.entityId : 0)) || null
+        const bookrecordCod = entityKey.bookrecord_cod ?? bookrecord?.cod ?? null
+        const typebook = typebookId ? typebooksById.get(typebookId) : null
 
         return {
           id: item.id,
@@ -145,6 +174,13 @@ export default class AuditLogsController {
           user: item.userId ? usersById.get(item.userId) : null,
           company: item.companiesId ? companiesById.get(item.companiesId) : null,
           typebook: typebookId ? typebooksById.get(typebookId) : null,
+          identification: {
+            typebook_id: typebookId,
+            typebook_name: typebook?.name || null,
+            bookrecord_cod: bookrecordCod,
+            bookrecord_id: bookrecordId,
+            document_id: documentId,
+          },
         }
       }))
     } catch (error) {
