@@ -229,6 +229,35 @@ export default class BookrecordsController {
     }
   }
 
+  public async fieldAvailability({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use("api").authenticate()
+    const typebookId = Number(params.typebooks_id)
+    if (!Number.isInteger(typebookId) || typebookId <= 0) {
+      return response.status(400).send({ message: "Livro inválido." })
+    }
+
+    const [entity, documentType, book] = await Promise.all([
+      Database.from("fin_entities")
+        .where("companies_id", authenticate.companies_id)
+        .whereRaw("COALESCE(excluded, 0) = 0 AND COALESCE(inactive, 0) = 0")
+        .select("id").first(),
+      Database.from("documenttypes")
+        .where("companies_id", authenticate.companies_id)
+        .whereRaw("COALESCE(status, 0) = 0")
+        .select("id").first(),
+      Database.from("document_type_books")
+        .where("companies_id", authenticate.companies_id)
+        .whereRaw("COALESCE(inactive, 0) = 0")
+        .select("id").first(),
+    ])
+
+    return response.status(200).send({
+      fin_entities_id: Boolean(entity),
+      documenttype_id: Boolean(documentType),
+      document_type_book_id: Boolean(book),
+    })
+  }
+
   public async index({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const { codstart, codend,
