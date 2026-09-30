@@ -178,6 +178,32 @@ class BookrecordsController {
             register: orderNumber || genericFields.register,
         };
     }
+    async fieldAvailability({ auth, params, response }) {
+        const authenticate = await auth.use("api").authenticate();
+        const typebookId = Number(params.typebooks_id);
+        if (!Number.isInteger(typebookId) || typebookId <= 0) {
+            return response.status(400).send({ message: "Livro inválido." });
+        }
+        const [entity, documentType, book] = await Promise.all([
+            Database_1.default.from("fin_entities")
+                .where("companies_id", authenticate.companies_id)
+                .whereRaw("COALESCE(excluded, 0) = 0 AND COALESCE(inactive, 0) = 0")
+                .select("id").first(),
+            Database_1.default.from("documenttypes")
+                .where("companies_id", authenticate.companies_id)
+                .whereRaw("COALESCE(status, 0) = 0")
+                .select("id").first(),
+            Database_1.default.from("document_type_books")
+                .where("companies_id", authenticate.companies_id)
+                .whereRaw("COALESCE(inactive, 0) = 0")
+                .select("id").first(),
+        ]);
+        return response.status(200).send({
+            fin_entities_id: Boolean(entity),
+            documenttype_id: Boolean(documentType),
+            document_type_book_id: Boolean(book),
+        });
+    }
     async index({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const { codstart, codend, bookstart, bookend, approximateterm, approximatetermend, indexbook, indexbookend, year, letter, sheetstart, sheetend, side, obs, sheetzero, noAttachment, noattachment, lastPagesOfEachBook, lastpagesofeachbook, codmax, document, month, yeardoc, prot, documenttype_id, free, averb_anot, book_name, book_number, sheet_number, created_atstart, created_atend, document_type_book_id, obs_document, fin_entity_List, name, cpf, id: recordId, indeximagefield } = request.qs();
