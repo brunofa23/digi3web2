@@ -640,6 +640,7 @@ class BookrecordsController {
                 entityKey: {
                     typebooks_id: bookrecord.typebooks_id,
                     bookrecords_id: bookrecord.id,
+                    bookrecord_cod: bookrecord.cod,
                 },
                 description: `Usuário ${authenticate.name || authenticate.username} criou o registro ${bookrecord.id}`,
                 afterData: bookrecord,
@@ -666,6 +667,7 @@ class BookrecordsController {
                         typebooks_id: createdDocument.typebooks_id,
                         document_id: createdDocument.id,
                         bookrecords_id: createdDocument.bookrecords_id,
+                        bookrecord_cod: bookrecord.cod,
                     },
                     description: `Usuário ${authenticate.name || authenticate.username} criou o documento ${createdDocument.id}`,
                     afterData: createdDocument,
@@ -721,6 +723,7 @@ class BookrecordsController {
                 entityKey: {
                     typebooks_id: bookrecord.typebooks_id,
                     bookrecords_id: bookrecord.id,
+                    bookrecord_cod: bookrecord.cod,
                 },
                 description: `Usuário ${authenticate.name || authenticate.username} alterou o registro ${bookrecord.id}`,
                 beforeData: beforeBookrecord,
@@ -753,6 +756,7 @@ class BookrecordsController {
                             typebooks_id: doc.typebooks_id,
                             document_id: doc.id,
                             bookrecords_id: doc.bookrecords_id,
+                            bookrecord_cod: bookrecord.cod,
                         },
                         description: `Usuário ${authenticate.name || authenticate.username} alterou o documento ${doc.id}`,
                         beforeData: beforeDocument,
@@ -814,6 +818,7 @@ class BookrecordsController {
                 entityKey: {
                     typebooks_id: Number(params.typebooks_id),
                     bookrecords_id: Number(params.id),
+                    bookrecord_cod: beforeBookrecord?.cod,
                 },
                 description: `Usuário ${authenticate.name || authenticate.username} excluiu o registro ${params.id}`,
                 beforeData: beforeBookrecord,
