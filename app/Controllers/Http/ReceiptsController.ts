@@ -2,6 +2,8 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
 import Receipt from 'App/Models/Receipt'
+import ReceiptItem from 'App/Models/ReceiptItem'
+import Service from 'App/Models/Service'
 import ReceiptValidator from 'App/Validators/ReceiptValidator'
 import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
 import BadRequestException from 'App/Exceptions/BadRequestException'
@@ -116,6 +118,10 @@ export default class ReceiptsController {
 
       // separa items do restante
       const { items = [], ...receiptData } = payload as any
+      const service = await Service.query({ client: trx })
+        .where('companies_id', authenticate.companies_id).where('id', receiptData.serviceId).firstOrFail()
+      receiptData.free = !!service.free
+      if (service.free) items.forEach((item: ReceiptItemPayload) => { item.amount = 0 })
 
       // ✅ REGRA STATUS x DATESTAMP (apenas se não for CANCELADO)
       if (receiptData.status !== 'CANCELADO') {
@@ -196,7 +202,10 @@ export default class ReceiptsController {
       const receipt = await Receipt.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
         .where('id', params.id)
+        .forUpdate()
         .firstOrFail()
+
+      // A finalização bloqueia somente serviço e itens financeiros, verificados após a validação.
 
       // ✅ SE JÁ ESTIVER CANCELADO, NÃO PERMITE UPDATE
       if (receipt.status === 'CANCELADO') {
@@ -210,6 +219,30 @@ export default class ReceiptsController {
 
       console.log(payload)
       const { items, ...receiptData } = payload as any
+      const service = await Service.query({ client: trx })
+        .where('companies_id', authenticate.companies_id).where('id', receiptData.serviceId).firstOrFail()
+      receiptData.free = receipt.financialFinalizedAt ? receipt.free : !!service.free
+      if (receiptData.free) items?.forEach((item: ReceiptItemPayload) => { item.amount = 0 })
+
+      if (receipt.financialFinalizedAt) {
+        if (receiptData.serviceId !== receipt.serviceId || receiptData.status === 'CANCELADO' ||
+          (Object.prototype.hasOwnProperty.call(receiptData, 'tributationId') &&
+            String(receiptData.tributationId ?? '') !== String(receipt.tributationId ?? ''))) {
+          await trx.rollback()
+          return response.status(409).send({ message: 'Serviço e cobrança não podem ser alterados após a finalização.' })
+        }
+        if (items) {
+          const savedItems = await ReceiptItem.query({ client: trx }).where('receipt_id', receipt.id)
+          const normalize = (list: ReceiptItemPayload[]) => list.map((item) => [
+            Number(item.emolumentId), Number(item.qtde ?? 1), Math.round(Number(item.amount ?? 0) * 100),
+          ]).sort((a, b) => a[0] - b[0])
+          const original = savedItems.map((item) => ({ emolumentId: item.emolumentId, qtde: item.qtde, amount: item.amount }))
+          if (JSON.stringify(normalize(items)) !== JSON.stringify(normalize(original))) {
+            await trx.rollback()
+            return response.status(409).send({ message: 'Os valores do recibo não podem ser alterados após a finalização.' })
+          }
+        }
+      }
 
       // ✅ REGRA STATUS x DATESTAMP
       //
@@ -236,7 +269,7 @@ export default class ReceiptsController {
        * Se o front mandar "items", vamos substituir tudo (delete + createMany).
        * Se NÃO mandar "items", mantém como está.
        */
-      if (items) {
+      if (items && !receipt.financialFinalizedAt) {
         // valida itens contra pivot (companies + service ATUAL do receipt após merge)
         await this.validateEmolumentsInPivot({
           trx,
@@ -246,7 +279,7 @@ export default class ReceiptsController {
         })
 
         // apaga itens antigos
-        await receipt.related('items').query({ client: trx }).delete()
+        await ReceiptItem.query({ client: trx }).where('receipt_id', receipt.id).delete()
 
         // recria itens
         if ((items as ReceiptItemPayload[]).length) {
@@ -290,10 +323,16 @@ export default class ReceiptsController {
       const receipt = await Receipt.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
         .where('id', params.id)
+        .forUpdate()
         .firstOrFail()
 
+      if (receipt.financialFinalizedAt) {
+        await trx.rollback()
+        return response.status(409).send({ message: 'Recibo finalizado não pode ser excluído.' })
+      }
+
       // se receipt_items tem FK RESTRICT, precisa deletar items antes
-      await receipt.related('items').query({ client: trx }).delete()
+      await ReceiptItem.query({ client: trx }).where('receipt_id', receipt.id).delete()
       await receipt.delete()
 
       await trx.commit()

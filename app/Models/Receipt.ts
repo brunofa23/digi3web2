@@ -17,6 +17,7 @@ import Typebook from 'App/Models/Typebook'
 import ReceiptItem from './ReceiptItem'
 import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
 import Tributation from 'App/Models/Tributation'
+import ReceiptPayment from './ReceiptPayment'
 
 export default class Receipt extends BaseModel {
   public static table = 'receipts'
@@ -108,6 +109,9 @@ export default class Receipt extends BaseModel {
   @column()
   public status?: string | null
 
+  @column.dateTime()
+  public financialFinalizedAt?: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
@@ -134,6 +138,9 @@ export default class Receipt extends BaseModel {
 
   @hasMany(() => ReceiptItem, { foreignKey: 'receiptId' })
   public items: HasMany<typeof ReceiptItem>
+
+  @hasMany(() => ReceiptPayment, { foreignKey: 'receiptId' })
+  public payments: HasMany<typeof ReceiptPayment>
 
   @hasMany(() => EmployeeVerificationXReceipt, { foreignKey: 'receiptId' })
   public employeeVerificationXReceipts: HasMany<typeof EmployeeVerificationXReceipt>
