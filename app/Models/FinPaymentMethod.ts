@@ -11,6 +11,7 @@ export default class FinPaymentMethod extends BaseModel {
       'limit_amount',
       'debit_credit',
       'future',
+      'receipt_immediate',
       'excluded'
     ]
   }
@@ -32,6 +33,9 @@ export default class FinPaymentMethod extends BaseModel {
 
   @column()
   public future:boolean
+
+  @column()
+  public receipt_immediate:boolean
 
   @column()
   public excluded: boolean

@@ -2,16 +2,28 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
 import Receipt from 'App/Models/Receipt'
+import ReceiptItem from 'App/Models/ReceiptItem'
+import Service from 'App/Models/Service'
 import ReceiptValidator from 'App/Validators/ReceiptValidator'
 import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import { DateTime } from 'luxon'
+import OrderCertificate from 'App/Models/OrderCertificate'
+import ReceiptPayment from 'App/Models/ReceiptPayment'
+import SpedyServiceInvoice from 'App/Models/SpedyServiceInvoice'
+import User from 'App/Models/User'
+import Groupxpermission from 'App/Models/Groupxpermission'
+import AuditLog from 'App/Models/AuditLog'
+import Hash from '@ioc:Adonis/Core/Hash'
+import { schema, rules } from '@ioc:Adonis/Core/Validator'
 
 type ReceiptItemPayload = {
   emolumentId: number
   qtde?: number
   amount?: number
 }
+
+const CANCEL_RECEIPT_PERMISSION_ID = 48
 
 export default class ReceiptsController {
   public async index({ auth, request, response }: HttpContextContract) {
@@ -35,6 +47,9 @@ export default class ReceiptsController {
       // filtros opcionais
       const orderCertificateId = request.input('orderCertificateId')
       if (orderCertificateId) query.where('order_certificate_id', orderCertificateId)
+      if (request.input('activeOnly') === 'true') {
+        query.where((q) => q.whereNull('status').orWhereNot('status', 'EXCLUIDO'))
+      }
 
       const serviceId = request.input('serviceId')
       if (serviceId) query.where('service_id', serviceId)
@@ -116,14 +131,24 @@ export default class ReceiptsController {
 
       // separa items do restante
       const { items = [], ...receiptData } = payload as any
+      const service = await Service.query({ client: trx })
+        .where('companies_id', authenticate.companies_id).where('id', receiptData.serviceId).firstOrFail()
+      receiptData.free = !!service.free
+      if (service.free) items.forEach((item: ReceiptItemPayload) => { item.amount = 0 })
 
-      // ✅ REGRA STATUS x DATESTAMP (apenas se não for CANCELADO)
-      if (receiptData.status !== 'CANCELADO') {
-        if (receiptData.dateStamp) {
-          receiptData.status = 'SELADO'
-        } else {
-          receiptData.status = 'PROTOCOLADO'
-        }
+      // O status inicial segue a presença do selo.
+      receiptData.status = receiptData.dateStamp ? 'SELADO' : 'PROTOCOLADO'
+
+      // Serializa a criação por certidão para manter apenas um recibo ativo.
+      await OrderCertificate.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('id', receiptData.orderCertificateId).forUpdate().firstOrFail()
+      const activeReceipt = await Receipt.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('order_certificate_id', receiptData.orderCertificateId)
+        .where((q) => q.whereNull('status').orWhereNot('status', 'EXCLUIDO')).first()
+      if (activeReceipt) {
+        throw new BadRequestException('Já existe um recibo ativo para esta certidão.', 409, 'active_receipt_exists')
       }
 
       // cria receipt na transação
@@ -196,10 +221,13 @@ export default class ReceiptsController {
       const receipt = await Receipt.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
         .where('id', params.id)
+        .forUpdate()
         .firstOrFail()
 
+      // A finalização bloqueia somente serviço e itens financeiros, verificados após a validação.
+
       // ✅ SE JÁ ESTIVER CANCELADO, NÃO PERMITE UPDATE
-      if (receipt.status === 'CANCELADO') {
+      if (receipt.status === 'CANCELADO' || receipt.status === 'EXCLUIDO') {
         await trx.rollback()
         return response.status(400).send({
           message: 'Recibo cancelado não pode ser alterado.',
@@ -210,18 +238,48 @@ export default class ReceiptsController {
 
       console.log(payload)
       const { items, ...receiptData } = payload as any
+      if (receiptData.orderCertificateId !== receipt.orderCertificateId) {
+        throw new BadRequestException('A certidão do recibo não pode ser alterada.', 409, 'receipt_order_change')
+      }
+      if (receiptData.status === 'CANCELADO' || receiptData.status === 'EXCLUIDO') {
+        throw new BadRequestException('Use a ação de cancelamento do recibo.', 409, 'receipt_cancel_action_required')
+      }
+      const service = await Service.query({ client: trx })
+        .where('companies_id', authenticate.companies_id).where('id', receiptData.serviceId).firstOrFail()
+      receiptData.free = receipt.financialFinalizedAt ? receipt.free : !!service.free
+      if (receiptData.free) items?.forEach((item: ReceiptItemPayload) => { item.amount = 0 })
+
+      if (receipt.financialFinalizedAt) {
+        if (receiptData.serviceId !== receipt.serviceId || receiptData.status === 'CANCELADO' ||
+          (Object.prototype.hasOwnProperty.call(receiptData, 'tributationId') &&
+            String(receiptData.tributationId ?? '') !== String(receipt.tributationId ?? ''))) {
+          await trx.rollback()
+          return response.status(409).send({ message: 'Serviço e cobrança não podem ser alterados após a finalização.' })
+        }
+        if (items) {
+          const savedItems = await ReceiptItem.query({ client: trx }).where('receipt_id', receipt.id)
+          const normalize = (list: ReceiptItemPayload[]) => list.map((item) => [
+            Number(item.emolumentId), Number(item.qtde ?? 1), Math.round(Number(item.amount ?? 0) * 100),
+          ]).sort((a, b) => a[0] - b[0])
+          const original = savedItems.map((item) => ({ emolumentId: item.emolumentId, qtde: item.qtde, amount: item.amount }))
+          if (JSON.stringify(normalize(items)) !== JSON.stringify(normalize(original))) {
+            await trx.rollback()
+            return response.status(409).send({ message: 'Os valores do recibo não podem ser alterados após a finalização.' })
+          }
+        }
+      }
 
       // ✅ REGRA STATUS x DATESTAMP
       //
-      // Se o payload estiver setando CANCELADO, deixamos como CANCELADO
-      // (para permitir o cancelamento).
-      // Caso contrário, aplicamos a regra dateStamp -> SELADO/PROTOCOLADO.
-      if (receiptData.status !== 'CANCELADO') {
+      // O recibo reaberto permanece assim até a nova confirmação financeira.
+      if (receipt.status !== 'REABERTO') {
         if (receiptData.dateStamp) {
           receiptData.status = 'SELADO'
         } else {
           receiptData.status = 'PROTOCOLADO'
         }
+      } else if (receipt.status === 'REABERTO') {
+        receiptData.status = 'REABERTO'
       }
 
       receipt.merge({
@@ -236,7 +294,7 @@ export default class ReceiptsController {
        * Se o front mandar "items", vamos substituir tudo (delete + createMany).
        * Se NÃO mandar "items", mantém como está.
        */
-      if (items) {
+      if (items && !receipt.financialFinalizedAt) {
         // valida itens contra pivot (companies + service ATUAL do receipt após merge)
         await this.validateEmolumentsInPivot({
           trx,
@@ -246,7 +304,7 @@ export default class ReceiptsController {
         })
 
         // apaga itens antigos
-        await receipt.related('items').query({ client: trx }).delete()
+        await ReceiptItem.query({ client: trx }).where('receipt_id', receipt.id).delete()
 
         // recria itens
         if ((items as ReceiptItemPayload[]).length) {
@@ -280,27 +338,110 @@ export default class ReceiptsController {
       throw error
     }
   }
+  private async cancelActivePayments(receipt: Receipt, trx: any) {
+    await ReceiptPayment.query({ client: trx })
+      .where('receipt_id', receipt.id).whereNull('canceled_at')
+      .update({ canceled_at: DateTime.local().toFormat('yyyy-LL-dd HH:mm:ss') })
+    receipt.financialFinalizedAt = null
+  }
 
+  private async checkInvoice(receipt: Receipt, trx: any) {
+    const invoice = await SpedyServiceInvoice.query({ client: trx })
+      .where('companies_id', receipt.companiesId).where('receipt_id', receipt.id).first()
+    if (invoice) {
+      throw new BadRequestException('Há uma NF vinculada a este recibo. O cancelamento com NF será tratado em uma próxima etapa.', 409, 'receipt_invoice_exists')
+    }
+  }
 
-  public async destroy({ auth, params, response }: HttpContextContract) {
+  public async cancelPayments({ auth, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const trx = await Database.transaction()
-
     try {
       const receipt = await Receipt.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
-        .where('id', params.id)
-        .firstOrFail()
-
-      // se receipt_items tem FK RESTRICT, precisa deletar items antes
-      await receipt.related('items').query({ client: trx }).delete()
-      await receipt.delete()
-
+        .where('id', params.id).forUpdate().firstOrFail()
+      if (receipt.status === 'EXCLUIDO' || receipt.status === 'CANCELADO') {
+        throw new BadRequestException('Recibo cancelado não pode ser reaberto.', 409, 'receipt_cancelled')
+      }
+      if (!receipt.financialFinalizedAt || receipt.free) {
+        throw new BadRequestException('Este recibo não possui recebimento ativo.', 409, 'receipt_not_received')
+      }
+      await this.checkInvoice(receipt, trx)
+      await this.cancelActivePayments(receipt, trx)
+      receipt.status = 'REABERTO'
+      await receipt.save()
       await trx.commit()
-      return response.status(200).send({ message: 'Registro removido com sucesso' })
+      return response.ok(receipt)
     } catch (error) {
       await trx.rollback()
-      throw new BadRequestException('Bad Request', 401, 'erro')
+      throw error
+    }
+  }
+
+  public async destroy({ auth, request, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const { username, password } = await request.validate({ schema: schema.create({
+      username: schema.string({ trim: true }, [rules.maxLength(45)]),
+      password: schema.string(),
+    }) })
+    const authorizer = await User.query()
+      .where('companies_id', authenticate.companies_id)
+      .where('username', username).where('status', true).first()
+    if (!authorizer || !await Hash.verify(authorizer.password, password)) {
+      throw new BadRequestException('Usuário ou senha inválidos.', 403, 'receipt_cancel_invalid_credentials')
+    }
+    if (!authorizer.superuser) {
+      const permission = await Groupxpermission.query()
+        .where('usergroup_id', authorizer.usergroup_id)
+        .where('permissiongroup_id', CANCEL_RECEIPT_PERMISSION_ID)
+        .where((q) => q.whereNull('companies_id').orWhere('companies_id', authenticate.companies_id))
+        .first()
+      if (!permission) {
+        throw new BadRequestException('Usuário sem permissão para cancelar recibos.', 403, 'receipt_cancel_forbidden')
+      }
+    }
+    const trx = await Database.transaction()
+    try {
+      const receipt = await Receipt.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('id', params.id).forUpdate().firstOrFail()
+      if (receipt.status === 'EXCLUIDO') {
+        throw new BadRequestException('Recibo já excluído.', 409, 'receipt_already_excluded')
+      }
+      await this.checkInvoice(receipt, trx)
+      const previousStatus = receipt.status
+      const previousFinalizedAt = receipt.financialFinalizedAt
+      await this.cancelActivePayments(receipt, trx)
+      receipt.status = 'EXCLUIDO'
+      await receipt.save()
+      const now = DateTime.local()
+      await AuditLog.create({
+        companiesId: authenticate.companies_id,
+        userId: authorizer.id,
+        action: 'receipt_cancel',
+        entityTable: 'receipts',
+        entityId: receipt.id,
+        resourceKey: `receipts:${receipt.id}`,
+        description: `Usuário ${authorizer.name || authorizer.username} autorizou o cancelamento do recibo ${receipt.id}, solicitado por ${authenticate.name || authenticate.username}.`,
+        metadata: {
+          authorizedByUserId: authorizer.id,
+          requestedByUserId: authenticate.id,
+          requestedByUsername: authenticate.username,
+          orderCertificateId: receipt.orderCertificateId,
+        },
+        changedFields: ['status', 'financialFinalizedAt'],
+        beforeData: { status: previousStatus, financialFinalizedAt: previousFinalizedAt?.toISO() ?? null },
+        afterData: { status: receipt.status, financialFinalizedAt: null },
+        occurrenceCount: 1,
+        firstAt: now,
+        lastAt: now,
+        ip: request.ip(),
+      }, { client: trx })
+      await trx.commit()
+      return response.ok(receipt)
+    } catch (error) {
+      await trx.rollback()
+      throw error
     }
   }
 }

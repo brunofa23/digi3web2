@@ -292,6 +292,12 @@ Route.group(() => {
   Route.put('/services/:id/emoluments', 'ServicesController.syncEmoluments')//.middleware('auth:api')
 
   //RECEIPTS
+  Route.get('/receipt-payments', 'ReceiptPaymentsController.index')
+  Route.get('/receipt-cash-entries', 'ReceiptPaymentsController.cash')
+  Route.post('/receipt-payments/:id/settle', 'ReceiptPaymentsController.settle')
+  Route.post('/receipts/:id/finalize-free', 'ReceiptPaymentsController.finalizeFree')
+  Route.post('/receipts/:id/payments', 'ReceiptPaymentsController.store')
+  Route.post('/receipts/:id/cancel-payments', 'ReceiptsController.cancelPayments')
   Route.resource('/receipts', 'ReceiptsController').apiOnly()
 
 
