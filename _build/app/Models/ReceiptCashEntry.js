@@ -8,62 +8,51 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
-class FinPaymentMethod extends Orm_1.BaseModel {
-    static get fillable() {
-        return [
-            'id',
-            'companies_id',
-            'description',
-            'limit_amount',
-            'debit_credit',
-            'future',
-            'receipt_immediate',
-            'excluded'
-        ];
-    }
+const ReceiptPayment_1 = __importDefault(require("./ReceiptPayment"));
+class ReceiptCashEntry extends Orm_1.BaseModel {
 }
+ReceiptCashEntry.table = 'receipt_cash_entries';
 __decorate([
     (0, Orm_1.column)({ isPrimary: true }),
     __metadata("design:type", Number)
-], FinPaymentMethod.prototype, "id", void 0);
+], ReceiptCashEntry.prototype, "id", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], FinPaymentMethod.prototype, "companies_id", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", String)
-], FinPaymentMethod.prototype, "description", void 0);
+], ReceiptCashEntry.prototype, "companiesId", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
-], FinPaymentMethod.prototype, "limit_amount", void 0);
+], ReceiptCashEntry.prototype, "receiptPaymentId", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", String)
-], FinPaymentMethod.prototype, "debit_credit", void 0);
+    __metadata("design:type", Number)
+], ReceiptCashEntry.prototype, "amount", void 0);
+__decorate([
+    Orm_1.column.dateTime(),
+    __metadata("design:type", luxon_1.DateTime)
+], ReceiptCashEntry.prototype, "receivedAt", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Boolean)
-], FinPaymentMethod.prototype, "future", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Boolean)
-], FinPaymentMethod.prototype, "receipt_immediate", void 0);
-__decorate([
-    (0, Orm_1.column)(),
-    __metadata("design:type", Boolean)
-], FinPaymentMethod.prototype, "excluded", void 0);
+    __metadata("design:type", Number)
+], ReceiptCashEntry.prototype, "userId", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
-], FinPaymentMethod.prototype, "createdAt", void 0);
+], ReceiptCashEntry.prototype, "createdAt", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true, autoUpdate: true }),
     __metadata("design:type", luxon_1.DateTime)
-], FinPaymentMethod.prototype, "updatedAt", void 0);
-exports.default = FinPaymentMethod;
-//# sourceMappingURL=FinPaymentMethod.js.map
+], ReceiptCashEntry.prototype, "updatedAt", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => ReceiptPayment_1.default, { foreignKey: 'receiptPaymentId' }),
+    __metadata("design:type", Object)
+], ReceiptCashEntry.prototype, "receiptPayment", void 0);
+exports.default = ReceiptCashEntry;
+//# sourceMappingURL=ReceiptCashEntry.js.map

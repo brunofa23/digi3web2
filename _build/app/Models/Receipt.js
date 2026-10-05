@@ -22,6 +22,7 @@ const Typebook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Typ
 const ReceiptItem_1 = __importDefault(require("./ReceiptItem"));
 const EmployeeVerificationXReceipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerificationXReceipt"));
 const Tributation_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Tributation"));
+const ReceiptPayment_1 = __importDefault(require("./ReceiptPayment"));
 class Receipt extends Orm_1.BaseModel {
 }
 Receipt.table = 'receipts';
@@ -142,6 +143,10 @@ __decorate([
     __metadata("design:type", Object)
 ], Receipt.prototype, "status", void 0);
 __decorate([
+    Orm_1.column.dateTime(),
+    __metadata("design:type", Object)
+], Receipt.prototype, "financialFinalizedAt", void 0);
+__decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
 ], Receipt.prototype, "createdAt", void 0);
@@ -177,6 +182,10 @@ __decorate([
     (0, Orm_1.hasMany)(() => ReceiptItem_1.default, { foreignKey: 'receiptId' }),
     __metadata("design:type", Object)
 ], Receipt.prototype, "items", void 0);
+__decorate([
+    (0, Orm_1.hasMany)(() => ReceiptPayment_1.default, { foreignKey: 'receiptId' }),
+    __metadata("design:type", Object)
+], Receipt.prototype, "payments", void 0);
 __decorate([
     (0, Orm_1.hasMany)(() => EmployeeVerificationXReceipt_1.default, { foreignKey: 'receiptId' }),
     __metadata("design:type", Object)
