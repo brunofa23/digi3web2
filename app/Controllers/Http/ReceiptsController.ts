@@ -11,12 +11,19 @@ import { DateTime } from 'luxon'
 import OrderCertificate from 'App/Models/OrderCertificate'
 import ReceiptPayment from 'App/Models/ReceiptPayment'
 import SpedyServiceInvoice from 'App/Models/SpedyServiceInvoice'
+import User from 'App/Models/User'
+import Groupxpermission from 'App/Models/Groupxpermission'
+import AuditLog from 'App/Models/AuditLog'
+import Hash from '@ioc:Adonis/Core/Hash'
+import { schema, rules } from '@ioc:Adonis/Core/Validator'
 
 type ReceiptItemPayload = {
   emolumentId: number
   qtde?: number
   amount?: number
 }
+
+const CANCEL_RECEIPT_PERMISSION_ID = 48
 
 export default class ReceiptsController {
   public async index({ auth, request, response }: HttpContextContract) {
@@ -371,8 +378,28 @@ export default class ReceiptsController {
     }
   }
 
-  public async destroy({ auth, params, response }: HttpContextContract) {
+  public async destroy({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
+    const { username, password } = await request.validate({ schema: schema.create({
+      username: schema.string({ trim: true }, [rules.maxLength(45)]),
+      password: schema.string(),
+    }) })
+    const authorizer = await User.query()
+      .where('companies_id', authenticate.companies_id)
+      .where('username', username).where('status', true).first()
+    if (!authorizer || !await Hash.verify(authorizer.password, password)) {
+      throw new BadRequestException('Usuário ou senha inválidos.', 403, 'receipt_cancel_invalid_credentials')
+    }
+    if (!authorizer.superuser) {
+      const permission = await Groupxpermission.query()
+        .where('usergroup_id', authorizer.usergroup_id)
+        .where('permissiongroup_id', CANCEL_RECEIPT_PERMISSION_ID)
+        .where((q) => q.whereNull('companies_id').orWhere('companies_id', authenticate.companies_id))
+        .first()
+      if (!permission) {
+        throw new BadRequestException('Usuário sem permissão para cancelar recibos.', 403, 'receipt_cancel_forbidden')
+      }
+    }
     const trx = await Database.transaction()
     try {
       const receipt = await Receipt.query({ client: trx })
@@ -382,9 +409,34 @@ export default class ReceiptsController {
         throw new BadRequestException('Recibo já excluído.', 409, 'receipt_already_excluded')
       }
       await this.checkInvoice(receipt, trx)
+      const previousStatus = receipt.status
+      const previousFinalizedAt = receipt.financialFinalizedAt
       await this.cancelActivePayments(receipt, trx)
       receipt.status = 'EXCLUIDO'
       await receipt.save()
+      const now = DateTime.local()
+      await AuditLog.create({
+        companiesId: authenticate.companies_id,
+        userId: authorizer.id,
+        action: 'receipt_cancel',
+        entityTable: 'receipts',
+        entityId: receipt.id,
+        resourceKey: `receipts:${receipt.id}`,
+        description: `Usuário ${authorizer.name || authorizer.username} autorizou o cancelamento do recibo ${receipt.id}, solicitado por ${authenticate.name || authenticate.username}.`,
+        metadata: {
+          authorizedByUserId: authorizer.id,
+          requestedByUserId: authenticate.id,
+          requestedByUsername: authenticate.username,
+          orderCertificateId: receipt.orderCertificateId,
+        },
+        changedFields: ['status', 'financialFinalizedAt'],
+        beforeData: { status: previousStatus, financialFinalizedAt: previousFinalizedAt?.toISO() ?? null },
+        afterData: { status: receipt.status, financialFinalizedAt: null },
+        occurrenceCount: 1,
+        firstAt: now,
+        lastAt: now,
+        ip: request.ip(),
+      }, { client: trx })
       await trx.commit()
       return response.ok(receipt)
     } catch (error) {
