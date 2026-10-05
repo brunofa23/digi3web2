@@ -91,8 +91,8 @@ class TokenToImagesController {
         }
         const hasPermission = await User_1.default
             .query()
-            .where('username', body.username)
-            .andWhere('companies_id', authenticate.companies_id)
+            .where('users.username', body.username)
+            .andWhere('users.companies_id', authenticate.companies_id)
             .join('groupxpermissions', 'users.usergroup_id', 'groupxpermissions.usergroup_id')
             .where(query => {
             query.where('groupxpermissions.permissiongroup_id', 30).orWhere('users.superuser', 1);
