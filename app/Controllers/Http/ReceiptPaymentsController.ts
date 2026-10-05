@@ -29,6 +29,7 @@ export default class ReceiptPaymentsController {
     const user = await auth.use('api').authenticate()
     const query = ReceiptPayment.query()
       .where('companies_id', user.companies_id)
+      .whereNull('canceled_at')
       .preload('paymentMethod')
       .preload('receipt')
       .orderBy('due_date', 'asc')
@@ -47,8 +48,10 @@ export default class ReceiptPaymentsController {
   public async cash({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
     const totalQuery = ReceiptCashEntry.query().where('companies_id', user.companies_id)
+      .whereHas('receiptPayment', (payment) => payment.whereNull('canceled_at'))
     const query = ReceiptCashEntry.query()
       .where('companies_id', user.companies_id)
+      .whereHas('receiptPayment', (payment) => payment.whereNull('canceled_at'))
       .preload('receiptPayment', (payment) => {
         payment.preload('receipt').preload('paymentMethod')
       })
@@ -77,7 +80,7 @@ export default class ReceiptPaymentsController {
         .where('companies_id', user.companies_id).where('id', params.id)
         .preload('service').forUpdate().firstOrFail()
       if (!receipt.service.free) throw error('Este recibo não é gratuito.')
-      if (receipt.status === 'CANCELADO') throw error('Recibo cancelado não pode ser finalizado.')
+      if (receipt.status === 'CANCELADO' || receipt.status === 'EXCLUIDO') throw error('Recibo cancelado não pode ser finalizado.')
       if (receipt.financialFinalizedAt) throw error('Recibo já finalizado.', 409)
       receipt.free = true
       await ReceiptItem.query({ client: trx }).where('receipt_id', receipt.id).update({ amount: 0 })
@@ -100,11 +103,14 @@ export default class ReceiptPaymentsController {
         .where('companies_id', user.companies_id).where('id', params.id)
         .preload('service').preload('items').forUpdate().firstOrFail()
       if (receipt.free || receipt.service.free) throw error('Recibo gratuito não gera recebimentos.')
-      if (receipt.status === 'CANCELADO') throw error('Recibo cancelado não pode gerar recebimentos.')
+      if (receipt.status === 'CANCELADO' || receipt.status === 'EXCLUIDO') throw error('Recibo cancelado não pode gerar recebimentos.')
       if (receipt.financialFinalizedAt) throw error('Recebimento já confirmado para este recibo.', 409)
-      if (await ReceiptPayment.query({ client: trx }).where('receipt_id', receipt.id).first()) {
+      if (await ReceiptPayment.query({ client: trx }).where('receipt_id', receipt.id).whereNull('canceled_at').first()) {
         throw error('Já existem parcelas para este recibo.', 409)
       }
+      const previousPayment = await ReceiptPayment.query({ client: trx })
+        .where('receipt_id', receipt.id).orderBy('payment_group', 'desc').first()
+      const firstGroup = Number(previousPayment?.paymentGroup ?? 0)
 
       const total = receipt.items.reduce((sum, item) => sum + cents(item.amount) * Number(item.qtde), 0)
       if (!Number.isSafeInteger(total) || total <= 0) throw error('O recibo precisa ter valor válido maior que zero.')
@@ -138,7 +144,7 @@ export default class ReceiptPaymentsController {
             companiesId: user.companies_id,
             receiptId: receipt.id,
             finPaymentmethodId: method.id,
-            paymentGroup: group + 1,
+            paymentGroup: firstGroup + group + 1,
             installmentNumber: installment,
             installmentCount: line.installments,
             amount,
@@ -159,6 +165,7 @@ export default class ReceiptPaymentsController {
       }
       if (distributed !== total) throw error('A soma das formas de pagamento deve ser igual ao total salvo do recibo.')
       receipt.financialFinalizedAt = now
+      receipt.status = receipt.dateStamp ? 'SELADO' : 'PROTOCOLADO'
       await receipt.save()
       await trx.commit()
       return response.status(201).send({ receiptId: receipt.id, total: total / 100 })
@@ -172,9 +179,17 @@ export default class ReceiptPaymentsController {
     const user = await auth.use('api').authenticate()
     const trx = await Database.transaction()
     try {
+      const selectedPayment = await ReceiptPayment.query({ client: trx })
+        .where('companies_id', user.companies_id).where('id', params.id).firstOrFail()
+      const receipt = await Receipt.query({ client: trx })
+        .where('companies_id', user.companies_id).where('id', selectedPayment.receiptId)
+        .forUpdate().firstOrFail()
       const payment = await ReceiptPayment.query({ client: trx })
         .where('companies_id', user.companies_id).where('id', params.id)
         .forUpdate().firstOrFail()
+      if (payment.canceledAt || !receipt.financialFinalizedAt || receipt.status === 'EXCLUIDO' || receipt.status === 'CANCELADO') {
+        throw error('Parcela cancelada.', 409)
+      }
       if (payment.receivedAt) throw error('Parcela já recebida.', 409)
       const now = DateTime.local()
       payment.receivedAt = now

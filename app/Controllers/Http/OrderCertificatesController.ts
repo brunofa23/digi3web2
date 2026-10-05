@@ -736,6 +736,7 @@ export default class OrderCertificatesController {
         q.select(['id', 'order_certificate_id', 'typebooks_id', 'bookrecords_id', 'companies_id'])
       })
       .preload('receipt', (q) => {
+        q.where((receipt) => receipt.whereNull('status').orWhereNot('status', 'EXCLUIDO')).orderBy('id', 'desc')
         q.select([
           'id',
           'order_certificate_id',

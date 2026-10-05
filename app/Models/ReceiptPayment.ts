@@ -28,6 +28,8 @@ export default class ReceiptPayment extends BaseModel {
   public receivedAt: DateTime | null
   @column()
   public receivedBy: number | null
+  @column.dateTime()
+  public canceledAt: DateTime | null
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
   @column.dateTime({ autoCreate: true, autoUpdate: true })
