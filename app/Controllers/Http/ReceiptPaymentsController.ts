@@ -8,6 +8,7 @@ import ReceiptPayment from 'App/Models/ReceiptPayment'
 import ReceiptCashEntry from 'App/Models/ReceiptCashEntry'
 import ReceiptItem from 'App/Models/ReceiptItem'
 import FinPaymentMethod from 'App/Models/FinPaymentMethod'
+import Groupxpermission from 'App/Models/Groupxpermission'
 
 const planSchema = schema.create({
   payments: schema.array([rules.minLength(1)]).members(
@@ -25,8 +26,20 @@ const error = (message: string, status = 400) =>
   new BadRequestException(message, status, 'RECEIPT_PAYMENT_ERROR')
 
 export default class ReceiptPaymentsController {
+  private async ensureReceivablesPermission(user: any) {
+    if (user.superuser) return
+    const permission = await Groupxpermission.query()
+      .where('usergroup_id', user.usergroup_id)
+      .where('permissiongroup_id', 48)
+      .where((q) => q.whereNull('companies_id').orWhere('companies_id', user.companies_id))
+      .first()
+    if (!permission) throw error('Usuário sem permissão para acessar recebimentos.', 403)
+  }
+
   public async index({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
+    const receiptId = Number(request.input('receiptId'))
+    if (!receiptId) await this.ensureReceivablesPermission(user)
     const query = ReceiptPayment.query()
       .where('companies_id', user.companies_id)
       .whereNull('canceled_at')
@@ -35,7 +48,6 @@ export default class ReceiptPaymentsController {
       .orderBy('due_date', 'asc')
       .orderBy('id', 'asc')
 
-    const receiptId = Number(request.input('receiptId'))
     if (receiptId) query.where('receipt_id', receiptId)
     const status = request.input('status')
     if (status === 'pending') query.whereNull('received_at')
@@ -47,6 +59,7 @@ export default class ReceiptPaymentsController {
 
   public async cash({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
+    await this.ensureReceivablesPermission(user)
     const totalQuery = ReceiptCashEntry.query().where('companies_id', user.companies_id)
       .whereHas('receiptPayment', (payment) => payment.whereNull('canceled_at'))
     const query = ReceiptCashEntry.query()
@@ -177,6 +190,7 @@ export default class ReceiptPaymentsController {
 
   public async settle({ auth, params, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
+    await this.ensureReceivablesPermission(user)
     const trx = await Database.transaction()
     try {
       const selectedPayment = await ReceiptPayment.query({ client: trx })
