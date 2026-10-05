@@ -12,6 +12,7 @@ const ReceiptPayment_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Mode
 const ReceiptCashEntry_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/ReceiptCashEntry"));
 const ReceiptItem_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/ReceiptItem"));
 const FinPaymentMethod_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/FinPaymentMethod"));
+const Groupxpermission_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Groupxpermission"));
 const planSchema = Validator_1.schema.create({
     payments: Validator_1.schema.array([Validator_1.rules.minLength(1)]).members(Validator_1.schema.object().members({
         methodId: Validator_1.schema.number([Validator_1.rules.unsigned()]),
@@ -23,8 +24,22 @@ const planSchema = Validator_1.schema.create({
 const cents = (amount) => Math.round(Number(amount) * 100);
 const error = (message, status = 400) => new BadRequestException_1.default(message, status, 'RECEIPT_PAYMENT_ERROR');
 class ReceiptPaymentsController {
+    async ensureReceivablesPermission(user) {
+        if (user.superuser)
+            return;
+        const permission = await Groupxpermission_1.default.query()
+            .where('usergroup_id', user.usergroup_id)
+            .where('permissiongroup_id', 48)
+            .where((q) => q.whereNull('companies_id').orWhere('companies_id', user.companies_id))
+            .first();
+        if (!permission)
+            throw error('Usuário sem permissão para acessar recebimentos.', 403);
+    }
     async index({ auth, request, response }) {
         const user = await auth.use('api').authenticate();
+        const receiptId = Number(request.input('receiptId'));
+        if (!receiptId)
+            await this.ensureReceivablesPermission(user);
         const query = ReceiptPayment_1.default.query()
             .where('companies_id', user.companies_id)
             .whereNull('canceled_at')
@@ -32,7 +47,6 @@ class ReceiptPaymentsController {
             .preload('receipt')
             .orderBy('due_date', 'asc')
             .orderBy('id', 'asc');
-        const receiptId = Number(request.input('receiptId'));
         if (receiptId)
             query.where('receipt_id', receiptId);
         const status = request.input('status');
@@ -46,6 +60,7 @@ class ReceiptPaymentsController {
     }
     async cash({ auth, request, response }) {
         const user = await auth.use('api').authenticate();
+        await this.ensureReceivablesPermission(user);
         const totalQuery = ReceiptCashEntry_1.default.query().where('companies_id', user.companies_id)
             .whereHas('receiptPayment', (payment) => payment.whereNull('canceled_at'));
         const query = ReceiptCashEntry_1.default.query()
@@ -184,6 +199,7 @@ class ReceiptPaymentsController {
     }
     async settle({ auth, params, response }) {
         const user = await auth.use('api').authenticate();
+        await this.ensureReceivablesPermission(user);
         const trx = await Database_1.default.transaction();
         try {
             const selectedPayment = await ReceiptPayment_1.default.query({ client: trx })
