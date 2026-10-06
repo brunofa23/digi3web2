@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto'
 import { DateTime } from 'luxon'
 import Company from 'App/Models/Company'
 import DriveDuplicateFolderScan from 'App/Models/DriveDuplicateFolderScan'
-import { sendListDriveFolders } from 'App/Services/googleDrive/googledrive'
+import { sendCountDriveFiles, sendListDriveFolders } from 'App/Services/googleDrive/googledrive'
 
 type FolderLink = { id: string; url: string }
 
@@ -49,6 +49,9 @@ export default class DriveDuplicateFolderScanService {
       const result = companies.map((company) => ({
         company_id: company.id,
         company_name: company.name,
+        folder_found: false,
+        file_count: 0,
+        size_bytes: '0',
         duplicates: [] as Array<{ name: string; folders: FolderLink[] }>,
       }))
 
@@ -67,6 +70,10 @@ export default class DriveDuplicateFolderScanService {
           if (folder.parents?.some((parent) => byId.has(parent))) continue
           const company = cloudCompanies.find((item) => item.foldername === folder.name)
           if (company) roots.set(folder.id, company.id)
+        }
+        const companiesWithRoot = new Set(roots.values())
+        for (const company of result) {
+          if (companiesWithRoot.has(company.company_id)) company.folder_found = true
         }
 
         const companyByFolder = new Map<string, number | null>()
@@ -98,6 +105,29 @@ export default class DriveDuplicateFolderScanService {
             .filter(([, sameName]) => sameName.length > 1)
             .map(([name, sameName]) => ({ name, folders: sameName }))
             .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'))
+        }
+
+        const totals = new Map<number, { count: number; bytes: bigint }>()
+        await sendCountDriveFiles(cloud, async (files) => {
+          for (const file of files) {
+            const companyId = file.parents?.map((parent) => getCompanyId(parent)).find(Boolean)
+            if (!companyId) continue
+            const total = totals.get(companyId) || { count: 0, bytes: 0n }
+            total.count += 1
+            total.bytes += BigInt(file.size || 0)
+            totals.set(companyId, total)
+          }
+          const updated = await Database.from('drive_duplicate_folder_scans')
+            .where('id', 1).where('run_token', token)
+            .update({ heartbeat_at: new Date(), updated_at: new Date() })
+          if (!updated) throw new Error('Pesquisa substituída por outra execução.')
+        })
+
+        for (const company of result) {
+          const total = totals.get(company.company_id)
+          if (!total) continue
+          company.file_count = total.count
+          company.size_bytes = total.bytes.toString()
         }
       }
 
