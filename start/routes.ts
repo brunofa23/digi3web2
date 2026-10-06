@@ -116,6 +116,8 @@ Route.group(() => {
   Route.post('/acervo-backups/restore/dry-run', 'AcervoBackupsController.dryRun').middleware('auth')
   Route.post('/acervo-backups/restore', 'AcervoBackupsController.apply').middleware('auth')
   Route.get('/imageuploadjobs', 'ImageUploadJobsController.index').middleware('auth')
+  Route.get('/drive-duplicate-folders', 'DriveDuplicateFoldersController.index').middleware('auth')
+  Route.post('/drive-duplicate-folders/refresh', 'DriveDuplicateFoldersController.refresh').middleware('auth')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords')
 
   Route.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get')

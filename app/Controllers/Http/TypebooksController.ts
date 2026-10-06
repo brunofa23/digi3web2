@@ -47,10 +47,7 @@ export default class TypebooksController {
         .update({ path: path })
 
       const idFolderCompany = await sendSearchFile(company.foldername, company.cloud)
-      const verifyFolder = await sendSearchFile(path, company.cloud)
-      if (verifyFolder.length > 0) {
-        return
-      }
+      if (!idFolderCompany[0]?.id) throw new Error('Pasta da empresa não encontrada no Google Drive')
       await sendCreateFolder(path, company.cloud, idFolderCompany[0].id)
       let successValidation = await new validations('typebook_success_100')
       return response.status(201).send(typebookPayload, successValidation.code)
