@@ -4,6 +4,7 @@ import { DateTime } from 'luxon'
 import { timingSafeEqual } from 'crypto'
 import BackupRun from 'App/Models/BackupRun'
 import BackupCompanyStatus from 'App/Models/BackupCompanyStatus'
+import { isVerifiedRcloneCompletion } from 'App/Services/RcloneVerification'
 
 type ExpectedCompany = {
   companies_id: number
@@ -281,6 +282,13 @@ export default class BackupRunsController {
         return ctx.response.status(400).send({ message: 'Tipo de backup inválido.' })
       }
 
+      if (kind === this.rcloneKind && event === 'RUN_SUCCESS'
+        && !isVerifiedRcloneCompletion(payload.metadata)) {
+        return ctx.response.status(422).send({
+          message: 'Conclusão do rclone exige cópia e verificação de todas as pastas.',
+        })
+      }
+
       const run = await this.findOrCreateRun(runId, kind)
       const now = this.getNow()
 
@@ -299,6 +307,9 @@ export default class BackupRunsController {
       }
 
       if (event === 'HEARTBEAT') {
+        if (kind === this.rcloneKind && payload.metadata) {
+          run.metadata = payload.metadata
+        }
         await run.save()
       }
 
