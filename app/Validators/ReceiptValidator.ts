@@ -18,14 +18,14 @@ export default class ReceiptValidator {
 
     // Dados opcionais
     free: schema.boolean.optional(),
-    applicant: schema.string.optional({ trim: true }, [rules.maxLength(90)]),
+    applicant: schema.string.optional({ trim: true }, [rules.maxLength(100)]),
     cpfApplicant: schema.string.optional({ trim: true }, [
       rules.maxLength(11),
       rules.minLength(11),
       rules.regex(/^\d{11}$/),
     ]),
 
-    registered1: schema.string.optional({ trim: true }, [rules.maxLength(90)]),
+    registered1: schema.string.optional({ trim: true }, [rules.maxLength(255)]),
     cpfRegistered1: schema.string.optional({ trim: true }, [
       rules.maxLength(11),
       rules.minLength(11),

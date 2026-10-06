@@ -388,9 +388,10 @@ export default class ImageCertificatesController {
     }
 
     const bornCertificateId = params.bornCertificateId ? Number(params.bornCertificateId) : null
+    const mandateCertificateId = params.mandateCertificateId ? Number(params.mandateCertificateId) : null
     const marriedCertificateId = params.marriedCertificateId ? Number(params.marriedCertificateId) : null
-    const certificateId = bornCertificateId ?? marriedCertificateId
-    const bookId = bornCertificateId ? 3 : 2
+    const certificateId = bornCertificateId ?? mandateCertificateId ?? marriedCertificateId
+    const bookId = bornCertificateId ? 3 : mandateCertificateId ? 24 : 2
 
     if (!certificateId || !Number.isFinite(certificateId)) {
       return response.badRequest({ error: 'certificateId inválido' })
@@ -402,8 +403,10 @@ export default class ImageCertificatesController {
 
     if (bornCertificateId) {
       query.andWhere('born_certificate_id', bornCertificateId)
+    } else if (mandateCertificateId) {
+      query.andWhere('mandate_certificate_id', mandateCertificateId!)
     } else {
-      query.andWhere('married_certificate_id', marriedCertificateId)
+      query.andWhere('married_certificate_id', marriedCertificateId!)
     }
 
     const images = await query
@@ -425,6 +428,7 @@ export default class ImageCertificatesController {
         ready: image.ready,
         marriedCertificateId: image.marriedCertificateId,
         bornCertificateId: image.bornCertificateId,
+        mandateCertificateId: image.mandateCertificateId,
         createdAt: image.createdAt,
       })),
     })

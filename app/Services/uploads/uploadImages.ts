@@ -16,6 +16,7 @@ interface UploadImageParams {
   companiesId: number
   marriedCertificateId?: number | null
   bornCertificateId?: number | null
+  mandateCertificateId?: number | null
   file: MultipartFileContract
   description?: string
 }
@@ -24,6 +25,7 @@ async function uploadImage({
   companiesId,
   marriedCertificateId,
   bornCertificateId,
+  mandateCertificateId,
   file,
   description,
 }: UploadImageParams) {
@@ -50,14 +52,19 @@ async function uploadImage({
     query.andWhere('born_certificate_id', bornCertificateId)
   }
 
+  if (mandateCertificateId) {
+    bookId = 24
+    query.andWhere('mandate_certificate_id', mandateCertificateId)
+  }
+
   const lastImage = await query.orderBy('seq', 'desc').first()
   const newSeq = lastImage?.seq ? lastImage.seq + 1 : 1
 
   const timestamp = DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss')
   const baseName = file.clientName.split('.').slice(0, -1).join('.')
 
-  if (bookId === 2 || bookId === 3) {
-    const certificateId = bookId === 2 ? marriedCertificateId : bornCertificateId
+  if (bookId === 2 || bookId === 3 || bookId === 24) {
+    const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : mandateCertificateId
     clientName = `${description || ''}_${baseName}_id${certificateId}_${timestamp}.${file.extname}`
   } else {
     clientName = `${baseName}_${timestamp}.${file.extname}`
@@ -89,6 +96,7 @@ async function uploadImage({
     bookId,
     marriedCertificateId: marriedCertificateId ?? null,
     bornCertificateId: bornCertificateId ?? null,
+    mandateCertificateId: mandateCertificateId ?? null,
     ext: file.extname,
     fileName: clientName,
     description: description,

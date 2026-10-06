@@ -10,10 +10,77 @@ import MarriedCertificate from 'App/Models/MarriedCertificate'
 import BornCertificate from 'App/Models/BornCertificate'
 import DeathCertificate from 'App/Models/DeathCertificate'
 import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
+import MandateCertificate from 'App/Models/MandateCertificate'
 import Document from 'App/Models/Document'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
 export default class OrderCertificatesController {
+  private isValidMandateCpf(cpf: string): boolean {
+    if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false
+    for (let length = 9; length <= 10; length++) {
+      let sum = 0
+      for (let index = 0; index < length; index++) sum += Number(cpf[index]) * (length + 1 - index)
+      const check = (sum * 10) % 11
+      if ((check === 10 ? 0 : check) !== Number(cpf[length])) return false
+    }
+    return true
+  }
+
+  private async saveMandate(data: any, companiesId: number, usrId: number, trx: TransactionClientContract): Promise<number> {
+    const required = ['requestDate', 'mandateType', 'applicantName', 'applicantCpf', 'applicantWhatsapp']
+    if (required.some((field) => !String(data[field] ?? '').trim())) throw new Error('Mandado: preencha os campos obrigatórios')
+    const mandateType = Number(data.mandateType)
+    const rectificationType = this.toNumber(data.rectificationType)
+    const transcriptionType = this.toNumber(data.transcriptionType)
+    const cpf = this.normalizeCpfValue(data.applicantCpf)
+    const whatsappRaw = String(data.applicantWhatsapp).trim()
+    const whatsappWithCountryCode = whatsappRaw.replace(/\D/g, '')
+    const whatsapp = whatsappWithCountryCode.length === 13 && whatsappWithCountryCode.startsWith('55')
+      ? whatsappWithCountryCode.slice(2)
+      : whatsappWithCountryCode
+    if (!cpf || !/^[\d.\-\s]+$/.test(String(data.applicantCpf).trim()) || !this.isValidMandateCpf(cpf)) {
+      throw new Error('Mandado: informe um CPF válido')
+    }
+    if (!/^[+\d().\s-]+$/.test(whatsappRaw) || !/^[1-9]\d9\d{8}$/.test(whatsapp)) {
+      throw new Error('Mandado: informe um WhatsApp válido com DDD')
+    }
+    const requestDate = DateTime.fromISO(String(data.requestDate), { zone: 'America/Sao_Paulo' })
+    const scheduleDate = data.scheduleDate ? DateTime.fromISO(String(data.scheduleDate), { zone: 'America/Sao_Paulo' }) : null
+    if (!Number.isInteger(mandateType) || mandateType < 1 || mandateType > 17 ||
+      !requestDate.isValid || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.requestDate)) ||
+      (scheduleDate && (!scheduleDate.isValid || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(data.scheduleDate)))) ||
+      (mandateType === 2 && ![1, 2, 3].includes(rectificationType ?? 0)) ||
+      (mandateType === 7 && ![1, 2, 3].includes(transcriptionType ?? 0)) ||
+      (mandateType === 7 && ![true, false, 'true', 'false', '1', '0'].includes(data.hasPowerOfAttorney)) ||
+      String(data.applicantName).trim().length > 100 || whatsappRaw.length > 20 ||
+      String(data.applicantPhone ?? '').length > 20 || String(data.applicantEmail ?? '').length > 100 ||
+      String(data.registeredData ?? '').length > 255 || String(data.registeredCity ?? '').length > 100 ||
+      String(data.obs ?? '').length > 500 ||
+      ['bookNumber', 'sheetNumber', 'termNumber'].some((field) => data[field] !== null && data[field] !== undefined && data[field] !== '' && (!Number.isInteger(Number(data[field])) || Number(data[field]) < 0))) {
+      throw new Error('Mandado: dados inválidos ou acima do limite permitido')
+    }
+    const existingId = this.toNumber(data.id)
+    const certificate = existingId
+      ? await MandateCertificate.query({ client: trx }).where('id', existingId).where('companiesId', companiesId).firstOrFail()
+      : new MandateCertificate()
+    certificate.useTransaction(trx)
+    certificate.merge({
+      companiesId, usrId, requestDate, scheduleDate,
+      mandateType,
+      rectificationType: mandateType === 2 ? rectificationType : null,
+      transcriptionType: mandateType === 7 ? transcriptionType : null,
+      hasPowerOfAttorney: mandateType === 7 ? this.toBoolean(data.hasPowerOfAttorney) : null,
+      applicantName: String(data.applicantName).trim(), applicantCpf: cpf,
+      applicantWhatsapp: whatsapp,
+      applicantPhone: data.applicantPhone || null, applicantEmail: data.applicantEmail || null,
+      registeredData: data.registeredData || null, registeredCity: data.registeredCity || null,
+      bookNumber: this.toNumber(data.bookNumber), sheetNumber: this.toNumber(data.sheetNumber),
+      termNumber: this.toNumber(data.termNumber), obs: data.obs || null,
+      statusForm: data.statusForm || 'draft', inactive: this.toBoolean(data.inactive),
+    })
+    await certificate.save()
+    return certificate.id
+  }
   private getLatestEmployeeVerification(current: any | null, candidate: any): any {
     if (!candidate) return current
     if (!current) return candidate
@@ -732,6 +799,7 @@ export default class OrderCertificatesController {
         q.preload('registered1Person', (p) => p.select('name', 'cpf'))
         q.preload('registered2Person', (p) => p.select('name', 'cpf'))
       })
+      .preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id))
       .preload('document', (q) => {
         q.select(['id', 'order_certificate_id', 'typebooks_id', 'bookrecords_id', 'companies_id'])
       })
@@ -935,6 +1003,11 @@ export default class OrderCertificatesController {
               .where('companiesId', authenticate.companies_id)
           })
         })
+        q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => {
+          mc.whereHas('employeeVerificationXCertificates', (evxc) => {
+            evxc.where('employeeVerificationId', employeeVerificationId).where('companiesId', authenticate.companies_id)
+          })
+        }))
       })
     }
 
@@ -952,7 +1025,10 @@ export default class OrderCertificatesController {
 
     // ***********************************************************
     // 🔍 Filtro por CPF em marriedCertificate, bornCertificate ou secondcopyCertificate
-    if (cpf) {
+    if (cpf && Number(bookId) === 24) {
+      query.whereHas('mandateCertificate', (mc) => mc.where('applicant_cpf', cpf))
+    }
+    if (cpf && Number(bookId) !== 24) {
       query.where((q) => {
         // --- marriedCertificate: groom ou bride ---
         q.whereHas('marriedCertificate', (mc) => {
@@ -1011,12 +1087,17 @@ export default class OrderCertificatesController {
               p.where('cpf', cpf)
             })
         })
+        q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => mc.where('applicant_cpf', cpf)))
       })
     }
 
     // ***********************************************************
     // 🔍 Filtro por NAME em marriedCertificate, bornCertificate ou secondcopyCertificate
-    if (name) {
+    if (name && Number(bookId) === 24) {
+      const likeName = `%${name}%`
+      query.whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName))
+    }
+    if (name && Number(bookId) !== 24) {
       const likeName = `%${name}%`
 
       query.where((q) => {
@@ -1077,6 +1158,7 @@ export default class OrderCertificatesController {
               p.where('name', 'like', likeName)
             })
         })
+        q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName)))
       })
     }
 
@@ -1094,15 +1176,20 @@ export default class OrderCertificatesController {
     const deathCertificateIds = orders
       .filter((order) => Number(order.bookId) === 4 && order.certificateId)
       .map((order) => order.certificateId)
+    const mandateCertificateIds = orders
+      .filter((order) => Number(order.bookId) === 24 && order.certificateId)
+      .map((order) => order.certificateId)
     const receiptIds = orders
       .map((order) => (order as any).receipt?.id)
       .filter((id) => !!id)
 
     const marriedImageCounts = new Map<number, number>()
     const bornImageCounts = new Map<number, number>()
+    const mandateImageCounts = new Map<number, number>()
     const latestEmployeeVerificationByMarriedCertificate = new Map<number, any>()
     const latestEmployeeVerificationByBornCertificate = new Map<number, any>()
     const latestEmployeeVerificationByDeathCertificate = new Map<number, any>()
+    const latestEmployeeVerificationByMandateCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
 
     if (marriedCertificateIds.length) {
@@ -1133,7 +1220,16 @@ export default class OrderCertificatesController {
       })
     }
 
-    if (marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length) {
+    if (mandateCertificateIds.length) {
+      const counts = await Database.from('image_certificates')
+        .select('mandate_certificate_id').count('* as total')
+        .where('companies_id', authenticate.companies_id)
+        .whereIn('mandate_certificate_id', mandateCertificateIds)
+        .groupBy('mandate_certificate_id')
+      counts.forEach((row) => mandateImageCounts.set(Number(row.mandate_certificate_id), Number(row.total ?? 0)))
+    }
+
+    if (marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length) {
       const certificateVerificationsQuery = Database
         .from('employee_verification_x_certificates as evxc')
         .leftJoin('employee_verifications as ev', 'ev.id', 'evxc.employee_verification_id')
@@ -1142,6 +1238,7 @@ export default class OrderCertificatesController {
           'evxc.married_certificate_id',
           'evxc.born_certificate_id',
           'evxc.death_certificate_id',
+          'evxc.mandate_certificate_id',
           'evxc.status',
           'evxc.date',
           'ev.description',
@@ -1158,6 +1255,9 @@ export default class OrderCertificatesController {
         }
         if (deathCertificateIds.length) {
           q.orWhereIn('evxc.death_certificate_id', deathCertificateIds)
+        }
+        if (mandateCertificateIds.length) {
+          q.orWhereIn('evxc.mandate_certificate_id', mandateCertificateIds)
         }
       })
 
@@ -1209,6 +1309,10 @@ export default class OrderCertificatesController {
             )
           )
         }
+        if (row.mandate_certificate_id) {
+          const id = Number(row.mandate_certificate_id)
+          latestEmployeeVerificationByMandateCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationByMandateCertificate.get(id) ?? null, candidate))
+        }
       })
     }
 
@@ -1256,8 +1360,11 @@ export default class OrderCertificatesController {
     const result = orders.map((order) => {
       const json = order.toJSON()
       const bookId = Number(order.bookId)
+      if (bookId !== 24) delete json.mandateCertificate
       const imageCertificatesCount = bookId === 3
         ? bornImageCounts.get(Number(order.certificateId)) ?? 0
+        : bookId === 24
+          ? mandateImageCounts.get(Number(order.certificateId)) ?? 0
         : bookId === 2
           ? marriedImageCounts.get(Number(order.certificateId)) ?? 0
           : 0
@@ -1265,6 +1372,8 @@ export default class OrderCertificatesController {
         ? latestEmployeeVerificationByBornCertificate.get(Number(order.certificateId))
         : bookId === 4
           ? latestEmployeeVerificationByDeathCertificate.get(Number(order.certificateId))
+          : bookId === 24
+            ? latestEmployeeVerificationByMandateCertificate.get(Number(order.certificateId))
           : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId))
       const receiptVerification = json.receipt?.id
         ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
@@ -1292,6 +1401,7 @@ export default class OrderCertificatesController {
       if (json.bornCertificate) {
         json.bornCertificate.imageCertificatesCount = imageCertificatesCount
       }
+      if (bookId === 24 && json.mandateCertificate) json.mandateCertificate.imageCertificatesCount = imageCertificatesCount
 
       return json
     })
@@ -1377,6 +1487,8 @@ export default class OrderCertificatesController {
       })
     }
 
+    if (book_id == 24) query.preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id))
+
     const orderCertificate = await query.first()
     if (!orderCertificate) {
       return response.notFound({ message: 'Pedido de certidão não encontrado' })
@@ -1400,6 +1512,10 @@ export default class OrderCertificatesController {
 
     if (!bookId) {
       return response.badRequest({ message: 'bookId é obrigatório' })
+    }
+
+    if (bookId === 24 && !body.mandateCertificate) {
+      return response.status(422).send({ message: 'Dados do formulário Mandados e Outros são obrigatórios' })
     }
 
     try {
@@ -1521,6 +1637,13 @@ export default class OrderCertificatesController {
           finalCertificateId = await this.saveSecondcopy(parsedSecond, user.companies_id, user.id, trx)
         }
 
+        if (bookId === 24 && body.mandateCertificate) {
+          const mandate = this.parseJsonFieldOrFail(response, body.mandateCertificate, 'mandateCertificate')
+          if (!mandate) return null as any
+          mandate.id = null
+          finalCertificateId = await this.saveMandate(mandate, user.companies_id, user.id, trx)
+        }
+
         if (finalCertificateId === null) {
           return null as any
         }
@@ -1612,14 +1735,21 @@ export default class OrderCertificatesController {
         }
       }
 
+      if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
+        const files = request.files('MandateAttachments', { size: '8mb', extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls'] })
+        for (const file of files) await uploadImage({ companiesId: user.companies_id, mandateCertificateId: orderCertificate.certificateId, file, description: 'AnexoMandado' })
+      }
+
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
       if (orderCertificate.bookId === 3) await orderCertificate.load('bornCertificate')
       if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
+      if (orderCertificate.bookId === 24) await orderCertificate.load('mandateCertificate')
 
       return response.created(orderCertificate)
     } catch (error: any) {
+      if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
       if (error.code === 'E_VALIDATION_FAILURE') {
         return response.status(422).send({ errors: error.messages.errors })
       }
@@ -1636,7 +1766,7 @@ export default class OrderCertificatesController {
     const user = await auth.use('api').authenticate()
 
     const orderCertificate = await OrderCertificate.find(params.id)
-    if (!orderCertificate) {
+    if (!orderCertificate || orderCertificate.companiesId !== user.companies_id) {
       return response.notFound({ message: 'Pedido não encontrado' })
     }
 
@@ -1648,6 +1778,10 @@ export default class OrderCertificatesController {
 
     if (!bookId) {
       return response.badRequest({ message: 'bookId é obrigatório' })
+    }
+
+    if ((bookId === 24 || orderCertificate.bookId === 24) && bookId !== orderCertificate.bookId) {
+      return response.status(422).send({ message: 'Não é permitido alterar o tipo do pedido Mandados e Outros' })
     }
 
     try {
@@ -1809,6 +1943,12 @@ export default class OrderCertificatesController {
             await orderCertificate.save()
           }
         }
+        if (bookId === 24 && body.mandateCertificate) {
+          const mandate = this.parseJsonFieldOrFail(response, body.mandateCertificate, 'mandateCertificate')
+          if (!mandate) return
+          mandate.id = orderCertificate.certificateId
+          await this.saveMandate(mandate, user.companies_id, user.id, trx)
+        }
       })
 
       // Upload no update (só casamento)
@@ -1878,17 +2018,24 @@ export default class OrderCertificatesController {
         }
       }
 
+      if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
+        const files = request.files('MandateAttachments', { size: '8mb', extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls'] })
+        for (const file of files) await uploadImage({ companiesId: user.companies_id, mandateCertificateId: orderCertificate.certificateId, file, description: 'AnexoMandado' })
+      }
+
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
       if (orderCertificate.bookId === 3) await orderCertificate.load('bornCertificate')
       if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
+      if (orderCertificate.bookId === 24) await orderCertificate.load('mandateCertificate')
 
       const check = await SecondcopyCertificate.find(orderCertificate.certificateId)
       //console.log('CHECK SECOND COPY AFTER UPDATE:', check?.toJSON())
 
       return orderCertificate
     } catch (error: any) {
+      if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
       if (error.code === 'E_VALIDATION_FAILURE') {
         return response.status(422).send({ errors: error.messages.errors })
       }

@@ -17,6 +17,9 @@ export default class EmployeeVerificationXCertificateValidator {
       rules.unsigned(),
       rules.exists({ table: 'death_certificates', column: 'id' }),
     ]),
+    mandateCertificateId: schema.number.optional([
+      rules.unsigned(), rules.exists({ table: 'mandate_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: schema.number([
       rules.unsigned(),
       rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -41,6 +44,9 @@ export default class EmployeeVerificationXCertificateValidator {
     deathCertificateId: schema.number.optional([
       rules.unsigned(),
       rules.exists({ table: 'death_certificates', column: 'id' }),
+    ]),
+    mandateCertificateId: schema.number.optional([
+      rules.unsigned(), rules.exists({ table: 'mandate_certificates', column: 'id' }),
     ]),
     employeeVerificationId: schema.number.optional([
       rules.unsigned(),
