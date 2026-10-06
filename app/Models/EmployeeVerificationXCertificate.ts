@@ -9,6 +9,7 @@ import {
 import MarriedCertificate from 'App/Models/MarriedCertificate'
 import BornCertificate from 'App/Models/BornCertificate'
 import DeathCertificate from 'App/Models/DeathCertificate'
+import MandateCertificate from 'App/Models/MandateCertificate'
 import EmployeeVerification from 'App/Models/EmployeeVerification'
 import Company from 'App/Models/Company'
 import User from 'App/Models/User'
@@ -27,6 +28,9 @@ export default class EmployeeVerificationXCertificate extends BaseModel {
 
   @column({ columnName: 'death_certificate_id' })
   public deathCertificateId: number | null
+
+  @column({ columnName: 'mandate_certificate_id' })
+  public mandateCertificateId: number | null
 
   @column({ columnName: 'companies_id' })
   public companiesId: number
@@ -63,6 +67,9 @@ export default class EmployeeVerificationXCertificate extends BaseModel {
     foreignKey: 'deathCertificateId',
   })
   public deathCertificate: BelongsTo<typeof DeathCertificate>
+
+  @belongsTo(() => MandateCertificate, { foreignKey: 'mandateCertificateId' })
+  public mandateCertificate: BelongsTo<typeof MandateCertificate>
 
   @belongsTo(() => EmployeeVerification, {
     foreignKey: 'employeeVerificationId',
