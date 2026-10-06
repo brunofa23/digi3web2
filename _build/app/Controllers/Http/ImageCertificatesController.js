@@ -341,9 +341,10 @@ class ImageCertificatesController {
             });
         }
         const bornCertificateId = params.bornCertificateId ? Number(params.bornCertificateId) : null;
+        const mandateCertificateId = params.mandateCertificateId ? Number(params.mandateCertificateId) : null;
         const marriedCertificateId = params.marriedCertificateId ? Number(params.marriedCertificateId) : null;
-        const certificateId = bornCertificateId ?? marriedCertificateId;
-        const bookId = bornCertificateId ? 3 : 2;
+        const certificateId = bornCertificateId ?? mandateCertificateId ?? marriedCertificateId;
+        const bookId = bornCertificateId ? 3 : mandateCertificateId ? 24 : 2;
         if (!certificateId || !Number.isFinite(certificateId)) {
             return response.badRequest({ error: 'certificateId inválido' });
         }
@@ -352,6 +353,9 @@ class ImageCertificatesController {
             .andWhere('book_id', bookId);
         if (bornCertificateId) {
             query.andWhere('born_certificate_id', bornCertificateId);
+        }
+        else if (mandateCertificateId) {
+            query.andWhere('mandate_certificate_id', mandateCertificateId);
         }
         else {
             query.andWhere('married_certificate_id', marriedCertificateId);
@@ -374,6 +378,7 @@ class ImageCertificatesController {
                 ready: image.ready,
                 marriedCertificateId: image.marriedCertificateId,
                 bornCertificateId: image.bornCertificateId,
+                mandateCertificateId: image.mandateCertificateId,
                 createdAt: image.createdAt,
             })),
         });

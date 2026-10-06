@@ -18,6 +18,7 @@ const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Comp
 const Book_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Book"));
 const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MarriedCertificate"));
 const BornCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BornCertificate"));
+const MandateCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MandateCertificate"));
 class ImageCertificate extends Orm_1.BaseModel {
 }
 __decorate([
@@ -40,6 +41,10 @@ __decorate([
     (0, Orm_1.column)({ columnName: 'born_certificate_id' }),
     __metadata("design:type", Object)
 ], ImageCertificate.prototype, "bornCertificateId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'mandate_certificate_id' }),
+    __metadata("design:type", Object)
+], ImageCertificate.prototype, "mandateCertificateId", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
@@ -104,5 +109,9 @@ __decorate([
     }),
     __metadata("design:type", Object)
 ], ImageCertificate.prototype, "bornCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => MandateCertificate_1.default, { foreignKey: 'mandateCertificateId' }),
+    __metadata("design:type", Object)
+], ImageCertificate.prototype, "mandateCertificate", void 0);
 exports.default = ImageCertificate;
 //# sourceMappingURL=ImageCertificate.js.map

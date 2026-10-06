@@ -20,6 +20,9 @@ EmployeeVerificationXCertificateValidator.createSchema = Validator_1.schema.crea
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'death_certificates', column: 'id' }),
     ]),
+    mandateCertificateId: Validator_1.schema.number.optional([
+        Validator_1.rules.unsigned(), Validator_1.rules.exists({ table: 'mandate_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: Validator_1.schema.number([
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -43,6 +46,9 @@ EmployeeVerificationXCertificateValidator.updateSchema = Validator_1.schema.crea
     deathCertificateId: Validator_1.schema.number.optional([
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'death_certificates', column: 'id' }),
+    ]),
+    mandateCertificateId: Validator_1.schema.number.optional([
+        Validator_1.rules.unsigned(), Validator_1.rules.exists({ table: 'mandate_certificates', column: 'id' }),
     ]),
     employeeVerificationId: Validator_1.schema.number.optional([
         Validator_1.rules.unsigned(),

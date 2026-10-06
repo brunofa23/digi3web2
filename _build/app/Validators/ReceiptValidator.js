@@ -14,13 +14,13 @@ class ReceiptValidator {
                 Validator_1.rules.exists({ table: 'services', column: 'id' }),
             ]),
             free: Validator_1.schema.boolean.optional(),
-            applicant: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(90)]),
+            applicant: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(100)]),
             cpfApplicant: Validator_1.schema.string.optional({ trim: true }, [
                 Validator_1.rules.maxLength(11),
                 Validator_1.rules.minLength(11),
                 Validator_1.rules.regex(/^\d{11}$/),
             ]),
-            registered1: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(90)]),
+            registered1: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(255)]),
             cpfRegistered1: Validator_1.schema.string.optional({ trim: true }, [
                 Validator_1.rules.maxLength(11),
                 Validator_1.rules.minLength(11),

@@ -8,6 +8,7 @@ const luxon_1 = require("luxon");
 const crypto_1 = require("crypto");
 const BackupRun_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BackupRun"));
 const BackupCompanyStatus_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BackupCompanyStatus"));
+const RcloneVerification_1 = global[Symbol.for('ioc.use')]("App/Services/RcloneVerification");
 class BackupRunsController {
     constructor() {
         this.databaseKind = 'DATABASE_ACERVO';
@@ -234,6 +235,12 @@ class BackupRunsController {
             if (!kind) {
                 return ctx.response.status(400).send({ message: 'Tipo de backup inválido.' });
             }
+            if (kind === this.rcloneKind && event === 'RUN_SUCCESS'
+                && !(0, RcloneVerification_1.isVerifiedRcloneCompletion)(payload.metadata)) {
+                return ctx.response.status(422).send({
+                    message: 'Conclusão do rclone exige cópia e verificação de todas as pastas.',
+                });
+            }
             const run = await this.findOrCreateRun(runId, kind);
             const now = this.getNow();
             run.lastHeartbeatAt = now;
@@ -249,6 +256,9 @@ class BackupRunsController {
                 }
             }
             if (event === 'HEARTBEAT') {
+                if (kind === this.rcloneKind && payload.metadata) {
+                    run.metadata = payload.metadata;
+                }
                 await run.save();
             }
             if (kind === this.databaseKind && event === 'COMPANY_STARTED') {
