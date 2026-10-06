@@ -566,6 +566,27 @@ async function sendListFiles(cloud_number: number, folderId: any = "") {
 
 }
 
+async function sendListDriveFolders(cloud_number: number, onPage?: () => Promise<void>) {
+  const auth = await authorize(cloud_number)
+  const drive = google.drive({ version: 'v3', auth })
+  const folders: Array<{ id: string; name: string; parents?: string[] }> = []
+  let pageToken: string | undefined
+
+  do {
+    const result = await drive.files.list({
+      q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+      fields: 'nextPageToken, files(id, name, parents)',
+      pageSize: 1000,
+      pageToken,
+    })
+    folders.push(...(result.data.files || []).filter((folder) => folder.id && folder.name) as typeof folders)
+    if (onPage) await onPage()
+    pageToken = result.data.nextPageToken || undefined
+  } while (pageToken)
+
+  return folders
+}
+
 async function sendListAllFiles(cloud_number: number, folderId: any = "", book: any[] = []) {
   //authorize().then(listFiles(folderId)).catch(console.error);
   const auth = await authorize(cloud_number)
@@ -666,4 +687,4 @@ async function sendRenameFile(fileId, newTitle, cloud_number: number) {
 
 }
 
-export { sendListFiles, sendUploadFiles, sendAuthorize, sendValidateConnection, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDownloadFileBuffer, sendDeleteFile, sendListAllFiles, sendListAllFilesMetadata, sendRenameFile }
+export { sendListFiles, sendListDriveFolders, sendUploadFiles, sendAuthorize, sendValidateConnection, sendCreateFolder, sendSearchFile, sendSearchOrCreateFolder, sendDownloadFile, sendDownloadFileBuffer, sendDeleteFile, sendListAllFiles, sendListAllFilesMetadata, sendRenameFile }
