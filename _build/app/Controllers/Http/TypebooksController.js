@@ -41,10 +41,8 @@ class TypebooksController {
                 .andWhere('companies_id', '=', typebookPayload.companies_id)
                 .update({ path: path });
             const idFolderCompany = await (0, googledrive_1.sendSearchFile)(company.foldername, company.cloud);
-            const verifyFolder = await (0, googledrive_1.sendSearchFile)(path, company.cloud);
-            if (verifyFolder.length > 0) {
-                return;
-            }
+            if (!idFolderCompany[0]?.id)
+                throw new Error('Pasta da empresa não encontrada no Google Drive');
             await (0, googledrive_1.sendCreateFolder)(path, company.cloud, idFolderCompany[0].id);
             let successValidation = await new validations_1.default('typebook_success_100');
             return response.status(201).send(typebookPayload, successValidation.code);

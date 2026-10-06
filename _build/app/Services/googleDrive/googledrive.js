@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendRenameFile = exports.sendListAllFilesMetadata = exports.sendListAllFiles = exports.sendDeleteFile = exports.sendDownloadFileBuffer = exports.sendDownloadFile = exports.sendSearchOrCreateFolder = exports.sendSearchFile = exports.sendCreateFolder = exports.sendValidateConnection = exports.sendAuthorize = exports.sendUploadFiles = exports.sendListFiles = void 0;
+exports.sendRenameFile = exports.sendListAllFilesMetadata = exports.sendListAllFiles = exports.sendDeleteFile = exports.sendDownloadFileBuffer = exports.sendDownloadFile = exports.sendSearchOrCreateFolder = exports.sendSearchFile = exports.sendCreateFolder = exports.sendValidateConnection = exports.sendAuthorize = exports.sendUploadFiles = exports.sendCountDriveFiles = exports.sendListDriveFolders = exports.sendListFiles = void 0;
 const Token_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Token"));
 const Helpers_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Helpers");
 const sharp_1 = __importDefault(require("sharp"));
@@ -440,6 +440,42 @@ async function sendListFiles(cloud_number, folderId = "") {
     return listFiles(auth, folderId);
 }
 exports.sendListFiles = sendListFiles;
+async function sendListDriveFolders(cloud_number, onPage) {
+    const auth = await authorize(cloud_number);
+    const drive = google.drive({ version: 'v3', auth });
+    const folders = [];
+    let pageToken;
+    do {
+        const result = await drive.files.list({
+            q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+            fields: 'nextPageToken, files(id, name, parents)',
+            pageSize: 1000,
+            pageToken,
+        });
+        folders.push(...(result.data.files || []).filter((folder) => folder.id && folder.name));
+        if (onPage)
+            await onPage();
+        pageToken = result.data.nextPageToken || undefined;
+    } while (pageToken);
+    return folders;
+}
+exports.sendListDriveFolders = sendListDriveFolders;
+async function sendCountDriveFiles(cloud_number, onPage) {
+    const auth = await authorize(cloud_number);
+    const drive = google.drive({ version: 'v3', auth });
+    let pageToken;
+    do {
+        const result = await drive.files.list({
+            q: "mimeType != 'application/vnd.google-apps.folder' and mimeType != 'application/vnd.google-apps.shortcut' and trashed = false",
+            fields: 'nextPageToken, files(parents, size)',
+            pageSize: 1000,
+            pageToken,
+        });
+        await onPage(result.data.files || []);
+        pageToken = result.data.nextPageToken || undefined;
+    } while (pageToken);
+}
+exports.sendCountDriveFiles = sendCountDriveFiles;
 async function sendListAllFiles(cloud_number, folderId = "", book = []) {
     const auth = await authorize(cloud_number);
     return listAllFiles(auth, folderId, book);
@@ -458,11 +494,30 @@ async function sendUploadFiles(parent, folderPath, fileName, cloud_number, mimeT
 exports.sendUploadFiles = sendUploadFiles;
 async function sendCreateFolder(folderName, cloud_number, parentId = undefined) {
     const auth = await authorize(cloud_number);
-    const found = await searchFile(auth, folderName.trim(), parentId);
-    if (Array.isArray(found) && found.length > 0 && found[0]?.id) {
-        return found[0].id;
-    }
-    const id = await createFolder(auth, folderName.trim(), parentId);
+    const name = folderName.trim();
+    const escapeQuery = (value) => value.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const query = [
+        "name = '" + escapeQuery(name) + "'",
+        "mimeType = 'application/vnd.google-apps.folder'",
+        'trashed = false',
+        ...(parentId ? ["'" + escapeQuery(parentId) + "' in parents"] : []),
+    ].join(' and ');
+    const drive = google.drive({ version: 'v3', auth });
+    let pageToken;
+    do {
+        const found = await drive.files.list({
+            q: query,
+            fields: 'nextPageToken,incompleteSearch,files(id)',
+            pageSize: 1000,
+            pageToken,
+        });
+        if (found.data.incompleteSearch)
+            throw new Error('Busca de pasta incompleta no Google Drive');
+        if (found.data.files?.[0]?.id)
+            return found.data.files[0].id;
+        pageToken = found.data.nextPageToken || undefined;
+    } while (pageToken);
+    const id = await createFolder(auth, name, parentId);
     return id;
 }
 exports.sendCreateFolder = sendCreateFolder;
