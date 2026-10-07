@@ -314,6 +314,11 @@ Route.group(() => {
   Route.patch('/tributations/:id', 'TributationsController.update').middleware('tributationPermission:update')
   Route.delete('/tributations/:id', 'TributationsController.destroy').middleware('tributationPermission:delete')
 
+  // DESCRIÇÕES DE AVERBAÇÕES
+  Route.get('/averbation-descriptions', 'AverbationDescriptionsController.index')
+  Route.post('/averbation-descriptions', 'AverbationDescriptionsController.store')
+  Route.patch('/averbation-descriptions/:id', 'AverbationDescriptionsController.update')
+
 
   //TOKENS_DEVICES
   Route.get('/tokens-devices/authorized', 'TokensDevicesController.authorizedDevices').middleware('auth')
