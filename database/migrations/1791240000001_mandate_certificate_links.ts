@@ -2,6 +2,8 @@ import BaseSchema from '@ioc:Adonis/Lucid/Schema'
 import Database from '@ioc:Adonis/Lucid/Database'
 
 export default class extends BaseSchema {
+  public static disableTransactions = true
+
   public async up() {
     if (!(await this.hasColumn('image_certificates'))) {
       await Database.rawQuery('ALTER TABLE image_certificates ADD COLUMN mandate_certificate_id INT UNSIGNED NULL AFTER born_certificate_id')
