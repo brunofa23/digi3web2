@@ -610,7 +610,13 @@ class OrderCertificatesController {
             .map((id) => Number(id))
             .filter((id) => !Number.isNaN(id));
         const receiptId = request.input('receiptId') || null;
-        const employeeVerificationId = request.input('employeeVerificationId') || null;
+        const employeeVerificationIds = (request.input('employeeVerificationIds', []) || [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isInteger(id) && id > 0);
+        const employeeVerificationId = Number(request.input('employeeVerificationId'));
+        if (Number.isInteger(employeeVerificationId) && employeeVerificationId > 0) {
+            employeeVerificationIds.push(employeeVerificationId);
+        }
         const emolumentCode = request.input('emolumentCode') || null;
         const origin = request.input('origin') || null;
         const orderCertificateId = request.input('id') || null;
@@ -791,39 +797,39 @@ class OrderCertificatesController {
                 }
             });
         }
-        if (employeeVerificationId) {
+        if (employeeVerificationIds.length) {
             query.where((q) => {
                 q.whereHas('receipt', (r) => {
                     r.whereHas('employeeVerificationXReceipts', (evxr) => {
                         evxr
-                            .where('employeeVerificationId', employeeVerificationId)
+                            .whereIn('employeeVerificationId', employeeVerificationIds)
                             .where('companiesId', authenticate.companies_id);
                     });
                 });
                 q.orWhereHas('marriedCertificate', (mc) => {
                     mc.whereHas('employeeVerificationXCertificates', (evxc) => {
                         evxc
-                            .where('employeeVerificationId', employeeVerificationId)
+                            .whereIn('employeeVerificationId', employeeVerificationIds)
                             .where('companiesId', authenticate.companies_id);
                     });
                 });
                 q.orWhereHas('bornCertificate', (bc) => {
                     bc.whereHas('employeeVerificationXCertificates', (evxc) => {
                         evxc
-                            .where('employeeVerificationId', employeeVerificationId)
+                            .whereIn('employeeVerificationId', employeeVerificationIds)
                             .where('companiesId', authenticate.companies_id);
                     });
                 });
                 q.orWhereHas('deathCertificate', (dc) => {
                     dc.whereHas('employeeVerificationXCertificates', (evxc) => {
                         evxc
-                            .where('employeeVerificationId', employeeVerificationId)
+                            .whereIn('employeeVerificationId', employeeVerificationIds)
                             .where('companiesId', authenticate.companies_id);
                     });
                 });
                 q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => {
                     mc.whereHas('employeeVerificationXCertificates', (evxc) => {
-                        evxc.where('employeeVerificationId', employeeVerificationId).where('companiesId', authenticate.companies_id);
+                        evxc.whereIn('employeeVerificationId', employeeVerificationIds).where('companiesId', authenticate.companies_id);
                     });
                 }));
             });
@@ -1074,8 +1080,8 @@ class OrderCertificatesController {
                     q.orWhereIn('evxc.mandate_certificate_id', mandateCertificateIds);
                 }
             });
-            if (employeeVerificationId) {
-                certificateVerificationsQuery.where('evxc.employee_verification_id', employeeVerificationId);
+            if (employeeVerificationIds.length) {
+                certificateVerificationsQuery.whereIn('evxc.employee_verification_id', employeeVerificationIds);
             }
             const certificateVerifications = await certificateVerificationsQuery;
             certificateVerifications.forEach((row) => {
@@ -1118,8 +1124,8 @@ class OrderCertificatesController {
             ])
                 .where('evxr.companies_id', authenticate.companies_id)
                 .whereIn('evxr.receipt_id', receiptIds);
-            if (employeeVerificationId) {
-                receiptVerificationsQuery.where('evxr.employee_verification_id', employeeVerificationId);
+            if (employeeVerificationIds.length) {
+                receiptVerificationsQuery.whereIn('evxr.employee_verification_id', employeeVerificationIds);
             }
             const receiptVerifications = await receiptVerificationsQuery;
             receiptVerifications.forEach((row) => {
@@ -1365,7 +1371,7 @@ class OrderCertificatesController {
                             }),
                             registered1: Validator_1.schema.object().members({
                                 name: Validator_1.schema.string({ trim: true }),
-                                cpf: Validator_1.schema.string({ trim: true }, [Validator_1.rules.regex(/^\d{11}$/)]),
+                                cpf: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.regex(/^\d{11}$/)]),
                             }),
                         }),
                         data: { applicant, registered1 },
@@ -1375,7 +1381,6 @@ class OrderCertificatesController {
                             'applicant.cpf.regex': 'CPF do requerente inválido',
                             'registered1.required': 'O registrado 1 é obrigatório',
                             'registered1.name.required': 'Nome do registrado 1 é obrigatório',
-                            'registered1.cpf.required': 'CPF do registrado 1 é obrigatório',
                             'registered1.cpf.regex': 'CPF do registrado 1 inválido',
                         },
                     });
@@ -1625,7 +1630,7 @@ class OrderCertificatesController {
                             }),
                             registered1: Validator_1.schema.object().members({
                                 name: Validator_1.schema.string({ trim: true }),
-                                cpf: Validator_1.schema.string({ trim: true }, [Validator_1.rules.regex(/^\d{11}$/)]),
+                                cpf: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.regex(/^\d{11}$/)]),
                             }),
                         }),
                         data: { applicant, registered1 },
@@ -1635,7 +1640,6 @@ class OrderCertificatesController {
                             'applicant.cpf.regex': 'CPF do requerente inválido',
                             'registered1.required': 'O registrado 1 é obrigatório',
                             'registered1.name.required': 'Nome do registrado 1 é obrigatório',
-                            'registered1.cpf.required': 'CPF do registrado 1 é obrigatório',
                             'registered1.cpf.regex': 'CPF do registrado 1 inválido',
                         },
                     });
