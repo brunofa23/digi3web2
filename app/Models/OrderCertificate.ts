@@ -14,6 +14,7 @@ import SecondcopyCertificate from './SecondcopyCertificate'
 import BornCertificate from './BornCertificate'
 import DeathCertificate from './DeathCertificate'
 import MandateCertificate from './MandateCertificate'
+import CommunicationCertificate from './CommunicationCertificate'
 import Book from './Book'
 import Receipt from 'App/Models/Receipt'
 import Document from 'App/Models/Document'
@@ -89,6 +90,9 @@ export default class OrderCertificate extends BaseModel {
 
   @belongsTo(() => MandateCertificate, { foreignKey: 'certificateId' })
   public mandateCertificate: BelongsTo<typeof MandateCertificate>
+
+  @belongsTo(() => CommunicationCertificate, { foreignKey: 'certificateId' })
+  public communicationCertificate: BelongsTo<typeof CommunicationCertificate>
 
   // ✅ NOVO: 1 OrderCertificate tem 1 Receipt
   @hasOne(() => Receipt, { foreignKey: 'orderCertificateId' })

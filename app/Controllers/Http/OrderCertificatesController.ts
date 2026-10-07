@@ -11,6 +11,7 @@ import BornCertificate from 'App/Models/BornCertificate'
 import DeathCertificate from 'App/Models/DeathCertificate'
 import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
 import MandateCertificate from 'App/Models/MandateCertificate'
+import CommunicationCertificate from 'App/Models/CommunicationCertificate'
 import Document from 'App/Models/Document'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
@@ -77,6 +78,37 @@ export default class OrderCertificatesController {
       bookNumber: this.toNumber(data.bookNumber), sheetNumber: this.toNumber(data.sheetNumber),
       termNumber: this.toNumber(data.termNumber), obs: data.obs || null,
       statusForm: data.statusForm || 'draft', inactive: this.toBoolean(data.inactive),
+    })
+    await certificate.save()
+    return certificate.id
+  }
+
+  private async saveCommunication(data: any, companiesId: number, usrId: number, trx: TransactionClientContract): Promise<number> {
+    const registeredName = String(data.registeredName ?? '').trim()
+    const originOffice = String(data.originOffice ?? '').trim()
+    const destinationOffice = String(data.destinationOffice ?? '').trim()
+    const originObs = String(data.originObs ?? '').trim()
+    const destinationObs = String(data.destinationObs ?? '').trim()
+    if (!registeredName || !originOffice || !destinationOffice ||
+      registeredName.length > 255 || originOffice.length > 255 || destinationOffice.length > 255 ||
+      originObs.length > 500 || destinationObs.length > 500 ||
+      ![1, 2].includes(Number(data.serviceType)) ||
+      ![1, 2, 3].includes(Number(data.deliveryType)) ||
+      ![1, 2, 3].includes(Number(data.communicationType))) {
+      throw new Error('Comunicação: preencha os campos obrigatórios com valores válidos')
+    }
+
+    const existingId = this.toNumber(data.id)
+    const certificate = existingId
+      ? await CommunicationCertificate.query({ client: trx }).where('id', existingId).where('companiesId', companiesId).firstOrFail()
+      : new CommunicationCertificate()
+    certificate.useTransaction(trx)
+    certificate.merge({
+      companiesId, usrId,
+      registeredName, serviceType: Number(data.serviceType), deliveryType: Number(data.deliveryType),
+      communicationType: Number(data.communicationType), originOffice, destinationOffice,
+      originObs: originObs || null, destinationObs: destinationObs || null,
+      ...(!existingId ? { registrationDate: DateTime.now().setZone('America/Sao_Paulo') } : {}),
     })
     await certificate.save()
     return certificate.id
@@ -1027,7 +1059,9 @@ export default class OrderCertificatesController {
     if (cpf && Number(bookId) === 24) {
       query.whereHas('mandateCertificate', (mc) => mc.where('applicant_cpf', cpf))
     }
-    if (cpf && Number(bookId) !== 24) {
+    if (cpf && Number(bookId) === 25) query.where('book_id', -1)
+    if (cpf && Number(bookId) !== 24 && Number(bookId) !== 25) {
+      query.whereNot('book_id', 25)
       query.where((q) => {
         // --- marriedCertificate: groom ou bride ---
         q.whereHas('marriedCertificate', (mc) => {
@@ -1096,8 +1130,15 @@ export default class OrderCertificatesController {
       const likeName = `%${name}%`
       query.whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName))
     }
-    if (name && Number(bookId) !== 24) {
+    if (name && Number(bookId) === 25) {
+      query.whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', `%${name}%`))
+    }
+    if (name && Number(bookId) !== 24 && Number(bookId) !== 25) {
       const likeName = `%${name}%`
+
+      query.where((q) => q.whereNot('book_id', 25).orWhere((communication) =>
+        communication.where('book_id', 25).whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', likeName))
+      ))
 
       query.where((q) => {
         // --- marriedCertificate: groom ou bride ---
@@ -1158,6 +1199,7 @@ export default class OrderCertificatesController {
             })
         })
         q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName)))
+        q.orWhere((communication) => communication.where('book_id', 25).whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', likeName)))
       })
     }
 
@@ -1178,6 +1220,9 @@ export default class OrderCertificatesController {
     const mandateCertificateIds = orders
       .filter((order) => Number(order.bookId) === 24 && order.certificateId)
       .map((order) => order.certificateId)
+    const communicationCertificateIds = orders
+      .filter((order) => Number(order.bookId) === 25 && order.certificateId)
+      .map((order) => order.certificateId)
     const receiptIds = orders
       .map((order) => (order as any).receipt?.id)
       .filter((id) => !!id)
@@ -1191,12 +1236,20 @@ export default class OrderCertificatesController {
     const latestEmployeeVerificationByMandateCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
     const mandateCertificates = new Map<number, any>()
+    const communicationCertificates = new Map<number, any>()
 
     if (mandateCertificateIds.length) {
       const mandates = await MandateCertificate.query()
         .where('companiesId', authenticate.companies_id)
         .whereIn('id', mandateCertificateIds)
       mandates.forEach((mandate) => mandateCertificates.set(mandate.id, mandate.toJSON()))
+    }
+
+    if (communicationCertificateIds.length) {
+      const communications = await CommunicationCertificate.query()
+        .where('companiesId', authenticate.companies_id)
+        .whereIn('id', communicationCertificateIds)
+      communications.forEach((communication) => communicationCertificates.set(communication.id, communication.toJSON()))
     }
 
     if (marriedCertificateIds.length) {
@@ -1372,6 +1425,8 @@ export default class OrderCertificatesController {
       const bookId = Number(order.bookId)
       if (bookId !== 24) delete json.mandateCertificate
       else json.mandateCertificate = mandateCertificates.get(Number(order.certificateId)) ?? null
+      if (bookId !== 25) delete json.communicationCertificate
+      else json.communicationCertificate = communicationCertificates.get(Number(order.certificateId)) ?? null
       const imageCertificatesCount = bookId === 3
         ? bornImageCounts.get(Number(order.certificateId)) ?? 0
         : bookId === 24
@@ -1385,6 +1440,8 @@ export default class OrderCertificatesController {
           ? latestEmployeeVerificationByDeathCertificate.get(Number(order.certificateId))
           : bookId === 24
             ? latestEmployeeVerificationByMandateCertificate.get(Number(order.certificateId))
+          : bookId === 25
+            ? null
           : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId))
       const receiptVerification = json.receipt?.id
         ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
@@ -1499,6 +1556,7 @@ export default class OrderCertificatesController {
     }
 
     if (book_id == 24) query.preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id))
+    if (book_id == 25) query.preload('communicationCertificate', (q) => q.where('companiesId', authenticate.companies_id))
 
     const orderCertificate = await query.first()
     if (!orderCertificate) {
@@ -1527,6 +1585,9 @@ export default class OrderCertificatesController {
 
     if (bookId === 24 && !body.mandateCertificate) {
       return response.status(422).send({ message: 'Dados do formulário Mandados e Outros são obrigatórios' })
+    }
+    if (bookId === 25 && !body.communicationCertificate) {
+      return response.status(422).send({ message: 'Dados do formulário Comunicação são obrigatórios' })
     }
 
     try {
@@ -1655,6 +1716,13 @@ export default class OrderCertificatesController {
           finalCertificateId = await this.saveMandate(mandate, user.companies_id, user.id, trx)
         }
 
+        if (bookId === 25 && body.communicationCertificate) {
+          const communication = this.parseJsonFieldOrFail(response, body.communicationCertificate, 'communicationCertificate')
+          if (!communication) return null as any
+          communication.id = null
+          finalCertificateId = await this.saveCommunication(communication, user.companies_id, user.id, trx)
+        }
+
         if (finalCertificateId === null) {
           return null as any
         }
@@ -1757,10 +1825,12 @@ export default class OrderCertificatesController {
       if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
       if (orderCertificate.bookId === 24) await orderCertificate.load('mandateCertificate')
+      if (orderCertificate.bookId === 25) await orderCertificate.load('communicationCertificate')
 
       return response.created(orderCertificate)
     } catch (error: any) {
       if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
+      if (String(error.message || '').startsWith('Comunicação:')) return response.status(422).send({ message: error.message })
       if (error.code === 'E_VALIDATION_FAILURE') {
         return response.status(422).send({ errors: error.messages.errors })
       }
@@ -1791,8 +1861,16 @@ export default class OrderCertificatesController {
       return response.badRequest({ message: 'bookId é obrigatório' })
     }
 
-    if ((bookId === 24 || orderCertificate.bookId === 24) && bookId !== orderCertificate.bookId) {
-      return response.status(422).send({ message: 'Não é permitido alterar o tipo do pedido Mandados e Outros' })
+    if (([24, 25].includes(bookId) || [24, 25].includes(orderCertificate.bookId)) && bookId !== orderCertificate.bookId) {
+      return response.status(422).send({ message: 'Não é permitido alterar o tipo deste pedido' })
+    }
+
+    if (bookId === 25 && !body.communicationCertificate) {
+      return response.status(422).send({ message: 'Dados do formulário Comunicação são obrigatórios' })
+    }
+
+    if (bookId === 25 && certificateIdFromBody !== null && certificateIdFromBody !== orderCertificate.certificateId) {
+      return response.status(422).send({ message: 'O vínculo da comunicação não pode ser alterado' })
     }
 
     try {
@@ -1960,6 +2038,12 @@ export default class OrderCertificatesController {
           mandate.id = orderCertificate.certificateId
           await this.saveMandate(mandate, user.companies_id, user.id, trx)
         }
+        if (bookId === 25 && body.communicationCertificate) {
+          const communication = this.parseJsonFieldOrFail(response, body.communicationCertificate, 'communicationCertificate')
+          if (!communication) return
+          communication.id = orderCertificate.certificateId
+          await this.saveCommunication(communication, user.companies_id, user.id, trx)
+        }
       })
 
       // Upload no update (só casamento)
@@ -2040,6 +2124,7 @@ export default class OrderCertificatesController {
       if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
       if (orderCertificate.bookId === 24) await orderCertificate.load('mandateCertificate')
+      if (orderCertificate.bookId === 25) await orderCertificate.load('communicationCertificate')
 
       const check = await SecondcopyCertificate.find(orderCertificate.certificateId)
       //console.log('CHECK SECOND COPY AFTER UPDATE:', check?.toJSON())
@@ -2047,6 +2132,7 @@ export default class OrderCertificatesController {
       return orderCertificate
     } catch (error: any) {
       if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
+      if (String(error.message || '').startsWith('Comunicação:')) return response.status(422).send({ message: error.message })
       if (error.code === 'E_VALIDATION_FAILURE') {
         return response.status(422).send({ errors: error.messages.errors })
       }
