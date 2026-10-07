@@ -751,6 +751,7 @@ export default class OrderCertificatesController {
 
     // RECEIPT***************************************************
     const freeReceipt = request.input('freeReceipt')
+    const stampStatus = request.input('stampStatus')
 
     // FILTER FOR DATE RECEIPT
     const dateStartReceipt = this.normalizeDateBoundary(request.input('dateStartReceipt'), 'start')
@@ -900,6 +901,17 @@ export default class OrderCertificatesController {
     } else if (freeReceipt === 'false') {
       query.whereHas('receipt', (r) => {
         r.where('free', false)
+      })
+    }
+
+    if (stampStatus === 'sealed' || stampStatus === 'unsealed') {
+      query.whereHas('receipt', (r) => {
+        r.where((activeReceipt) =>
+          activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO')
+        )
+
+        if (stampStatus === 'sealed') r.whereNotNull('date_stamp')
+        else r.whereNotNull('date_protocol').whereNull('date_stamp')
       })
     }
 
