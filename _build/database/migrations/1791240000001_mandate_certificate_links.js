@@ -64,4 +64,5 @@ class default_1 extends Schema_1.default {
     }
 }
 exports.default = default_1;
+default_1.disableTransactions = true;
 //# sourceMappingURL=1791240000001_mandate_certificate_links.js.map

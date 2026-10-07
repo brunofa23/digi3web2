@@ -611,7 +611,6 @@ class OrderCertificatesController {
             q.preload('registered1Person', (p) => p.select('name', 'cpf'));
             q.preload('registered2Person', (p) => p.select('name', 'cpf'));
         })
-            .preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id))
             .preload('document', (q) => {
             q.select(['id', 'order_certificate_id', 'typebooks_id', 'bookrecords_id', 'companies_id']);
         })
@@ -946,6 +945,13 @@ class OrderCertificatesController {
         const latestEmployeeVerificationByDeathCertificate = new Map();
         const latestEmployeeVerificationByMandateCertificate = new Map();
         const latestEmployeeVerificationByReceipt = new Map();
+        const mandateCertificates = new Map();
+        if (mandateCertificateIds.length) {
+            const mandates = await MandateCertificate_1.default.query()
+                .where('companiesId', authenticate.companies_id)
+                .whereIn('id', mandateCertificateIds);
+            mandates.forEach((mandate) => mandateCertificates.set(mandate.id, mandate.toJSON()));
+        }
         if (marriedCertificateIds.length) {
             const counts = await Database_1.default
                 .from('image_certificates')
@@ -987,13 +993,15 @@ class OrderCertificatesController {
                 'evxc.married_certificate_id',
                 'evxc.born_certificate_id',
                 'evxc.death_certificate_id',
-                'evxc.mandate_certificate_id',
                 'evxc.status',
                 'evxc.date',
                 'ev.description',
                 'evxc.created_at',
             ])
                 .where('evxc.companies_id', authenticate.companies_id);
+            if (mandateCertificateIds.length) {
+                certificateVerificationsQuery.select('evxc.mandate_certificate_id');
+            }
             certificateVerificationsQuery.where((q) => {
                 if (marriedCertificateIds.length) {
                     q.whereIn('evxc.married_certificate_id', marriedCertificateIds);
@@ -1074,6 +1082,8 @@ class OrderCertificatesController {
             const bookId = Number(order.bookId);
             if (bookId !== 24)
                 delete json.mandateCertificate;
+            else
+                json.mandateCertificate = mandateCertificates.get(Number(order.certificateId)) ?? null;
             const imageCertificatesCount = bookId === 3
                 ? bornImageCounts.get(Number(order.certificateId)) ?? 0
                 : bookId === 24
