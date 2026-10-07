@@ -590,6 +590,7 @@ class OrderCertificatesController {
         const perPageInput = Number(request.input('perPage', 50)) || 50;
         const perPage = perPageInput > 100 ? 100 : perPageInput;
         const freeReceipt = request.input('freeReceipt');
+        const stampStatus = request.input('stampStatus');
         const dateStartReceipt = this.normalizeDateBoundary(request.input('dateStartReceipt'), 'start');
         const dateEndReceipt = this.normalizeDateBoundary(request.input('dateEndReceipt'), 'end');
         const dateStartProtocol = this.normalizeDateBoundary(request.input('dateStartProtocol'), 'start');
@@ -699,6 +700,15 @@ class OrderCertificatesController {
         else if (freeReceipt === 'false') {
             query.whereHas('receipt', (r) => {
                 r.where('free', false);
+            });
+        }
+        if (stampStatus === 'sealed' || stampStatus === 'unsealed') {
+            query.whereHas('receipt', (r) => {
+                r.where((activeReceipt) => activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO'));
+                if (stampStatus === 'sealed')
+                    r.whereNotNull('date_stamp');
+                else
+                    r.whereNotNull('date_protocol').whereNull('date_stamp');
             });
         }
         if (securitySheet) {
