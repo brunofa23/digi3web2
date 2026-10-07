@@ -797,7 +797,13 @@ export default class OrderCertificatesController {
     const receiptId = request.input('receiptId') || null
 
     // employee_verification
-    const employeeVerificationId = request.input('employeeVerificationId') || null
+    const employeeVerificationIds = (request.input('employeeVerificationIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+    const employeeVerificationId = Number(request.input('employeeVerificationId'))
+    if (Number.isInteger(employeeVerificationId) && employeeVerificationId > 0) {
+      employeeVerificationIds.push(employeeVerificationId)
+    }
 
     // emolument code (para filtrar por código de emolumento)
     const emolumentCode = request.input('emolumentCode') || null
@@ -1016,39 +1022,39 @@ export default class OrderCertificatesController {
     }
 
     // ✅ Filtro por employee_verification_id nas pivots de recibo ou certificado
-    if (employeeVerificationId) {
+    if (employeeVerificationIds.length) {
       query.where((q) => {
         q.whereHas('receipt', (r) => {
           r.whereHas('employeeVerificationXReceipts', (evxr) => {
             evxr
-              .where('employeeVerificationId', employeeVerificationId)
+              .whereIn('employeeVerificationId', employeeVerificationIds)
               .where('companiesId', authenticate.companies_id)
           })
         })
         q.orWhereHas('marriedCertificate', (mc) => {
           mc.whereHas('employeeVerificationXCertificates', (evxc) => {
             evxc
-              .where('employeeVerificationId', employeeVerificationId)
+              .whereIn('employeeVerificationId', employeeVerificationIds)
               .where('companiesId', authenticate.companies_id)
           })
         })
         q.orWhereHas('bornCertificate', (bc) => {
           bc.whereHas('employeeVerificationXCertificates', (evxc) => {
             evxc
-              .where('employeeVerificationId', employeeVerificationId)
+              .whereIn('employeeVerificationId', employeeVerificationIds)
               .where('companiesId', authenticate.companies_id)
           })
         })
         q.orWhereHas('deathCertificate', (dc) => {
           dc.whereHas('employeeVerificationXCertificates', (evxc) => {
             evxc
-              .where('employeeVerificationId', employeeVerificationId)
+              .whereIn('employeeVerificationId', employeeVerificationIds)
               .where('companiesId', authenticate.companies_id)
           })
         })
         q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => {
           mc.whereHas('employeeVerificationXCertificates', (evxc) => {
-            evxc.where('employeeVerificationId', employeeVerificationId).where('companiesId', authenticate.companies_id)
+            evxc.whereIn('employeeVerificationId', employeeVerificationIds).where('companiesId', authenticate.companies_id)
           })
         }))
       })
@@ -1336,8 +1342,8 @@ export default class OrderCertificatesController {
         }
       })
 
-      if (employeeVerificationId) {
-        certificateVerificationsQuery.where('evxc.employee_verification_id', employeeVerificationId)
+      if (employeeVerificationIds.length) {
+        certificateVerificationsQuery.whereIn('evxc.employee_verification_id', employeeVerificationIds)
       }
 
       const certificateVerifications = await certificateVerificationsQuery
@@ -1405,8 +1411,8 @@ export default class OrderCertificatesController {
         .where('evxr.companies_id', authenticate.companies_id)
         .whereIn('evxr.receipt_id', receiptIds)
 
-      if (employeeVerificationId) {
-        receiptVerificationsQuery.where('evxr.employee_verification_id', employeeVerificationId)
+      if (employeeVerificationIds.length) {
+        receiptVerificationsQuery.whereIn('evxr.employee_verification_id', employeeVerificationIds)
       }
 
       const receiptVerifications = await receiptVerificationsQuery
@@ -1703,7 +1709,7 @@ export default class OrderCertificatesController {
               }),
               registered1: schema.object().members({
                 name: schema.string({ trim: true }),
-                cpf: schema.string({ trim: true }, [rules.regex(/^\d{11}$/)]),
+                cpf: schema.string.optional({ trim: true }, [rules.regex(/^\d{11}$/)]),
               }),
             }),
             data: { applicant, registered1 },
@@ -1713,7 +1719,6 @@ export default class OrderCertificatesController {
               'applicant.cpf.regex': 'CPF do requerente inválido',
               'registered1.required': 'O registrado 1 é obrigatório',
               'registered1.name.required': 'Nome do registrado 1 é obrigatório',
-              'registered1.cpf.required': 'CPF do registrado 1 é obrigatório',
               'registered1.cpf.regex': 'CPF do registrado 1 inválido',
             },
           })
@@ -2010,7 +2015,7 @@ export default class OrderCertificatesController {
               }),
               registered1: schema.object().members({
                 name: schema.string({ trim: true }),
-                cpf: schema.string({ trim: true }, [rules.regex(/^\d{11}$/)]),
+                cpf: schema.string.optional({ trim: true }, [rules.regex(/^\d{11}$/)]),
               }),
             }),
             data: { applicant, registered1 },
@@ -2020,7 +2025,6 @@ export default class OrderCertificatesController {
               'applicant.cpf.regex': 'CPF do requerente inválido',
               'registered1.required': 'O registrado 1 é obrigatório',
               'registered1.name.required': 'Nome do registrado 1 é obrigatório',
-              'registered1.cpf.required': 'CPF do registrado 1 é obrigatório',
               'registered1.cpf.regex': 'CPF do registrado 1 inválido',
             },
           })
