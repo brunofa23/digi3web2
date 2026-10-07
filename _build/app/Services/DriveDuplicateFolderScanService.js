@@ -34,9 +34,11 @@ class DriveDuplicateFolderScanService {
     }
     async snapshot() {
         const scan = await DriveDuplicateFolderScan_1.default.findOrFail(1);
+        const runningResult = Array.isArray(scan.result) ? null : scan.result;
         return {
             status: scan.status,
-            companies: scan.result || [],
+            companies: runningResult?.previous || scan.result || [],
+            progress: runningResult?.progress || null,
             error_message: scan.errorMessage,
             started_at: scan.startedAt?.toISO() || null,
             finished_at: scan.finishedAt?.toISO() || null,
@@ -44,6 +46,9 @@ class DriveDuplicateFolderScanService {
     }
     async run(token) {
         try {
+            const previousScan = await DriveDuplicateFolderScan_1.default.findOrFail(1);
+            const previous = Array.isArray(previousScan.result)
+                ? previousScan.result : previousScan.result?.previous || [];
             const companies = await Company_1.default.query().select('id', 'name', 'foldername', 'cloud').orderBy('id');
             const result = companies.map((company) => ({
                 company_id: company.id,
@@ -53,14 +58,33 @@ class DriveDuplicateFolderScanService {
                 size_bytes: '0',
                 duplicates: [],
             }));
+            const resultById = new Map(result.map((company) => [company.company_id, company]));
+            const companyStatus = new Map(companies.map((company) => [company.id, 'PENDING']));
+            const progress = { stage: 'FOLDERS', cloud: null, folder_pages: 0, file_pages: 0 };
+            const publish = async () => {
+                const updated = await Database_1.default.from('drive_duplicate_folder_scans')
+                    .where('id', 1).where('run_token', token)
+                    .update({
+                    result: JSON.stringify({ previous, progress: {
+                            ...progress,
+                            companies: result.map((company) => ({
+                                ...company, scan_status: companyStatus.get(company.company_id),
+                            })),
+                        } }),
+                    heartbeat_at: new Date(), updated_at: new Date(),
+                });
+                if (!updated)
+                    throw new Error('Pesquisa substituída por outra execução.');
+            };
+            await publish();
             for (const cloud of new Set(companies.map((company) => company.cloud))) {
                 const cloudCompanies = companies.filter((company) => company.cloud === cloud);
+                progress.cloud = cloud;
+                progress.stage = 'FOLDERS';
+                await publish();
                 const folders = await (0, googledrive_1.sendListDriveFolders)(cloud, async () => {
-                    const updated = await Database_1.default.from('drive_duplicate_folder_scans')
-                        .where('id', 1).where('run_token', token)
-                        .update({ heartbeat_at: new Date(), updated_at: new Date() });
-                    if (!updated)
-                        throw new Error('Pesquisa substituída por outra execução.');
+                    progress.folder_pages += 1;
+                    await publish();
                 });
                 const byId = new Map(folders.map((folder) => [folder.id, folder]));
                 const roots = new Map();
@@ -110,8 +134,14 @@ class DriveDuplicateFolderScanService {
                         .map(([name, sameName]) => ({ name, folders: sameName }))
                         .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
                 }
+                for (const company of cloudCompanies) {
+                    companyStatus.set(company.id, companiesWithRoot.has(company.id) ? 'COUNTING' : 'COMPLETED');
+                }
+                progress.stage = 'FILES';
+                await publish();
                 const totals = new Map();
                 await (0, googledrive_1.sendCountDriveFiles)(cloud, async (files) => {
+                    const changedCompanies = new Set();
                     for (const file of files) {
                         const companyId = file.parents?.map((parent) => getCompanyId(parent)).find(Boolean);
                         if (!companyId)
@@ -120,20 +150,20 @@ class DriveDuplicateFolderScanService {
                         total.count += 1;
                         total.bytes += BigInt(file.size || 0);
                         totals.set(companyId, total);
+                        changedCompanies.add(companyId);
                     }
-                    const updated = await Database_1.default.from('drive_duplicate_folder_scans')
-                        .where('id', 1).where('run_token', token)
-                        .update({ heartbeat_at: new Date(), updated_at: new Date() });
-                    if (!updated)
-                        throw new Error('Pesquisa substituída por outra execução.');
+                    for (const companyId of changedCompanies) {
+                        const company = resultById.get(companyId);
+                        const total = totals.get(companyId);
+                        company.file_count = total.count;
+                        company.size_bytes = total.bytes.toString();
+                    }
+                    progress.file_pages += 1;
+                    await publish();
                 });
-                for (const company of result) {
-                    const total = totals.get(company.company_id);
-                    if (!total)
-                        continue;
-                    company.file_count = total.count;
-                    company.size_bytes = total.bytes.toString();
-                }
+                for (const company of cloudCompanies)
+                    companyStatus.set(company.id, 'COMPLETED');
+                await publish();
             }
             const now = new Date();
             await Database_1.default.from('drive_duplicate_folder_scans').where('id', 1).where('run_token', token)

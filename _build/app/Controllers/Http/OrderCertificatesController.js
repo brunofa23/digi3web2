@@ -13,6 +13,7 @@ const BornCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Mod
 const DeathCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DeathCertificate"));
 const SecondcopyCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SecondcopyCertificate"));
 const MandateCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MandateCertificate"));
+const CommunicationCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/CommunicationCertificate"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
 class OrderCertificatesController {
@@ -81,6 +82,35 @@ class OrderCertificatesController {
             bookNumber: this.toNumber(data.bookNumber), sheetNumber: this.toNumber(data.sheetNumber),
             termNumber: this.toNumber(data.termNumber), obs: data.obs || null,
             statusForm: data.statusForm || 'draft', inactive: this.toBoolean(data.inactive),
+        });
+        await certificate.save();
+        return certificate.id;
+    }
+    async saveCommunication(data, companiesId, usrId, trx) {
+        const registeredName = String(data.registeredName ?? '').trim();
+        const originOffice = String(data.originOffice ?? '').trim();
+        const destinationOffice = String(data.destinationOffice ?? '').trim();
+        const originObs = String(data.originObs ?? '').trim();
+        const destinationObs = String(data.destinationObs ?? '').trim();
+        if (!registeredName || !originOffice || !destinationOffice ||
+            registeredName.length > 255 || originOffice.length > 255 || destinationOffice.length > 255 ||
+            originObs.length > 500 || destinationObs.length > 500 ||
+            ![1, 2].includes(Number(data.serviceType)) ||
+            ![1, 2, 3].includes(Number(data.deliveryType)) ||
+            ![1, 2, 3].includes(Number(data.communicationType))) {
+            throw new Error('Comunicação: preencha os campos obrigatórios com valores válidos');
+        }
+        const existingId = this.toNumber(data.id);
+        const certificate = existingId
+            ? await CommunicationCertificate_1.default.query({ client: trx }).where('id', existingId).where('companiesId', companiesId).firstOrFail()
+            : new CommunicationCertificate_1.default();
+        certificate.useTransaction(trx);
+        certificate.merge({
+            companiesId, usrId,
+            registeredName, serviceType: Number(data.serviceType), deliveryType: Number(data.deliveryType),
+            communicationType: Number(data.communicationType), originOffice, destinationOffice,
+            originObs: originObs || null, destinationObs: destinationObs || null,
+            ...(!existingId ? { registrationDate: luxon_1.DateTime.now().setZone('America/Sao_Paulo') } : {}),
         });
         await certificate.save();
         return certificate.id;
@@ -801,7 +831,10 @@ class OrderCertificatesController {
         if (cpf && Number(bookId) === 24) {
             query.whereHas('mandateCertificate', (mc) => mc.where('applicant_cpf', cpf));
         }
-        if (cpf && Number(bookId) !== 24) {
+        if (cpf && Number(bookId) === 25)
+            query.where('book_id', -1);
+        if (cpf && Number(bookId) !== 24 && Number(bookId) !== 25) {
+            query.whereNot('book_id', 25);
             query.where((q) => {
                 q.whereHas('marriedCertificate', (mc) => {
                     mc
@@ -861,8 +894,12 @@ class OrderCertificatesController {
             const likeName = `%${name}%`;
             query.whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName));
         }
-        if (name && Number(bookId) !== 24) {
+        if (name && Number(bookId) === 25) {
+            query.whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', `%${name}%`));
+        }
+        if (name && Number(bookId) !== 24 && Number(bookId) !== 25) {
             const likeName = `%${name}%`;
+            query.where((q) => q.whereNot('book_id', 25).orWhere((communication) => communication.where('book_id', 25).whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', likeName))));
             query.where((q) => {
                 q.whereHas('marriedCertificate', (mc) => {
                     mc
@@ -916,6 +953,7 @@ class OrderCertificatesController {
                     });
                 });
                 q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName)));
+                q.orWhere((communication) => communication.where('book_id', 25).whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', likeName)));
             });
         }
         const paginated = await query
@@ -934,6 +972,9 @@ class OrderCertificatesController {
         const mandateCertificateIds = orders
             .filter((order) => Number(order.bookId) === 24 && order.certificateId)
             .map((order) => order.certificateId);
+        const communicationCertificateIds = orders
+            .filter((order) => Number(order.bookId) === 25 && order.certificateId)
+            .map((order) => order.certificateId);
         const receiptIds = orders
             .map((order) => order.receipt?.id)
             .filter((id) => !!id);
@@ -946,11 +987,18 @@ class OrderCertificatesController {
         const latestEmployeeVerificationByMandateCertificate = new Map();
         const latestEmployeeVerificationByReceipt = new Map();
         const mandateCertificates = new Map();
+        const communicationCertificates = new Map();
         if (mandateCertificateIds.length) {
             const mandates = await MandateCertificate_1.default.query()
                 .where('companiesId', authenticate.companies_id)
                 .whereIn('id', mandateCertificateIds);
             mandates.forEach((mandate) => mandateCertificates.set(mandate.id, mandate.toJSON()));
+        }
+        if (communicationCertificateIds.length) {
+            const communications = await CommunicationCertificate_1.default.query()
+                .where('companiesId', authenticate.companies_id)
+                .whereIn('id', communicationCertificateIds);
+            communications.forEach((communication) => communicationCertificates.set(communication.id, communication.toJSON()));
         }
         if (marriedCertificateIds.length) {
             const counts = await Database_1.default
@@ -1084,6 +1132,10 @@ class OrderCertificatesController {
                 delete json.mandateCertificate;
             else
                 json.mandateCertificate = mandateCertificates.get(Number(order.certificateId)) ?? null;
+            if (bookId !== 25)
+                delete json.communicationCertificate;
+            else
+                json.communicationCertificate = communicationCertificates.get(Number(order.certificateId)) ?? null;
             const imageCertificatesCount = bookId === 3
                 ? bornImageCounts.get(Number(order.certificateId)) ?? 0
                 : bookId === 24
@@ -1097,7 +1149,9 @@ class OrderCertificatesController {
                     ? latestEmployeeVerificationByDeathCertificate.get(Number(order.certificateId))
                     : bookId === 24
                         ? latestEmployeeVerificationByMandateCertificate.get(Number(order.certificateId))
-                        : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId));
+                        : bookId === 25
+                            ? null
+                            : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId));
             const receiptVerification = json.receipt?.id
                 ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
                 : null;
@@ -1193,6 +1247,8 @@ class OrderCertificatesController {
         }
         if (book_id == 24)
             query.preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id));
+        if (book_id == 25)
+            query.preload('communicationCertificate', (q) => q.where('companiesId', authenticate.companies_id));
         const orderCertificate = await query.first();
         if (!orderCertificate) {
             return response.notFound({ message: 'Pedido de certidão não encontrado' });
@@ -1210,6 +1266,9 @@ class OrderCertificatesController {
         }
         if (bookId === 24 && !body.mandateCertificate) {
             return response.status(422).send({ message: 'Dados do formulário Mandados e Outros são obrigatórios' });
+        }
+        if (bookId === 25 && !body.communicationCertificate) {
+            return response.status(422).send({ message: 'Dados do formulário Comunicação são obrigatórios' });
         }
         try {
             const orderCertificate = await Database_1.default.transaction(async (trx) => {
@@ -1319,6 +1378,13 @@ class OrderCertificatesController {
                     mandate.id = null;
                     finalCertificateId = await this.saveMandate(mandate, user.companies_id, user.id, trx);
                 }
+                if (bookId === 25 && body.communicationCertificate) {
+                    const communication = this.parseJsonFieldOrFail(response, body.communicationCertificate, 'communicationCertificate');
+                    if (!communication)
+                        return null;
+                    communication.id = null;
+                    finalCertificateId = await this.saveCommunication(communication, user.companies_id, user.id, trx);
+                }
                 if (finalCertificateId === null) {
                     return null;
                 }
@@ -1412,10 +1478,14 @@ class OrderCertificatesController {
                 await orderCertificate.load('secondcopyCertificate');
             if (orderCertificate.bookId === 24)
                 await orderCertificate.load('mandateCertificate');
+            if (orderCertificate.bookId === 25)
+                await orderCertificate.load('communicationCertificate');
             return response.created(orderCertificate);
         }
         catch (error) {
             if (String(error.message || '').startsWith('Mandado:'))
+                return response.status(422).send({ message: error.message });
+            if (String(error.message || '').startsWith('Comunicação:'))
                 return response.status(422).send({ message: error.message });
             if (error.code === 'E_VALIDATION_FAILURE') {
                 return response.status(422).send({ errors: error.messages.errors });
@@ -1437,8 +1507,14 @@ class OrderCertificatesController {
         if (!bookId) {
             return response.badRequest({ message: 'bookId é obrigatório' });
         }
-        if ((bookId === 24 || orderCertificate.bookId === 24) && bookId !== orderCertificate.bookId) {
-            return response.status(422).send({ message: 'Não é permitido alterar o tipo do pedido Mandados e Outros' });
+        if (([24, 25].includes(bookId) || [24, 25].includes(orderCertificate.bookId)) && bookId !== orderCertificate.bookId) {
+            return response.status(422).send({ message: 'Não é permitido alterar o tipo deste pedido' });
+        }
+        if (bookId === 25 && !body.communicationCertificate) {
+            return response.status(422).send({ message: 'Dados do formulário Comunicação são obrigatórios' });
+        }
+        if (bookId === 25 && certificateIdFromBody !== null && certificateIdFromBody !== orderCertificate.certificateId) {
+            return response.status(422).send({ message: 'O vínculo da comunicação não pode ser alterado' });
         }
         try {
             await Database_1.default.transaction(async (trx) => {
@@ -1575,6 +1651,13 @@ class OrderCertificatesController {
                     mandate.id = orderCertificate.certificateId;
                     await this.saveMandate(mandate, user.companies_id, user.id, trx);
                 }
+                if (bookId === 25 && body.communicationCertificate) {
+                    const communication = this.parseJsonFieldOrFail(response, body.communicationCertificate, 'communicationCertificate');
+                    if (!communication)
+                        return;
+                    communication.id = orderCertificate.certificateId;
+                    await this.saveCommunication(communication, user.companies_id, user.id, trx);
+                }
             });
             if (orderCertificate.bookId === 2 && orderCertificate.certificateId) {
                 const companiesId = user.companies_id;
@@ -1650,11 +1733,15 @@ class OrderCertificatesController {
                 await orderCertificate.load('secondcopyCertificate');
             if (orderCertificate.bookId === 24)
                 await orderCertificate.load('mandateCertificate');
+            if (orderCertificate.bookId === 25)
+                await orderCertificate.load('communicationCertificate');
             const check = await SecondcopyCertificate_1.default.find(orderCertificate.certificateId);
             return orderCertificate;
         }
         catch (error) {
             if (String(error.message || '').startsWith('Mandado:'))
+                return response.status(422).send({ message: error.message });
+            if (String(error.message || '').startsWith('Comunicação:'))
                 return response.status(422).send({ message: error.message });
             if (error.code === 'E_VALIDATION_FAILURE') {
                 return response.status(422).send({ errors: error.messages.errors });

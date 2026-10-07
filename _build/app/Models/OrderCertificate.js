@@ -20,6 +20,7 @@ const SecondcopyCertificate_1 = __importDefault(require("./SecondcopyCertificate
 const BornCertificate_1 = __importDefault(require("./BornCertificate"));
 const DeathCertificate_1 = __importDefault(require("./DeathCertificate"));
 const MandateCertificate_1 = __importDefault(require("./MandateCertificate"));
+const CommunicationCertificate_1 = __importDefault(require("./CommunicationCertificate"));
 const Book_1 = __importDefault(require("./Book"));
 const Receipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Receipt"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
@@ -113,6 +114,10 @@ __decorate([
     (0, Orm_1.belongsTo)(() => MandateCertificate_1.default, { foreignKey: 'certificateId' }),
     __metadata("design:type", Object)
 ], OrderCertificate.prototype, "mandateCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => CommunicationCertificate_1.default, { foreignKey: 'certificateId' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "communicationCertificate", void 0);
 __decorate([
     (0, Orm_1.hasOne)(() => Receipt_1.default, { foreignKey: 'orderCertificateId' }),
     __metadata("design:type", Object)
