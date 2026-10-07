@@ -19,6 +19,17 @@ class ServicesController {
                 const boolInactive = inactive === true || inactive === 'true' || inactive === 1 || inactive === '1';
                 query.where('inactive', boolInactive);
             }
+            const emolumentId = request.input('emolumentId');
+            if (emolumentId !== undefined && emolumentId !== null && emolumentId !== '') {
+                const id = Number(emolumentId);
+                if (!Number.isSafeInteger(id) || id <= 0) {
+                    return response.badRequest({ message: 'Emolumento inválido' });
+                }
+                query.whereHas('emoluments', (emoluments) => {
+                    emoluments.where('emoluments.id', id)
+                        .where('emoluments.companies_id', authenticate.companies_id);
+                });
+            }
             const items = await query;
             return response.status(200).send(items);
         }

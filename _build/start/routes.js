@@ -214,6 +214,9 @@ Route_1.default.group(() => {
     Route_1.default.put('/tributations/:id', 'TributationsController.update').middleware('tributationPermission:update');
     Route_1.default.patch('/tributations/:id', 'TributationsController.update').middleware('tributationPermission:update');
     Route_1.default.delete('/tributations/:id', 'TributationsController.destroy').middleware('tributationPermission:delete');
+    Route_1.default.get('/averbation-descriptions', 'AverbationDescriptionsController.index');
+    Route_1.default.post('/averbation-descriptions', 'AverbationDescriptionsController.store');
+    Route_1.default.patch('/averbation-descriptions/:id', 'AverbationDescriptionsController.update');
     Route_1.default.get('/tokens-devices/authorized', 'TokensDevicesController.authorizedDevices').middleware('auth');
     Route_1.default.patch('/tokens-devices/:id/deactivate', 'TokensDevicesController.deactivateDevice').middleware('auth');
     Route_1.default.post('/tokens-devices/generate', 'TokensDevicesController.generate').middleware('auth');
