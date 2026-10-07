@@ -799,7 +799,6 @@ export default class OrderCertificatesController {
         q.preload('registered1Person', (p) => p.select('name', 'cpf'))
         q.preload('registered2Person', (p) => p.select('name', 'cpf'))
       })
-      .preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id))
       .preload('document', (q) => {
         q.select(['id', 'order_certificate_id', 'typebooks_id', 'bookrecords_id', 'companies_id'])
       })
@@ -1191,6 +1190,14 @@ export default class OrderCertificatesController {
     const latestEmployeeVerificationByDeathCertificate = new Map<number, any>()
     const latestEmployeeVerificationByMandateCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
+    const mandateCertificates = new Map<number, any>()
+
+    if (mandateCertificateIds.length) {
+      const mandates = await MandateCertificate.query()
+        .where('companiesId', authenticate.companies_id)
+        .whereIn('id', mandateCertificateIds)
+      mandates.forEach((mandate) => mandateCertificates.set(mandate.id, mandate.toJSON()))
+    }
 
     if (marriedCertificateIds.length) {
       const counts = await Database
@@ -1238,13 +1245,16 @@ export default class OrderCertificatesController {
           'evxc.married_certificate_id',
           'evxc.born_certificate_id',
           'evxc.death_certificate_id',
-          'evxc.mandate_certificate_id',
           'evxc.status',
           'evxc.date',
           'ev.description',
           'evxc.created_at',
         ])
         .where('evxc.companies_id', authenticate.companies_id)
+
+      if (mandateCertificateIds.length) {
+        certificateVerificationsQuery.select('evxc.mandate_certificate_id')
+      }
 
       certificateVerificationsQuery.where((q) => {
         if (marriedCertificateIds.length) {
@@ -1361,6 +1371,7 @@ export default class OrderCertificatesController {
       const json = order.toJSON()
       const bookId = Number(order.bookId)
       if (bookId !== 24) delete json.mandateCertificate
+      else json.mandateCertificate = mandateCertificates.get(Number(order.certificateId)) ?? null
       const imageCertificatesCount = bookId === 3
         ? bornImageCounts.get(Number(order.certificateId)) ?? 0
         : bookId === 24
