@@ -661,6 +661,8 @@ class OrderCertificatesController {
         const emolumentCode = request.input('emolumentCode') || null;
         const origin = request.input('origin') || null;
         const orderCertificateId = request.input('id') || null;
+        const codeStart = Number(request.input('codeStart'));
+        const codeEnd = Number(request.input('codeEnd'));
         const query = OrderCertificate_1.default.query()
             .if(orderCertificateId, (orderQuery) => orderQuery.where('order_certificates.id', orderCertificateId))
             .preload('book', (query) => query.select('id', 'name'))
@@ -724,6 +726,10 @@ class OrderCertificatesController {
             });
         })
             .where('companies_id', authenticate.companies_id);
+        if (Number.isSafeInteger(codeStart) && codeStart > 0)
+            query.andWhere('order_certificates.id', '>=', codeStart);
+        if (Number.isSafeInteger(codeEnd) && codeEnd > 0)
+            query.andWhere('order_certificates.id', '<=', codeEnd);
         if (dateStartOrderCertificate)
             query.andWhere('created_at', '>=', dateStartOrderCertificate);
         if (dateEndOrderCertificate) {
@@ -1014,7 +1020,8 @@ class OrderCertificatesController {
             });
         }
         const paginated = await query
-            .orderBy('id', 'asc')
+            .orderBy('created_at', 'desc')
+            .orderBy('id', 'desc')
             .paginate(page, perPage);
         const orders = paginated.all();
         const marriedCertificateIds = orders
