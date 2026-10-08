@@ -12,10 +12,8 @@ class AverbationDescriptionsController {
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
         return { user, granted: (0, util_1.verifyPermission)(Boolean(user.superuser), permissions, 49) };
     }
-    async index({ auth, response }) {
-        const { user, granted } = await this.allowed(auth);
-        if (!granted)
-            return response.forbidden({ message: 'Sem permissão para descrições de averbações' });
+    async index({ auth }) {
+        const user = await auth.use('api').authenticate();
         return AverbationDescription_1.default.query()
             .where('companies_id', user.companies_id)
             .orderBy('id', 'asc');

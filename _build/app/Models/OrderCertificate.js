@@ -24,6 +24,7 @@ const CommunicationCertificate_1 = __importDefault(require("./CommunicationCerti
 const Book_1 = __importDefault(require("./Book"));
 const Receipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Receipt"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
+const OrderCertificateAverbation_1 = __importDefault(require("./OrderCertificateAverbation"));
 class OrderCertificate extends Orm_1.BaseModel {
 }
 OrderCertificate.table = 'order_certificates';
@@ -126,6 +127,10 @@ __decorate([
     (0, Orm_1.hasOne)(() => Document_1.default, { foreignKey: 'order_certificate_id' }),
     __metadata("design:type", Object)
 ], OrderCertificate.prototype, "document", void 0);
+__decorate([
+    (0, Orm_1.hasMany)(() => OrderCertificateAverbation_1.default, { foreignKey: 'orderCertificateId' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "averbations", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)

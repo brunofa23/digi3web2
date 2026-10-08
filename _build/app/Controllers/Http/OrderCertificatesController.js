@@ -14,9 +14,50 @@ const DeathCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Mo
 const SecondcopyCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SecondcopyCertificate"));
 const MandateCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MandateCertificate"));
 const CommunicationCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/CommunicationCertificate"));
+const OrderCertificateAverbation_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/OrderCertificateAverbation"));
+const AverbationDescription_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/AverbationDescription"));
+const DocumentTypeBook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DocumentTypeBook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
 class OrderCertificatesController {
+    async saveAverbations(raw, orderCertificateId, companiesId, trx) {
+        let rows;
+        try {
+            rows = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        }
+        catch {
+            throw new Error('Averbações: lista inválida');
+        }
+        if (!Array.isArray(rows))
+            throw new Error('Averbações: lista inválida');
+        const integer = (value) => /^(0|[1-9]\d*)$/.test(String(value ?? '')) && Number(value) <= 4294967295;
+        if (rows.some((row) => !row || !integer(row.bookNumber) || !integer(row.sheetNumber) || !integer(row.termNumber) ||
+            !integer(row.averbationDescriptionId) || Number(row.averbationDescriptionId) === 0 ||
+            !integer(row.documentTypeBookId) || Number(row.documentTypeBookId) === 0)) {
+            throw new Error('Averbações: preencha todos os campos com valores válidos');
+        }
+        const descriptionIds = [...new Set(rows.map((row) => Number(row.averbationDescriptionId)))];
+        const bookTypeIds = [...new Set(rows.map((row) => Number(row.documentTypeBookId)))];
+        if (descriptionIds.length) {
+            const descriptions = await AverbationDescription_1.default.query({ client: trx }).where('companiesId', companiesId).whereIn('id', descriptionIds);
+            const bookTypes = await DocumentTypeBook_1.default.query({ client: trx }).where('companies_id', companiesId).whereIn('id', bookTypeIds);
+            if (descriptions.length !== descriptionIds.length || bookTypes.length !== bookTypeIds.length) {
+                throw new Error('Averbações: descrição ou tipo de livro indisponível para esta empresa');
+            }
+        }
+        await OrderCertificateAverbation_1.default.query({ client: trx }).where('orderCertificateId', orderCertificateId).where('companiesId', companiesId).delete();
+        for (const row of rows) {
+            await OrderCertificateAverbation_1.default.create({
+                companiesId,
+                orderCertificateId,
+                bookNumber: Number(row.bookNumber),
+                sheetNumber: Number(row.sheetNumber),
+                termNumber: Number(row.termNumber),
+                averbationDescriptionId: Number(row.averbationDescriptionId),
+                documentTypeBookId: Number(row.documentTypeBookId),
+            }, { client: trx });
+        }
+    }
     isValidMandateCpf(cpf) {
         if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf))
             return false;
@@ -1265,6 +1306,8 @@ class OrderCertificatesController {
             query.preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id));
         if (book_id == 25)
             query.preload('communicationCertificate', (q) => q.where('companiesId', authenticate.companies_id));
+        if ([21, 24].includes(Number(book_id)))
+            query.preload('averbations', (q) => q.orderBy('id', 'asc'));
         const orderCertificate = await query.first();
         if (!orderCertificate) {
             return response.notFound({ message: 'Pedido de certidão não encontrado' });
@@ -1412,6 +1455,9 @@ class OrderCertificatesController {
                     typeCertificate: typeCertificate ?? undefined,
                 });
                 await oc.save();
+                if ([21, 24].includes(bookId) && body.averbations !== undefined) {
+                    await this.saveAverbations(body.averbations, oc.id, user.companies_id, trx);
+                }
                 return oc;
             });
             if (!orderCertificate) {
@@ -1493,11 +1539,15 @@ class OrderCertificatesController {
                 await orderCertificate.load('secondcopyCertificate');
             if (orderCertificate.bookId === 24)
                 await orderCertificate.load('mandateCertificate');
+            if ([21, 24].includes(orderCertificate.bookId))
+                await orderCertificate.load('averbations');
             if (orderCertificate.bookId === 25)
                 await orderCertificate.load('communicationCertificate');
             return response.created(orderCertificate);
         }
         catch (error) {
+            if (String(error.message || '').startsWith('Averbações:'))
+                return response.status(422).send({ message: error.message });
             if (String(error.message || '').startsWith('Mandado:'))
                 return response.status(422).send({ message: error.message });
             if (String(error.message || '').startsWith('Comunicação:'))
@@ -1672,6 +1722,9 @@ class OrderCertificatesController {
                     communication.id = orderCertificate.certificateId;
                     await this.saveCommunication(communication, user.companies_id, user.id, trx);
                 }
+                if ([21, 24].includes(bookId) && body.averbations !== undefined) {
+                    await this.saveAverbations(body.averbations, orderCertificate.id, user.companies_id, trx);
+                }
             });
             if (orderCertificate.bookId === 2 && orderCertificate.certificateId) {
                 const companiesId = user.companies_id;
@@ -1747,12 +1800,16 @@ class OrderCertificatesController {
                 await orderCertificate.load('secondcopyCertificate');
             if (orderCertificate.bookId === 24)
                 await orderCertificate.load('mandateCertificate');
+            if ([21, 24].includes(orderCertificate.bookId))
+                await orderCertificate.load('averbations');
             if (orderCertificate.bookId === 25)
                 await orderCertificate.load('communicationCertificate');
             const check = await SecondcopyCertificate_1.default.find(orderCertificate.certificateId);
             return orderCertificate;
         }
         catch (error) {
+            if (String(error.message || '').startsWith('Averbações:'))
+                return response.status(422).send({ message: error.message });
             if (String(error.message || '').startsWith('Mandado:'))
                 return response.status(422).send({ message: error.message });
             if (String(error.message || '').startsWith('Comunicação:'))
