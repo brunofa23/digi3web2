@@ -10,9 +10,8 @@ export default class AverbationDescriptionsController {
     return { user, granted: verifyPermission(Boolean(user.superuser), permissions, 49) }
   }
 
-  public async index({ auth, response }: HttpContextContract) {
-    const { user, granted } = await this.allowed(auth)
-    if (!granted) return response.forbidden({ message: 'Sem permissão para descrições de averbações' })
+  public async index({ auth }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
 
     return AverbationDescription.query()
       .where('companies_id', user.companies_id)

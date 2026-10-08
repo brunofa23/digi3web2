@@ -12,10 +12,53 @@ import DeathCertificate from 'App/Models/DeathCertificate'
 import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
 import MandateCertificate from 'App/Models/MandateCertificate'
 import CommunicationCertificate from 'App/Models/CommunicationCertificate'
+import OrderCertificateAverbation from 'App/Models/OrderCertificateAverbation'
+import AverbationDescription from 'App/Models/AverbationDescription'
+import DocumentTypeBook from 'App/Models/DocumentTypeBook'
 import Document from 'App/Models/Document'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 
 export default class OrderCertificatesController {
+  private async saveAverbations(raw: any, orderCertificateId: number, companiesId: number, trx: TransactionClientContract) {
+    let rows: any
+    try {
+      rows = typeof raw === 'string' ? JSON.parse(raw) : raw
+    } catch {
+      throw new Error('Averbações: lista inválida')
+    }
+    if (!Array.isArray(rows)) throw new Error('Averbações: lista inválida')
+
+    const integer = (value: any) => /^(0|[1-9]\d*)$/.test(String(value ?? '')) && Number(value) <= 4294967295
+    if (rows.some((row) => !row || !integer(row.bookNumber) || !integer(row.sheetNumber) || !integer(row.termNumber) ||
+      !integer(row.averbationDescriptionId) || Number(row.averbationDescriptionId) === 0 ||
+      !integer(row.documentTypeBookId) || Number(row.documentTypeBookId) === 0)) {
+      throw new Error('Averbações: preencha todos os campos com valores válidos')
+    }
+
+    const descriptionIds = [...new Set(rows.map((row) => Number(row.averbationDescriptionId)))]
+    const bookTypeIds = [...new Set(rows.map((row) => Number(row.documentTypeBookId)))]
+    if (descriptionIds.length) {
+      const descriptions = await AverbationDescription.query({ client: trx }).where('companiesId', companiesId).whereIn('id', descriptionIds)
+      const bookTypes = await DocumentTypeBook.query({ client: trx }).where('companies_id', companiesId).whereIn('id', bookTypeIds)
+      if (descriptions.length !== descriptionIds.length || bookTypes.length !== bookTypeIds.length) {
+        throw new Error('Averbações: descrição ou tipo de livro indisponível para esta empresa')
+      }
+    }
+
+    await OrderCertificateAverbation.query({ client: trx }).where('orderCertificateId', orderCertificateId).where('companiesId', companiesId).delete()
+    for (const row of rows) {
+      await OrderCertificateAverbation.create({
+        companiesId,
+        orderCertificateId,
+        bookNumber: Number(row.bookNumber),
+        sheetNumber: Number(row.sheetNumber),
+        termNumber: Number(row.termNumber),
+        averbationDescriptionId: Number(row.averbationDescriptionId),
+        documentTypeBookId: Number(row.documentTypeBookId),
+      }, { client: trx })
+    }
+  }
+
   private isValidMandateCpf(cpf: string): boolean {
     if (!/^\d{11}$/.test(cpf) || /^(\d)\1{10}$/.test(cpf)) return false
     for (let length = 9; length <= 10; length++) {
@@ -1575,6 +1618,7 @@ export default class OrderCertificatesController {
 
     if (book_id == 24) query.preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id))
     if (book_id == 25) query.preload('communicationCertificate', (q) => q.where('companiesId', authenticate.companies_id))
+    if ([21, 24].includes(Number(book_id))) query.preload('averbations', (q) => q.orderBy('id', 'asc'))
 
     const orderCertificate = await query.first()
     if (!orderCertificate) {
@@ -1755,6 +1799,9 @@ export default class OrderCertificatesController {
         })
 
         await oc.save()
+        if ([21, 24].includes(bookId) && body.averbations !== undefined) {
+          await this.saveAverbations(body.averbations, oc.id, user.companies_id, trx)
+        }
         return oc
       })
 
@@ -1842,10 +1889,12 @@ export default class OrderCertificatesController {
       if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
       if (orderCertificate.bookId === 24) await orderCertificate.load('mandateCertificate')
+      if ([21, 24].includes(orderCertificate.bookId)) await orderCertificate.load('averbations')
       if (orderCertificate.bookId === 25) await orderCertificate.load('communicationCertificate')
 
       return response.created(orderCertificate)
     } catch (error: any) {
+      if (String(error.message || '').startsWith('Averbações:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Comunicação:')) return response.status(422).send({ message: error.message })
       if (error.code === 'E_VALIDATION_FAILURE') {
@@ -2060,6 +2109,9 @@ export default class OrderCertificatesController {
           communication.id = orderCertificate.certificateId
           await this.saveCommunication(communication, user.companies_id, user.id, trx)
         }
+        if ([21, 24].includes(bookId) && body.averbations !== undefined) {
+          await this.saveAverbations(body.averbations, orderCertificate.id, user.companies_id, trx)
+        }
       })
 
       // Upload no update (só casamento)
@@ -2140,6 +2192,7 @@ export default class OrderCertificatesController {
       if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
       if (orderCertificate.bookId === 24) await orderCertificate.load('mandateCertificate')
+      if ([21, 24].includes(orderCertificate.bookId)) await orderCertificate.load('averbations')
       if (orderCertificate.bookId === 25) await orderCertificate.load('communicationCertificate')
 
       const check = await SecondcopyCertificate.find(orderCertificate.certificateId)
@@ -2147,6 +2200,7 @@ export default class OrderCertificatesController {
 
       return orderCertificate
     } catch (error: any) {
+      if (String(error.message || '').startsWith('Averbações:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Comunicação:')) return response.status(422).send({ message: error.message })
       if (error.code === 'E_VALIDATION_FAILURE') {
