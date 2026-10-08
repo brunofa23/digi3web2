@@ -990,36 +990,40 @@ export default class BookrecordsController {
         companies_id: authenticate.companies_id,
         userid: authenticate.id,
       })
+      const linkedDocument = bookrecord.books_id === 13
+        ? await Document.query()
+          .where('bookrecords_id', bookrecord.id)
+          .andWhere('typebooks_id', bookrecord.typebooks_id)
+          .andWhere('companies_id', authenticate.companies_id)
+          .first()
+        : null
+      const beforeDocument = linkedDocument?.serialize()
       await bookrecord.save()
-      await AuditLogger.updated(ctx, {
-        companiesId: authenticate.companies_id,
-        userId: authenticate.id,
-        action: 'bookrecord_update',
-        entityTable: 'bookrecords',
-        entityId: bookrecord.id,
-        resourceKey: `bookrecords:${bookrecord.typebooks_id}:${bookrecord.id}`,
-        entityKey: {
-          typebooks_id: bookrecord.typebooks_id,
-          bookrecords_id: bookrecord.id,
-          bookrecord_cod: bookrecord.cod,
-        },
-        description: `Usuário ${authenticate.name || authenticate.username} alterou o registro ${bookrecord.id}`,
-        beforeData: beforeBookrecord,
-        afterData: bookrecord,
-      })
+      if (bookrecord.books_id !== 13) {
+        await AuditLogger.updated(ctx, {
+          companiesId: authenticate.companies_id,
+          userId: authenticate.id,
+          action: 'bookrecord_update',
+          entityTable: 'bookrecords',
+          entityId: bookrecord.id,
+          resourceKey: `bookrecords:${bookrecord.typebooks_id}:${bookrecord.id}`,
+          entityKey: {
+            typebooks_id: bookrecord.typebooks_id,
+            bookrecords_id: bookrecord.id,
+            bookrecord_cod: bookrecord.cod,
+          },
+          description: `Usuário ${authenticate.name || authenticate.username} alterou o registro ${bookrecord.id}`,
+          beforeData: beforeBookrecord,
+          afterData: bookrecord,
+        })
+      }
 
       let updatedDocument: any = null
 
       // 🔹 Atualiza o documento vinculado (se aplicável)
-      if (bookrecord.books_id === 13 && document && document.id) {
-        const doc = await Document.query()
-          .where('id', document.id)
-          .andWhere('typebooks_id', bookrecord.typebooks_id)
-          .andWhere('companies_id', authenticate.companies_id)
-          .first()
-
-        if (doc) {
-          const beforeDocument = doc.serialize()
+      try {
+        if (linkedDocument && document && Number(document.id) === linkedDocument.id) {
+          const doc = linkedDocument
           const cleanDocument = { ...document }
           delete cleanDocument.documenttype
           delete cleanDocument.documenttypebook
@@ -1033,22 +1037,27 @@ export default class BookrecordsController {
           doc.merge(cleanDocument)
           await doc.save()
           updatedDocument = doc
-          await AuditLogger.updated(ctx, {
+        }
+      } finally {
+        if (bookrecord.books_id === 13) {
+          await AuditLogger.updatedGrouped(ctx, {
             companiesId: authenticate.companies_id,
             userId: authenticate.id,
             action: 'document_update',
             entityTable: 'documents',
-            entityId: doc.id,
-            resourceKey: `documents:${doc.typebooks_id}:${doc.id}`,
+            entityId: linkedDocument?.id || null,
+            resourceKey: linkedDocument
+              ? `documents:${bookrecord.typebooks_id}:${linkedDocument.id}`
+              : `documents:${bookrecord.typebooks_id}:bookrecord:${bookrecord.id}`,
             entityKey: {
-              typebooks_id: doc.typebooks_id,
-              document_id: doc.id,
-              bookrecords_id: doc.bookrecords_id,
+              typebooks_id: bookrecord.typebooks_id,
+              document_id: linkedDocument?.id || null,
+              bookrecords_id: bookrecord.id,
               bookrecord_cod: bookrecord.cod,
             },
-            description: `Usuário ${authenticate.name || authenticate.username} alterou o documento ${doc.id}`,
-            beforeData: beforeDocument,
-            afterData: doc,
+            description: `Usuário ${authenticate.name || authenticate.username} alterou dados do livro de documentos no registro ${bookrecord.id}`,
+            beforeData: { registro: beforeBookrecord, documento: beforeDocument },
+            afterData: { registro: bookrecord, documento: linkedDocument },
           })
         }
       }
