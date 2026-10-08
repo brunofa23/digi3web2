@@ -49,7 +49,8 @@ class EmolumentsController {
             price: await (0, util_1.currencyConverter)(payload.price),
             code: payload.code ?? null,
             type: payload.type,
-            inactive: payload.inactive
+            inactive: payload.inactive,
+            transfer_of_found: payload.transfer_of_found ?? false
         });
         return response.created(item);
     }

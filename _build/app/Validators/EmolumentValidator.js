@@ -8,6 +8,7 @@ class EmolumentValidator {
             description: Validator_1.schema.string.optional({ trim: true }),
             price: Validator_1.schema.string.optional(),
             inactive: Validator_1.schema.boolean.optional(),
+            transfer_of_found: Validator_1.schema.boolean.optional(),
             code: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(10)]),
             type: Validator_1.schema.string({ trim: true }, [Validator_1.rules.maxLength(50)]),
         });
