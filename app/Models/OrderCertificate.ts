@@ -6,6 +6,8 @@ import {
   BelongsTo,
   hasOne,
   HasOne,
+  hasMany,
+  HasMany,
 } from '@ioc:Adonis/Lucid/Orm'
 
 import Company from 'App/Models/Company'
@@ -18,6 +20,7 @@ import CommunicationCertificate from './CommunicationCertificate'
 import Book from './Book'
 import Receipt from 'App/Models/Receipt'
 import Document from 'App/Models/Document'
+import OrderCertificateAverbation from './OrderCertificateAverbation'
 
 export default class OrderCertificate extends BaseModel {
   public static table = 'order_certificates'
@@ -100,6 +103,9 @@ export default class OrderCertificate extends BaseModel {
 
   @hasOne(() => Document, { foreignKey: 'order_certificate_id' })
   public document: HasOne<typeof Document>
+
+  @hasMany(() => OrderCertificateAverbation, { foreignKey: 'orderCertificateId' })
+  public averbations: HasMany<typeof OrderCertificateAverbation>
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
