@@ -58,7 +58,8 @@ export default class EmolumentsController {
       price:await currencyConverter(payload.price),// !== undefined ? payload.price.toFixed(2) : null,
       code: payload.code ?? null,
       type: payload.type,
-      inactive: payload.inactive
+      inactive: payload.inactive,
+      transfer_of_found: payload.transfer_of_found ?? false
     })
 
     return response.created(item)

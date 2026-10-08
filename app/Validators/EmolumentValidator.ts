@@ -15,6 +15,7 @@ export default class EmolumentValidator {
     price: schema.string.optional(),
 
     inactive:schema.boolean.optional(),
+    transfer_of_found: schema.boolean.optional(),
 
     code: schema.string.optional({ trim: true }, [rules.maxLength(10)]),
     type: schema.string({ trim: true }, [rules.maxLength(50)]),
