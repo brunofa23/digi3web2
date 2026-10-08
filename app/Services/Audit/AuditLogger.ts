@@ -189,6 +189,25 @@ export default class AuditLogger {
     })
   }
 
+  public static async updatedGrouped(ctx: HttpContextContract, payload: AuditPayload) {
+    const changedFields: string[] = []
+    const beforeData: any = {}
+    const afterData: any = {}
+
+    for (const group of Object.keys(payload.afterData || {})) {
+      const diff = buildDiff(payload.beforeData?.[group], payload.afterData[group])
+      if (!diff.changedFields.length) continue
+
+      changedFields.push(...diff.changedFields.map((field) => `${group}.${field}`))
+      beforeData[group] = diff.beforeDiff
+      afterData[group] = diff.afterDiff
+    }
+
+    if (!changedFields.length) return null
+
+    return this.record(ctx, { ...payload, changedFields, beforeData, afterData })
+  }
+
   public static async deleted(ctx: HttpContextContract, payload: AuditPayload) {
     return this.record(ctx, {
       ...payload,
