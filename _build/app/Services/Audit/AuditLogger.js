@@ -161,6 +161,22 @@ class AuditLogger {
             afterData: diff.afterDiff,
         });
     }
+    static async updatedGrouped(ctx, payload) {
+        const changedFields = [];
+        const beforeData = {};
+        const afterData = {};
+        for (const group of Object.keys(payload.afterData || {})) {
+            const diff = buildDiff(payload.beforeData?.[group], payload.afterData[group]);
+            if (!diff.changedFields.length)
+                continue;
+            changedFields.push(...diff.changedFields.map((field) => `${group}.${field}`));
+            beforeData[group] = diff.beforeDiff;
+            afterData[group] = diff.afterDiff;
+        }
+        if (!changedFields.length)
+            return null;
+        return this.record(ctx, { ...payload, changedFields, beforeData, afterData });
+    }
     static async deleted(ctx, payload) {
         return this.record(ctx, {
             ...payload,
