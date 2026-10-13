@@ -207,6 +207,8 @@ Route_1.default.group(() => {
     Route_1.default.post('/receipts/:id/finalize-free', 'ReceiptPaymentsController.finalizeFree');
     Route_1.default.post('/receipts/:id/payments', 'ReceiptPaymentsController.store');
     Route_1.default.post('/receipts/:id/cancel-payments', 'ReceiptsController.cancelPayments');
+    Route_1.default.get('/receipts/reports/emoluments-analytic', 'ReceiptsController.emolumentsAnalyticReport');
+    Route_1.default.get('/receipts/reports/emoluments-synthetic', 'ReceiptsController.emolumentsSyntheticReport');
     Route_1.default.resource('/receipts', 'ReceiptsController').apiOnly();
     Route_1.default.get('/tributations', 'TributationsController.index').middleware('tributationPermission:index');
     Route_1.default.get('/tributations/:id', 'TributationsController.show').middleware('tributationPermission:show');
