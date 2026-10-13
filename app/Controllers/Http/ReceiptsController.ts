@@ -26,6 +26,106 @@ type ReceiptItemPayload = {
 const CANCEL_RECEIPT_PERMISSION_ID = 48
 
 export default class ReceiptsController {
+  public async emolumentsAnalyticReport({ auth, request, response }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
+    const filters = await request.validate({ schema: schema.create({
+      dateType: schema.enum(['stamp', 'protocol'] as const),
+      dateStart: schema.date({ format: 'yyyy-MM-dd' }),
+      dateEnd: schema.date({ format: 'yyyy-MM-dd' }),
+      valueType: schema.enum(['value', 'withoutValue'] as const),
+      unsealedOnly: schema.boolean.optional(),
+    }) })
+
+    if (filters.dateEnd < filters.dateStart) {
+      throw new BadRequestException('A data final deve ser igual ou posterior à data inicial.', 422, 'invalid_report_period')
+    }
+
+    const start = filters.dateStart.toISODate()!
+    const end = filters.dateEnd.toISODate()!
+    const dateColumn = filters.dateType === 'stamp' ? 'date_stamp' : 'date_protocol'
+    const totalExpression = '(SELECT COALESCE(SUM(ri.qtde * ri.amount), 0) FROM receipt_items ri WHERE ri.receipt_id = receipts.id AND ri.companies_id = receipts.companies_id)'
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+
+    const query = Receipt.query()
+      .where('companies_id', user.companies_id)
+      .where((q) => q.whereNull('status').orWhereNotIn('status', ['CANCELADO', 'EXCLUIDO']))
+      .whereNotNull(dateColumn)
+      .whereRaw(`${totalExpression} ${filters.valueType === 'value' ? '>' : '='} ?`, [0])
+      .preload('service', (serviceQuery) => serviceQuery.preload('emoluments'))
+      .preload('items')
+      .orderBy(dateColumn, 'asc')
+      .orderBy('id', 'asc')
+
+    if (filters.dateType === 'stamp') {
+      query.whereBetween('date_stamp', [start, end])
+    } else {
+      query.where('date_protocol', '>=', `${start} 00:00:00`)
+        .where('date_protocol', '<', filters.dateEnd.plus({ days: 1 }).toFormat('yyyy-MM-dd 00:00:00'))
+      if (filters.unsealedOnly) query.whereNull('date_stamp')
+    }
+
+    const result = await query.paginate(page, 100)
+    return response.ok({
+      ...result.serialize(),
+      data: result.all().map((receipt) => ({
+        receiptId: receipt.id,
+        name: receipt.registered1 ?? null,
+        book: receipt.book ?? null,
+        sheet: receipt.sheet ?? null,
+        dateProtocol: receipt.dateProtocol ?? null,
+        actCodes: [...new Set((receipt.service?.emoluments ?? [])
+          .filter((emolument) => emolument.type === 'EMOLUMENTOS')
+          .map((emolument) => String(emolument.code ?? '').trim())
+          .filter(Boolean))].join(','),
+        total: receipt.items.reduce((sum, item) => sum + Number(item.qtde) * Number(item.amount), 0),
+      })),
+    })
+  }
+
+  public async emolumentsSyntheticReport({ auth, request, response }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
+    const filters = await request.validate({ schema: schema.create({
+      dateType: schema.enum(['stamp', 'protocol'] as const),
+      dateStart: schema.date({ format: 'yyyy-MM-dd' }),
+      dateEnd: schema.date({ format: 'yyyy-MM-dd' }),
+      valueType: schema.enum(['value', 'withoutValue'] as const),
+      unsealedOnly: schema.boolean.optional(),
+    }) })
+
+    if (filters.dateEnd < filters.dateStart) {
+      throw new BadRequestException('A data final deve ser igual ou posterior à data inicial.', 422, 'invalid_report_period')
+    }
+
+    const start = filters.dateStart.toISODate()!
+    const end = filters.dateEnd.toISODate()!
+    const dateColumn = filters.dateType === 'stamp' ? 'r.date_stamp' : 'r.date_protocol'
+    const totalExpression = '(SELECT COALESCE(SUM(items.qtde * items.amount), 0) FROM receipt_items items WHERE items.receipt_id = r.id AND items.companies_id = r.companies_id)'
+    const query = Database.from('receipt_items as ri')
+      .innerJoin('receipts as r', 'r.id', 'ri.receipt_id')
+      .innerJoin('emoluments as e', 'e.id', 'ri.emolument_id')
+      .where('r.companies_id', user.companies_id)
+      .where('ri.companies_id', user.companies_id)
+      .where('e.companies_id', user.companies_id)
+      .where((q) => q.whereNull('r.status').orWhereNotIn('r.status', ['CANCELADO', 'EXCLUIDO']))
+      .whereNotNull(dateColumn)
+      .whereRaw(`${totalExpression} ${filters.valueType === 'value' ? '>' : '='} ?`, [0])
+      .select('e.id as code', 'e.name as name', 'e.code as actCode', 'e.type as type')
+      .select(Database.raw('SUM(ri.qtde) AS quantity'), Database.raw('SUM(ri.qtde * ri.amount) AS total'))
+      .groupBy('e.id', 'e.name', 'e.code', 'e.type')
+      .orderBy('e.type', 'asc')
+      .orderBy('e.id', 'asc')
+
+    if (filters.dateType === 'stamp') {
+      query.whereBetween('r.date_stamp', [start, end])
+    } else {
+      query.where('r.date_protocol', '>=', `${start} 00:00:00`)
+        .where('r.date_protocol', '<', filters.dateEnd.plus({ days: 1 }).toFormat('yyyy-MM-dd 00:00:00'))
+      if (filters.unsealedOnly) query.whereNull('r.date_stamp')
+    }
+
+    return response.ok(await query)
+  }
+
   public async index({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
