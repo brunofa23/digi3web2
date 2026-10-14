@@ -11,11 +11,14 @@ const DriveDuplicateFolderScan_1 = __importDefault(global[Symbol.for('ioc.use')]
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 class DriveDuplicateFolderScanService {
     async getSnapshot() {
-        const scan = await DriveDuplicateFolderScan_1.default.findOrFail(1);
-        if (scan.status === 'IDLE' || (scan.status === 'RUNNING' &&
-            (!scan.heartbeatAt || scan.heartbeatAt < luxon_1.DateTime.now().minus({ minutes: 15 })))) {
-            await this.start();
-        }
+        await Database_1.default.from('drive_duplicate_folder_scans')
+            .where('id', 1)
+            .where('status', 'RUNNING')
+            .where((query) => query.where('heartbeat_at', '<', luxon_1.DateTime.now().minus({ minutes: 15 }).toJSDate())
+            .orWhereNull('heartbeat_at'))
+            .update({ status: 'FAILED', run_token: null,
+            error_message: 'Pesquisa interrompida após 15 minutos sem progresso. Clique em Pesquisar novamente.',
+            updated_at: new Date() });
         return this.snapshot();
     }
     async start() {
