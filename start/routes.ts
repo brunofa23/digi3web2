@@ -118,6 +118,7 @@ Route.group(() => {
   Route.get('/imageuploadjobs', 'ImageUploadJobsController.index').middleware('auth')
   Route.get('/drive-duplicate-folders', 'DriveDuplicateFoldersController.index').middleware('auth')
   Route.post('/drive-duplicate-folders/refresh', 'DriveDuplicateFoldersController.refresh').middleware('auth')
+  Route.post('/drive-duplicate-folders/cancel', 'DriveDuplicateFoldersController.cancel').middleware('auth')
   Route.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords')
 
   Route.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get')

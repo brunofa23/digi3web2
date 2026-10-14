@@ -30,4 +30,14 @@ export default class DriveDuplicateFoldersController {
       return ctx.response.status(500).send({ message: 'Não foi possível iniciar a pesquisa de pastas duplicadas.' })
     }
   }
+
+  public async cancel(ctx: HttpContextContract) {
+    if (!await this.authorized(ctx)) return
+    try {
+      return ctx.response.status(200).send(await this.service.cancel())
+    } catch (error) {
+      console.error('Erro ao cancelar pesquisa de pastas duplicadas:', error)
+      return ctx.response.status(500).send({ message: 'Não foi possível cancelar a pesquisa de pastas duplicadas.' })
+    }
+  }
 }
