@@ -65,7 +65,8 @@ export default class EmolumentsController {
       code: payload.code ?? null,
       type: payload.type,
       inactive: payload.inactive,
-      transfer_of_found: payload.transfer_of_found ?? false
+      transfer_of_found: payload.transfer_of_found ?? false,
+      price_released: payload.price_released ?? false
     })
 
     return response.created(item)
