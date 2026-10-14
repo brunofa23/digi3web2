@@ -42,6 +42,7 @@ Server_1.default.middleware.registerNamed({
     tokentoimages_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/TokenToImagesPermission'))),
     finaccount_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/FinAccountPermission'))),
     crm_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/CrmPermission'))),
+    service_menu_permission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/ServiceMenuPermission'))),
     stampPermission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/StampPermission'))),
     tributationPermission: () => Promise.resolve().then(() => __importStar(global[Symbol.for('ioc.use')]('App/Middleware/TributationPermission')))
 });

@@ -18,6 +18,8 @@ const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/
 const BornCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BornCertificate"));
 const DeathCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DeathCertificate"));
 const MandateCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MandateCertificate"));
+const SecondcopyCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SecondcopyCertificate"));
+const CommunicationCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/CommunicationCertificate"));
 const EmployeeVerification_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerification"));
 const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
@@ -44,6 +46,14 @@ __decorate([
     (0, Orm_1.column)({ columnName: 'mandate_certificate_id' }),
     __metadata("design:type", Object)
 ], EmployeeVerificationXCertificate.prototype, "mandateCertificateId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'secondcopy_certificate_id' }),
+    __metadata("design:type", Object)
+], EmployeeVerificationXCertificate.prototype, "secondcopyCertificateId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'communication_certificate_id' }),
+    __metadata("design:type", Object)
+], EmployeeVerificationXCertificate.prototype, "communicationCertificateId", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'companies_id' }),
     __metadata("design:type", Number)
@@ -94,6 +104,14 @@ __decorate([
     (0, Orm_1.belongsTo)(() => MandateCertificate_1.default, { foreignKey: 'mandateCertificateId' }),
     __metadata("design:type", Object)
 ], EmployeeVerificationXCertificate.prototype, "mandateCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => SecondcopyCertificate_1.default, { foreignKey: 'secondcopyCertificateId' }),
+    __metadata("design:type", Object)
+], EmployeeVerificationXCertificate.prototype, "secondcopyCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => CommunicationCertificate_1.default, { foreignKey: 'communicationCertificateId' }),
+    __metadata("design:type", Object)
+], EmployeeVerificationXCertificate.prototype, "communicationCertificate", void 0);
 __decorate([
     (0, Orm_1.belongsTo)(() => EmployeeVerification_1.default, {
         foreignKey: 'employeeVerificationId',

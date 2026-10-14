@@ -17,6 +17,11 @@ class EmolumentsController {
         const query = Emolument_1.default.query()
             .where('companies_id', authenticate.companies_id)
             .orderBy('name', 'asc');
+        const inactive = request.input('inactive');
+        if (inactive !== undefined) {
+            const boolInactive = inactive === true || inactive === 'true' || inactive === 1 || inactive === '1';
+            query.where('inactive', boolInactive);
+        }
         if (type)
             query.where('type', type);
         if (q) {
@@ -50,7 +55,8 @@ class EmolumentsController {
             code: payload.code ?? null,
             type: payload.type,
             inactive: payload.inactive,
-            transfer_of_found: payload.transfer_of_found ?? false
+            transfer_of_found: payload.transfer_of_found ?? false,
+            price_released: payload.price_released ?? false
         });
         return response.created(item);
     }

@@ -23,6 +23,12 @@ EmployeeVerificationXCertificateValidator.createSchema = Validator_1.schema.crea
     mandateCertificateId: Validator_1.schema.number.optional([
         Validator_1.rules.unsigned(), Validator_1.rules.exists({ table: 'mandate_certificates', column: 'id' }),
     ]),
+    secondcopyCertificateId: Validator_1.schema.number.optional([
+        Validator_1.rules.unsigned(), Validator_1.rules.exists({ table: 'secondcopy_certificates', column: 'id' }),
+    ]),
+    communicationCertificateId: Validator_1.schema.number.optional([
+        Validator_1.rules.unsigned(), Validator_1.rules.exists({ table: 'communication_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: Validator_1.schema.number([
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -50,6 +56,12 @@ EmployeeVerificationXCertificateValidator.updateSchema = Validator_1.schema.crea
     mandateCertificateId: Validator_1.schema.number.optional([
         Validator_1.rules.unsigned(), Validator_1.rules.exists({ table: 'mandate_certificates', column: 'id' }),
     ]),
+    secondcopyCertificateId: Validator_1.schema.number.optional([
+        Validator_1.rules.unsigned(), Validator_1.rules.exists({ table: 'secondcopy_certificates', column: 'id' }),
+    ]),
+    communicationCertificateId: Validator_1.schema.number.optional([
+        Validator_1.rules.unsigned(), Validator_1.rules.exists({ table: 'communication_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: Validator_1.schema.number.optional([
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -64,6 +76,8 @@ EmployeeVerificationXCertificateValidator.updateSchema = Validator_1.schema.crea
 EmployeeVerificationXCertificateValidator.messages = {
     'bornCertificateId.exists': 'O certificado de nascimento informado não foi encontrado',
     'deathCertificateId.exists': 'O certificado de óbito informado não foi encontrado',
+    'secondcopyCertificateId.exists': 'O certificado de segunda via informado não foi encontrado',
+    'communicationCertificateId.exists': 'A comunicação informada não foi encontrada',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
     'date.required': 'O campo date é obrigatório',
     'marriedCertificateId.exists': 'O certificado de casamento informado não foi encontrado',

@@ -658,6 +658,12 @@ class OrderCertificatesController {
         if (Number.isInteger(employeeVerificationId) && employeeVerificationId > 0) {
             employeeVerificationIds.push(employeeVerificationId);
         }
+        const employeeVerificationCertificateIds = (request.input('employeeVerificationCertificateIds', []) || [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isInteger(id) && id > 0);
+        const employeeVerificationReceiptIds = (request.input('employeeVerificationReceiptIds', []) || [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isInteger(id) && id > 0);
         const emolumentCode = request.input('emolumentCode') || null;
         const origin = request.input('origin') || null;
         const orderCertificateId = request.input('id') || null;
@@ -886,6 +892,39 @@ class OrderCertificatesController {
                 }));
             });
         }
+        if (employeeVerificationCertificateIds.length) {
+            query.where((q) => {
+                q.whereHas('marriedCertificate', (mc) => mc.whereHas('employeeVerificationXCertificates', (evxc) => {
+                    evxc.whereIn('employeeVerificationId', employeeVerificationCertificateIds)
+                        .where('companiesId', authenticate.companies_id)
+                        .whereHas('employeeVerification', (ev) => ev.where('local', 'certificate'));
+                }));
+                q.orWhereHas('bornCertificate', (bc) => bc.whereHas('employeeVerificationXCertificates', (evxc) => {
+                    evxc.whereIn('employeeVerificationId', employeeVerificationCertificateIds)
+                        .where('companiesId', authenticate.companies_id)
+                        .whereHas('employeeVerification', (ev) => ev.where('local', 'certificate'));
+                }));
+                q.orWhereHas('deathCertificate', (dc) => dc.whereHas('employeeVerificationXCertificates', (evxc) => {
+                    evxc.whereIn('employeeVerificationId', employeeVerificationCertificateIds)
+                        .where('companiesId', authenticate.companies_id)
+                        .whereHas('employeeVerification', (ev) => ev.where('local', 'certificate'));
+                }));
+                q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => {
+                    mc.whereHas('employeeVerificationXCertificates', (evxc) => {
+                        evxc.whereIn('employeeVerificationId', employeeVerificationCertificateIds)
+                            .where('companiesId', authenticate.companies_id)
+                            .whereHas('employeeVerification', (ev) => ev.where('local', 'certificate'));
+                    });
+                }));
+            });
+        }
+        if (employeeVerificationReceiptIds.length) {
+            query.whereHas('receipt', (r) => r.whereHas('employeeVerificationXReceipts', (evxr) => {
+                evxr.whereIn('employeeVerificationId', employeeVerificationReceiptIds)
+                    .where('companiesId', authenticate.companies_id)
+                    .whereHas('employeeVerification', (ev) => ev.where('local', 'receipt'));
+            }));
+        }
         if (emolumentCode) {
             query.whereHas('receipt', (r) => {
                 r.whereHas('items', (it) => {
@@ -1041,6 +1080,9 @@ class OrderCertificatesController {
         const mandateCertificateIds = orders
             .filter((order) => Number(order.bookId) === 24 && order.certificateId)
             .map((order) => order.certificateId);
+        const secondcopyCertificateIds = orders
+            .filter((order) => Number(order.bookId) === 21 && order.certificateId)
+            .map((order) => order.certificateId);
         const communicationCertificateIds = orders
             .filter((order) => Number(order.bookId) === 25 && order.certificateId)
             .map((order) => order.certificateId);
@@ -1054,6 +1096,8 @@ class OrderCertificatesController {
         const latestEmployeeVerificationByBornCertificate = new Map();
         const latestEmployeeVerificationByDeathCertificate = new Map();
         const latestEmployeeVerificationByMandateCertificate = new Map();
+        const latestEmployeeVerificationBySecondcopyCertificate = new Map();
+        const latestEmployeeVerificationByCommunicationCertificate = new Map();
         const latestEmployeeVerificationByReceipt = new Map();
         const mandateCertificates = new Map();
         const communicationCertificates = new Map();
@@ -1101,7 +1145,8 @@ class OrderCertificatesController {
                 .groupBy('mandate_certificate_id');
             counts.forEach((row) => mandateImageCounts.set(Number(row.mandate_certificate_id), Number(row.total ?? 0)));
         }
-        if (marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length) {
+        if ((marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length || secondcopyCertificateIds.length || communicationCertificateIds.length)
+            && (!employeeVerificationReceiptIds.length || employeeVerificationCertificateIds.length)) {
             const certificateVerificationsQuery = Database_1.default
                 .from('employee_verification_x_certificates as evxc')
                 .leftJoin('employee_verifications as ev', 'ev.id', 'evxc.employee_verification_id')
@@ -1110,6 +1155,8 @@ class OrderCertificatesController {
                 'evxc.married_certificate_id',
                 'evxc.born_certificate_id',
                 'evxc.death_certificate_id',
+                'evxc.secondcopy_certificate_id',
+                'evxc.communication_certificate_id',
                 'evxc.status',
                 'evxc.date',
                 'ev.description',
@@ -1132,9 +1179,19 @@ class OrderCertificatesController {
                 if (mandateCertificateIds.length) {
                     q.orWhereIn('evxc.mandate_certificate_id', mandateCertificateIds);
                 }
+                if (secondcopyCertificateIds.length) {
+                    q.orWhereIn('evxc.secondcopy_certificate_id', secondcopyCertificateIds);
+                }
+                if (communicationCertificateIds.length) {
+                    q.orWhereIn('evxc.communication_certificate_id', communicationCertificateIds);
+                }
             });
-            if (employeeVerificationIds.length) {
-                certificateVerificationsQuery.whereIn('evxc.employee_verification_id', employeeVerificationIds);
+            if (employeeVerificationCertificateIds.length || employeeVerificationIds.length) {
+                certificateVerificationsQuery.whereIn('evxc.employee_verification_id', employeeVerificationCertificateIds.length
+                    ? employeeVerificationCertificateIds : employeeVerificationIds);
+            }
+            if (employeeVerificationCertificateIds.length) {
+                certificateVerificationsQuery.where('ev.local', 'certificate');
             }
             const certificateVerifications = await certificateVerificationsQuery;
             certificateVerifications.forEach((row) => {
@@ -1162,9 +1219,17 @@ class OrderCertificatesController {
                     const id = Number(row.mandate_certificate_id);
                     latestEmployeeVerificationByMandateCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationByMandateCertificate.get(id) ?? null, candidate));
                 }
+                if (row.secondcopy_certificate_id) {
+                    const id = Number(row.secondcopy_certificate_id);
+                    latestEmployeeVerificationBySecondcopyCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationBySecondcopyCertificate.get(id) ?? null, candidate));
+                }
+                if (row.communication_certificate_id) {
+                    const id = Number(row.communication_certificate_id);
+                    latestEmployeeVerificationByCommunicationCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationByCommunicationCertificate.get(id) ?? null, candidate));
+                }
             });
         }
-        if (receiptIds.length) {
+        if (receiptIds.length && (!employeeVerificationCertificateIds.length || employeeVerificationReceiptIds.length)) {
             const receiptVerificationsQuery = Database_1.default
                 .from('employee_verification_x_receipts as evxr')
                 .leftJoin('employee_verifications as ev', 'ev.id', 'evxr.employee_verification_id')
@@ -1177,8 +1242,12 @@ class OrderCertificatesController {
             ])
                 .where('evxr.companies_id', authenticate.companies_id)
                 .whereIn('evxr.receipt_id', receiptIds);
-            if (employeeVerificationIds.length) {
-                receiptVerificationsQuery.whereIn('evxr.employee_verification_id', employeeVerificationIds);
+            if (employeeVerificationReceiptIds.length || employeeVerificationIds.length) {
+                receiptVerificationsQuery.whereIn('evxr.employee_verification_id', employeeVerificationReceiptIds.length
+                    ? employeeVerificationReceiptIds : employeeVerificationIds);
+            }
+            if (employeeVerificationReceiptIds.length) {
+                receiptVerificationsQuery.where('ev.local', 'receipt');
             }
             const receiptVerifications = await receiptVerificationsQuery;
             receiptVerifications.forEach((row) => {
@@ -1218,9 +1287,11 @@ class OrderCertificatesController {
                     ? latestEmployeeVerificationByDeathCertificate.get(Number(order.certificateId))
                     : bookId === 24
                         ? latestEmployeeVerificationByMandateCertificate.get(Number(order.certificateId))
-                        : bookId === 25
-                            ? null
-                            : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId));
+                        : bookId === 21
+                            ? latestEmployeeVerificationBySecondcopyCertificate.get(Number(order.certificateId))
+                            : bookId === 25
+                                ? latestEmployeeVerificationByCommunicationCertificate.get(Number(order.certificateId))
+                                : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId));
             const receiptVerification = json.receipt?.id
                 ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
                 : null;

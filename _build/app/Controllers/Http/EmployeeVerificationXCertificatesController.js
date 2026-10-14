@@ -9,12 +9,14 @@ const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/
 const BornCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BornCertificate"));
 const DeathCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DeathCertificate"));
 const MandateCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MandateCertificate"));
+const SecondcopyCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SecondcopyCertificate"));
+const CommunicationCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/CommunicationCertificate"));
 const EmployeeVerificationXCertificateValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/EmployeeVerificationXCertificateValidator"));
 class EmployeeVerificationXCertificatesController {
     async index({ auth, request }) {
         const authenticate = await auth.use('api').authenticate();
         const companiesId = authenticate.companies_id;
-        const { married_certificate_id, born_certificate_id, death_certificate_id, mandate_certificate_id, employee_verification_id } = request.qs();
+        const { married_certificate_id, born_certificate_id, death_certificate_id, mandate_certificate_id, secondcopy_certificate_id, communication_certificate_id, employee_verification_id } = request.qs();
         const query = EmployeeVerificationXCertificate_1.default.query()
             .where('companiesId', companiesId);
         if (married_certificate_id) {
@@ -28,6 +30,10 @@ class EmployeeVerificationXCertificatesController {
         }
         if (mandate_certificate_id)
             query.where('mandateCertificateId', Number(mandate_certificate_id));
+        if (secondcopy_certificate_id)
+            query.where('secondcopyCertificateId', Number(secondcopy_certificate_id));
+        if (communication_certificate_id)
+            query.where('communicationCertificateId', Number(communication_certificate_id));
         if (employee_verification_id) {
             query.where('employeeVerificationId', Number(employee_verification_id));
         }
@@ -36,6 +42,8 @@ class EmployeeVerificationXCertificatesController {
             .preload('bornCertificate')
             .preload('deathCertificate')
             .preload('mandateCertificate')
+            .preload('secondcopyCertificate')
+            .preload('communicationCertificate')
             .preload('employeeVerification')
             .preload('company')
             .preload('user');
@@ -52,9 +60,11 @@ class EmployeeVerificationXCertificatesController {
         const hasBornCertificate = payload.bornCertificateId !== undefined;
         const hasDeathCertificate = payload.deathCertificateId !== undefined;
         const hasMandateCertificate = payload.mandateCertificateId !== undefined;
-        if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate, hasMandateCertificate].filter(Boolean).length !== 1) {
+        const hasSecondcopyCertificate = payload.secondcopyCertificateId !== undefined;
+        const hasCommunicationCertificate = payload.communicationCertificateId !== undefined;
+        if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate, hasMandateCertificate, hasSecondcopyCertificate, hasCommunicationCertificate].filter(Boolean).length !== 1) {
             return response.status(422).json({
-                message: 'Informe exatamente um certificado de casamento, nascimento ou óbito',
+                message: 'Informe exatamente um certificado',
             });
         }
         let certificate = null;
@@ -79,13 +89,21 @@ class EmployeeVerificationXCertificatesController {
         const mandateCertificate = hasMandateCertificate
             ? await MandateCertificate_1.default.query().where('id', payload.mandateCertificateId).where('companiesId', companiesId).first()
             : null;
-        if (!certificate && !deathCertificate && !mandateCertificate) {
+        const secondcopyCertificate = hasSecondcopyCertificate
+            ? await SecondcopyCertificate_1.default.query().where('id', payload.secondcopyCertificateId).where('companiesId', companiesId).first()
+            : null;
+        const communicationCertificate = hasCommunicationCertificate
+            ? await CommunicationCertificate_1.default.query().where('id', payload.communicationCertificateId).where('companiesId', companiesId).first()
+            : null;
+        if (!certificate && !deathCertificate && !mandateCertificate && !secondcopyCertificate && !communicationCertificate) {
             return response.status(422).json({
-                message: hasMandateCertificate ? 'O mandado informado não pertence a esta empresa' : hasMarriedCertificate
-                    ? 'O certificado de casamento informado não pertence a esta empresa'
-                    : hasBornCertificate
-                        ? 'O certificado de nascimento informado não pertence a esta empresa'
-                        : 'O certificado de óbito informado não pertence a esta empresa',
+                message: hasSecondcopyCertificate ? 'O certificado de segunda via informado não pertence a esta empresa'
+                    : hasCommunicationCertificate ? 'A comunicação informada não pertence a esta empresa'
+                        : hasMandateCertificate ? 'O mandado informado não pertence a esta empresa' : hasMarriedCertificate
+                            ? 'O certificado de casamento informado não pertence a esta empresa'
+                            : hasBornCertificate
+                                ? 'O certificado de nascimento informado não pertence a esta empresa'
+                                : 'O certificado de óbito informado não pertence a esta empresa',
             });
         }
         const verification = await EmployeeVerification_1.default.query()
@@ -111,8 +129,14 @@ class EmployeeVerificationXCertificatesController {
         else if (hasDeathCertificate) {
             alreadyExistsQuery.where('deathCertificateId', payload.deathCertificateId);
         }
-        else {
+        else if (hasMandateCertificate) {
             alreadyExistsQuery.where('mandateCertificateId', payload.mandateCertificateId);
+        }
+        else if (hasSecondcopyCertificate) {
+            alreadyExistsQuery.where('secondcopyCertificateId', payload.secondcopyCertificateId);
+        }
+        else {
+            alreadyExistsQuery.where('communicationCertificateId', payload.communicationCertificateId);
         }
         const alreadyExists = await alreadyExistsQuery.first();
         if (alreadyExists) {
@@ -125,6 +149,8 @@ class EmployeeVerificationXCertificatesController {
             bornCertificateId: payload.bornCertificateId ?? null,
             deathCertificateId: payload.deathCertificateId ?? null,
             mandateCertificateId: payload.mandateCertificateId ?? null,
+            secondcopyCertificateId: payload.secondcopyCertificateId ?? null,
+            communicationCertificateId: payload.communicationCertificateId ?? null,
             companiesId,
             employeeVerificationId: payload.employeeVerificationId,
             userId,
@@ -144,6 +170,8 @@ class EmployeeVerificationXCertificatesController {
             .preload('bornCertificate')
             .preload('deathCertificate')
             .preload('mandateCertificate')
+            .preload('secondcopyCertificate')
+            .preload('communicationCertificate')
             .preload('employeeVerification')
             .preload('company')
             .preload('user')
@@ -175,9 +203,11 @@ class EmployeeVerificationXCertificatesController {
         const hasBornCertificate = payload.bornCertificateId !== undefined;
         const hasDeathCertificate = payload.deathCertificateId !== undefined;
         const hasMandateCertificate = payload.mandateCertificateId !== undefined;
-        if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate, hasMandateCertificate].filter(Boolean).length > 1) {
+        const hasSecondcopyCertificate = payload.secondcopyCertificateId !== undefined;
+        const hasCommunicationCertificate = payload.communicationCertificateId !== undefined;
+        if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate, hasMandateCertificate, hasSecondcopyCertificate, hasCommunicationCertificate].filter(Boolean).length > 1) {
             return response.status(422).json({
-                message: 'Informe apenas um certificado de casamento, nascimento ou óbito',
+                message: 'Informe apenas um certificado',
             });
         }
         if (payload.employeeVerificationId !== undefined) {
@@ -208,6 +238,8 @@ class EmployeeVerificationXCertificatesController {
             item.bornCertificateId = null;
             item.deathCertificateId = null;
             item.mandateCertificateId = null;
+            item.secondcopyCertificateId = null;
+            item.communicationCertificateId = null;
         }
         if (payload.bornCertificateId !== undefined) {
             const certificate = await BornCertificate_1.default.query()
@@ -223,6 +255,8 @@ class EmployeeVerificationXCertificatesController {
             item.marriedCertificateId = null;
             item.deathCertificateId = null;
             item.mandateCertificateId = null;
+            item.secondcopyCertificateId = null;
+            item.communicationCertificateId = null;
         }
         if (payload.deathCertificateId !== undefined) {
             const certificate = await DeathCertificate_1.default.query()
@@ -238,6 +272,8 @@ class EmployeeVerificationXCertificatesController {
             item.marriedCertificateId = null;
             item.bornCertificateId = null;
             item.mandateCertificateId = null;
+            item.secondcopyCertificateId = null;
+            item.communicationCertificateId = null;
         }
         if (payload.mandateCertificateId !== undefined) {
             const certificate = await MandateCertificate_1.default.query().where('id', payload.mandateCertificateId).where('companiesId', companiesId).first();
@@ -247,6 +283,30 @@ class EmployeeVerificationXCertificatesController {
             item.marriedCertificateId = null;
             item.bornCertificateId = null;
             item.deathCertificateId = null;
+            item.secondcopyCertificateId = null;
+            item.communicationCertificateId = null;
+        }
+        if (payload.secondcopyCertificateId !== undefined) {
+            const certificate = await SecondcopyCertificate_1.default.query().where('id', payload.secondcopyCertificateId).where('companiesId', companiesId).first();
+            if (!certificate)
+                return response.status(422).json({ message: 'O certificado de segunda via informado não pertence a esta empresa' });
+            item.secondcopyCertificateId = payload.secondcopyCertificateId;
+            item.marriedCertificateId = null;
+            item.bornCertificateId = null;
+            item.deathCertificateId = null;
+            item.mandateCertificateId = null;
+            item.communicationCertificateId = null;
+        }
+        if (payload.communicationCertificateId !== undefined) {
+            const certificate = await CommunicationCertificate_1.default.query().where('id', payload.communicationCertificateId).where('companiesId', companiesId).first();
+            if (!certificate)
+                return response.status(422).json({ message: 'A comunicação informada não pertence a esta empresa' });
+            item.communicationCertificateId = payload.communicationCertificateId;
+            item.marriedCertificateId = null;
+            item.bornCertificateId = null;
+            item.deathCertificateId = null;
+            item.mandateCertificateId = null;
+            item.secondcopyCertificateId = null;
         }
         if (payload.status !== undefined) {
             item.status = payload.status;
