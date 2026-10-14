@@ -42,6 +42,10 @@ __decorate([
     __metadata("design:type", Number)
 ], EmployeeVerificationXReceipt.prototype, "userId", void 0);
 __decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Number)
+], EmployeeVerificationXReceipt.prototype, "item", void 0);
+__decorate([
     Orm_1.column.dateTime(),
     __metadata("design:type", luxon_1.DateTime)
 ], EmployeeVerificationXReceipt.prototype, "date", void 0);

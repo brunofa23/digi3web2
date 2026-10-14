@@ -234,6 +234,7 @@ class ReceiptsController {
                 employeeVerificationId: 1,
                 userId: authenticate.id,
                 date: luxon_1.DateTime.local(),
+                item: 1,
             }, { client: trx });
             await trx.commit();
             await receipt.refresh();
@@ -279,9 +280,7 @@ class ReceiptsController {
             if (receiptData.free)
                 items?.forEach((item) => { item.amount = 0; });
             if (receipt.financialFinalizedAt) {
-                if (receiptData.serviceId !== receipt.serviceId || receiptData.status === 'CANCELADO' ||
-                    (Object.prototype.hasOwnProperty.call(receiptData, 'tributationId') &&
-                        String(receiptData.tributationId ?? '') !== String(receipt.tributationId ?? ''))) {
+                if (receiptData.serviceId !== receipt.serviceId || receiptData.status === 'CANCELADO') {
                     await trx.rollback();
                     return response.status(409).send({ message: 'Serviço e cobrança não podem ser alterados após a finalização.' });
                 }
