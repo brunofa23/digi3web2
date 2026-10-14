@@ -45,6 +45,9 @@ export default class Emolument extends BaseModel {
   @column()
   public transfer_of_found: boolean
 
+  @column()
+  public price_released: boolean
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
