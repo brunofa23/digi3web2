@@ -9,11 +9,14 @@ type FolderLink = { id: string; url: string }
 
 export default class DriveDuplicateFolderScanService {
   public async getSnapshot() {
-    const scan = await DriveDuplicateFolderScan.findOrFail(1)
-    if (scan.status === 'IDLE' || (scan.status === 'RUNNING' &&
-      (!scan.heartbeatAt || scan.heartbeatAt < DateTime.now().minus({ minutes: 15 })))) {
-      await this.start()
-    }
+    await Database.from('drive_duplicate_folder_scans')
+      .where('id', 1)
+      .where('status', 'RUNNING')
+      .where((query) => query.where('heartbeat_at', '<', DateTime.now().minus({ minutes: 15 }).toJSDate())
+        .orWhereNull('heartbeat_at'))
+      .update({ status: 'FAILED', run_token: null,
+        error_message: 'Pesquisa interrompida após 15 minutos sem progresso. Clique em Pesquisar novamente.',
+        updated_at: new Date() })
     return this.snapshot()
   }
 
