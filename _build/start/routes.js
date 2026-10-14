@@ -99,6 +99,7 @@ Route_1.default.group(() => {
     Route_1.default.get('/imageuploadjobs', 'ImageUploadJobsController.index').middleware('auth');
     Route_1.default.get('/drive-duplicate-folders', 'DriveDuplicateFoldersController.index').middleware('auth');
     Route_1.default.post('/drive-duplicate-folders/refresh', 'DriveDuplicateFoldersController.refresh').middleware('auth');
+    Route_1.default.post('/drive-duplicate-folders/cancel', 'DriveDuplicateFoldersController.cancel').middleware('auth');
     Route_1.default.post("typebooks/:typebooks_id/bookrecords/generateorupdatebookrecordsdocument", 'BookrecordsController.generateOrUpdateBookrecordsDocument').middleware('bookrecord_permission:generateOrUpdateBookrecords');
     Route_1.default.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get');
     Route_1.default.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages').middleware('bookrecord_permission:get');

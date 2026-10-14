@@ -35,6 +35,15 @@ class DriveDuplicateFolderScanService {
             void this.run(token);
         return this.snapshot();
     }
+    async cancel() {
+        await Database_1.default.from('drive_duplicate_folder_scans')
+            .where('id', 1)
+            .where('status', 'RUNNING')
+            .update({ status: 'CANCELLED', run_token: null,
+            error_message: 'Cancelamento solicitado. A chamada atual ao Google Drive pode terminar antes da interrupção.',
+            updated_at: new Date() });
+        return this.snapshot();
+    }
     async snapshot() {
         const scan = await DriveDuplicateFolderScan_1.default.findOrFail(1);
         const runningResult = Array.isArray(scan.result) ? null : scan.result;
@@ -174,6 +183,8 @@ class DriveDuplicateFolderScanService {
                 heartbeat_at: now, updated_at: now });
         }
         catch (error) {
+            if (error?.message === 'Pesquisa substituída por outra execução.')
+                return;
             console.error('Erro ao pesquisar pastas duplicadas do Google Drive:', error);
             const now = new Date();
             await Database_1.default.from('drive_duplicate_folder_scans').where('id', 1).where('run_token', token)
