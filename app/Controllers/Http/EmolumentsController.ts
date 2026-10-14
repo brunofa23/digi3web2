@@ -18,6 +18,12 @@ export default class EmolumentsController {
       .where('companies_id', authenticate.companies_id)
       .orderBy('name', 'asc')
 
+    const inactive = request.input('inactive')
+    if (inactive !== undefined) {
+      const boolInactive = inactive === true || inactive === 'true' || inactive === 1 || inactive === '1'
+      query.where('inactive', boolInactive)
+    }
+
     if (type) query.where('type', type)
 
     if (q) {
