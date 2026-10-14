@@ -29,6 +29,9 @@ export default class EmployeeVerificationXReceipt extends BaseModel {
   @column({ columnName: 'user_id' })
   public userId: number
 
+  @column()
+  public item: number
+
   @column.dateTime()
   public date: DateTime
 

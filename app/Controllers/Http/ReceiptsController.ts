@@ -292,6 +292,7 @@ export default class ReceiptsController {
           employeeVerificationId: 1, // conferência padrão
           userId: authenticate.id,
           date: DateTime.local(), // agora
+          item: 1,
         },
         { client: trx }
       )
