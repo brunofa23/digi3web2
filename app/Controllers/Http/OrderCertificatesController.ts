@@ -853,6 +853,7 @@ export default class OrderCertificatesController {
     const employeeVerificationReceiptIds = (request.input('employeeVerificationReceiptIds', []) || [])
       .map((id) => Number(id))
       .filter((id) => Number.isInteger(id) && id > 0)
+    const employeeVerificationReceiptItem = Number(request.input('employeeVerificationReceiptItem'))
 
     // emolument code (para filtrar por código de emolumento)
     const emolumentCode = request.input('emolumentCode') || null
@@ -1155,6 +1156,23 @@ export default class OrderCertificatesController {
         evxr.whereIn('employeeVerificationId', employeeVerificationReceiptIds)
           .where('companiesId', authenticate.companies_id)
           .whereHas('employeeVerification', (ev) => ev.where('local', 'receipt'))
+        if (Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
+          evxr.where('item', employeeVerificationReceiptItem)
+        }
+      }))
+    }
+
+    if (!employeeVerificationReceiptIds.length && Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
+      query.whereHas('receipt', (r) => r.whereHas('employeeVerificationXReceipts', (evxr) => {
+        evxr.where('item', employeeVerificationReceiptItem)
+          .where('companiesId', authenticate.companies_id)
+      }))
+    }
+
+    if (Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
+      query.whereHas('receipt', (r) => r.whereDoesntHave('employeeVerificationXReceipts', (evxr) => {
+        evxr.where('item', '>', employeeVerificationReceiptItem)
+          .where('companiesId', authenticate.companies_id)
       }))
     }
 

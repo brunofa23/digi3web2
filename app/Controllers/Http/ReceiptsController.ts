@@ -292,6 +292,7 @@ export default class ReceiptsController {
           employeeVerificationId: 1, // conferência padrão
           userId: authenticate.id,
           date: DateTime.local(), // agora
+          item: 1,
         },
         { client: trx }
       )
@@ -350,9 +351,7 @@ export default class ReceiptsController {
       if (receiptData.free) items?.forEach((item: ReceiptItemPayload) => { item.amount = 0 })
 
       if (receipt.financialFinalizedAt) {
-        if (receiptData.serviceId !== receipt.serviceId || receiptData.status === 'CANCELADO' ||
-          (Object.prototype.hasOwnProperty.call(receiptData, 'tributationId') &&
-            String(receiptData.tributationId ?? '') !== String(receipt.tributationId ?? ''))) {
+        if (receiptData.serviceId !== receipt.serviceId || receiptData.status === 'CANCELADO') {
           await trx.rollback()
           return response.status(409).send({ message: 'Serviço e cobrança não podem ser alterados após a finalização.' })
         }
