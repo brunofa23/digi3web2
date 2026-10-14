@@ -1337,6 +1337,9 @@ export default class OrderCertificatesController {
     const mandateCertificateIds = orders
       .filter((order) => Number(order.bookId) === 24 && order.certificateId)
       .map((order) => order.certificateId)
+    const secondcopyCertificateIds = orders
+      .filter((order) => Number(order.bookId) === 21 && order.certificateId)
+      .map((order) => order.certificateId)
     const communicationCertificateIds = orders
       .filter((order) => Number(order.bookId) === 25 && order.certificateId)
       .map((order) => order.certificateId)
@@ -1351,6 +1354,8 @@ export default class OrderCertificatesController {
     const latestEmployeeVerificationByBornCertificate = new Map<number, any>()
     const latestEmployeeVerificationByDeathCertificate = new Map<number, any>()
     const latestEmployeeVerificationByMandateCertificate = new Map<number, any>()
+    const latestEmployeeVerificationBySecondcopyCertificate = new Map<number, any>()
+    const latestEmployeeVerificationByCommunicationCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
     const mandateCertificates = new Map<number, any>()
     const communicationCertificates = new Map<number, any>()
@@ -1406,7 +1411,7 @@ export default class OrderCertificatesController {
       counts.forEach((row) => mandateImageCounts.set(Number(row.mandate_certificate_id), Number(row.total ?? 0)))
     }
 
-    if ((marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length)
+    if ((marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length || secondcopyCertificateIds.length || communicationCertificateIds.length)
       && (!employeeVerificationReceiptIds.length || employeeVerificationCertificateIds.length)) {
       const certificateVerificationsQuery = Database
         .from('employee_verification_x_certificates as evxc')
@@ -1416,6 +1421,8 @@ export default class OrderCertificatesController {
           'evxc.married_certificate_id',
           'evxc.born_certificate_id',
           'evxc.death_certificate_id',
+          'evxc.secondcopy_certificate_id',
+          'evxc.communication_certificate_id',
           'evxc.status',
           'evxc.date',
           'ev.description',
@@ -1439,6 +1446,12 @@ export default class OrderCertificatesController {
         }
         if (mandateCertificateIds.length) {
           q.orWhereIn('evxc.mandate_certificate_id', mandateCertificateIds)
+        }
+        if (secondcopyCertificateIds.length) {
+          q.orWhereIn('evxc.secondcopy_certificate_id', secondcopyCertificateIds)
+        }
+        if (communicationCertificateIds.length) {
+          q.orWhereIn('evxc.communication_certificate_id', communicationCertificateIds)
         }
       })
 
@@ -1497,6 +1510,14 @@ export default class OrderCertificatesController {
         if (row.mandate_certificate_id) {
           const id = Number(row.mandate_certificate_id)
           latestEmployeeVerificationByMandateCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationByMandateCertificate.get(id) ?? null, candidate))
+        }
+        if (row.secondcopy_certificate_id) {
+          const id = Number(row.secondcopy_certificate_id)
+          latestEmployeeVerificationBySecondcopyCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationBySecondcopyCertificate.get(id) ?? null, candidate))
+        }
+        if (row.communication_certificate_id) {
+          const id = Number(row.communication_certificate_id)
+          latestEmployeeVerificationByCommunicationCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationByCommunicationCertificate.get(id) ?? null, candidate))
         }
       })
     }
@@ -1566,8 +1587,10 @@ export default class OrderCertificatesController {
           ? latestEmployeeVerificationByDeathCertificate.get(Number(order.certificateId))
           : bookId === 24
             ? latestEmployeeVerificationByMandateCertificate.get(Number(order.certificateId))
+          : bookId === 21
+            ? latestEmployeeVerificationBySecondcopyCertificate.get(Number(order.certificateId))
           : bookId === 25
-            ? null
+            ? latestEmployeeVerificationByCommunicationCertificate.get(Number(order.certificateId))
           : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId))
       const receiptVerification = json.receipt?.id
         ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))

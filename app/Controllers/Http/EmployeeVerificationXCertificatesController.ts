@@ -7,6 +7,8 @@ import MarriedCertificate from 'App/Models/MarriedCertificate'
 import BornCertificate from 'App/Models/BornCertificate'
 import DeathCertificate from 'App/Models/DeathCertificate'
 import MandateCertificate from 'App/Models/MandateCertificate'
+import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
+import CommunicationCertificate from 'App/Models/CommunicationCertificate'
 import EmployeeVerificationXCertificateValidator from 'App/Validators/EmployeeVerificationXCertificateValidator'
 
 export default class EmployeeVerificationXCertificatesController {
@@ -14,7 +16,7 @@ export default class EmployeeVerificationXCertificatesController {
     const authenticate = await auth.use('api').authenticate()
     const companiesId = authenticate.companies_id
 
-    const { married_certificate_id, born_certificate_id, death_certificate_id, mandate_certificate_id, employee_verification_id } = request.qs()
+    const { married_certificate_id, born_certificate_id, death_certificate_id, mandate_certificate_id, secondcopy_certificate_id, communication_certificate_id, employee_verification_id } = request.qs()
 
     const query = EmployeeVerificationXCertificate.query()
       .where('companiesId', companiesId)
@@ -31,6 +33,8 @@ export default class EmployeeVerificationXCertificatesController {
       query.where('deathCertificateId', Number(death_certificate_id))
     }
     if (mandate_certificate_id) query.where('mandateCertificateId', Number(mandate_certificate_id))
+    if (secondcopy_certificate_id) query.where('secondcopyCertificateId', Number(secondcopy_certificate_id))
+    if (communication_certificate_id) query.where('communicationCertificateId', Number(communication_certificate_id))
 
     if (employee_verification_id) {
       query.where('employeeVerificationId', Number(employee_verification_id))
@@ -41,6 +45,8 @@ export default class EmployeeVerificationXCertificatesController {
       .preload('bornCertificate')
       .preload('deathCertificate')
       .preload('mandateCertificate')
+      .preload('secondcopyCertificate')
+      .preload('communicationCertificate')
       .preload('employeeVerification')
       .preload('company')
       .preload('user')
@@ -60,10 +66,12 @@ export default class EmployeeVerificationXCertificatesController {
     const hasBornCertificate = payload.bornCertificateId !== undefined
     const hasDeathCertificate = payload.deathCertificateId !== undefined
     const hasMandateCertificate = payload.mandateCertificateId !== undefined
+    const hasSecondcopyCertificate = payload.secondcopyCertificateId !== undefined
+    const hasCommunicationCertificate = payload.communicationCertificateId !== undefined
 
-    if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate, hasMandateCertificate].filter(Boolean).length !== 1) {
+    if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate, hasMandateCertificate, hasSecondcopyCertificate, hasCommunicationCertificate].filter(Boolean).length !== 1) {
       return response.status(422).json({
-        message: 'Informe exatamente um certificado de casamento, nascimento ou óbito',
+        message: 'Informe exatamente um certificado',
       })
     }
 
@@ -89,10 +97,18 @@ export default class EmployeeVerificationXCertificatesController {
     const mandateCertificate = hasMandateCertificate
       ? await MandateCertificate.query().where('id', payload.mandateCertificateId!).where('companiesId', companiesId).first()
       : null
+    const secondcopyCertificate = hasSecondcopyCertificate
+      ? await SecondcopyCertificate.query().where('id', payload.secondcopyCertificateId!).where('companiesId', companiesId).first()
+      : null
+    const communicationCertificate = hasCommunicationCertificate
+      ? await CommunicationCertificate.query().where('id', payload.communicationCertificateId!).where('companiesId', companiesId).first()
+      : null
 
-    if (!certificate && !deathCertificate && !mandateCertificate) {
+    if (!certificate && !deathCertificate && !mandateCertificate && !secondcopyCertificate && !communicationCertificate) {
       return response.status(422).json({
-        message: hasMandateCertificate ? 'O mandado informado não pertence a esta empresa' : hasMarriedCertificate
+        message: hasSecondcopyCertificate ? 'O certificado de segunda via informado não pertence a esta empresa'
+          : hasCommunicationCertificate ? 'A comunicação informada não pertence a esta empresa'
+          : hasMandateCertificate ? 'O mandado informado não pertence a esta empresa' : hasMarriedCertificate
           ? 'O certificado de casamento informado não pertence a esta empresa'
           : hasBornCertificate
             ? 'O certificado de nascimento informado não pertence a esta empresa'
@@ -123,8 +139,12 @@ export default class EmployeeVerificationXCertificatesController {
       alreadyExistsQuery.where('bornCertificateId', payload.bornCertificateId)
     } else if (hasDeathCertificate) {
       alreadyExistsQuery.where('deathCertificateId', payload.deathCertificateId)
-    } else {
+    } else if (hasMandateCertificate) {
       alreadyExistsQuery.where('mandateCertificateId', payload.mandateCertificateId!)
+    } else if (hasSecondcopyCertificate) {
+      alreadyExistsQuery.where('secondcopyCertificateId', payload.secondcopyCertificateId!)
+    } else {
+      alreadyExistsQuery.where('communicationCertificateId', payload.communicationCertificateId!)
     }
 
     const alreadyExists = await alreadyExistsQuery.first()
@@ -140,6 +160,8 @@ export default class EmployeeVerificationXCertificatesController {
       bornCertificateId: payload.bornCertificateId ?? null,
       deathCertificateId: payload.deathCertificateId ?? null,
       mandateCertificateId: payload.mandateCertificateId ?? null,
+      secondcopyCertificateId: payload.secondcopyCertificateId ?? null,
+      communicationCertificateId: payload.communicationCertificateId ?? null,
       companiesId,
       employeeVerificationId: payload.employeeVerificationId,
       userId,
@@ -162,6 +184,8 @@ export default class EmployeeVerificationXCertificatesController {
       .preload('bornCertificate')
       .preload('deathCertificate')
       .preload('mandateCertificate')
+      .preload('secondcopyCertificate')
+      .preload('communicationCertificate')
       .preload('employeeVerification')
       .preload('company')
       .preload('user')
@@ -200,10 +224,12 @@ export default class EmployeeVerificationXCertificatesController {
     const hasBornCertificate = payload.bornCertificateId !== undefined
     const hasDeathCertificate = payload.deathCertificateId !== undefined
     const hasMandateCertificate = payload.mandateCertificateId !== undefined
+    const hasSecondcopyCertificate = payload.secondcopyCertificateId !== undefined
+    const hasCommunicationCertificate = payload.communicationCertificateId !== undefined
 
-    if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate, hasMandateCertificate].filter(Boolean).length > 1) {
+    if ([hasMarriedCertificate, hasBornCertificate, hasDeathCertificate, hasMandateCertificate, hasSecondcopyCertificate, hasCommunicationCertificate].filter(Boolean).length > 1) {
       return response.status(422).json({
-        message: 'Informe apenas um certificado de casamento, nascimento ou óbito',
+        message: 'Informe apenas um certificado',
       })
     }
 
@@ -240,6 +266,8 @@ export default class EmployeeVerificationXCertificatesController {
       item.bornCertificateId = null
       item.deathCertificateId = null
       item.mandateCertificateId = null
+      item.secondcopyCertificateId = null
+      item.communicationCertificateId = null
     }
 
     if (payload.bornCertificateId !== undefined) {
@@ -258,6 +286,8 @@ export default class EmployeeVerificationXCertificatesController {
       item.marriedCertificateId = null
       item.deathCertificateId = null
       item.mandateCertificateId = null
+      item.secondcopyCertificateId = null
+      item.communicationCertificateId = null
     }
 
     if (payload.deathCertificateId !== undefined) {
@@ -276,6 +306,8 @@ export default class EmployeeVerificationXCertificatesController {
       item.marriedCertificateId = null
       item.bornCertificateId = null
       item.mandateCertificateId = null
+      item.secondcopyCertificateId = null
+      item.communicationCertificateId = null
     }
     if (payload.mandateCertificateId !== undefined) {
       const certificate = await MandateCertificate.query().where('id', payload.mandateCertificateId).where('companiesId', companiesId).first()
@@ -284,6 +316,28 @@ export default class EmployeeVerificationXCertificatesController {
       item.marriedCertificateId = null
       item.bornCertificateId = null
       item.deathCertificateId = null
+      item.secondcopyCertificateId = null
+      item.communicationCertificateId = null
+    }
+    if (payload.secondcopyCertificateId !== undefined) {
+      const certificate = await SecondcopyCertificate.query().where('id', payload.secondcopyCertificateId).where('companiesId', companiesId).first()
+      if (!certificate) return response.status(422).json({ message: 'O certificado de segunda via informado não pertence a esta empresa' })
+      item.secondcopyCertificateId = payload.secondcopyCertificateId
+      item.marriedCertificateId = null
+      item.bornCertificateId = null
+      item.deathCertificateId = null
+      item.mandateCertificateId = null
+      item.communicationCertificateId = null
+    }
+    if (payload.communicationCertificateId !== undefined) {
+      const certificate = await CommunicationCertificate.query().where('id', payload.communicationCertificateId).where('companiesId', companiesId).first()
+      if (!certificate) return response.status(422).json({ message: 'A comunicação informada não pertence a esta empresa' })
+      item.communicationCertificateId = payload.communicationCertificateId
+      item.marriedCertificateId = null
+      item.bornCertificateId = null
+      item.deathCertificateId = null
+      item.mandateCertificateId = null
+      item.secondcopyCertificateId = null
     }
     if (payload.status !== undefined) {
       item.status = payload.status
