@@ -961,7 +961,13 @@ export default class OrderCertificatesController {
       })
     }
 
-    if (stampStatus === 'sealed' || stampStatus === 'unsealed') {
+    if (stampStatus === 'withoutReceipt') {
+      query.whereDoesntHave('receipt', (receipt) => {
+        receipt.where((activeReceipt) =>
+          activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO')
+        ).where((dates) => dates.whereNotNull('date_protocol').orWhereNotNull('date_stamp'))
+      })
+    } else if (stampStatus === 'sealed' || stampStatus === 'unsealed') {
       query.whereHas('receipt', (r) => {
         r.where((activeReceipt) =>
           activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO')
