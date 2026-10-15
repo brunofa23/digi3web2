@@ -1429,8 +1429,7 @@ export default class OrderCertificatesController {
       counts.forEach((row) => mandateImageCounts.set(Number(row.mandate_certificate_id), Number(row.total ?? 0)))
     }
 
-    if ((marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length || secondcopyCertificateIds.length || communicationCertificateIds.length)
-      && (!employeeVerificationReceiptIds.length || employeeVerificationCertificateIds.length)) {
+    if (marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length || secondcopyCertificateIds.length || communicationCertificateIds.length) {
       const certificateVerificationsQuery = Database
         .from('employee_verification_x_certificates as evxc')
         .leftJoin('employee_verifications as ev', 'ev.id', 'evxc.employee_verification_id')
@@ -1472,14 +1471,6 @@ export default class OrderCertificatesController {
           q.orWhereIn('evxc.communication_certificate_id', communicationCertificateIds)
         }
       })
-
-      if (employeeVerificationCertificateIds.length || employeeVerificationIds.length) {
-        certificateVerificationsQuery.whereIn('evxc.employee_verification_id', employeeVerificationCertificateIds.length
-          ? employeeVerificationCertificateIds : employeeVerificationIds)
-      }
-      if (employeeVerificationCertificateIds.length) {
-        certificateVerificationsQuery.where('ev.local', 'certificate')
-      }
 
       const certificateVerifications = await certificateVerificationsQuery
 
@@ -1540,7 +1531,7 @@ export default class OrderCertificatesController {
       })
     }
 
-    if (receiptIds.length && (!employeeVerificationCertificateIds.length || employeeVerificationReceiptIds.length)) {
+    if (receiptIds.length) {
       const receiptVerificationsQuery = Database
         .from('employee_verification_x_receipts as evxr')
         .leftJoin('employee_verifications as ev', 'ev.id', 'evxr.employee_verification_id')
@@ -1553,14 +1544,6 @@ export default class OrderCertificatesController {
         ])
         .where('evxr.companies_id', authenticate.companies_id)
         .whereIn('evxr.receipt_id', receiptIds)
-
-      if (employeeVerificationReceiptIds.length || employeeVerificationIds.length) {
-        receiptVerificationsQuery.whereIn('evxr.employee_verification_id', employeeVerificationReceiptIds.length
-          ? employeeVerificationReceiptIds : employeeVerificationIds)
-      }
-      if (employeeVerificationReceiptIds.length) {
-        receiptVerificationsQuery.where('ev.local', 'receipt')
-      }
 
       const receiptVerifications = await receiptVerificationsQuery
 
@@ -1630,6 +1613,8 @@ export default class OrderCertificatesController {
 
       json.imageCertificatesCount = imageCertificatesCount
       json.latestEmployeeVerification = latestEmployeeVerification ?? null
+      json.latestEmployeeVerificationCertificate = certificateVerification ?? null
+      json.latestEmployeeVerificationReceipt = receiptVerification ?? null
       if (json.marriedCertificate) {
         json.marriedCertificate.imageCertificatesCount = imageCertificatesCount
       }
