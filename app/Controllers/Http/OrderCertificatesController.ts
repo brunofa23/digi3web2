@@ -863,6 +863,7 @@ export default class OrderCertificatesController {
     const orderCertificateId = request.input('id') || null
     const codeStart = Number(request.input('codeStart'))
     const codeEnd = Number(request.input('codeEnd'))
+    const inactive = this.toBoolean(request.input('inactive'))
 
     const query = OrderCertificate.query()
       .if(orderCertificateId, (orderQuery) => orderQuery.where('order_certificates.id', orderCertificateId))
@@ -930,6 +931,7 @@ export default class OrderCertificatesController {
         })
       })
       .where('companies_id', authenticate.companies_id)
+      .where('order_certificates.inactive', inactive)
 
     if (Number.isSafeInteger(codeStart) && codeStart > 0)
       query.andWhere('order_certificates.id', '>=', codeStart)
