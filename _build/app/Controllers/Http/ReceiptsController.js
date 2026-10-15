@@ -197,9 +197,12 @@ class ReceiptsController {
             if (service.free)
                 items.forEach((item) => { item.amount = 0; });
             receiptData.status = receiptData.dateStamp ? 'SELADO' : 'PROTOCOLADO';
-            await OrderCertificate_1.default.query({ client: trx })
+            const orderCertificate = await OrderCertificate_1.default.query({ client: trx })
                 .where('companies_id', authenticate.companies_id)
                 .where('id', receiptData.orderCertificateId).forUpdate().firstOrFail();
+            if (orderCertificate.inactive) {
+                throw new BadRequestException_1.default('Formulário inativo não permite novo recibo.', 409, 'order_certificate_inactive');
+            }
             const activeReceipt = await Receipt_1.default.query({ client: trx })
                 .where('companies_id', authenticate.companies_id)
                 .where('order_certificate_id', receiptData.orderCertificateId)

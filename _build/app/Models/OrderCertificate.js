@@ -88,6 +88,10 @@ __decorate([
     __metadata("design:type", Number)
 ], OrderCertificate.prototype, "bookId", void 0);
 __decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Boolean)
+], OrderCertificate.prototype, "inactive", void 0);
+__decorate([
     (0, Orm_1.belongsTo)(() => Company_1.default, { foreignKey: 'companiesId' }),
     __metadata("design:type", Object)
 ], OrderCertificate.prototype, "company", void 0);

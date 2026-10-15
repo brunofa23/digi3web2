@@ -730,7 +730,7 @@ async function fileRename(originalFileName, typebooks_id, companies_id, dataImag
                     book: match[1],
                     sheet: match[2],
                     side: match[3].toUpperCase(),
-                    indexbook: match[4] ? Number(match[4]) : null,
+                    indexbook: match[4] && match[4] !== '0' ? Number(match[4]) : null,
                     ext: path_1.default.extname(originalFileName).toLowerCase()
                 };
                 query.andWhere('book', objFileName.book);

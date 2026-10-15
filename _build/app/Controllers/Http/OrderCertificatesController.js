@@ -19,6 +19,8 @@ const AverbationDescription_1 = __importDefault(global[Symbol.for('ioc.use')]("A
 const DocumentTypeBook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DocumentTypeBook"));
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
+const Receipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Receipt"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 class OrderCertificatesController {
     async saveAverbations(raw, orderCertificateId, companiesId, trx) {
         let rows;
@@ -1400,6 +1402,33 @@ class OrderCertificatesController {
         }
         return orderCertificate;
     }
+    async inactivate({ auth, params, response }) {
+        const user = await auth.use('api').authenticate();
+        const orderCertificate = await Database_1.default.transaction(async (trx) => {
+            const order = await OrderCertificate_1.default.query({ client: trx })
+                .where('id', params.id)
+                .where('companies_id', user.companies_id)
+                .forUpdate()
+                .firstOrFail();
+            if (order.inactive) {
+                throw new BadRequestException_1.default('Formulário já inativo.', 409, 'order_certificate_inactive');
+            }
+            const activeReceipts = await Receipt_1.default.query({ client: trx })
+                .where('companies_id', user.companies_id)
+                .where('order_certificate_id', order.id)
+                .where((query) => query.whereNull('status').orWhereNotIn('status', ['EXCLUIDO', 'CANCELADO']));
+            if (activeReceipts.some((receipt) => receipt.dateStamp || receipt.stamps?.trim() || receipt.status === 'SELADO')) {
+                throw new BadRequestException_1.default('Formulário com recibo selado não pode ser inativado.', 409, 'order_certificate_sealed');
+            }
+            if (activeReceipts.length) {
+                throw new BadRequestException_1.default('Cancele o recibo antes de inativar o formulário.', 409, 'order_certificate_active_receipt');
+            }
+            order.inactive = true;
+            await order.save();
+            return order;
+        });
+        return response.ok(orderCertificate);
+    }
     async store({ auth, request, response }) {
         const user = await auth.use('api').authenticate();
         const body = request.body();
@@ -1651,6 +1680,9 @@ class OrderCertificatesController {
         if (!orderCertificate || orderCertificate.companiesId !== user.companies_id) {
             return response.notFound({ message: 'Pedido não encontrado' });
         }
+        if (orderCertificate.inactive) {
+            return response.status(409).send({ message: 'Formulário inativo não pode ser alterado.' });
+        }
         const body = request.body();
         const bookId = this.toNumber(body.bookId ?? body.book_id);
         const certificateIdFromBody = this.toNumber(body.certificateId ?? body.certificate_id);
@@ -1669,6 +1701,11 @@ class OrderCertificatesController {
         }
         try {
             await Database_1.default.transaction(async (trx) => {
+                const lockedOrder = await OrderCertificate_1.default.query({ client: trx })
+                    .where('id', orderCertificate.id).where('companies_id', user.companies_id).forUpdate().firstOrFail();
+                if (lockedOrder.inactive) {
+                    throw new BadRequestException_1.default('Formulário inativo não pode ser alterado.', 409, 'order_certificate_inactive');
+                }
                 orderCertificate.useTransaction(trx);
                 const patch = {
                     bookId,
@@ -1894,6 +1931,8 @@ class OrderCertificatesController {
             return orderCertificate;
         }
         catch (error) {
+            if (error.code === 'order_certificate_inactive')
+                throw error;
             if (String(error.message || '').startsWith('Averbações:'))
                 return response.status(422).send({ message: error.message });
             if (String(error.message || '').startsWith('Mandado:'))
