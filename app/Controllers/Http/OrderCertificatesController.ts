@@ -17,6 +17,8 @@ import AverbationDescription from 'App/Models/AverbationDescription'
 import DocumentTypeBook from 'App/Models/DocumentTypeBook'
 import Document from 'App/Models/Document'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
+import Receipt from 'App/Models/Receipt'
+import BadRequestException from 'App/Exceptions/BadRequestException'
 
 export default class OrderCertificatesController {
   private async saveAverbations(raw: any, orderCertificateId: number, companiesId: number, trx: TransactionClientContract) {
@@ -1719,6 +1721,40 @@ export default class OrderCertificatesController {
     return orderCertificate
   }
 
+  public async inactivate({ auth, params, response }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
+
+    const orderCertificate = await Database.transaction(async (trx) => {
+      const order = await OrderCertificate.query({ client: trx })
+        .where('id', params.id)
+        .where('companies_id', user.companies_id)
+        .forUpdate()
+        .firstOrFail()
+
+      if (order.inactive) {
+        throw new BadRequestException('Formulário já inativo.', 409, 'order_certificate_inactive')
+      }
+
+      const activeReceipts = await Receipt.query({ client: trx })
+        .where('companies_id', user.companies_id)
+        .where('order_certificate_id', order.id)
+        .where((query) => query.whereNull('status').orWhereNotIn('status', ['EXCLUIDO', 'CANCELADO']))
+
+      if (activeReceipts.some((receipt) => receipt.dateStamp || receipt.stamps?.trim() || receipt.status === 'SELADO')) {
+        throw new BadRequestException('Formulário com recibo selado não pode ser inativado.', 409, 'order_certificate_sealed')
+      }
+      if (activeReceipts.length) {
+        throw new BadRequestException('Cancele o recibo antes de inativar o formulário.', 409, 'order_certificate_active_receipt')
+      }
+
+      order.inactive = true
+      await order.save()
+      return order
+    })
+
+    return response.ok(orderCertificate)
+  }
+
   // =====================================================
   // Store
   // =====================================================
@@ -2007,6 +2043,9 @@ export default class OrderCertificatesController {
     if (!orderCertificate || orderCertificate.companiesId !== user.companies_id) {
       return response.notFound({ message: 'Pedido não encontrado' })
     }
+    if (orderCertificate.inactive) {
+      return response.status(409).send({ message: 'Formulário inativo não pode ser alterado.' })
+    }
 
     const body = request.body()
 
@@ -2032,6 +2071,11 @@ export default class OrderCertificatesController {
 
     try {
       await Database.transaction(async (trx) => {
+        const lockedOrder = await OrderCertificate.query({ client: trx })
+          .where('id', orderCertificate.id).where('companies_id', user.companies_id).forUpdate().firstOrFail()
+        if (lockedOrder.inactive) {
+          throw new BadRequestException('Formulário inativo não pode ser alterado.', 409, 'order_certificate_inactive')
+        }
         orderCertificate.useTransaction(trx)
 
         // ⚠️ não zera certificateId se não veio no body
@@ -2291,6 +2335,7 @@ export default class OrderCertificatesController {
 
       return orderCertificate
     } catch (error: any) {
+      if (error.code === 'order_certificate_inactive') throw error
       if (String(error.message || '').startsWith('Averbações:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Comunicação:')) return response.status(422).send({ message: error.message })

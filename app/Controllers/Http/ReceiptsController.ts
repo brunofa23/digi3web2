@@ -240,9 +240,12 @@ export default class ReceiptsController {
       receiptData.status = receiptData.dateStamp ? 'SELADO' : 'PROTOCOLADO'
 
       // Serializa a criação por certidão para manter apenas um recibo ativo.
-      await OrderCertificate.query({ client: trx })
+      const orderCertificate = await OrderCertificate.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
         .where('id', receiptData.orderCertificateId).forUpdate().firstOrFail()
+      if (orderCertificate.inactive) {
+        throw new BadRequestException('Formulário inativo não permite novo recibo.', 409, 'order_certificate_inactive')
+      }
       const activeReceipt = await Receipt.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
         .where('order_certificate_id', receiptData.orderCertificateId)

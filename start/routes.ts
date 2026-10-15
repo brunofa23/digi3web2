@@ -290,6 +290,7 @@ Route.group(() => {
   Route.post('/public/order-certificates/marriage/:token/visionocr', 'PublicOrderCertificatesController.visionOcrMarriageDocument')
   Route.post('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.storeMarriage')
   Route.get('/order-certificates/:id/document-images', 'OrderCertificatesController.documentImages')
+  Route.post('/order-certificates/:id/inactivate', 'OrderCertificatesController.inactivate')
   Route.resource('/order-certificates', 'OrderCertificatesController').apiOnly()
 
 
