@@ -950,7 +950,7 @@ async function fileRename(originalFileName: string, typebooks_id, companies_id, 
           book: match[1],        // número entre L e F → 123
           sheet: match[2],       // número entre parênteses → 1
           side: match[3].toUpperCase(), // letra depois do parêntese → F/V
-          indexbook: match[4] ? Number(match[4]) : null, // primeiro dígito após F/V
+          indexbook: match[4] && match[4] !== '0' ? Number(match[4]) : null, // primeiro dígito após F/V; 0 equivale a índice ausente
           ext: path.extname(originalFileName).toLowerCase() //"." + match[5].toLowerCase(), // extensão do arquivo
         };
 
