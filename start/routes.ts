@@ -62,6 +62,9 @@ Route.group(() => {
   Route.put('/spedy/service-invoices/defaults', 'Spedy/ServiceInvoicesController.saveDefaults')
   Route.get('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.index')
   Route.post('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.store')
+  Route.post('/spedy/service-invoices/exports', 'Spedy/ServiceInvoicesController.createExport')
+  Route.get('/spedy/service-invoices/exports/:jobId', 'Spedy/ServiceInvoicesController.exportStatus')
+  Route.get('/spedy/service-invoices/exports/:jobId/download', 'Spedy/ServiceInvoicesController.downloadExport')
   Route.get('/spedy/service-invoices/:id/xml', 'Spedy/ServiceInvoicesController.xml')
   Route.get('/spedy/service-invoices/:id/pdf', 'Spedy/ServiceInvoicesController.pdf')
   Route.get('/spedy/service-invoices/:id', 'Spedy/ServiceInvoicesController.show')
@@ -284,6 +287,7 @@ Route.group(() => {
   //.middleware('*', ['auth'])
 
   //ORDER CERTIFICATES
+  Route.post('/order-certificates/birth/document-extract', 'BirthDocumentExtractionsController.store').middleware('auth')
   Route.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth')
   Route.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth')
   Route.get('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.showMarriage')

@@ -1,8 +1,11 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { DateTime } from 'luxon'
+import fs from 'fs/promises'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import CompanySpedyIntegration from 'App/Models/CompanySpedyIntegration'
 import SpedyServiceInvoice from 'App/Models/SpedyServiceInvoice'
+import SpedyNfseExportJob from 'App/Models/SpedyNfseExportJob'
+import { enqueueExport, exportPath } from 'App/Services/Spedy/SpedyNfseExportService'
 import SpedyCompaniesService from 'App/Services/Spedy/SpedyCompaniesService'
 import SpedyServiceInvoiceDefaultsValidator from 'App/Validators/Spedy/SpedyServiceInvoiceDefaultsValidator'
 import SpedyServiceInvoiceValidator from 'App/Validators/Spedy/SpedyServiceInvoiceValidator'
@@ -76,10 +79,12 @@ export default class ServiceInvoicesController {
   }
 
   private normalizeInvoice(invoice: any) {
+    const issuedOn = invoice?.issuedOn ? DateTime.fromISO(String(invoice.issuedOn), { setZone: true }) : null
     return {
       spedyInvoiceId: invoice?.id || null,
       status: invoice?.status || null,
       number: invoice?.number ? String(invoice.number) : null,
+      ...(issuedOn?.isValid ? { issuedOn } : {}),
       processingDetail: this.extractProcessingDetail(invoice),
       responsePayload: invoice || null,
     }
@@ -232,7 +237,9 @@ export default class ServiceInvoicesController {
     if (dateStart) {
       const parsedDateStart = DateTime.fromISO(String(dateStart))
       if (parsedDateStart.isValid) {
-        query.where('created_at', '>=', parsedDateStart.startOf('day').toSQL() as string)
+        const start = parsedDateStart.startOf('day').toSQL() as string
+        query.where((builder) => builder.where('issued_on', '>=', start)
+          .orWhere((fallback) => fallback.whereNull('issued_on').where('created_at', '>=', start)))
       }
     }
 
@@ -240,7 +247,9 @@ export default class ServiceInvoicesController {
     if (dateEnd) {
       const parsedDateEnd = DateTime.fromISO(String(dateEnd))
       if (parsedDateEnd.isValid) {
-        query.where('created_at', '<=', parsedDateEnd.endOf('day').toSQL() as string)
+        const end = parsedDateEnd.endOf('day').toSQL() as string
+        query.where((builder) => builder.where('issued_on', '<=', end)
+          .orWhere((fallback) => fallback.whereNull('issued_on').where('created_at', '<=', end)))
       }
     }
 
@@ -302,6 +311,79 @@ export default class ServiceInvoicesController {
       requestPayload,
       ...normalized,
     }, existing ? 'correction' : 'emission', existing?.id)
+  }
+
+  public async createExport({ auth, request }: HttpContextContract) {
+    const user = await this.authenticateWithPermission(auth)
+    const companiesId = this.getIssuerCompanyId(user, request)
+    const format = String(request.input('format') || '')
+    const submitted = request.input('ids')
+    if (!['xml', 'pdf'].includes(format) || !Array.isArray(submitted)
+      || !submitted.length || submitted.length > 2000
+      || submitted.some((id) => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {
+      throw new BadRequestException('Selecione entre 1 e 2000 notas e informe XML ou PDF.', 400, 'spedy_export_invalid')
+    }
+    const ids = [...new Set(submitted.map(Number))]
+    const invoices = await SpedyServiceInvoice.query()
+      .where('companies_id', companiesId).whereIn('id', ids)
+      .where('status', 'authorized').whereNotNull('spedy_invoice_id')
+    if (invoices.length !== ids.length) {
+      throw new BadRequestException('Há notas indisponíveis, não autorizadas ou de outra empresa na seleção.', 400, 'spedy_export_invoices_invalid')
+    }
+    const job = await SpedyNfseExportJob.create({
+      companiesId,
+      userId: user.id,
+      format: format as 'xml' | 'pdf',
+      status: 'queued',
+      total: ids.length,
+      processed: 0,
+      invoiceIds: JSON.stringify(ids),
+      failures: '[]',
+    })
+    enqueueExport(job.id)
+    return { id: job.id, status: job.status, total: job.total, processed: job.processed }
+  }
+
+  private async getExportJob(user: any, jobId: string) {
+    const job = await SpedyNfseExportJob.query().where('id', jobId).where('user_id', user.id).firstOrFail()
+    if (!user.superuser && job.companiesId !== user.companies_id) {
+      throw new BadRequestException('Lote indisponível para esta empresa.', 403, 'spedy_export_forbidden')
+    }
+    if (['queued', 'processing'].includes(job.status)
+      && job.updatedAt < DateTime.now().minus({ minutes: 30 })) {
+      job.status = 'failed'
+      job.errorMessage = 'O processamento foi interrompido. Solicite um novo lote.'
+      await job.save()
+    }
+    return job
+  }
+
+  public async exportStatus({ auth, params }: HttpContextContract) {
+    const user = await this.authenticateWithPermission(auth)
+    const job = await this.getExportJob(user, params.jobId)
+    return {
+      id: job.id, status: job.status, format: job.format,
+      total: job.total, processed: job.processed,
+      failures: JSON.parse(job.failures || '[]'), errorMessage: job.errorMessage,
+    }
+  }
+
+  public async downloadExport({ auth, params, response }: HttpContextContract) {
+    const user = await this.authenticateWithPermission(auth)
+    const job = await this.getExportJob(user, params.jobId)
+    if (job.status !== 'completed') {
+      throw new BadRequestException('O ZIP ainda não está disponível.', 400, 'spedy_export_not_ready')
+    }
+    if (job.createdAt < DateTime.now().minus({ hours: 24 })) {
+      throw new BadRequestException('O ZIP expirou. Solicite um novo lote.', 404, 'spedy_export_expired')
+    }
+    try {
+      await fs.access(exportPath(job.id))
+    } catch {
+      throw new BadRequestException('O ZIP expirou. Solicite um novo lote.', 404, 'spedy_export_expired')
+    }
+    response.header('Content-Type', 'application/zip')
+    return response.attachment(exportPath(job.id), job.fileName || `nfse-${job.id}.zip`)
   }
 
   public async show({ auth, params }: HttpContextContract) {

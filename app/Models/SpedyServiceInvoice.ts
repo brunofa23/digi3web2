@@ -56,6 +56,9 @@ export default class SpedyServiceInvoice extends BaseModel {
   @column.dateTime()
   public effectiveDate?: DateTime | null
 
+  @column.dateTime()
+  public issuedOn?: DateTime | null
+
   @column({
     prepare: (value: any) => value === undefined ? null : JSON.stringify(value),
     consume: parseJson,
