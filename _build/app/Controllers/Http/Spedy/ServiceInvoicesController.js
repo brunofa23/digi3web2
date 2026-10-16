@@ -4,9 +4,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
+const promises_1 = __importDefault(require("fs/promises"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const CompanySpedyIntegration_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/CompanySpedyIntegration"));
 const SpedyServiceInvoice_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SpedyServiceInvoice"));
+const SpedyNfseExportJob_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SpedyNfseExportJob"));
+const SpedyNfseExportService_1 = global[Symbol.for('ioc.use')]("App/Services/Spedy/SpedyNfseExportService");
 const SpedyCompaniesService_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Spedy/SpedyCompaniesService"));
 const SpedyServiceInvoiceDefaultsValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/Spedy/SpedyServiceInvoiceDefaultsValidator"));
 const SpedyServiceInvoiceValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/Spedy/SpedyServiceInvoiceValidator"));
@@ -67,10 +70,12 @@ class ServiceInvoicesController {
             || null;
     }
     normalizeInvoice(invoice) {
+        const issuedOn = invoice?.issuedOn ? luxon_1.DateTime.fromISO(String(invoice.issuedOn), { setZone: true }) : null;
         return {
             spedyInvoiceId: invoice?.id || null,
             status: invoice?.status || null,
             number: invoice?.number ? String(invoice.number) : null,
+            ...(issuedOn?.isValid ? { issuedOn } : {}),
             processingDetail: this.extractProcessingDetail(invoice),
             responsePayload: invoice || null,
         };
@@ -199,14 +204,18 @@ class ServiceInvoicesController {
         if (dateStart) {
             const parsedDateStart = luxon_1.DateTime.fromISO(String(dateStart));
             if (parsedDateStart.isValid) {
-                query.where('created_at', '>=', parsedDateStart.startOf('day').toSQL());
+                const start = parsedDateStart.startOf('day').toSQL();
+                query.where((builder) => builder.where('issued_on', '>=', start)
+                    .orWhere((fallback) => fallback.whereNull('issued_on').where('created_at', '>=', start)));
             }
         }
         const dateEnd = request.input('dateEnd') || request.input('date_end');
         if (dateEnd) {
             const parsedDateEnd = luxon_1.DateTime.fromISO(String(dateEnd));
             if (parsedDateEnd.isValid) {
-                query.where('created_at', '<=', parsedDateEnd.endOf('day').toSQL());
+                const end = parsedDateEnd.endOf('day').toSQL();
+                query.where((builder) => builder.where('issued_on', '<=', end)
+                    .orWhere((fallback) => fallback.whereNull('issued_on').where('created_at', '<=', end)));
             }
         }
         const receiverName = String(request.input('receiverName') || request.input('receiver') || '').trim();
@@ -258,6 +267,76 @@ class ServiceInvoicesController {
             requestPayload,
             ...normalized,
         }, existing ? 'correction' : 'emission', existing?.id);
+    }
+    async createExport({ auth, request }) {
+        const user = await this.authenticateWithPermission(auth);
+        const companiesId = this.getIssuerCompanyId(user, request);
+        const format = String(request.input('format') || '');
+        const submitted = request.input('ids');
+        if (!['xml', 'pdf'].includes(format) || !Array.isArray(submitted)
+            || !submitted.length || submitted.length > 2000
+            || submitted.some((id) => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {
+            throw new BadRequestException_1.default('Selecione entre 1 e 2000 notas e informe XML ou PDF.', 400, 'spedy_export_invalid');
+        }
+        const ids = [...new Set(submitted.map(Number))];
+        const invoices = await SpedyServiceInvoice_1.default.query()
+            .where('companies_id', companiesId).whereIn('id', ids)
+            .where('status', 'authorized').whereNotNull('spedy_invoice_id');
+        if (invoices.length !== ids.length) {
+            throw new BadRequestException_1.default('Há notas indisponíveis, não autorizadas ou de outra empresa na seleção.', 400, 'spedy_export_invoices_invalid');
+        }
+        const job = await SpedyNfseExportJob_1.default.create({
+            companiesId,
+            userId: user.id,
+            format: format,
+            status: 'queued',
+            total: ids.length,
+            processed: 0,
+            invoiceIds: JSON.stringify(ids),
+            failures: '[]',
+        });
+        (0, SpedyNfseExportService_1.enqueueExport)(job.id);
+        return { id: job.id, status: job.status, total: job.total, processed: job.processed };
+    }
+    async getExportJob(user, jobId) {
+        const job = await SpedyNfseExportJob_1.default.query().where('id', jobId).where('user_id', user.id).firstOrFail();
+        if (!user.superuser && job.companiesId !== user.companies_id) {
+            throw new BadRequestException_1.default('Lote indisponível para esta empresa.', 403, 'spedy_export_forbidden');
+        }
+        if (['queued', 'processing'].includes(job.status)
+            && job.updatedAt < luxon_1.DateTime.now().minus({ minutes: 30 })) {
+            job.status = 'failed';
+            job.errorMessage = 'O processamento foi interrompido. Solicite um novo lote.';
+            await job.save();
+        }
+        return job;
+    }
+    async exportStatus({ auth, params }) {
+        const user = await this.authenticateWithPermission(auth);
+        const job = await this.getExportJob(user, params.jobId);
+        return {
+            id: job.id, status: job.status, format: job.format,
+            total: job.total, processed: job.processed,
+            failures: JSON.parse(job.failures || '[]'), errorMessage: job.errorMessage,
+        };
+    }
+    async downloadExport({ auth, params, response }) {
+        const user = await this.authenticateWithPermission(auth);
+        const job = await this.getExportJob(user, params.jobId);
+        if (job.status !== 'completed') {
+            throw new BadRequestException_1.default('O ZIP ainda não está disponível.', 400, 'spedy_export_not_ready');
+        }
+        if (job.createdAt < luxon_1.DateTime.now().minus({ hours: 24 })) {
+            throw new BadRequestException_1.default('O ZIP expirou. Solicite um novo lote.', 404, 'spedy_export_expired');
+        }
+        try {
+            await promises_1.default.access((0, SpedyNfseExportService_1.exportPath)(job.id));
+        }
+        catch {
+            throw new BadRequestException_1.default('O ZIP expirou. Solicite um novo lote.', 404, 'spedy_export_expired');
+        }
+        response.header('Content-Type', 'application/zip');
+        return response.attachment((0, SpedyNfseExportService_1.exportPath)(job.id), job.fileName || `nfse-${job.id}.zip`);
     }
     async show({ auth, params }) {
         const user = await this.authenticateWithPermission(auth);

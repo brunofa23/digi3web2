@@ -55,6 +55,9 @@ Route_1.default.group(() => {
     Route_1.default.put('/spedy/service-invoices/defaults', 'Spedy/ServiceInvoicesController.saveDefaults');
     Route_1.default.get('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.index');
     Route_1.default.post('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.store');
+    Route_1.default.post('/spedy/service-invoices/exports', 'Spedy/ServiceInvoicesController.createExport');
+    Route_1.default.get('/spedy/service-invoices/exports/:jobId', 'Spedy/ServiceInvoicesController.exportStatus');
+    Route_1.default.get('/spedy/service-invoices/exports/:jobId/download', 'Spedy/ServiceInvoicesController.downloadExport');
     Route_1.default.get('/spedy/service-invoices/:id/xml', 'Spedy/ServiceInvoicesController.xml');
     Route_1.default.get('/spedy/service-invoices/:id/pdf', 'Spedy/ServiceInvoicesController.pdf');
     Route_1.default.get('/spedy/service-invoices/:id', 'Spedy/ServiceInvoicesController.show');
@@ -197,6 +200,7 @@ Route_1.default.group(() => {
     Route_1.default.resource('/people', 'PeopleController').apiOnly();
     Route_1.default.resource('/married-certificates', 'MarriedCertificatesController')
         .apiOnly();
+    Route_1.default.post('/order-certificates/birth/document-extract', 'BirthDocumentExtractionsController.store').middleware('auth');
     Route_1.default.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth');
     Route_1.default.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth');
     Route_1.default.get('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.showMarriage');

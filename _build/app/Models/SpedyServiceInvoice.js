@@ -123,6 +123,10 @@ __decorate([
     __metadata("design:type", Object)
 ], SpedyServiceInvoice.prototype, "effectiveDate", void 0);
 __decorate([
+    Orm_1.column.dateTime(),
+    __metadata("design:type", Object)
+], SpedyServiceInvoice.prototype, "issuedOn", void 0);
+__decorate([
     (0, Orm_1.column)({
         prepare: (value) => value === undefined ? null : JSON.stringify(value),
         consume: parseJson,
