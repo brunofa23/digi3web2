@@ -21,6 +21,9 @@ const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Doc
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
 const Receipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Receipt"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
+const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
+const Groupxpermission_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Groupxpermission"));
+const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash"));
 class OrderCertificatesController {
     async saveAverbations(raw, orderCertificateId, companiesId, trx) {
         let rows;
@@ -617,6 +620,10 @@ class OrderCertificatesController {
         const dateStartOrderCertificate = this.normalizeDateBoundary(request.input('dateStartOrderCertificate'), 'start');
         const dateEndOrderCertificate = this.normalizeDateBoundary(request.input('dateEndOrderCertificate'), 'end');
         const bookId = request.input('bookId') || null;
+        const bookIds = (request.input('bookIds', []) || [])
+            .map((id) => Number(id))
+            .filter((id) => Number.isInteger(id) && id > 0);
+        const onlyBookId = bookIds.length ? (bookIds.length === 1 ? bookIds[0] : null) : bookId;
         const cpf = request.input('cpf')
             ? String(request.input('cpf')).replace(/\D/g, '')
             : null;
@@ -746,7 +753,9 @@ class OrderCertificatesController {
         if (dateEndOrderCertificate) {
             query.andWhere('created_at', '<=', dateEndOrderCertificate);
         }
-        if (bookId)
+        if (bookIds.length)
+            query.whereIn('book_id', bookIds);
+        else if (bookId)
             query.andWhere('book_id', bookId);
         if (origin && ['internal', 'public'].includes(origin)) {
             query.andWhere('origin', origin);
@@ -955,12 +964,12 @@ class OrderCertificatesController {
                 });
             });
         }
-        if (cpf && Number(bookId) === 24) {
+        if (cpf && Number(onlyBookId) === 24) {
             query.whereHas('mandateCertificate', (mc) => mc.where('applicant_cpf', cpf));
         }
-        if (cpf && Number(bookId) === 25)
+        if (cpf && Number(onlyBookId) === 25)
             query.where('book_id', -1);
-        if (cpf && Number(bookId) !== 24 && Number(bookId) !== 25) {
+        if (cpf && Number(onlyBookId) !== 24 && Number(onlyBookId) !== 25) {
             query.whereNot('book_id', 25);
             query.where((q) => {
                 q.whereHas('marriedCertificate', (mc) => {
@@ -1017,14 +1026,14 @@ class OrderCertificatesController {
                 q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => mc.where('applicant_cpf', cpf)));
             });
         }
-        if (name && Number(bookId) === 24) {
+        if (name && Number(onlyBookId) === 24) {
             const likeName = `%${name}%`;
             query.whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName));
         }
-        if (name && Number(bookId) === 25) {
+        if (name && Number(onlyBookId) === 25) {
             query.whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', `%${name}%`));
         }
-        if (name && Number(bookId) !== 24 && Number(bookId) !== 25) {
+        if (name && Number(onlyBookId) !== 24 && Number(onlyBookId) !== 25) {
             const likeName = `%${name}%`;
             query.where((q) => q.whereNot('book_id', 25).orWhere((communication) => communication.where('book_id', 25).whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', likeName))));
             query.where((q) => {
@@ -1404,8 +1413,28 @@ class OrderCertificatesController {
         }
         return orderCertificate;
     }
-    async inactivate({ auth, params, response }) {
+    async inactivate({ auth, request, params, response }) {
         const user = await auth.use('api').authenticate();
+        const { username, password } = await request.validate({ schema: Validator_1.schema.create({
+                username: Validator_1.schema.string({ trim: true }, [Validator_1.rules.maxLength(45)]),
+                password: Validator_1.schema.string(),
+            }) });
+        const authorizer = await User_1.default.query()
+            .where('companies_id', user.companies_id)
+            .where('username', username).where('status', true).first();
+        if (!authorizer || !await Hash_1.default.verify(authorizer.password, password)) {
+            throw new BadRequestException_1.default('Usuário ou senha inválidos.', 403, 'order_certificate_inactivate_invalid_credentials');
+        }
+        if (!authorizer.superuser) {
+            const permission = await Groupxpermission_1.default.query()
+                .where('usergroup_id', authorizer.usergroup_id)
+                .where('permissiongroup_id', 48)
+                .where((q) => q.whereNull('companies_id').orWhere('companies_id', user.companies_id))
+                .first();
+            if (!permission) {
+                throw new BadRequestException_1.default('Usuário sem permissão para cancelar recibos e formulários.', 403, 'order_certificate_inactivate_forbidden');
+            }
+        }
         const orderCertificate = await Database_1.default.transaction(async (trx) => {
             const order = await OrderCertificate_1.default.query({ client: trx })
                 .where('id', params.id)
