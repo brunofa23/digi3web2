@@ -19,6 +19,9 @@ import Document from 'App/Models/Document'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 import Receipt from 'App/Models/Receipt'
 import BadRequestException from 'App/Exceptions/BadRequestException'
+import User from 'App/Models/User'
+import Groupxpermission from 'App/Models/Groupxpermission'
+import Hash from '@ioc:Adonis/Core/Hash'
 
 export default class OrderCertificatesController {
   private async saveAverbations(raw: any, orderCertificateId: number, companiesId: number, trx: TransactionClientContract) {
@@ -769,6 +772,10 @@ export default class OrderCertificatesController {
 
     //TIPO DE CERTIDÃO
     const bookId = request.input('bookId') || null
+    const bookIds = (request.input('bookIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+    const onlyBookId = bookIds.length ? (bookIds.length === 1 ? bookIds[0] : null) : bookId
 
     // pega cpf (se vier) e tira máscara
     const cpf = request.input('cpf')
@@ -946,7 +953,9 @@ export default class OrderCertificatesController {
       query.andWhere('created_at', '<=', dateEndOrderCertificate)
     }
 
-    if (bookId)
+    if (bookIds.length)
+      query.whereIn('book_id', bookIds)
+    else if (bookId)
       query.andWhere('book_id', bookId)
 
     if (origin && ['internal', 'public'].includes(origin)) {
@@ -1194,11 +1203,11 @@ export default class OrderCertificatesController {
 
     // ***********************************************************
     // 🔍 Filtro por CPF em marriedCertificate, bornCertificate ou secondcopyCertificate
-    if (cpf && Number(bookId) === 24) {
+    if (cpf && Number(onlyBookId) === 24) {
       query.whereHas('mandateCertificate', (mc) => mc.where('applicant_cpf', cpf))
     }
-    if (cpf && Number(bookId) === 25) query.where('book_id', -1)
-    if (cpf && Number(bookId) !== 24 && Number(bookId) !== 25) {
+    if (cpf && Number(onlyBookId) === 25) query.where('book_id', -1)
+    if (cpf && Number(onlyBookId) !== 24 && Number(onlyBookId) !== 25) {
       query.whereNot('book_id', 25)
       query.where((q) => {
         // --- marriedCertificate: groom ou bride ---
@@ -1264,14 +1273,14 @@ export default class OrderCertificatesController {
 
     // ***********************************************************
     // 🔍 Filtro por NAME em marriedCertificate, bornCertificate ou secondcopyCertificate
-    if (name && Number(bookId) === 24) {
+    if (name && Number(onlyBookId) === 24) {
       const likeName = `%${name}%`
       query.whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName))
     }
-    if (name && Number(bookId) === 25) {
+    if (name && Number(onlyBookId) === 25) {
       query.whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', `%${name}%`))
     }
-    if (name && Number(bookId) !== 24 && Number(bookId) !== 25) {
+    if (name && Number(onlyBookId) !== 24 && Number(onlyBookId) !== 25) {
       const likeName = `%${name}%`
 
       query.where((q) => q.whereNot('book_id', 25).orWhere((communication) =>
@@ -1723,8 +1732,28 @@ export default class OrderCertificatesController {
     return orderCertificate
   }
 
-  public async inactivate({ auth, params, response }: HttpContextContract) {
+  public async inactivate({ auth, request, params, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
+    const { username, password } = await request.validate({ schema: schema.create({
+      username: schema.string({ trim: true }, [rules.maxLength(45)]),
+      password: schema.string(),
+    }) })
+    const authorizer = await User.query()
+      .where('companies_id', user.companies_id)
+      .where('username', username).where('status', true).first()
+    if (!authorizer || !await Hash.verify(authorizer.password, password)) {
+      throw new BadRequestException('Usuário ou senha inválidos.', 403, 'order_certificate_inactivate_invalid_credentials')
+    }
+    if (!authorizer.superuser) {
+      const permission = await Groupxpermission.query()
+        .where('usergroup_id', authorizer.usergroup_id)
+        .where('permissiongroup_id', 48)
+        .where((q) => q.whereNull('companies_id').orWhere('companies_id', user.companies_id))
+        .first()
+      if (!permission) {
+        throw new BadRequestException('Usuário sem permissão para cancelar recibos e formulários.', 403, 'order_certificate_inactivate_forbidden')
+      }
+    }
 
     const orderCertificate = await Database.transaction(async (trx) => {
       const order = await OrderCertificate.query({ client: trx })
