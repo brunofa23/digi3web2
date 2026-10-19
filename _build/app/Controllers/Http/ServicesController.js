@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const Service_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Service"));
 const Emolument_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Emolument"));
 const ServiceValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/ServiceValidator"));
@@ -31,7 +32,21 @@ class ServicesController {
                 });
             }
             const items = await query;
-            return response.status(200).send(items);
+            if (!items.length)
+                return response.status(200).send([]);
+            const totals = await Database_1.default.from('emolument_service as es')
+                .innerJoin('emoluments as e', 'e.id', 'es.emolument_id')
+                .where('es.companies_id', authenticate.companies_id)
+                .where('e.companies_id', authenticate.companies_id)
+                .whereIn('es.service_id', items.map((item) => item.id))
+                .groupBy('es.service_id')
+                .select('es.service_id')
+                .sum('e.price as total');
+            const totalsByService = new Map(totals.map((row) => [Number(row.service_id), Number(row.total)]));
+            return response.status(200).send(items.map((item) => ({
+                ...item.serialize(),
+                emolumentsTotal: totalsByService.get(item.id) ?? 0,
+            })));
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request', 400, 'erro ao listar serviços');

@@ -4,12 +4,12 @@ exports.extractBirthDocument = void 0;
 const googleVision_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/googleVision");
 const AiFieldExtractor_1 = require("./AiFieldExtractor");
 const luxon_1 = require("luxon");
-const personFields = ['name', 'cpf', 'dateBirth', 'gender', 'nationality', 'documentType', 'documentNumber'];
+const personFields = ['name', 'cpf', 'dateBirth', 'birthCity', 'gender', 'nationality', 'documentType', 'documentNumber'];
 const addressFields = ['holderName', 'zipCode', 'address', 'streetNumber', 'district', 'city', 'state'];
 const documentFields = {
     DocumentRegistered: personFields,
     DnvDocument: ['dnvNumber'],
-    DocumentFiliation1: personFields,
+    DocumentFiliation1: [...personFields, 'grandfatherFiliation1', 'grandmotherFiliation1'],
     ProofResidenceFiliation1: addressFields,
     DocumentFiliation2: personFields,
     ProofResidenceFiliation2: addressFields,
@@ -17,13 +17,13 @@ const documentFields = {
     ProofResidenceDeclarant: addressFields,
 };
 const documentContext = {
-    DocumentRegistered: 'Documento de identidade do registrado. Extraia os dados do titular, sem atribuir a ele dados dos pais.',
+    DocumentRegistered: 'Documento de identidade do registrado. Extraia os dados do titular, sem atribuir a ele dados dos pais. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão.',
     DnvDocument: 'Declaração de Nascido Vivo manuscrita. Extraia somente o número da DNV se estiver legível.',
-    DocumentFiliation1: 'Documento de identidade da pessoa indicada como filiação 1. Extraia os dados do titular.',
+    DocumentFiliation1: 'Documento de identidade da pessoa indicada como filiação 1. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão. Os pais do titular são os avós da criança: o pai do titular é grandfatherFiliation1 e a mãe do titular é grandmotherFiliation1. Use apenas a filiação explicitamente identificada no documento.',
     ProofResidenceFiliation1: 'Comprovante de endereço apresentado para filiação 1. O titular pode ser outra pessoa; informe holderName separadamente.',
-    DocumentFiliation2: 'Documento de identidade da pessoa indicada como filiação 2. Extraia os dados do titular.',
+    DocumentFiliation2: 'Documento de identidade da pessoa indicada como filiação 2. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão.',
     ProofResidenceFiliation2: 'Comprovante de endereço apresentado para filiação 2. O titular pode ser outra pessoa; informe holderName separadamente.',
-    DocumentDeclarant: 'Documento de identidade do declarante. Extraia os dados do titular.',
+    DocumentDeclarant: 'Documento de identidade do declarante. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão.',
     ProofResidenceDeclarant: 'Comprovante de endereço apresentado para o declarante. O titular pode ser outra pessoa; informe holderName separadamente.',
 };
 function validCpf(value) {
@@ -42,8 +42,10 @@ function cleanField(item, allowed, text) {
         return null;
     let value = item.value.trim().slice(0, 255);
     const evidence = item.evidence.trim().slice(0, 300);
-    const normalize = (source) => source.replace(/\s+/g, ' ').trim().toLocaleLowerCase('pt-BR');
+    const normalize = (source) => source.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('pt-BR');
     if (!value || !evidence || !normalize(text).includes(normalize(evidence)))
+        return null;
+    if (['birthCity', 'grandfatherFiliation1', 'grandmotherFiliation1'].includes(item.field) && !normalize(evidence).includes(normalize(value)))
         return null;
     if (item.field === 'cpf') {
         value = value.replace(/\D/g, '');
