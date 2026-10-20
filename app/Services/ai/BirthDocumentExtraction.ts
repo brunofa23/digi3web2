@@ -10,7 +10,7 @@ const documentFields: Record<string, string[]> = {
   DnvDocument: ['dnvNumber'],
   DocumentFiliation1: [...personFields, 'grandfatherFiliation1', 'grandmotherFiliation1'],
   ProofResidenceFiliation1: addressFields,
-  DocumentFiliation2: personFields,
+  DocumentFiliation2: [...personFields, 'grandfatherFiliation2', 'grandmotherFiliation2'],
   ProofResidenceFiliation2: addressFields,
   DocumentDeclarant: personFields,
   ProofResidenceDeclarant: addressFields,
@@ -21,7 +21,7 @@ const documentContext: Record<string, string> = {
   DnvDocument: 'Declaração de Nascido Vivo manuscrita. Extraia somente o número da DNV se estiver legível.',
   DocumentFiliation1: 'Documento de identidade da pessoa indicada como filiação 1. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão. Os pais do titular são os avós da criança: o pai do titular é grandfatherFiliation1 e a mãe do titular é grandmotherFiliation1. Use apenas a filiação explicitamente identificada no documento.',
   ProofResidenceFiliation1: 'Comprovante de endereço apresentado para filiação 1. O titular pode ser outra pessoa; informe holderName separadamente.',
-  DocumentFiliation2: 'Documento de identidade da pessoa indicada como filiação 2. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão.',
+  DocumentFiliation2: 'Documento de identidade da pessoa indicada como filiação 2. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão. Os pais do titular são os avós da criança: o pai do titular é grandfatherFiliation2 e a mãe do titular é grandmotherFiliation2. Use apenas a filiação explicitamente identificada no documento.',
   ProofResidenceFiliation2: 'Comprovante de endereço apresentado para filiação 2. O titular pode ser outra pessoa; informe holderName separadamente.',
   DocumentDeclarant: 'Documento de identidade do declarante. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão.',
   ProofResidenceDeclarant: 'Comprovante de endereço apresentado para o declarante. O titular pode ser outra pessoa; informe holderName separadamente.',
@@ -43,7 +43,7 @@ function cleanField(item: ExtractedField, allowed: string[], text: string): Extr
   const evidence = item.evidence.trim().slice(0, 300)
   const normalize = (source: string) => source.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('pt-BR')
   if (!value || !evidence || !normalize(text).includes(normalize(evidence))) return null
-  if (['birthCity', 'grandfatherFiliation1', 'grandmotherFiliation1'].includes(item.field) && !normalize(evidence).includes(normalize(value))) return null
+  if (['birthCity', 'grandfatherFiliation1', 'grandmotherFiliation1', 'grandfatherFiliation2', 'grandmotherFiliation2'].includes(item.field) && !normalize(evidence).includes(normalize(value))) return null
   if (item.field === 'cpf') {
     value = value.replace(/\D/g, '')
     if (!validCpf(value)) return null
