@@ -342,6 +342,9 @@ Route.group(() => {
   Route.post('/averbation-descriptions', 'AverbationDescriptionsController.store')
   Route.patch('/averbation-descriptions/:id', 'AverbationDescriptionsController.update')
 
+  // MUNICÍPIOS
+  Route.get('/municipalities', 'MunicipalitiesController.index')
+
 
   //TOKENS_DEVICES
   Route.get('/tokens-devices/authorized', 'TokensDevicesController.authorizedDevices').middleware('auth')
