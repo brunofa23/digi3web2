@@ -34,6 +34,7 @@ export default class ReceiptsController {
       dateEnd: schema.date({ format: 'yyyy-MM-dd' }),
       valueType: schema.enum(['value', 'withoutValue'] as const),
       unsealedOnly: schema.boolean.optional(),
+      transferOfFunds: schema.enum.optional(['all', 'transfer', 'exclude'] as const),
     }) })
 
     if (filters.dateEnd < filters.dateStart) {
@@ -43,7 +44,11 @@ export default class ReceiptsController {
     const start = filters.dateStart.toISODate()!
     const end = filters.dateEnd.toISODate()!
     const dateColumn = filters.dateType === 'stamp' ? 'date_stamp' : 'date_protocol'
-    const totalExpression = '(SELECT COALESCE(SUM(ri.qtde * ri.amount), 0) FROM receipt_items ri WHERE ri.receipt_id = receipts.id AND ri.companies_id = receipts.companies_id)'
+    const transferFilter = filters.transferOfFunds === 'transfer' ? 1 : 0
+    const filterItems = filters.transferOfFunds === 'transfer' || filters.transferOfFunds === 'exclude'
+    const totalExpression = filterItems
+      ? `(SELECT COALESCE(SUM(ri.qtde * ri.amount), 0) FROM receipt_items ri INNER JOIN emoluments e ON e.id = ri.emolument_id AND e.companies_id = ri.companies_id WHERE ri.receipt_id = receipts.id AND ri.companies_id = receipts.companies_id AND e.transfer_of_found = ${transferFilter})`
+      : '(SELECT COALESCE(SUM(ri.qtde * ri.amount), 0) FROM receipt_items ri WHERE ri.receipt_id = receipts.id AND ri.companies_id = receipts.companies_id)'
     const page = Math.max(1, Number(request.input('page', 1)) || 1)
 
     const query = Receipt.query()
@@ -51,10 +56,25 @@ export default class ReceiptsController {
       .where((q) => q.whereNull('status').orWhereNotIn('status', ['CANCELADO', 'EXCLUIDO']))
       .whereNotNull(dateColumn)
       .whereRaw(`${totalExpression} ${filters.valueType === 'value' ? '>' : '='} ?`, [0])
-      .preload('service', (serviceQuery) => serviceQuery.preload('emoluments'))
-      .preload('items')
       .orderBy(dateColumn, 'asc')
       .orderBy('id', 'asc')
+
+    if (filterItems) {
+      query.whereHas('items', (itemsQuery) => itemsQuery
+        .where('companies_id', user.companies_id)
+        .whereHas('emolument', (emolumentQuery) => emolumentQuery
+          .where('companies_id', user.companies_id)
+          .where('transfer_of_found', transferFilter)))
+      query.preload('items', (itemsQuery) => itemsQuery
+        .where('companies_id', user.companies_id)
+        .whereHas('emolument', (emolumentQuery) => emolumentQuery
+          .where('companies_id', user.companies_id)
+          .where('transfer_of_found', transferFilter))
+        .preload('emolument'))
+    } else {
+      query.preload('service', (serviceQuery) => serviceQuery.preload('emoluments'))
+        .preload('items')
+    }
 
     if (filters.dateType === 'stamp') {
       query.whereBetween('date_stamp', [start, end])
@@ -73,7 +93,7 @@ export default class ReceiptsController {
         book: receipt.book ?? null,
         sheet: receipt.sheet ?? null,
         dateProtocol: receipt.dateProtocol ?? null,
-        actCodes: [...new Set((receipt.service?.emoluments ?? [])
+        actCodes: [...new Set((filterItems ? receipt.items.map((item) => item.emolument) : (receipt.service?.emoluments ?? []))
           .filter((emolument) => emolument.type === 'EMOLUMENTOS')
           .map((emolument) => String(emolument.code ?? '').trim())
           .filter(Boolean))].join(','),
@@ -90,6 +110,7 @@ export default class ReceiptsController {
       dateEnd: schema.date({ format: 'yyyy-MM-dd' }),
       valueType: schema.enum(['value', 'withoutValue'] as const),
       unsealedOnly: schema.boolean.optional(),
+      transferOfFunds: schema.enum.optional(['all', 'transfer', 'exclude'] as const),
     }) })
 
     if (filters.dateEnd < filters.dateStart) {
@@ -99,7 +120,11 @@ export default class ReceiptsController {
     const start = filters.dateStart.toISODate()!
     const end = filters.dateEnd.toISODate()!
     const dateColumn = filters.dateType === 'stamp' ? 'r.date_stamp' : 'r.date_protocol'
-    const totalExpression = '(SELECT COALESCE(SUM(items.qtde * items.amount), 0) FROM receipt_items items WHERE items.receipt_id = r.id AND items.companies_id = r.companies_id)'
+    const filterItems = filters.transferOfFunds === 'transfer' || filters.transferOfFunds === 'exclude'
+    const transferFilter = filters.transferOfFunds === 'transfer' ? 1 : 0
+    const totalExpression = filterItems
+      ? `(SELECT COALESCE(SUM(items.qtde * items.amount), 0) FROM receipt_items items INNER JOIN emoluments filtered_emoluments ON filtered_emoluments.id = items.emolument_id AND filtered_emoluments.companies_id = items.companies_id WHERE items.receipt_id = r.id AND items.companies_id = r.companies_id AND filtered_emoluments.transfer_of_found = ${transferFilter})`
+      : '(SELECT COALESCE(SUM(items.qtde * items.amount), 0) FROM receipt_items items WHERE items.receipt_id = r.id AND items.companies_id = r.companies_id)'
     const query = Database.from('receipt_items as ri')
       .innerJoin('receipts as r', 'r.id', 'ri.receipt_id')
       .innerJoin('emoluments as e', 'e.id', 'ri.emolument_id')
@@ -109,9 +134,9 @@ export default class ReceiptsController {
       .where((q) => q.whereNull('r.status').orWhereNotIn('r.status', ['CANCELADO', 'EXCLUIDO']))
       .whereNotNull(dateColumn)
       .whereRaw(`${totalExpression} ${filters.valueType === 'value' ? '>' : '='} ?`, [0])
-      .select('e.id as code', 'e.name as name', 'e.code as actCode', 'e.type as type')
+      .select('e.id as code', 'e.name as name', 'e.code as actCode', 'e.type as type', 'e.transfer_of_found as transferOfFunds')
       .select(Database.raw('SUM(ri.qtde) AS quantity'), Database.raw('SUM(ri.qtde * ri.amount) AS total'))
-      .groupBy('e.id', 'e.name', 'e.code', 'e.type')
+      .groupBy('e.id', 'e.name', 'e.code', 'e.type', 'e.transfer_of_found')
       .orderBy('e.type', 'asc')
       .orderBy('e.id', 'asc')
 
@@ -121,6 +146,10 @@ export default class ReceiptsController {
       query.where('r.date_protocol', '>=', `${start} 00:00:00`)
         .where('r.date_protocol', '<', filters.dateEnd.plus({ days: 1 }).toFormat('yyyy-MM-dd 00:00:00'))
       if (filters.unsealedOnly) query.whereNull('r.date_stamp')
+    }
+
+    if (filterItems) {
+      query.where('e.transfer_of_found', transferFilter)
     }
 
     return response.ok(await query)
