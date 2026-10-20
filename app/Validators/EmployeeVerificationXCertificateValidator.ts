@@ -20,6 +20,12 @@ export default class EmployeeVerificationXCertificateValidator {
     mandateCertificateId: schema.number.optional([
       rules.unsigned(), rules.exists({ table: 'mandate_certificates', column: 'id' }),
     ]),
+    secondcopyCertificateId: schema.number.optional([
+      rules.unsigned(), rules.exists({ table: 'secondcopy_certificates', column: 'id' }),
+    ]),
+    communicationCertificateId: schema.number.optional([
+      rules.unsigned(), rules.exists({ table: 'communication_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: schema.number([
       rules.unsigned(),
       rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -48,6 +54,12 @@ export default class EmployeeVerificationXCertificateValidator {
     mandateCertificateId: schema.number.optional([
       rules.unsigned(), rules.exists({ table: 'mandate_certificates', column: 'id' }),
     ]),
+    secondcopyCertificateId: schema.number.optional([
+      rules.unsigned(), rules.exists({ table: 'secondcopy_certificates', column: 'id' }),
+    ]),
+    communicationCertificateId: schema.number.optional([
+      rules.unsigned(), rules.exists({ table: 'communication_certificates', column: 'id' }),
+    ]),
     employeeVerificationId: schema.number.optional([
       rules.unsigned(),
       rules.exists({ table: 'employee_verifications', column: 'id' }),
@@ -63,6 +75,8 @@ export default class EmployeeVerificationXCertificateValidator {
   public static messages = {
     'bornCertificateId.exists': 'O certificado de nascimento informado não foi encontrado',
     'deathCertificateId.exists': 'O certificado de óbito informado não foi encontrado',
+    'secondcopyCertificateId.exists': 'O certificado de segunda via informado não foi encontrado',
+    'communicationCertificateId.exists': 'A comunicação informada não foi encontrada',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
     'date.required': 'O campo date é obrigatório',
 

@@ -17,6 +17,11 @@ import AverbationDescription from 'App/Models/AverbationDescription'
 import DocumentTypeBook from 'App/Models/DocumentTypeBook'
 import Document from 'App/Models/Document'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
+import Receipt from 'App/Models/Receipt'
+import BadRequestException from 'App/Exceptions/BadRequestException'
+import User from 'App/Models/User'
+import Groupxpermission from 'App/Models/Groupxpermission'
+import Hash from '@ioc:Adonis/Core/Hash'
 
 export default class OrderCertificatesController {
   private async saveAverbations(raw: any, orderCertificateId: number, companiesId: number, trx: TransactionClientContract) {
@@ -768,6 +773,10 @@ export default class OrderCertificatesController {
 
     //TIPO DE CERTIDÃO
     const bookId = request.input('bookId') || null
+    const bookIds = (request.input('bookIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+    const onlyBookId = bookIds.length ? (bookIds.length === 1 ? bookIds[0] : null) : bookId
 
     // pega cpf (se vier) e tira máscara
     const cpf = request.input('cpf')
@@ -848,6 +857,13 @@ export default class OrderCertificatesController {
     if (Number.isInteger(employeeVerificationId) && employeeVerificationId > 0) {
       employeeVerificationIds.push(employeeVerificationId)
     }
+    const employeeVerificationCertificateIds = (request.input('employeeVerificationCertificateIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+    const employeeVerificationReceiptIds = (request.input('employeeVerificationReceiptIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
+    const employeeVerificationReceiptItem = Number(request.input('employeeVerificationReceiptItem'))
 
     // emolument code (para filtrar por código de emolumento)
     const emolumentCode = request.input('emolumentCode') || null
@@ -855,6 +871,7 @@ export default class OrderCertificatesController {
     const orderCertificateId = request.input('id') || null
     const codeStart = Number(request.input('codeStart'))
     const codeEnd = Number(request.input('codeEnd'))
+    const inactive = this.toBoolean(request.input('inactive'))
 
     const query = OrderCertificate.query()
       .if(orderCertificateId, (orderQuery) => orderQuery.where('order_certificates.id', orderCertificateId))
@@ -922,6 +939,7 @@ export default class OrderCertificatesController {
         })
       })
       .where('companies_id', authenticate.companies_id)
+      .where('order_certificates.inactive', inactive)
 
     if (Number.isSafeInteger(codeStart) && codeStart > 0)
       query.andWhere('order_certificates.id', '>=', codeStart)
@@ -936,7 +954,9 @@ export default class OrderCertificatesController {
       query.andWhere('created_at', '<=', dateEndOrderCertificate)
     }
 
-    if (bookId)
+    if (bookIds.length)
+      query.whereIn('book_id', bookIds)
+    else if (bookId)
       query.andWhere('book_id', bookId)
 
     if (origin && ['internal', 'public'].includes(origin)) {
@@ -1118,6 +1138,58 @@ export default class OrderCertificatesController {
       })
     }
 
+    if (employeeVerificationCertificateIds.length) {
+      query.where((q) => {
+        q.whereHas('marriedCertificate', (mc) => mc.whereHas('employeeVerificationXCertificates', (evxc) => {
+          evxc.whereIn('employeeVerificationId', employeeVerificationCertificateIds)
+            .where('companiesId', authenticate.companies_id)
+            .whereHas('employeeVerification', (ev) => ev.where('local', 'certificate'))
+        }))
+        q.orWhereHas('bornCertificate', (bc) => bc.whereHas('employeeVerificationXCertificates', (evxc) => {
+          evxc.whereIn('employeeVerificationId', employeeVerificationCertificateIds)
+            .where('companiesId', authenticate.companies_id)
+            .whereHas('employeeVerification', (ev) => ev.where('local', 'certificate'))
+        }))
+        q.orWhereHas('deathCertificate', (dc) => dc.whereHas('employeeVerificationXCertificates', (evxc) => {
+          evxc.whereIn('employeeVerificationId', employeeVerificationCertificateIds)
+            .where('companiesId', authenticate.companies_id)
+            .whereHas('employeeVerification', (ev) => ev.where('local', 'certificate'))
+        }))
+        q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => {
+          mc.whereHas('employeeVerificationXCertificates', (evxc) => {
+            evxc.whereIn('employeeVerificationId', employeeVerificationCertificateIds)
+              .where('companiesId', authenticate.companies_id)
+              .whereHas('employeeVerification', (ev) => ev.where('local', 'certificate'))
+          })
+        }))
+      })
+    }
+
+    if (employeeVerificationReceiptIds.length) {
+      query.whereHas('receipt', (r) => r.whereHas('employeeVerificationXReceipts', (evxr) => {
+        evxr.whereIn('employeeVerificationId', employeeVerificationReceiptIds)
+          .where('companiesId', authenticate.companies_id)
+          .whereHas('employeeVerification', (ev) => ev.where('local', 'receipt'))
+        if (Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
+          evxr.where('item', employeeVerificationReceiptItem)
+        }
+      }))
+    }
+
+    if (!employeeVerificationReceiptIds.length && Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
+      query.whereHas('receipt', (r) => r.whereHas('employeeVerificationXReceipts', (evxr) => {
+        evxr.where('item', employeeVerificationReceiptItem)
+          .where('companiesId', authenticate.companies_id)
+      }))
+    }
+
+    if (Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
+      query.whereHas('receipt', (r) => r.whereDoesntHave('employeeVerificationXReceipts', (evxr) => {
+        evxr.where('item', '>', employeeVerificationReceiptItem)
+          .where('companiesId', authenticate.companies_id)
+      }))
+    }
+
     // ✅ Filtro por código de EMOLUMENT (via receipt_items -> emoluments)
     if (emolumentCode) {
       query.whereHas('receipt', (r) => {
@@ -1132,11 +1204,11 @@ export default class OrderCertificatesController {
 
     // ***********************************************************
     // 🔍 Filtro por CPF em marriedCertificate, bornCertificate ou secondcopyCertificate
-    if (cpf && Number(bookId) === 24) {
+    if (cpf && Number(onlyBookId) === 24) {
       query.whereHas('mandateCertificate', (mc) => mc.where('applicant_cpf', cpf))
     }
-    if (cpf && Number(bookId) === 25) query.where('book_id', -1)
-    if (cpf && Number(bookId) !== 24 && Number(bookId) !== 25) {
+    if (cpf && Number(onlyBookId) === 25) query.where('book_id', -1)
+    if (cpf && Number(onlyBookId) !== 24 && Number(onlyBookId) !== 25) {
       query.whereNot('book_id', 25)
       query.where((q) => {
         // --- marriedCertificate: groom ou bride ---
@@ -1202,14 +1274,14 @@ export default class OrderCertificatesController {
 
     // ***********************************************************
     // 🔍 Filtro por NAME em marriedCertificate, bornCertificate ou secondcopyCertificate
-    if (name && Number(bookId) === 24) {
+    if (name && Number(onlyBookId) === 24) {
       const likeName = `%${name}%`
       query.whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName))
     }
-    if (name && Number(bookId) === 25) {
+    if (name && Number(onlyBookId) === 25) {
       query.whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', `%${name}%`))
     }
-    if (name && Number(bookId) !== 24 && Number(bookId) !== 25) {
+    if (name && Number(onlyBookId) !== 24 && Number(onlyBookId) !== 25) {
       const likeName = `%${name}%`
 
       query.where((q) => q.whereNot('book_id', 25).orWhere((communication) =>
@@ -1297,6 +1369,9 @@ export default class OrderCertificatesController {
     const mandateCertificateIds = orders
       .filter((order) => Number(order.bookId) === 24 && order.certificateId)
       .map((order) => order.certificateId)
+    const secondcopyCertificateIds = orders
+      .filter((order) => Number(order.bookId) === 21 && order.certificateId)
+      .map((order) => order.certificateId)
     const communicationCertificateIds = orders
       .filter((order) => Number(order.bookId) === 25 && order.certificateId)
       .map((order) => order.certificateId)
@@ -1311,6 +1386,8 @@ export default class OrderCertificatesController {
     const latestEmployeeVerificationByBornCertificate = new Map<number, any>()
     const latestEmployeeVerificationByDeathCertificate = new Map<number, any>()
     const latestEmployeeVerificationByMandateCertificate = new Map<number, any>()
+    const latestEmployeeVerificationBySecondcopyCertificate = new Map<number, any>()
+    const latestEmployeeVerificationByCommunicationCertificate = new Map<number, any>()
     const latestEmployeeVerificationByReceipt = new Map<number, any>()
     const mandateCertificates = new Map<number, any>()
     const communicationCertificates = new Map<number, any>()
@@ -1366,7 +1443,7 @@ export default class OrderCertificatesController {
       counts.forEach((row) => mandateImageCounts.set(Number(row.mandate_certificate_id), Number(row.total ?? 0)))
     }
 
-    if (marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length) {
+    if (marriedCertificateIds.length || bornCertificateIds.length || deathCertificateIds.length || mandateCertificateIds.length || secondcopyCertificateIds.length || communicationCertificateIds.length) {
       const certificateVerificationsQuery = Database
         .from('employee_verification_x_certificates as evxc')
         .leftJoin('employee_verifications as ev', 'ev.id', 'evxc.employee_verification_id')
@@ -1375,6 +1452,8 @@ export default class OrderCertificatesController {
           'evxc.married_certificate_id',
           'evxc.born_certificate_id',
           'evxc.death_certificate_id',
+          'evxc.secondcopy_certificate_id',
+          'evxc.communication_certificate_id',
           'evxc.status',
           'evxc.date',
           'ev.description',
@@ -1399,11 +1478,13 @@ export default class OrderCertificatesController {
         if (mandateCertificateIds.length) {
           q.orWhereIn('evxc.mandate_certificate_id', mandateCertificateIds)
         }
+        if (secondcopyCertificateIds.length) {
+          q.orWhereIn('evxc.secondcopy_certificate_id', secondcopyCertificateIds)
+        }
+        if (communicationCertificateIds.length) {
+          q.orWhereIn('evxc.communication_certificate_id', communicationCertificateIds)
+        }
       })
-
-      if (employeeVerificationIds.length) {
-        certificateVerificationsQuery.whereIn('evxc.employee_verification_id', employeeVerificationIds)
-      }
 
       const certificateVerifications = await certificateVerificationsQuery
 
@@ -1453,6 +1534,14 @@ export default class OrderCertificatesController {
           const id = Number(row.mandate_certificate_id)
           latestEmployeeVerificationByMandateCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationByMandateCertificate.get(id) ?? null, candidate))
         }
+        if (row.secondcopy_certificate_id) {
+          const id = Number(row.secondcopy_certificate_id)
+          latestEmployeeVerificationBySecondcopyCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationBySecondcopyCertificate.get(id) ?? null, candidate))
+        }
+        if (row.communication_certificate_id) {
+          const id = Number(row.communication_certificate_id)
+          latestEmployeeVerificationByCommunicationCertificate.set(id, this.getLatestEmployeeVerification(latestEmployeeVerificationByCommunicationCertificate.get(id) ?? null, candidate))
+        }
       })
     }
 
@@ -1469,10 +1558,6 @@ export default class OrderCertificatesController {
         ])
         .where('evxr.companies_id', authenticate.companies_id)
         .whereIn('evxr.receipt_id', receiptIds)
-
-      if (employeeVerificationIds.length) {
-        receiptVerificationsQuery.whereIn('evxr.employee_verification_id', employeeVerificationIds)
-      }
 
       const receiptVerifications = await receiptVerificationsQuery
 
@@ -1517,8 +1602,10 @@ export default class OrderCertificatesController {
           ? latestEmployeeVerificationByDeathCertificate.get(Number(order.certificateId))
           : bookId === 24
             ? latestEmployeeVerificationByMandateCertificate.get(Number(order.certificateId))
+          : bookId === 21
+            ? latestEmployeeVerificationBySecondcopyCertificate.get(Number(order.certificateId))
           : bookId === 25
-            ? null
+            ? latestEmployeeVerificationByCommunicationCertificate.get(Number(order.certificateId))
           : latestEmployeeVerificationByMarriedCertificate.get(Number(order.certificateId))
       const receiptVerification = json.receipt?.id
         ? latestEmployeeVerificationByReceipt.get(Number(json.receipt.id))
@@ -1540,6 +1627,8 @@ export default class OrderCertificatesController {
 
       json.imageCertificatesCount = imageCertificatesCount
       json.latestEmployeeVerification = latestEmployeeVerification ?? null
+      json.latestEmployeeVerificationCertificate = certificateVerification ?? null
+      json.latestEmployeeVerificationReceipt = receiptVerification ?? null
       if (json.marriedCertificate) {
         json.marriedCertificate.imageCertificatesCount = imageCertificatesCount
       }
@@ -1642,6 +1731,60 @@ export default class OrderCertificatesController {
     }
 
     return orderCertificate
+  }
+
+  public async inactivate({ auth, request, params, response }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
+    const { username, password } = await request.validate({ schema: schema.create({
+      username: schema.string({ trim: true }, [rules.maxLength(45)]),
+      password: schema.string(),
+    }) })
+    const authorizer = await User.query()
+      .where('companies_id', user.companies_id)
+      .where('username', username).where('status', true).first()
+    if (!authorizer || !await Hash.verify(authorizer.password, password)) {
+      throw new BadRequestException('Usuário ou senha inválidos.', 403, 'order_certificate_inactivate_invalid_credentials')
+    }
+    if (!authorizer.superuser) {
+      const permission = await Groupxpermission.query()
+        .where('usergroup_id', authorizer.usergroup_id)
+        .where('permissiongroup_id', 48)
+        .where((q) => q.whereNull('companies_id').orWhere('companies_id', user.companies_id))
+        .first()
+      if (!permission) {
+        throw new BadRequestException('Usuário sem permissão para cancelar recibos e formulários.', 403, 'order_certificate_inactivate_forbidden')
+      }
+    }
+
+    const orderCertificate = await Database.transaction(async (trx) => {
+      const order = await OrderCertificate.query({ client: trx })
+        .where('id', params.id)
+        .where('companies_id', user.companies_id)
+        .forUpdate()
+        .firstOrFail()
+
+      if (order.inactive) {
+        throw new BadRequestException('Formulário já inativo.', 409, 'order_certificate_inactive')
+      }
+
+      const activeReceipts = await Receipt.query({ client: trx })
+        .where('companies_id', user.companies_id)
+        .where('order_certificate_id', order.id)
+        .where((query) => query.whereNull('status').orWhereNotIn('status', ['EXCLUIDO', 'CANCELADO']))
+
+      if (activeReceipts.some((receipt) => receipt.dateStamp || receipt.stamps?.trim() || receipt.status === 'SELADO')) {
+        throw new BadRequestException('Formulário com recibo selado não pode ser inativado.', 409, 'order_certificate_sealed')
+      }
+      if (activeReceipts.length) {
+        throw new BadRequestException('Cancele o recibo antes de inativar o formulário.', 409, 'order_certificate_active_receipt')
+      }
+
+      order.inactive = true
+      await order.save()
+      return order
+    })
+
+    return response.ok(orderCertificate)
   }
 
   // =====================================================
@@ -1932,6 +2075,9 @@ export default class OrderCertificatesController {
     if (!orderCertificate || orderCertificate.companiesId !== user.companies_id) {
       return response.notFound({ message: 'Pedido não encontrado' })
     }
+    if (orderCertificate.inactive) {
+      return response.status(409).send({ message: 'Formulário inativo não pode ser alterado.' })
+    }
 
     const body = request.body()
 
@@ -1957,6 +2103,11 @@ export default class OrderCertificatesController {
 
     try {
       await Database.transaction(async (trx) => {
+        const lockedOrder = await OrderCertificate.query({ client: trx })
+          .where('id', orderCertificate.id).where('companies_id', user.companies_id).forUpdate().firstOrFail()
+        if (lockedOrder.inactive) {
+          throw new BadRequestException('Formulário inativo não pode ser alterado.', 409, 'order_certificate_inactive')
+        }
         orderCertificate.useTransaction(trx)
 
         // ⚠️ não zera certificateId se não veio no body
@@ -2216,6 +2367,7 @@ export default class OrderCertificatesController {
 
       return orderCertificate
     } catch (error: any) {
+      if (error.code === 'order_certificate_inactive') throw error
       if (String(error.message || '').startsWith('Averbações:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Comunicação:')) return response.status(422).send({ message: error.message })

@@ -1,5 +1,6 @@
 // app/Controllers/Http/ServicesController.ts
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import Database from '@ioc:Adonis/Lucid/Database'
 import Service from 'App/Models/Service'
 import Emolument from 'App/Models/Emolument'
 import ServiceValidator from 'App/Validators/ServiceValidator'
@@ -34,7 +35,22 @@ export default class ServicesController {
       }
 
       const items = await query
-      return response.status(200).send(items)
+      if (!items.length) return response.status(200).send([])
+
+      const totals = await Database.from('emolument_service as es')
+        .innerJoin('emoluments as e', 'e.id', 'es.emolument_id')
+        .where('es.companies_id', authenticate.companies_id)
+        .where('e.companies_id', authenticate.companies_id)
+        .whereIn('es.service_id', items.map((item) => item.id))
+        .groupBy('es.service_id')
+        .select('es.service_id')
+        .sum('e.price as total')
+
+      const totalsByService = new Map(totals.map((row) => [Number(row.service_id), Number(row.total)]))
+      return response.status(200).send(items.map((item) => ({
+        ...item.serialize(),
+        emolumentsTotal: totalsByService.get(item.id) ?? 0,
+      })))
     } catch (error) {
       throw new BadRequestException('Bad Request', 400, 'erro ao listar serviços')
     }

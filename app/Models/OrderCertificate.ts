@@ -73,6 +73,9 @@ export default class OrderCertificate extends BaseModel {
   @column()
   public bookId: number
 
+  @column()
+  public inactive: boolean
+
   @belongsTo(() => Company, { foreignKey: 'companiesId' })
   public company: BelongsTo<typeof Company>
 

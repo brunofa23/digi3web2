@@ -62,6 +62,9 @@ Route.group(() => {
   Route.put('/spedy/service-invoices/defaults', 'Spedy/ServiceInvoicesController.saveDefaults')
   Route.get('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.index')
   Route.post('/spedy/service-invoices', 'Spedy/ServiceInvoicesController.store')
+  Route.post('/spedy/service-invoices/exports', 'Spedy/ServiceInvoicesController.createExport')
+  Route.get('/spedy/service-invoices/exports/:jobId', 'Spedy/ServiceInvoicesController.exportStatus')
+  Route.get('/spedy/service-invoices/exports/:jobId/download', 'Spedy/ServiceInvoicesController.downloadExport')
   Route.get('/spedy/service-invoices/:id/xml', 'Spedy/ServiceInvoicesController.xml')
   Route.get('/spedy/service-invoices/:id/pdf', 'Spedy/ServiceInvoicesController.pdf')
   Route.get('/spedy/service-invoices/:id', 'Spedy/ServiceInvoicesController.show')
@@ -157,7 +160,12 @@ Route.group(() => {
   Route.resource("documenttypebooks", "DocumentTypeBooksController").apiOnly()
 
   //EMOLUMENTS
-  Route.resource('/emoluments', 'EmolumentsController').apiOnly()
+  Route.get('/emoluments', 'EmolumentsController.index')
+  Route.get('/emoluments/:id', 'EmolumentsController.show')
+  Route.post('/emoluments', 'EmolumentsController.store').middleware('service_menu_permission:50')
+  Route.put('/emoluments/:id', 'EmolumentsController.update').middleware('service_menu_permission:50')
+  Route.patch('/emoluments/:id', 'EmolumentsController.update').middleware('service_menu_permission:50')
+  Route.delete('/emoluments/:id', 'EmolumentsController.destroy').middleware('service_menu_permission:50')
 
 
   //INDEXIMAGES
@@ -197,7 +205,12 @@ Route.group(() => {
   Route.resource("eventtypes", "EventtypesController").apiOnly()
 
   //EMPLOYEEVERIFICATION
-  Route.resource("employeeverifications", "EmployeeVerificationsController").apiOnly()
+  Route.get('/employeeverifications', 'EmployeeVerificationsController.index')
+  Route.get('/employeeverifications/:id', 'EmployeeVerificationsController.show')
+  Route.post('/employeeverifications', 'EmployeeVerificationsController.store').middleware('service_menu_permission:52')
+  Route.put('/employeeverifications/:id', 'EmployeeVerificationsController.update').middleware('service_menu_permission:52')
+  Route.patch('/employeeverifications/:id', 'EmployeeVerificationsController.update').middleware('service_menu_permission:52')
+  Route.delete('/employeeverifications/:id', 'EmployeeVerificationsController.destroy').middleware('service_menu_permission:52')
 
   //EMPLOYEE VERIFICATION X RECEIPTS
   Route.resource("employeeverificationxreceipts", "EmployeeVerificationXReceiptsController").apiOnly()
@@ -274,12 +287,21 @@ Route.group(() => {
   //.middleware('*', ['auth'])
 
   //ORDER CERTIFICATES
+  Route.post('/order-certificates/birth/document-extract', 'BirthDocumentExtractionsController.store').middleware('auth')
   Route.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth')
   Route.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth')
+  Route.post('/order-certificates/birth-mobile-captures', 'BirthMobileCapturesController.create').middleware('auth')
+  Route.get('/order-certificates/birth-mobile-captures/:id', 'BirthMobileCapturesController.index').middleware('auth')
+  Route.get('/order-certificates/birth-mobile-captures/:id/files/:fileId', 'BirthMobileCapturesController.download').middleware('auth')
+  Route.delete('/order-certificates/birth-mobile-captures/:id', 'BirthMobileCapturesController.destroy').middleware('auth')
+  Route.get('/public/birth-mobile-captures', 'BirthMobileCapturesController.showPublic')
+  Route.post('/public/birth-mobile-captures/files', 'BirthMobileCapturesController.uploadPublic')
+  Route.delete('/public/birth-mobile-captures/files', 'BirthMobileCapturesController.resetPublicFile')
   Route.get('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.showMarriage')
   Route.post('/public/order-certificates/marriage/:token/visionocr', 'PublicOrderCertificatesController.visionOcrMarriageDocument')
   Route.post('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.storeMarriage')
   Route.get('/order-certificates/:id/document-images', 'OrderCertificatesController.documentImages')
+  Route.post('/order-certificates/:id/inactivate', 'OrderCertificatesController.inactivate')
   Route.resource('/order-certificates', 'OrderCertificatesController').apiOnly()
 
 
@@ -292,8 +314,13 @@ Route.group(() => {
   Route.post('/imagecertificates/uploads', 'ImageCertificatesController.store')
 
   //SERVICES
-  Route.resource('/services', 'ServicesController').apiOnly()
-  Route.put('/services/:id/emoluments', 'ServicesController.syncEmoluments')//.middleware('auth:api')
+  Route.get('/services', 'ServicesController.index')
+  Route.get('/services/:id', 'ServicesController.show')
+  Route.post('/services', 'ServicesController.store').middleware('service_menu_permission:51')
+  Route.put('/services/:id', 'ServicesController.update').middleware('service_menu_permission:51')
+  Route.patch('/services/:id', 'ServicesController.update').middleware('service_menu_permission:51')
+  Route.delete('/services/:id', 'ServicesController.destroy').middleware('service_menu_permission:51')
+  Route.put('/services/:id/emoluments', 'ServicesController.syncEmoluments').middleware('service_menu_permission:51')
 
   //RECEIPTS
   Route.get('/receipt-payments', 'ReceiptPaymentsController.index')
@@ -321,6 +348,9 @@ Route.group(() => {
   Route.get('/averbation-descriptions', 'AverbationDescriptionsController.index')
   Route.post('/averbation-descriptions', 'AverbationDescriptionsController.store')
   Route.patch('/averbation-descriptions/:id', 'AverbationDescriptionsController.update')
+
+  // MUNICÍPIOS
+  Route.get('/municipalities', 'MunicipalitiesController.index')
 
 
   //TOKENS_DEVICES
