@@ -37,9 +37,6 @@ class EmployeeVerificationsController {
     }
     async store({ auth, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        if (!authenticate.superuser) {
-            return response.status(403).json({ message: 'Acesso permitido apenas para superusuário' });
-        }
         const payload = await request.validate(EmployeeVerificationValidator_1.default);
         const item = await EmployeeVerification_1.default.create({
             ...payload,
@@ -50,9 +47,6 @@ class EmployeeVerificationsController {
     }
     async update({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
-        if (!authenticate.superuser) {
-            return response.status(403).json({ message: 'Acesso permitido apenas para superusuário' });
-        }
         const payload = await request.validate(EmployeeVerificationValidator_1.default);
         const item = await EmployeeVerification_1.default.query()
             .where('id', params.id)
