@@ -8,9 +8,7 @@ const ufItems = [
 ]
 
 export default class MunicipalitiesController {
-  public async index({ auth, request }: HttpContextContract) {
-    await auth.use('api').authenticate()
-
+  public async index({ request }: HttpContextContract) {
     const uf = String(request.input('uf') || '').trim().toUpperCase()
     if (!ufItems.includes(uf)) {
       throw new BadRequestException('Informe uma UF válida.', 400, 'municipality_invalid_uf')
