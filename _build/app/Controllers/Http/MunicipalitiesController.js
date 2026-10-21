@@ -10,8 +10,7 @@ const ufItems = [
     'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ];
 class MunicipalitiesController {
-    async index({ auth, request }) {
-        await auth.use('api').authenticate();
+    async index({ request }) {
         const uf = String(request.input('uf') || '').trim().toUpperCase();
         if (!ufItems.includes(uf)) {
             throw new BadRequestException_1.default('Informe uma UF válida.', 400, 'municipality_invalid_uf');
