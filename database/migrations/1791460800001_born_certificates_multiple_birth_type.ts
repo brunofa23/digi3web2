@@ -4,6 +4,8 @@ export default class extends BaseSchema {
   protected tableName = 'born_certificates'
 
   public async up() {
+    if (await this.schema.hasColumn(this.tableName, 'multiple_birth_type')) return
+
     await this.schema.alterTable(this.tableName, (table) => {
       table.string('multiple_birth_type', 20).nullable().after('twins')
     })
