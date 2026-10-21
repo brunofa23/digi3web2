@@ -43,6 +43,38 @@ __decorate([
     __metadata("design:type", Object)
 ], BornCertificate.prototype, "filiation2PersonId", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'supposed_father_person_id', serializeAs: 'supposedFatherPersonId' }),
+    __metadata("design:type", Object)
+], BornCertificate.prototype, "supposedFatherPersonId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'supposed_father_enabled', serializeAs: 'supposedFatherEnabled' }),
+    __metadata("design:type", Boolean)
+], BornCertificate.prototype, "supposedFatherEnabled", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'supposed_father_name_altered', serializeAs: 'supposedFatherNameAltered' }),
+    __metadata("design:type", Boolean)
+], BornCertificate.prototype, "supposedFatherNameAltered", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'supposed_father_other_occupation', serializeAs: 'supposedFatherOtherOccupation' }),
+    __metadata("design:type", Boolean)
+], BornCertificate.prototype, "supposedFatherOtherOccupation", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'supposed_father_birth_state', serializeAs: 'supposedFatherBirthState' }),
+    __metadata("design:type", Object)
+], BornCertificate.prototype, "supposedFatherBirthState", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'supposed_father_birth_city', serializeAs: 'supposedFatherBirthCity' }),
+    __metadata("design:type", Object)
+], BornCertificate.prototype, "supposedFatherBirthCity", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'supposed_father_has_residence', serializeAs: 'supposedFatherHasResidence' }),
+    __metadata("design:type", Boolean)
+], BornCertificate.prototype, "supposedFatherHasResidence", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'supposed_father_residence_subdistrict', serializeAs: 'supposedFatherResidenceSubdistrict' }),
+    __metadata("design:type", Object)
+], BornCertificate.prototype, "supposedFatherResidenceSubdistrict", void 0);
+__decorate([
     (0, Orm_1.column)({ columnName: 'declarant_person_id', serializeAs: 'declarantPersonId' }),
     __metadata("design:type", Object)
 ], BornCertificate.prototype, "declarantPersonId", void 0);
@@ -286,6 +318,10 @@ __decorate([
     (0, Orm_1.belongsTo)(() => Person_1.default, { foreignKey: 'filiation2PersonId' }),
     __metadata("design:type", Object)
 ], BornCertificate.prototype, "filiation2", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => Person_1.default, { foreignKey: 'supposedFatherPersonId' }),
+    __metadata("design:type", Object)
+], BornCertificate.prototype, "supposedFather", void 0);
 __decorate([
     (0, Orm_1.belongsTo)(() => Person_1.default, { foreignKey: 'declarantPersonId' }),
     __metadata("design:type", Object)

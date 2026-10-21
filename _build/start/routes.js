@@ -201,6 +201,7 @@ Route_1.default.group(() => {
     Route_1.default.resource('/married-certificates', 'MarriedCertificatesController')
         .apiOnly();
     Route_1.default.post('/order-certificates/birth/document-extract', 'BirthDocumentExtractionsController.store').middleware('auth');
+    Route_1.default.post('/order-certificates/marriage/document-extract', 'MarriageDocumentExtractionsController.store').middleware('auth');
     Route_1.default.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth');
     Route_1.default.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth');
     Route_1.default.post('/order-certificates/birth-mobile-captures', 'BirthMobileCapturesController.create').middleware('auth');

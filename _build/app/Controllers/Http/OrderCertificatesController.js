@@ -243,6 +243,9 @@ class OrderCertificatesController {
         const hasAny = String(personData?.name ?? '').trim() !== '' ||
             String(personData?.cpf ?? '').trim() !== '' ||
             String(personData?.occupation ?? '').trim() !== '' ||
+            String(personData?.phone ?? '').trim() !== '' ||
+            String(personData?.zipCode ?? '').trim() !== '' ||
+            String(personData?.address ?? '').trim() !== '' ||
             String(personData?.dateDeath ?? '').trim() !== '' ||
             personData?.deceased === true ||
             this.toNumber(personData?.id) !== null;
@@ -430,6 +433,14 @@ class OrderCertificatesController {
                 throw new Error('Registered (registrado) é obrigatório');
             const filiation1 = await this.upsertPerson(bornData.filiation1, companiesId, trx);
             const filiation2 = await this.upsertPerson(bornData.filiation2, companiesId, trx);
+            const supposedFatherEnabled = this.toBoolean(bornData.supposedFatherEnabled);
+            const supposedFatherHasResidence = supposedFatherEnabled && this.toBoolean(bornData.supposedFatherHasResidence);
+            const supposedFatherData = bornData.supposedFather && !supposedFatherHasResidence
+                ? { ...bornData.supposedFather, zipCode: '', address: '', streetNumber: '', district: '', city: '', state: '' }
+                : bornData.supposedFather;
+            const supposedFather = supposedFatherEnabled
+                ? await this.upsertPerson(supposedFatherData, companiesId, trx)
+                : null;
             const declarant = await this.upsertPerson(bornData.declarant, companiesId, trx);
             const bornCertificateId = this.toNumber(bornData.id);
             let bornCertificate;
@@ -446,6 +457,15 @@ class OrderCertificatesController {
                 registeredPersonId: registered.id,
                 filiation1PersonId: filiation1?.id ?? null,
                 filiation2PersonId: filiation2?.id ?? null,
+                supposedFatherPersonId: supposedFather?.id ?? null,
+                supposedFatherEnabled,
+                supposedFatherNameAltered: supposedFatherEnabled && this.toBoolean(bornData.supposedFatherNameAltered),
+                supposedFatherOtherOccupation: supposedFatherEnabled && this.toBoolean(bornData.supposedFatherOtherOccupation),
+                supposedFatherBirthState: supposedFatherEnabled ? bornData.supposedFatherBirthState ?? '' : '',
+                supposedFatherBirthCity: supposedFatherEnabled ? bornData.supposedFatherBirthCity ?? '' : '',
+                supposedFatherHasResidence,
+                supposedFatherResidenceSubdistrict: supposedFatherHasResidence
+                    ? bornData.supposedFatherResidenceSubdistrict ?? '' : '',
                 declarantPersonId: declarant?.id ?? null,
                 statusId: bornData.statusId ?? null,
                 registeredNameAltered: bornData.registeredNameAltered ?? false,
@@ -1383,6 +1403,7 @@ class OrderCertificatesController {
                 q.preload('registered', (qq) => qq.select('*'));
                 q.preload('filiation1', (qq) => qq.select('*'));
                 q.preload('filiation2', (qq) => qq.select('*'));
+                q.preload('supposedFather', (qq) => qq.select('*'));
                 q.preload('declarant', (qq) => qq.select('*'));
             });
         }

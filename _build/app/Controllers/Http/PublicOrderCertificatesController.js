@@ -38,7 +38,7 @@ const Person_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Perso
 const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MarriedCertificate"));
 const PublicOrderCertificateLink_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/PublicOrderCertificateLink"));
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
-const googleVision_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/googleVision");
+const MarriageDocumentExtraction_1 = global[Symbol.for('ioc.use')]("App/Services/ai/MarriageDocumentExtraction");
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const MARRIAGE_LINK_TYPE = 'marriage';
 const PUBLIC_SUBMIT_RATE_LIMIT_MAX = 5;
@@ -823,7 +823,7 @@ class PublicOrderCertificatesController {
         try {
             const requestIp = this.getPublicRequestIp(request);
             this.assertPublicOcrRateLimit(params.token, requestIp);
-            const description = String(request.input('description') || '');
+            const documentType = String(request.input('documentType') || request.input('description') || '');
             const file = request.file('file', {
                 size: '8mb',
                 extnames: ['jpg', 'png', 'jpeg', 'bmp', 'gif', 'tif', 'tiff', 'webp', 'pdf', 'JPG', 'PNG', 'JPEG', 'BMP', 'GIF', 'TIF', 'TIFF', 'WEBP', 'PDF'],
@@ -832,26 +832,27 @@ class PublicOrderCertificatesController {
                 throw new BadRequestException_1.default('Arquivo inválido ou não enviado', 422);
             }
             const fs = await Promise.resolve().then(() => __importStar(require('fs/promises')));
-            const imageBuffer = await fs.readFile(file.tmpPath);
-            const ocrFileName = file.clientName || file.extname || '';
-            const indexText = await (0, googleVision_1.extractTextFromFileBuffer)(imageBuffer, ocrFileName);
-            if (/(\.pdf|^pdf)$/i.test(String(ocrFileName || '')) && !String(indexText || '').trim()) {
-                throw new BadRequestException_1.default('PDF sem texto extraível por OCR', 422);
-            }
-            const extractedData = this.extractCertificateImageData(indexText, description);
-            return response.ok({
-                indexText,
-                index_text: indexText,
-                extractedData,
-                extracted_data: extractedData,
+            const result = await (0, MarriageDocumentExtraction_1.extractMarriageDocument)({
+                fileBuffer: await fs.readFile(file.tmpPath),
+                fileName: file.clientName || file.extname || '',
+                documentType,
+                companiesId: link.companiesId,
+                userId: null,
             });
+            return response.ok(result);
         }
         catch (error) {
             if (error instanceof BadRequestException_1.default) {
                 return response.status(error.status).send({ message: error.message });
             }
+            if (error instanceof Error && error.message === 'AI_NOT_CONFIGURED') {
+                return response.serviceUnavailable({ message: 'Leitura automática indisponível no momento. Você pode preencher os dados manualmente.' });
+            }
+            if (error instanceof Error && error.message === 'INVALID_DOCUMENT_TYPE') {
+                return response.badRequest({ message: 'Tipo de documento inválido.' });
+            }
             console.error('ERRO PUBLIC MARRIAGE OCR:', error);
-            return response.internalServerError({ message: 'Erro ao ler os dados do documento anexado' });
+            return response.internalServerError({ message: 'Não foi possível ler o documento. Você pode preencher os dados manualmente.' });
         }
     }
     async storeMarriage({ params, request, response }) {
