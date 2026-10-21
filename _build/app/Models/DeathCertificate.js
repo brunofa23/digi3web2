@@ -195,6 +195,34 @@ __decorate([
     __metadata("design:type", Object)
 ], DeathCertificate.prototype, "burialWitnesses", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'burial_witnesses_enabled', serializeAs: 'burialWitnessesEnabled' }),
+    __metadata("design:type", Boolean)
+], DeathCertificate.prototype, "burialWitnessesEnabled", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'burial_witness1_name', serializeAs: 'burialWitness1Name' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "burialWitness1Name", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'burial_witness1_document_type', serializeAs: 'burialWitness1DocumentType' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "burialWitness1DocumentType", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'burial_witness1_document_number', serializeAs: 'burialWitness1DocumentNumber' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "burialWitness1DocumentNumber", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'burial_witness2_name', serializeAs: 'burialWitness2Name' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "burialWitness2Name", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'burial_witness2_document_type', serializeAs: 'burialWitness2DocumentType' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "burialWitness2DocumentType", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'burial_witness2_document_number', serializeAs: 'burialWitness2DocumentNumber' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "burialWitness2DocumentNumber", void 0);
+__decorate([
     (0, Orm_1.column)({ columnName: 'burial_state', serializeAs: 'burialState' }),
     __metadata("design:type", Object)
 ], DeathCertificate.prototype, "burialState", void 0);
@@ -262,6 +290,39 @@ __decorate([
     (0, Orm_1.column)({ columnName: 'filiation2_residence_country', serializeAs: 'filiation2ResidenceCountry' }),
     __metadata("design:type", Object)
 ], DeathCertificate.prototype, "filiation2ResidenceCountry", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'other_significant_conditions', serializeAs: 'otherSignificantConditions' }),
+    __metadata("design:type", Boolean)
+], DeathCertificate.prototype, "otherSignificantConditions", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'left_assets', serializeAs: 'leftAssets' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "leftAssets", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'left_children', serializeAs: 'leftChildren' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "leftChildren", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'left_will', serializeAs: 'leftWill' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "leftWill", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'minor_heirs', serializeAs: 'minorHeirs' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "minorHeirs", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'interdicted_heirs', serializeAs: 'interdictedHeirs' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "interdictedHeirs", void 0);
+__decorate([
+    (0, Orm_1.column)({
+        columnName: 'death_children',
+        serializeAs: 'deathChildren',
+        prepare: (value) => value == null ? null : JSON.stringify(value),
+        consume: (value) => typeof value === 'string' ? JSON.parse(value) : value,
+    }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "deathChildren", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'declarant_type', serializeAs: 'declarantType' }),
     __metadata("design:type", Object)
