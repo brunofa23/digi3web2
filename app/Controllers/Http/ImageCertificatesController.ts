@@ -388,10 +388,11 @@ export default class ImageCertificatesController {
     }
 
     const bornCertificateId = params.bornCertificateId ? Number(params.bornCertificateId) : null
+    const deathCertificateId = params.deathCertificateId ? Number(params.deathCertificateId) : null
     const mandateCertificateId = params.mandateCertificateId ? Number(params.mandateCertificateId) : null
     const marriedCertificateId = params.marriedCertificateId ? Number(params.marriedCertificateId) : null
-    const certificateId = bornCertificateId ?? mandateCertificateId ?? marriedCertificateId
-    const bookId = bornCertificateId ? 3 : mandateCertificateId ? 24 : 2
+    const certificateId = bornCertificateId ?? deathCertificateId ?? mandateCertificateId ?? marriedCertificateId
+    const bookId = bornCertificateId ? 3 : deathCertificateId ? 4 : mandateCertificateId ? 24 : 2
 
     if (!certificateId || !Number.isFinite(certificateId)) {
       return response.badRequest({ error: 'certificateId inválido' })
@@ -403,6 +404,8 @@ export default class ImageCertificatesController {
 
     if (bornCertificateId) {
       query.andWhere('born_certificate_id', bornCertificateId)
+    } else if (deathCertificateId) {
+      query.andWhere('death_certificate_id', deathCertificateId)
     } else if (mandateCertificateId) {
       query.andWhere('mandate_certificate_id', mandateCertificateId!)
     } else {
@@ -428,6 +431,7 @@ export default class ImageCertificatesController {
         ready: image.ready,
         marriedCertificateId: image.marriedCertificateId,
         bornCertificateId: image.bornCertificateId,
+        deathCertificateId: image.deathCertificateId,
         mandateCertificateId: image.mandateCertificateId,
         createdAt: image.createdAt,
       })),
