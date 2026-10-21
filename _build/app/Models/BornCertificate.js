@@ -75,6 +75,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], BornCertificate.prototype, "twins", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'multiple_birth_type', serializeAs: 'multipleBirthType' }),
+    __metadata("design:type", Object)
+], BornCertificate.prototype, "multipleBirthType", void 0);
+__decorate([
     (0, Orm_1.column)({ columnName: 'dnv_number', serializeAs: 'dnvNumber' }),
     __metadata("design:type", Object)
 ], BornCertificate.prototype, "dnvNumber", void 0);

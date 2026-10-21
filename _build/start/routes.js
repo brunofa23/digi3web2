@@ -203,6 +203,13 @@ Route_1.default.group(() => {
     Route_1.default.post('/order-certificates/birth/document-extract', 'BirthDocumentExtractionsController.store').middleware('auth');
     Route_1.default.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth');
     Route_1.default.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth');
+    Route_1.default.post('/order-certificates/birth-mobile-captures', 'BirthMobileCapturesController.create').middleware('auth');
+    Route_1.default.get('/order-certificates/birth-mobile-captures/:id', 'BirthMobileCapturesController.index').middleware('auth');
+    Route_1.default.get('/order-certificates/birth-mobile-captures/:id/files/:fileId', 'BirthMobileCapturesController.download').middleware('auth');
+    Route_1.default.delete('/order-certificates/birth-mobile-captures/:id', 'BirthMobileCapturesController.destroy').middleware('auth');
+    Route_1.default.get('/public/birth-mobile-captures', 'BirthMobileCapturesController.showPublic');
+    Route_1.default.post('/public/birth-mobile-captures/files', 'BirthMobileCapturesController.uploadPublic');
+    Route_1.default.delete('/public/birth-mobile-captures/files', 'BirthMobileCapturesController.resetPublicFile');
     Route_1.default.get('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.showMarriage');
     Route_1.default.post('/public/order-certificates/marriage/:token/visionocr', 'PublicOrderCertificatesController.visionOcrMarriageDocument');
     Route_1.default.post('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.storeMarriage');
@@ -240,6 +247,7 @@ Route_1.default.group(() => {
     Route_1.default.get('/averbation-descriptions', 'AverbationDescriptionsController.index');
     Route_1.default.post('/averbation-descriptions', 'AverbationDescriptionsController.store');
     Route_1.default.patch('/averbation-descriptions/:id', 'AverbationDescriptionsController.update');
+    Route_1.default.get('/municipalities', 'MunicipalitiesController.index');
     Route_1.default.get('/tokens-devices/authorized', 'TokensDevicesController.authorizedDevices').middleware('auth');
     Route_1.default.patch('/tokens-devices/:id/deactivate', 'TokensDevicesController.deactivateDevice').middleware('auth');
     Route_1.default.post('/tokens-devices/generate', 'TokensDevicesController.generate').middleware('auth');

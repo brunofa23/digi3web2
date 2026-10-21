@@ -4,26 +4,27 @@ exports.extractBirthDocument = void 0;
 const googleVision_1 = global[Symbol.for('ioc.use')]("App/Services/ocr/googleVision");
 const AiFieldExtractor_1 = require("./AiFieldExtractor");
 const luxon_1 = require("luxon");
-const personFields = ['name', 'cpf', 'dateBirth', 'birthCity', 'gender', 'nationality', 'documentType', 'documentNumber'];
+const personFields = ['name', 'cpf', 'dateBirth', 'birthCity', 'birthState', 'gender', 'nationality', 'documentType', 'documentNumber'];
 const addressFields = ['holderName', 'zipCode', 'address', 'streetNumber', 'district', 'city', 'state'];
+const brazilianStates = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 const documentFields = {
     DocumentRegistered: personFields,
     DnvDocument: ['dnvNumber'],
     DocumentFiliation1: [...personFields, 'grandfatherFiliation1', 'grandmotherFiliation1'],
     ProofResidenceFiliation1: addressFields,
-    DocumentFiliation2: personFields,
+    DocumentFiliation2: [...personFields, 'grandfatherFiliation2', 'grandmotherFiliation2'],
     ProofResidenceFiliation2: addressFields,
     DocumentDeclarant: personFields,
     ProofResidenceDeclarant: addressFields,
 };
 const documentContext = {
-    DocumentRegistered: 'Documento de identidade do registrado. Extraia os dados do titular, sem atribuir a ele dados dos pais. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão.',
+    DocumentRegistered: 'Documento de identidade do registrado. Extraia os dados do titular, sem atribuir a ele dados dos pais. birthCity é somente o nome do município de nascimento/naturalidade do titular. birthState é a UF brasileira em sigla de duas letras, separada de birthCity. Não use a UF de residência ou emissão.',
     DnvDocument: 'Declaração de Nascido Vivo manuscrita. Extraia somente o número da DNV se estiver legível.',
-    DocumentFiliation1: 'Documento de identidade da pessoa indicada como filiação 1. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão. Os pais do titular são os avós da criança: o pai do titular é grandfatherFiliation1 e a mãe do titular é grandmotherFiliation1. Use apenas a filiação explicitamente identificada no documento.',
+    DocumentFiliation1: 'Documento de identidade da pessoa indicada como filiação 1. Extraia os dados do titular. birthCity é somente o nome do município de nascimento/naturalidade do titular. birthState é a UF brasileira em sigla de duas letras, separada de birthCity. Não use a UF de residência ou emissão. Os pais do titular são os avós da criança: o pai do titular é grandfatherFiliation1 e a mãe do titular é grandmotherFiliation1. Use apenas a filiação explicitamente identificada no documento.',
     ProofResidenceFiliation1: 'Comprovante de endereço apresentado para filiação 1. O titular pode ser outra pessoa; informe holderName separadamente.',
-    DocumentFiliation2: 'Documento de identidade da pessoa indicada como filiação 2. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão.',
+    DocumentFiliation2: 'Documento de identidade da pessoa indicada como filiação 2. Extraia os dados do titular. birthCity é somente o nome do município de nascimento/naturalidade do titular. birthState é a UF brasileira em sigla de duas letras, separada de birthCity. Não use a UF de residência ou emissão. Os pais do titular são os avós da criança: o pai do titular é grandfatherFiliation2 e a mãe do titular é grandmotherFiliation2. Use apenas a filiação explicitamente identificada no documento.',
     ProofResidenceFiliation2: 'Comprovante de endereço apresentado para filiação 2. O titular pode ser outra pessoa; informe holderName separadamente.',
-    DocumentDeclarant: 'Documento de identidade do declarante. Extraia os dados do titular. birthCity é o município de nascimento/naturalidade do titular, não o de residência ou emissão.',
+    DocumentDeclarant: 'Documento de identidade do declarante. Extraia os dados do titular. birthCity é somente o nome do município de nascimento/naturalidade do titular. birthState é a UF brasileira em sigla de duas letras, separada de birthCity. Não use a UF de residência ou emissão.',
     ProofResidenceDeclarant: 'Comprovante de endereço apresentado para o declarante. O titular pode ser outra pessoa; informe holderName separadamente.',
 };
 function validCpf(value) {
@@ -43,9 +44,11 @@ function cleanField(item, allowed, text) {
     let value = item.value.trim().slice(0, 255);
     const evidence = item.evidence.trim().slice(0, 300);
     const normalize = (source) => source.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('pt-BR');
+    if (item.field === 'birthCity')
+        value = value.replace(new RegExp(`[\\s,/-]+(?:${brazilianStates.join('|')})$`, 'i'), '').trim();
     if (!value || !evidence || !normalize(text).includes(normalize(evidence)))
         return null;
-    if (['birthCity', 'grandfatherFiliation1', 'grandmotherFiliation1'].includes(item.field) && !normalize(evidence).includes(normalize(value)))
+    if (['birthCity', 'birthState', 'grandfatherFiliation1', 'grandmotherFiliation1', 'grandfatherFiliation2', 'grandmotherFiliation2'].includes(item.field) && !normalize(evidence).includes(normalize(value)))
         return null;
     if (item.field === 'cpf') {
         value = value.replace(/\D/g, '');
@@ -60,6 +63,11 @@ function cleanField(item, allowed, text) {
     if (item.field === 'state') {
         value = value.toUpperCase();
         if (!/^[A-Z]{2}$/.test(value))
+            return null;
+    }
+    if (item.field === 'birthState') {
+        value = value.toUpperCase();
+        if (!brazilianStates.includes(value))
             return null;
     }
     if (item.field === 'dateBirth' && (!/^\d{4}-\d{2}-\d{2}$/.test(value) || !luxon_1.DateTime.fromISO(value).isValid))

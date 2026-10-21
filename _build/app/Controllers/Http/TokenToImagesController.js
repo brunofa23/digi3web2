@@ -105,7 +105,7 @@ class TokenToImagesController {
         }
         const tokenToImages = await this.setImageDeviceCookie(response, authenticate.companies_id, authenticate.id);
         const limitDataAccess = luxon_1.DateTime.local()
-            .plus(accessImageDays > 0 ? { days: accessImageDays } : { minutes: 7 })
+            .plus(accessImageDays > 0 ? { days: accessImageDays } : { hours: 4 })
             .toFormat('yyyy-MM-dd HH:mm');
         authenticate.access_image = limitDataAccess;
         await authenticate.save();

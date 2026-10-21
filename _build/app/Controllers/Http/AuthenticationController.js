@@ -434,7 +434,7 @@ class AuthenticationController {
                 throw new BadRequestException_1.default(errorValidation.messages, errorValidation.status, errorValidation.code);
             }
             const limitDataAccess = luxon_1.DateTime.local()
-                .plus(accessImageDays > 0 ? { days: accessImageDays } : { minutes: 7 })
+                .plus(accessImageDays > 0 ? { days: accessImageDays } : { hours: 4 })
                 .toFormat('yyyy-MM-dd HH:mm');
             const authenticatedUser = await User_1.default
                 .query()
