@@ -562,7 +562,7 @@ export default class AuthenticationController {
 
       // 4. Atualizar o acesso à imagem do usuário autenticado
       const limitDataAccess = DateTime.local()
-        .plus(accessImageDays > 0 ? { days: accessImageDays } : { minutes: 7 })
+        .plus(accessImageDays > 0 ? { days: accessImageDays } : { hours: 4 })
         .toFormat('yyyy-MM-dd HH:mm')
 
       const authenticatedUser = await User

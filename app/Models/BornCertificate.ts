@@ -56,6 +56,9 @@ export default class BornCertificate extends BaseModel {
   @column()
   public twins: boolean
 
+  @column({ columnName: 'multiple_birth_type', serializeAs: 'multipleBirthType' })
+  public multipleBirthType: string | null
+
   @column({ columnName: 'dnv_number', serializeAs: 'dnvNumber' })
   public dnvNumber: string | null
 
