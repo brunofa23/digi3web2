@@ -288,6 +288,7 @@ Route.group(() => {
 
   //ORDER CERTIFICATES
   Route.post('/order-certificates/birth/document-extract', 'BirthDocumentExtractionsController.store').middleware('auth')
+  Route.post('/order-certificates/marriage/document-extract', 'MarriageDocumentExtractionsController.store').middleware('auth')
   Route.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth')
   Route.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth')
   Route.post('/order-certificates/birth-mobile-captures', 'BirthMobileCapturesController.create').middleware('auth')

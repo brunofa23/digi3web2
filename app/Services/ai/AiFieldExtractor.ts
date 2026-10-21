@@ -7,7 +7,7 @@ type ExtractionInput = {
   context: string
   fields: string[]
   companiesId: number
-  userId: number
+  userId: number | null
   useCase: string
 }
 
