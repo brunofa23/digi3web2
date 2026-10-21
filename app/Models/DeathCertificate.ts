@@ -146,6 +146,27 @@ export default class DeathCertificate extends BaseModel {
   @column({ columnName: 'burial_witnesses', serializeAs: 'burialWitnesses' })
   public burialWitnesses: string | null
 
+  @column({ columnName: 'burial_witnesses_enabled', serializeAs: 'burialWitnessesEnabled' })
+  public burialWitnessesEnabled: boolean
+
+  @column({ columnName: 'burial_witness1_name', serializeAs: 'burialWitness1Name' })
+  public burialWitness1Name: string | null
+
+  @column({ columnName: 'burial_witness1_document_type', serializeAs: 'burialWitness1DocumentType' })
+  public burialWitness1DocumentType: string | null
+
+  @column({ columnName: 'burial_witness1_document_number', serializeAs: 'burialWitness1DocumentNumber' })
+  public burialWitness1DocumentNumber: string | null
+
+  @column({ columnName: 'burial_witness2_name', serializeAs: 'burialWitness2Name' })
+  public burialWitness2Name: string | null
+
+  @column({ columnName: 'burial_witness2_document_type', serializeAs: 'burialWitness2DocumentType' })
+  public burialWitness2DocumentType: string | null
+
+  @column({ columnName: 'burial_witness2_document_number', serializeAs: 'burialWitness2DocumentNumber' })
+  public burialWitness2DocumentNumber: string | null
+
   @column({ columnName: 'burial_state', serializeAs: 'burialState' })
   public burialState: string | null
 
@@ -196,6 +217,32 @@ export default class DeathCertificate extends BaseModel {
 
   @column({ columnName: 'filiation2_residence_country', serializeAs: 'filiation2ResidenceCountry' })
   public filiation2ResidenceCountry: string | null
+
+  @column({ columnName: 'other_significant_conditions', serializeAs: 'otherSignificantConditions' })
+  public otherSignificantConditions: boolean
+
+  @column({ columnName: 'left_assets', serializeAs: 'leftAssets' })
+  public leftAssets: boolean | null
+
+  @column({ columnName: 'left_children', serializeAs: 'leftChildren' })
+  public leftChildren: boolean | null
+
+  @column({ columnName: 'left_will', serializeAs: 'leftWill' })
+  public leftWill: boolean | null
+
+  @column({ columnName: 'minor_heirs', serializeAs: 'minorHeirs' })
+  public minorHeirs: boolean | null
+
+  @column({ columnName: 'interdicted_heirs', serializeAs: 'interdictedHeirs' })
+  public interdictedHeirs: boolean | null
+
+  @column({
+    columnName: 'death_children',
+    serializeAs: 'deathChildren',
+    prepare: (value: any) => value == null ? null : JSON.stringify(value),
+    consume: (value: any) => typeof value === 'string' ? JSON.parse(value) : value,
+  })
+  public deathChildren: Array<{ name: string; deceased: boolean; age: number | null; ageUnknown: boolean; ageType: string }> | null
 
   @column({ columnName: 'declarant_type', serializeAs: 'declarantType' })
   public declarantType: string | null
