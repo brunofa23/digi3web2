@@ -11,6 +11,7 @@ import Company from 'App/Models/Company'
 import Book from 'App/Models/Book'
 import MarriedCertificate from 'App/Models/MarriedCertificate'
 import BornCertificate from 'App/Models/BornCertificate'
+import DeathCertificate from 'App/Models/DeathCertificate'
 import MandateCertificate from 'App/Models/MandateCertificate'
 
 export default class ImageCertificate extends BaseModel {
@@ -28,6 +29,9 @@ export default class ImageCertificate extends BaseModel {
 
   @column({ columnName: 'born_certificate_id' })
   public bornCertificateId: number | null
+
+  @column({ columnName: 'death_certificate_id' })
+  public deathCertificateId: number | null
 
   @column({ columnName: 'mandate_certificate_id' })
   public mandateCertificateId: number | null
@@ -83,6 +87,9 @@ export default class ImageCertificate extends BaseModel {
     foreignKey: 'bornCertificateId',
   })
   public bornCertificate: BelongsTo<typeof BornCertificate>
+
+  @belongsTo(() => DeathCertificate, { foreignKey: 'deathCertificateId' })
+  public deathCertificate: BelongsTo<typeof DeathCertificate>
 
   @belongsTo(() => MandateCertificate, { foreignKey: 'mandateCertificateId' })
   public mandateCertificate: BelongsTo<typeof MandateCertificate>

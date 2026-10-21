@@ -288,6 +288,7 @@ Route.group(() => {
 
   //ORDER CERTIFICATES
   Route.post('/order-certificates/birth/document-extract', 'BirthDocumentExtractionsController.store').middleware('auth')
+  Route.post('/order-certificates/death/document-extract', 'BirthDocumentExtractionsController.storeDeath').middleware('auth')
   Route.post('/order-certificates/marriage/document-extract', 'MarriageDocumentExtractionsController.store').middleware('auth')
   Route.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth')
   Route.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth')
@@ -309,6 +310,7 @@ Route.group(() => {
   //IMAGE CERTIFICATES
   Route.get('/imagecertificates/married/:marriedCertificateId', 'ImageCertificatesController.index').middleware('auth')
   Route.get('/imagecertificates/born/:bornCertificateId', 'ImageCertificatesController.index').middleware('auth')
+  Route.get('/imagecertificates/death/:deathCertificateId', 'ImageCertificatesController.index').middleware('auth')
   Route.get('/imagecertificates/mandate/:mandateCertificateId', 'ImageCertificatesController.index').middleware('auth')
   Route.get('/imagecertificates/:id/open', 'ImageCertificatesController.show').middleware('auth')
   Route.post('/imagecertificates/:id/visionocr', 'ImageCertificatesController.visionOcr').middleware('auth')

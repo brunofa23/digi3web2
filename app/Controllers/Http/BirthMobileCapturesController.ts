@@ -19,6 +19,11 @@ const fields: Record<string, string> = {
   DocumentDeclarant: 'Documento do declarante',
   ProofResidenceDeclarant: 'Comprovante de residência do declarante',
 }
+const deathFields: Record<string, string> = { DocumentDeceased: 'Documento do falecido' }
+
+function fieldsFor(session: { capture_type: string }) {
+  return session.capture_type === 'death' ? deathFields : fields
+}
 
 function captureDirectory(sessionId: string) {
   return Application.tmpPath('birth-mobile-captures', sessionId)
@@ -47,8 +52,10 @@ export default class BirthMobileCapturesController {
       .first()
   }
 
-  public async create({ auth, response }: HttpContextContract) {
+  public async create({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
+    const captureType = String(request.input('captureType') || 'birth')
+    if (!['birth', 'death'].includes(captureType)) return response.badRequest({ message: 'Tipo de captura inválido.' })
     await this.removeExpiredSessions()
 
     const token = crypto.randomBytes(32).toString('hex')
@@ -58,12 +65,13 @@ export default class BirthMobileCapturesController {
       companies_id: user.companies_id,
       created_by: user.id,
       token_hash: hashToken(token),
+      capture_type: captureType,
       expires_at: Database.raw('DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 MINUTE)'),
       created_at: Database.raw('CURRENT_TIMESTAMP'),
     })
 
     const session = await Database.from(sessionTable).where('id', id).select('expires_at').first()
-    return response.created({ id, token, expiresAt: session?.expires_at, fields })
+    return response.created({ id, token, expiresAt: session?.expires_at, fields: captureType === 'death' ? deathFields : fields })
   }
 
   public async showPublic({ request, response }: HttpContextContract) {
@@ -87,7 +95,7 @@ export default class BirthMobileCapturesController {
       }
     }
     return response.ok({
-      fields,
+      fields: fieldsFor(session),
       uploadedFields: uploads.map(({ fieldKey }) => fieldKey),
       pageCounts,
       expiresAt: session.expires_at,
@@ -101,7 +109,8 @@ export default class BirthMobileCapturesController {
     if (!session) return response.status(410).send({ message: 'Sessão não encontrada ou expirada. Gere um novo QR Code no atendimento.' })
 
     const fieldKey = String(request.input('fieldKey') || '')
-    if (!fields[fieldKey]) return response.badRequest({ message: 'Tipo de documento inválido.' })
+    const sessionFields = fieldsFor(session)
+    if (!sessionFields[fieldKey]) return response.badRequest({ message: 'Tipo de documento inválido.' })
     const pageId = String(request.input('pageId') || '')
     if (!/^[a-f0-9-]{36}$/i.test(pageId)) return response.badRequest({ message: 'Identificador da foto inválido.' })
 
@@ -110,7 +119,7 @@ export default class BirthMobileCapturesController {
       let pageCount = 0
       const pdf = await PDFDocument.load(await fs.readFile(path.join(captureDirectory(session.id), prior.file_name)))
       pageCount = pdf.getPageCount()
-      return response.ok({ fieldKey, label: fields[fieldKey], pageCount, duplicate: true })
+      return response.ok({ fieldKey, label: sessionFields[fieldKey], pageCount, duplicate: true })
     }
 
     const file = request.file('file', { size: '8mb', extnames: ['pdf'] })
@@ -178,7 +187,7 @@ export default class BirthMobileCapturesController {
     }
     if (prior) await fs.rm(path.join(directory, prior.file_name), { force: true })
 
-    return response.created({ fieldKey, label: fields[fieldKey], pageCount: totalPages })
+    return response.created({ fieldKey, label: sessionFields[fieldKey], pageCount: totalPages })
   }
 
   public async resetPublicFile({ request, response }: HttpContextContract) {
@@ -188,7 +197,7 @@ export default class BirthMobileCapturesController {
     if (!session) return response.status(410).send({ message: 'Sessão não encontrada ou expirada. Gere um novo QR Code no atendimento.' })
 
     const fieldKey = String(request.input('fieldKey') || '')
-    if (!fields[fieldKey]) return response.badRequest({ message: 'Tipo de documento inválido.' })
+    if (!fieldsFor(session)[fieldKey]) return response.badRequest({ message: 'Tipo de documento inválido.' })
     const file = await Database.from(fileTable).where('session_id', session.id).where('field_key', fieldKey).first()
     if (!file) return response.ok({ fieldKey, cleared: false })
 

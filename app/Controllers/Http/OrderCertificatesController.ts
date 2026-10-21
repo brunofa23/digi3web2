@@ -1416,6 +1416,7 @@ export default class OrderCertificatesController {
 
     const marriedImageCounts = new Map<number, number>()
     const bornImageCounts = new Map<number, number>()
+    const deathImageCounts = new Map<number, number>()
     const mandateImageCounts = new Map<number, number>()
     const latestEmployeeVerificationByMarriedCertificate = new Map<number, any>()
     const latestEmployeeVerificationByBornCertificate = new Map<number, any>()
@@ -1467,6 +1468,15 @@ export default class OrderCertificatesController {
       counts.forEach((row) => {
         bornImageCounts.set(Number(row.born_certificate_id), Number(row.total ?? 0))
       })
+    }
+
+    if (deathCertificateIds.length) {
+      const counts = await Database.from('image_certificates')
+        .select('death_certificate_id').count('* as total')
+        .where('companies_id', authenticate.companies_id)
+        .whereIn('death_certificate_id', deathCertificateIds)
+        .groupBy('death_certificate_id')
+      counts.forEach((row) => deathImageCounts.set(Number(row.death_certificate_id), Number(row.total ?? 0)))
     }
 
     if (mandateCertificateIds.length) {
@@ -1626,6 +1636,8 @@ export default class OrderCertificatesController {
       else json.communicationCertificate = communicationCertificates.get(Number(order.certificateId)) ?? null
       const imageCertificatesCount = bookId === 3
         ? bornImageCounts.get(Number(order.certificateId)) ?? 0
+        : bookId === 4
+          ? deathImageCounts.get(Number(order.certificateId)) ?? 0
         : bookId === 24
           ? mandateImageCounts.get(Number(order.certificateId)) ?? 0
         : bookId === 2
@@ -1670,6 +1682,7 @@ export default class OrderCertificatesController {
       if (json.bornCertificate) {
         json.bornCertificate.imageCertificatesCount = imageCertificatesCount
       }
+      if (json.deathCertificate) json.deathCertificate.imageCertificatesCount = imageCertificatesCount
       if (bookId === 24 && json.mandateCertificate) json.mandateCertificate.imageCertificatesCount = imageCertificatesCount
 
       return json
@@ -2073,6 +2086,11 @@ export default class OrderCertificatesController {
         }
       }
 
+      if (orderCertificate.bookId === 4 && orderCertificate.certificateId) {
+        const file = request.file('DocumentDeceased', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] })
+        if (file) await uploadImage({ companiesId: user.companies_id, deathCertificateId: orderCertificate.certificateId, file, description: 'DocFalecido' })
+      }
+
       if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
         const files = request.files('MandateAttachments', { size: '8mb', extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls'] })
         for (const file of files) await uploadImage({ companiesId: user.companies_id, mandateCertificateId: orderCertificate.certificateId, file, description: 'AnexoMandado' })
@@ -2382,6 +2400,11 @@ export default class OrderCertificatesController {
             description: cfg.description,
           })
         }
+      }
+
+      if (orderCertificate.bookId === 4 && orderCertificate.certificateId) {
+        const file = request.file('DocumentDeceased', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] })
+        if (file) await uploadImage({ companiesId: user.companies_id, deathCertificateId: orderCertificate.certificateId, file, description: 'DocFalecido' })
       }
 
       if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
