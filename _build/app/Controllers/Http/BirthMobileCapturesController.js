@@ -22,6 +22,10 @@ const fields = {
     DocumentDeclarant: 'Documento do declarante',
     ProofResidenceDeclarant: 'Comprovante de residência do declarante',
 };
+const deathFields = { DocumentDeceased: 'Documento do falecido' };
+function fieldsFor(session) {
+    return session.capture_type === 'death' ? deathFields : fields;
+}
 function captureDirectory(sessionId) {
     return Application_1.default.tmpPath('birth-mobile-captures', sessionId);
 }
@@ -45,8 +49,11 @@ class BirthMobileCapturesController {
             .whereRaw('expires_at > CURRENT_TIMESTAMP')
             .first();
     }
-    async create({ auth, response }) {
+    async create({ auth, request, response }) {
         const user = await auth.use('api').authenticate();
+        const captureType = String(request.input('captureType') || 'birth');
+        if (!['birth', 'death'].includes(captureType))
+            return response.badRequest({ message: 'Tipo de captura inválido.' });
         await this.removeExpiredSessions();
         const token = crypto_1.default.randomBytes(32).toString('hex');
         const id = crypto_1.default.randomUUID();
@@ -55,11 +62,12 @@ class BirthMobileCapturesController {
             companies_id: user.companies_id,
             created_by: user.id,
             token_hash: hashToken(token),
+            capture_type: captureType,
             expires_at: Database_1.default.raw('DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 30 MINUTE)'),
             created_at: Database_1.default.raw('CURRENT_TIMESTAMP'),
         });
         const session = await Database_1.default.from(sessionTable).where('id', id).select('expires_at').first();
-        return response.created({ id, token, expiresAt: session?.expires_at, fields });
+        return response.created({ id, token, expiresAt: session?.expires_at, fields: captureType === 'death' ? deathFields : fields });
     }
     async showPublic({ request, response }) {
         response.header('Cache-Control', 'private, no-store, no-cache, must-revalidate');
@@ -84,7 +92,7 @@ class BirthMobileCapturesController {
             }
         }
         return response.ok({
-            fields,
+            fields: fieldsFor(session),
             uploadedFields: uploads.map(({ fieldKey }) => fieldKey),
             pageCounts,
             expiresAt: session.expires_at,
@@ -98,7 +106,8 @@ class BirthMobileCapturesController {
         if (!session)
             return response.status(410).send({ message: 'Sessão não encontrada ou expirada. Gere um novo QR Code no atendimento.' });
         const fieldKey = String(request.input('fieldKey') || '');
-        if (!fields[fieldKey])
+        const sessionFields = fieldsFor(session);
+        if (!sessionFields[fieldKey])
             return response.badRequest({ message: 'Tipo de documento inválido.' });
         const pageId = String(request.input('pageId') || '');
         if (!/^[a-f0-9-]{36}$/i.test(pageId))
@@ -108,7 +117,7 @@ class BirthMobileCapturesController {
             let pageCount = 0;
             const pdf = await pdf_lib_1.PDFDocument.load(await promises_1.default.readFile(path_1.default.join(captureDirectory(session.id), prior.file_name)));
             pageCount = pdf.getPageCount();
-            return response.ok({ fieldKey, label: fields[fieldKey], pageCount, duplicate: true });
+            return response.ok({ fieldKey, label: sessionFields[fieldKey], pageCount, duplicate: true });
         }
         const file = request.file('file', { size: '8mb', extnames: ['pdf'] });
         if (!file?.isValid || !file.tmpPath)
@@ -181,7 +190,7 @@ class BirthMobileCapturesController {
         }
         if (prior)
             await promises_1.default.rm(path_1.default.join(directory, prior.file_name), { force: true });
-        return response.created({ fieldKey, label: fields[fieldKey], pageCount: totalPages });
+        return response.created({ fieldKey, label: sessionFields[fieldKey], pageCount: totalPages });
     }
     async resetPublicFile({ request, response }) {
         const token = String(request.header('x-capture-token') || '');
@@ -191,7 +200,7 @@ class BirthMobileCapturesController {
         if (!session)
             return response.status(410).send({ message: 'Sessão não encontrada ou expirada. Gere um novo QR Code no atendimento.' });
         const fieldKey = String(request.input('fieldKey') || '');
-        if (!fields[fieldKey])
+        if (!fieldsFor(session)[fieldKey])
             return response.badRequest({ message: 'Tipo de documento inválido.' });
         const file = await Database_1.default.from(fileTable).where('session_id', session.id).where('field_key', fieldKey).first();
         if (!file)

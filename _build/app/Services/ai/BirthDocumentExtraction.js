@@ -8,6 +8,7 @@ const personFields = ['name', 'cpf', 'dateBirth', 'birthCity', 'birthState', 'ge
 const addressFields = ['holderName', 'zipCode', 'address', 'streetNumber', 'district', 'city', 'state'];
 const brazilianStates = ['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'];
 const documentFields = {
+    DocumentDeceased: [...personFields, 'fatherName', 'motherName'],
     DocumentRegistered: personFields,
     DnvDocument: ['dnvNumber'],
     DocumentFiliation1: [...personFields, 'grandfatherFiliation1', 'grandmotherFiliation1'],
@@ -18,6 +19,7 @@ const documentFields = {
     ProofResidenceDeclarant: addressFields,
 };
 const documentContext = {
+    DocumentDeceased: 'Documento de identidade do falecido. Extraia os dados do titular. fatherName e motherName são somente os nomes dos pais expressamente identificados no documento. Não atribua ao titular dados dos pais. birthCity é a naturalidade do titular sem a UF; birthState é a UF da naturalidade em duas letras. Não use a UF de residência ou emissão.',
     DocumentRegistered: 'Documento de identidade do registrado. Extraia os dados do titular, sem atribuir a ele dados dos pais. birthCity é somente o nome do município de nascimento/naturalidade do titular. birthState é a UF brasileira em sigla de duas letras, separada de birthCity. Não use a UF de residência ou emissão.',
     DnvDocument: 'Declaração de Nascido Vivo manuscrita. Extraia somente o número da DNV se estiver legível.',
     DocumentFiliation1: 'Documento de identidade da pessoa indicada como filiação 1. Extraia os dados do titular. birthCity é somente o nome do município de nascimento/naturalidade do titular. birthState é a UF brasileira em sigla de duas letras, separada de birthCity. Não use a UF de residência ou emissão. Os pais do titular são os avós da criança: o pai do titular é grandfatherFiliation1 e a mãe do titular é grandmotherFiliation1. Use apenas a filiação explicitamente identificada no documento.',
@@ -48,7 +50,7 @@ function cleanField(item, allowed, text) {
         value = value.replace(new RegExp(`[\\s,/-]+(?:${brazilianStates.join('|')})$`, 'i'), '').trim();
     if (!value || !evidence || !normalize(text).includes(normalize(evidence)))
         return null;
-    if (['birthCity', 'birthState', 'grandfatherFiliation1', 'grandmotherFiliation1', 'grandfatherFiliation2', 'grandmotherFiliation2'].includes(item.field) && !normalize(evidence).includes(normalize(value)))
+    if (['birthCity', 'birthState', 'fatherName', 'motherName', 'grandfatherFiliation1', 'grandmotherFiliation1', 'grandfatherFiliation2', 'grandmotherFiliation2'].includes(item.field) && !normalize(evidence).includes(normalize(value)))
         return null;
     if (item.field === 'cpf') {
         value = value.replace(/\D/g, '');
@@ -98,7 +100,7 @@ async function extractBirthDocument(input) {
         fields,
         companiesId: input.companiesId,
         userId: input.userId,
-        useCase: 'birth_certificate_attachment',
+        useCase: input.documentType === 'DocumentDeceased' ? 'death_certificate_attachment' : 'birth_certificate_attachment',
     });
     const seen = new Set();
     const checked = suggestions

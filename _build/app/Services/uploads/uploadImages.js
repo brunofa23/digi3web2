@@ -11,7 +11,7 @@ const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const luxon_1 = require("luxon");
 const promises_1 = __importDefault(require("fs/promises"));
-async function uploadImage({ companiesId, marriedCertificateId, bornCertificateId, mandateCertificateId, file, description, }) {
+async function uploadImage({ companiesId, marriedCertificateId, bornCertificateId, deathCertificateId, mandateCertificateId, file, description, }) {
     if (!file || !file.isValid) {
         console.log('Arquivo inválido ou inexistente, ignorando.');
         return;
@@ -28,6 +28,10 @@ async function uploadImage({ companiesId, marriedCertificateId, bornCertificateI
         bookId = 3;
         query.andWhere('born_certificate_id', bornCertificateId);
     }
+    if (deathCertificateId) {
+        bookId = 4;
+        query.andWhere('death_certificate_id', deathCertificateId);
+    }
     if (mandateCertificateId) {
         bookId = 24;
         query.andWhere('mandate_certificate_id', mandateCertificateId);
@@ -36,8 +40,8 @@ async function uploadImage({ companiesId, marriedCertificateId, bornCertificateI
     const newSeq = lastImage?.seq ? lastImage.seq + 1 : 1;
     const timestamp = luxon_1.DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss');
     const baseName = file.clientName.split('.').slice(0, -1).join('.');
-    if (bookId === 2 || bookId === 3 || bookId === 24) {
-        const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : mandateCertificateId;
+    if (bookId === 2 || bookId === 3 || bookId === 4 || bookId === 24) {
+        const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : bookId === 4 ? deathCertificateId : mandateCertificateId;
         clientName = `${description || ''}_${baseName}_id${certificateId}_${timestamp}.${file.extname}`;
     }
     else {
@@ -60,6 +64,7 @@ async function uploadImage({ companiesId, marriedCertificateId, bornCertificateI
         bookId,
         marriedCertificateId: marriedCertificateId ?? null,
         bornCertificateId: bornCertificateId ?? null,
+        deathCertificateId: deathCertificateId ?? null,
         mandateCertificateId: mandateCertificateId ?? null,
         ext: file.extname,
         fileName: clientName,

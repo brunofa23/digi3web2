@@ -1155,6 +1155,7 @@ class OrderCertificatesController {
             .filter((id) => !!id);
         const marriedImageCounts = new Map();
         const bornImageCounts = new Map();
+        const deathImageCounts = new Map();
         const mandateImageCounts = new Map();
         const latestEmployeeVerificationByMarriedCertificate = new Map();
         const latestEmployeeVerificationByBornCertificate = new Map();
@@ -1200,6 +1201,14 @@ class OrderCertificatesController {
             counts.forEach((row) => {
                 bornImageCounts.set(Number(row.born_certificate_id), Number(row.total ?? 0));
             });
+        }
+        if (deathCertificateIds.length) {
+            const counts = await Database_1.default.from('image_certificates')
+                .select('death_certificate_id').count('* as total')
+                .where('companies_id', authenticate.companies_id)
+                .whereIn('death_certificate_id', deathCertificateIds)
+                .groupBy('death_certificate_id');
+            counts.forEach((row) => deathImageCounts.set(Number(row.death_certificate_id), Number(row.total ?? 0)));
         }
         if (mandateCertificateIds.length) {
             const counts = await Database_1.default.from('image_certificates')
@@ -1325,11 +1334,13 @@ class OrderCertificatesController {
                 json.communicationCertificate = communicationCertificates.get(Number(order.certificateId)) ?? null;
             const imageCertificatesCount = bookId === 3
                 ? bornImageCounts.get(Number(order.certificateId)) ?? 0
-                : bookId === 24
-                    ? mandateImageCounts.get(Number(order.certificateId)) ?? 0
-                    : bookId === 2
-                        ? marriedImageCounts.get(Number(order.certificateId)) ?? 0
-                        : 0;
+                : bookId === 4
+                    ? deathImageCounts.get(Number(order.certificateId)) ?? 0
+                    : bookId === 24
+                        ? mandateImageCounts.get(Number(order.certificateId)) ?? 0
+                        : bookId === 2
+                            ? marriedImageCounts.get(Number(order.certificateId)) ?? 0
+                            : 0;
             const certificateVerification = bookId === 3
                 ? latestEmployeeVerificationByBornCertificate.get(Number(order.certificateId))
                 : bookId === 4
@@ -1363,6 +1374,8 @@ class OrderCertificatesController {
             if (json.bornCertificate) {
                 json.bornCertificate.imageCertificatesCount = imageCertificatesCount;
             }
+            if (json.deathCertificate)
+                json.deathCertificate.imageCertificatesCount = imageCertificatesCount;
             if (bookId === 24 && json.mandateCertificate)
                 json.mandateCertificate.imageCertificatesCount = imageCertificatesCount;
             return json;
@@ -1705,6 +1718,11 @@ class OrderCertificatesController {
                     });
                 }
             }
+            if (orderCertificate.bookId === 4 && orderCertificate.certificateId) {
+                const file = request.file('DocumentDeceased', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] });
+                if (file)
+                    await (0, uploadImages_1.uploadImage)({ companiesId: user.companies_id, deathCertificateId: orderCertificate.certificateId, file, description: 'DocFalecido' });
+            }
             if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
                 const files = request.files('MandateAttachments', { size: '8mb', extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls'] });
                 for (const file of files)
@@ -1973,6 +1991,11 @@ class OrderCertificatesController {
                         description: cfg.description,
                     });
                 }
+            }
+            if (orderCertificate.bookId === 4 && orderCertificate.certificateId) {
+                const file = request.file('DocumentDeceased', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] });
+                if (file)
+                    await (0, uploadImages_1.uploadImage)({ companiesId: user.companies_id, deathCertificateId: orderCertificate.certificateId, file, description: 'DocFalecido' });
             }
             if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
                 const files = request.files('MandateAttachments', { size: '8mb', extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls'] });
