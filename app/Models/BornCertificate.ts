@@ -32,6 +32,30 @@ export default class BornCertificate extends BaseModel {
   @column({ columnName: 'filiation2_person_id', serializeAs: 'filiation2PersonId' })
   public filiation2PersonId: number | null
 
+  @column({ columnName: 'supposed_father_person_id', serializeAs: 'supposedFatherPersonId' })
+  public supposedFatherPersonId: number | null
+
+  @column({ columnName: 'supposed_father_enabled', serializeAs: 'supposedFatherEnabled' })
+  public supposedFatherEnabled: boolean
+
+  @column({ columnName: 'supposed_father_name_altered', serializeAs: 'supposedFatherNameAltered' })
+  public supposedFatherNameAltered: boolean
+
+  @column({ columnName: 'supposed_father_other_occupation', serializeAs: 'supposedFatherOtherOccupation' })
+  public supposedFatherOtherOccupation: boolean
+
+  @column({ columnName: 'supposed_father_birth_state', serializeAs: 'supposedFatherBirthState' })
+  public supposedFatherBirthState: string | null
+
+  @column({ columnName: 'supposed_father_birth_city', serializeAs: 'supposedFatherBirthCity' })
+  public supposedFatherBirthCity: string | null
+
+  @column({ columnName: 'supposed_father_has_residence', serializeAs: 'supposedFatherHasResidence' })
+  public supposedFatherHasResidence: boolean
+
+  @column({ columnName: 'supposed_father_residence_subdistrict', serializeAs: 'supposedFatherResidenceSubdistrict' })
+  public supposedFatherResidenceSubdistrict: string | null
+
   @column({ columnName: 'declarant_person_id', serializeAs: 'declarantPersonId' })
   public declarantPersonId: number | null
 
@@ -214,6 +238,9 @@ export default class BornCertificate extends BaseModel {
 
   @belongsTo(() => Person, { foreignKey: 'filiation2PersonId' })
   public filiation2: BelongsTo<typeof Person>
+
+  @belongsTo(() => Person, { foreignKey: 'supposedFatherPersonId' })
+  public supposedFather: BelongsTo<typeof Person>
 
   @belongsTo(() => Person, { foreignKey: 'declarantPersonId' })
   public declarant: BelongsTo<typeof Person>
