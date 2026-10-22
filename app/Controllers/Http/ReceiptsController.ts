@@ -6,6 +6,7 @@ import ReceiptItem from 'App/Models/ReceiptItem'
 import Service from 'App/Models/Service'
 import ReceiptValidator from 'App/Validators/ReceiptValidator'
 import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
+import EmployeeVerification from 'App/Models/EmployeeVerification'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import { DateTime } from 'luxon'
 import OrderCertificate from 'App/Models/OrderCertificate'
@@ -283,6 +284,16 @@ export default class ReceiptsController {
         throw new BadRequestException('Já existe um recibo ativo para esta certidão.', 409, 'active_receipt_exists')
       }
 
+      const initialVerification = await EmployeeVerification.query({ client: trx })
+        .where('companiesId', authenticate.companies_id)
+        .where('local', 'receipt')
+        .where('ordem', 1)
+        .where('inactive', false)
+        .first()
+      if (!initialVerification) {
+        throw new BadRequestException('Configure uma conferência ativa de ordem 1 para recibos.', 422, 'receipt_initial_verification_missing')
+      }
+
       // cria receipt na transação
       const receipt = await Receipt.create(
         {
@@ -316,12 +327,12 @@ export default class ReceiptsController {
         )
       }
 
-      // ✅ mantém criação padrão de employee_verification_x_receipts
+      // Conferência inicial do recibo, conforme a ordem configurada para esta empresa.
       await EmployeeVerificationXReceipt.create(
         {
           receiptId: receipt.id,
           companiesId: authenticate.companies_id,
-          employeeVerificationId: 1, // conferência padrão
+          employeeVerificationId: initialVerification.id,
           userId: authenticate.id,
           date: DateTime.local(), // agora
           item: 1,
