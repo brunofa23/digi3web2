@@ -9,6 +9,7 @@ class EmployeeVerificationValidator {
                 Validator_1.rules.maxLength(80),
             ]),
             local: Validator_1.schema.enum(['receipt', 'certificate']),
+            ordem: Validator_1.schema.number([Validator_1.rules.unsigned(), Validator_1.rules.range(1, 2147483647)]),
             inactive: Validator_1.schema.boolean.optional(),
         });
         this.messages = {
@@ -16,6 +17,7 @@ class EmployeeVerificationValidator {
             'description.maxLength': 'Descrição deve ter no máximo 80 caracteres',
             'local.required': 'Local é obrigatório',
             'local.enum': 'Local deve ser receipt ou certificate',
+            'ordem.required': 'Ordem é obrigatória',
             'inactive.boolean': 'Inactive deve ser booleano',
         };
     }

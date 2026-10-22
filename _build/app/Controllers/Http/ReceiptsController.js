@@ -9,6 +9,7 @@ const ReceiptItem_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/
 const Service_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Service"));
 const ReceiptValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/ReceiptValidator"));
 const EmployeeVerificationXReceipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerificationXReceipt"));
+const EmployeeVerification_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerification"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const luxon_1 = require("luxon");
 const OrderCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/OrderCertificate"));
@@ -238,6 +239,15 @@ class ReceiptsController {
             if (activeReceipt) {
                 throw new BadRequestException_1.default('Já existe um recibo ativo para esta certidão.', 409, 'active_receipt_exists');
             }
+            const initialVerification = await EmployeeVerification_1.default.query({ client: trx })
+                .where('companiesId', authenticate.companies_id)
+                .where('local', 'receipt')
+                .where('ordem', 1)
+                .where('inactive', false)
+                .first();
+            if (!initialVerification) {
+                throw new BadRequestException_1.default('Configure uma conferência ativa de ordem 1 para recibos.', 422, 'receipt_initial_verification_missing');
+            }
             const receipt = await Receipt_1.default.create({
                 ...receiptData,
                 companiesId: authenticate.companies_id,
@@ -262,7 +272,7 @@ class ReceiptsController {
             await EmployeeVerificationXReceipt_1.default.create({
                 receiptId: receipt.id,
                 companiesId: authenticate.companies_id,
-                employeeVerificationId: 1,
+                employeeVerificationId: initialVerification.id,
                 userId: authenticate.id,
                 date: luxon_1.DateTime.local(),
                 item: 1,

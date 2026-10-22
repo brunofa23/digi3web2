@@ -64,7 +64,12 @@ class EmployeeVerificationXReceiptsController {
             const last = await EmployeeVerificationXReceipt_1.default.query({ client: trx })
                 .where('receiptId', payload.receiptId)
                 .orderBy('item', 'desc')
+                .preload('employeeVerification')
                 .first();
+            if (last && last.employeeVerification?.ordem == null)
+                return false;
+            if (verification.ordem !== (last?.employeeVerification?.ordem ?? 0) + 1)
+                return false;
             return EmployeeVerificationXReceipt_1.default.create({
                 receiptId: payload.receiptId,
                 companiesId,
@@ -74,6 +79,9 @@ class EmployeeVerificationXReceiptsController {
                 item: (last?.item || 0) + 1,
             }, { client: trx });
         });
+        if (item === false) {
+            return response.status(422).json({ message: 'Selecione a próxima conferência na ordem do recibo' });
+        }
         if (!item) {
             return response.status(409).json({
                 message: 'Já existe um vínculo para este recibo e conferência de funcionário nesta empresa',

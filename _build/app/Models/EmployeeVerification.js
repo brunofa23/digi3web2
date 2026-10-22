@@ -39,6 +39,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], EmployeeVerification.prototype, "inactive", void 0);
 __decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], EmployeeVerification.prototype, "ordem", void 0);
+__decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
 ], EmployeeVerification.prototype, "createdAt", void 0);

@@ -20,6 +20,8 @@ const DocumentTypeBook_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Mo
 const Document_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Document"));
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
 const Receipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Receipt"));
+const EmployeeVerification_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerification"));
+const EmployeeVerificationXCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerificationXCertificate"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
 const Groupxpermission_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Groupxpermission"));
@@ -1650,6 +1652,30 @@ class OrderCertificatesController {
                     typeCertificate: typeCertificate ?? undefined,
                 });
                 await oc.save();
+                if ([2, 3, 4, 21, 24, 25].includes(bookId) && !certificateId) {
+                    const initialVerification = await EmployeeVerification_1.default.query({ client: trx })
+                        .where('companiesId', user.companies_id)
+                        .where('local', 'certificate')
+                        .where('ordem', 1)
+                        .where('inactive', false)
+                        .first();
+                    if (!initialVerification) {
+                        throw new BadRequestException_1.default('Configure uma conferência ativa de ordem 1 para certificados.', 422, 'certificate_initial_verification_missing');
+                    }
+                    await EmployeeVerificationXCertificate_1.default.create({
+                        marriedCertificateId: bookId === 2 ? finalCertificateId : null,
+                        bornCertificateId: bookId === 3 ? finalCertificateId : null,
+                        deathCertificateId: bookId === 4 ? finalCertificateId : null,
+                        secondcopyCertificateId: bookId === 21 ? finalCertificateId : null,
+                        mandateCertificateId: bookId === 24 ? finalCertificateId : null,
+                        communicationCertificateId: bookId === 25 ? finalCertificateId : null,
+                        companiesId: user.companies_id,
+                        employeeVerificationId: initialVerification.id,
+                        userId: user.id,
+                        status: '',
+                        date: luxon_1.DateTime.local(),
+                    }, { client: trx });
+                }
                 if ([21, 24].includes(bookId) && body.averbations !== undefined) {
                     await this.saveAverbations(body.averbations, oc.id, user.companies_id, trx);
                 }
@@ -1746,6 +1772,8 @@ class OrderCertificatesController {
             return response.created(orderCertificate);
         }
         catch (error) {
+            if (error.code === 'certificate_initial_verification_missing')
+                return response.status(422).send({ message: error.message });
             if (String(error.message || '').startsWith('Averbações:'))
                 return response.status(422).send({ message: error.message });
             if (String(error.message || '').startsWith('Mandado:'))
