@@ -15,7 +15,11 @@ const fields: Record<string, string> = {
   DocumentFiliation2: 'Documento da filiação 2',
   DocumentDeclarant: 'Documento do declarante',
 }
-const deathFields: Record<string, string> = { DocumentDeceased: 'Documento do falecido' }
+const deathFields: Record<string, string> = {
+  DocumentDeceased: 'Documento do falecido',
+  DocumentDeclarant: 'Documento do declarante',
+  DeathDeclaration: 'Declaração de óbito',
+}
 
 function fieldsFor(session: { capture_type: string }) {
   return session.capture_type === 'death' ? deathFields : fields

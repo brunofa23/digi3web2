@@ -2114,8 +2114,14 @@ export default class OrderCertificatesController {
       }
 
       if (orderCertificate.bookId === 4 && orderCertificate.certificateId) {
-        const file = request.file('DocumentDeceased', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] })
-        if (file) await uploadImage({ companiesId: user.companies_id, deathCertificateId: orderCertificate.certificateId, file, description: 'DocFalecido' })
+        for (const cfg of [
+          { field: 'DocumentDeceased', description: 'DocFalecido' },
+          { field: 'DocumentDeclarant', description: 'DocDeclarante' },
+          { field: 'DeathDeclaration', description: 'DeclaracaoObito' },
+        ]) {
+          const file = request.file(cfg.field, { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] })
+          if (file) await uploadImage({ companiesId: user.companies_id, deathCertificateId: orderCertificate.certificateId, file, description: cfg.description })
+        }
       }
 
       if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
@@ -2431,8 +2437,14 @@ export default class OrderCertificatesController {
       }
 
       if (orderCertificate.bookId === 4 && orderCertificate.certificateId) {
-        const file = request.file('DocumentDeceased', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] })
-        if (file) await uploadImage({ companiesId: user.companies_id, deathCertificateId: orderCertificate.certificateId, file, description: 'DocFalecido' })
+        for (const cfg of [
+          { field: 'DocumentDeceased', description: 'DocFalecido' },
+          { field: 'DocumentDeclarant', description: 'DocDeclarante' },
+          { field: 'DeathDeclaration', description: 'DeclaracaoObito' },
+        ]) {
+          const file = request.file(cfg.field, { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] })
+          if (file) await uploadImage({ companiesId: user.companies_id, deathCertificateId: orderCertificate.certificateId, file, description: cfg.description })
+        }
       }
 
       if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
