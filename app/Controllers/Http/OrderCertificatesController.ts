@@ -18,6 +18,8 @@ import DocumentTypeBook from 'App/Models/DocumentTypeBook'
 import Document from 'App/Models/Document'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 import Receipt from 'App/Models/Receipt'
+import EmployeeVerification from 'App/Models/EmployeeVerification'
+import EmployeeVerificationXCertificate from 'App/Models/EmployeeVerificationXCertificate'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import User from 'App/Models/User'
 import Groupxpermission from 'App/Models/Groupxpermission'
@@ -2007,6 +2009,31 @@ export default class OrderCertificatesController {
         })
 
         await oc.save()
+        if ([2, 3, 4, 21, 24, 25].includes(bookId) && !certificateId) {
+          const initialVerification = await EmployeeVerification.query({ client: trx })
+            .where('companiesId', user.companies_id)
+            .where('local', 'certificate')
+            .where('ordem', 1)
+            .where('inactive', false)
+            .first()
+          if (!initialVerification) {
+            throw new BadRequestException('Configure uma conferência ativa de ordem 1 para certificados.', 422, 'certificate_initial_verification_missing')
+          }
+
+          await EmployeeVerificationXCertificate.create({
+            marriedCertificateId: bookId === 2 ? finalCertificateId : null,
+            bornCertificateId: bookId === 3 ? finalCertificateId : null,
+            deathCertificateId: bookId === 4 ? finalCertificateId : null,
+            secondcopyCertificateId: bookId === 21 ? finalCertificateId : null,
+            mandateCertificateId: bookId === 24 ? finalCertificateId : null,
+            communicationCertificateId: bookId === 25 ? finalCertificateId : null,
+            companiesId: user.companies_id,
+            employeeVerificationId: initialVerification.id,
+            userId: user.id,
+            status: '',
+            date: DateTime.local(),
+          }, { client: trx })
+        }
         if ([21, 24].includes(bookId) && body.averbations !== undefined) {
           await this.saveAverbations(body.averbations, oc.id, user.companies_id, trx)
         }
@@ -2107,6 +2134,7 @@ export default class OrderCertificatesController {
 
       return response.created(orderCertificate)
     } catch (error: any) {
+      if (error.code === 'certificate_initial_verification_missing') return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Averbações:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Mandado:')) return response.status(422).send({ message: error.message })
       if (String(error.message || '').startsWith('Comunicação:')) return response.status(422).send({ message: error.message })

@@ -53,6 +53,14 @@ export default class EmployeeVerificationsController {
     const authenticate = await auth.use('api').authenticate()
 
     const payload = await request.validate(EmployeeVerificationValidator)
+    if (!Number.isInteger(payload.ordem)) return response.status(422).json({ message: 'Ordem deve ser um número inteiro' })
+
+    const duplicate = await EmployeeVerification.query()
+      .where('companiesId', authenticate.companies_id)
+      .where('local', payload.local)
+      .where('ordem', payload.ordem)
+      .first()
+    if (duplicate) return response.status(422).json({ message: 'Já existe uma conferência com esta ordem neste local' })
 
     const item = await EmployeeVerification.create({
       ...payload,
@@ -67,6 +75,7 @@ export default class EmployeeVerificationsController {
     const authenticate = await auth.use('api').authenticate()
 
     const payload = await request.validate(EmployeeVerificationValidator)
+    if (!Number.isInteger(payload.ordem)) return response.status(422).json({ message: 'Ordem deve ser um número inteiro' })
 
     const item = await EmployeeVerification.query()
       .where('id', params.id)
@@ -77,9 +86,18 @@ export default class EmployeeVerificationsController {
       return response.status(404).json({ message: 'Registro não encontrado' })
     }
 
+    const duplicate = await EmployeeVerification.query()
+      .where('companiesId', authenticate.companies_id)
+      .where('local', payload.local)
+      .where('ordem', payload.ordem)
+      .whereNot('id', item.id)
+      .first()
+    if (duplicate) return response.status(422).json({ message: 'Já existe uma conferência com esta ordem neste local' })
+
     item.merge({
       description: payload.description,
       local: payload.local,
+      ordem: payload.ordem,
       inactive: payload.inactive ?? false,
     })
 

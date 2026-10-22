@@ -10,14 +10,10 @@ const sessionTable = 'birth_mobile_capture_sessions'
 const fileTable = 'birth_mobile_capture_files'
 const maxPagesPerDocument = 5
 const fields: Record<string, string> = {
-  DocumentRegistered: 'Documento do registrado',
   DnvDocument: 'Declaração de Nascido Vivo (DNV)',
   DocumentFiliation1: 'Documento da filiação 1',
-  ProofResidenceFiliation1: 'Comprovante de residência da filiação 1',
   DocumentFiliation2: 'Documento da filiação 2',
-  ProofResidenceFiliation2: 'Comprovante de residência da filiação 2',
   DocumentDeclarant: 'Documento do declarante',
-  ProofResidenceDeclarant: 'Comprovante de residência do declarante',
 }
 const deathFields: Record<string, string> = { DocumentDeceased: 'Documento do falecido' }
 
