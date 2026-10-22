@@ -5,13 +5,16 @@ const BirthDocumentExtraction_1 = global[Symbol.for('ioc.use')]("App/Services/ai
 class BirthDocumentExtractionsController {
     async storeDeath({ auth, request, response }) {
         const user = await auth.use('api').authenticate();
+        const documentType = String(request.input('documentType') || 'DocumentDeceased');
+        if (!['DocumentDeceased', 'DocumentDeclarant'].includes(documentType))
+            return response.badRequest({ message: 'Tipo de anexo inválido.' });
         const file = request.file('file', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] });
         if (!file?.isValid || !file.tmpPath)
             return response.badRequest({ message: 'Envie uma imagem JPG/PNG ou PDF de até 8 MB.' });
         try {
             return response.ok(await (0, BirthDocumentExtraction_1.extractBirthDocument)({
                 fileBuffer: await (0, promises_1.readFile)(file.tmpPath), fileName: file.clientName || '',
-                documentType: 'DocumentDeceased', companiesId: user.companies_id, userId: user.id,
+                documentType, companiesId: user.companies_id, userId: user.id,
             }));
         }
         catch (error) {

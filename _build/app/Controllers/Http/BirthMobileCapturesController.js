@@ -18,7 +18,11 @@ const fields = {
     DocumentFiliation2: 'Documento da filiação 2',
     DocumentDeclarant: 'Documento do declarante',
 };
-const deathFields = { DocumentDeceased: 'Documento do falecido' };
+const deathFields = {
+    DocumentDeceased: 'Documento do falecido',
+    DocumentDeclarant: 'Documento do declarante',
+    DeathDeclaration: 'Declaração de óbito',
+};
 function fieldsFor(session) {
     return session.capture_type === 'death' ? deathFields : fields;
 }
