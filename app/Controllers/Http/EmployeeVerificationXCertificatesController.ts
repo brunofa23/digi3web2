@@ -1,5 +1,6 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { DateTime } from 'luxon'
+import Database from '@ioc:Adonis/Lucid/Database'
 
 import EmployeeVerification from 'App/Models/EmployeeVerification'
 import EmployeeVerificationXCertificate from 'App/Models/EmployeeVerificationXCertificate'
@@ -129,45 +130,47 @@ export default class EmployeeVerificationXCertificatesController {
       })
     }
 
-    const alreadyExistsQuery = EmployeeVerificationXCertificate.query()
-      .where('employeeVerificationId', payload.employeeVerificationId)
-      .where('companiesId', companiesId)
+    const target = hasMarriedCertificate ? { table: MarriedCertificate.table, field: 'marriedCertificateId', id: payload.marriedCertificateId! }
+      : hasBornCertificate ? { table: BornCertificate.table, field: 'bornCertificateId', id: payload.bornCertificateId! }
+      : hasDeathCertificate ? { table: DeathCertificate.table, field: 'deathCertificateId', id: payload.deathCertificateId! }
+      : hasMandateCertificate ? { table: MandateCertificate.table, field: 'mandateCertificateId', id: payload.mandateCertificateId! }
+      : hasSecondcopyCertificate ? { table: SecondcopyCertificate.table, field: 'secondcopyCertificateId', id: payload.secondcopyCertificateId! }
+      : { table: CommunicationCertificate.table, field: 'communicationCertificateId', id: payload.communicationCertificateId! }
 
-    if (hasMarriedCertificate) {
-      alreadyExistsQuery.where('marriedCertificateId', payload.marriedCertificateId)
-    } else if (hasBornCertificate) {
-      alreadyExistsQuery.where('bornCertificateId', payload.bornCertificateId)
-    } else if (hasDeathCertificate) {
-      alreadyExistsQuery.where('deathCertificateId', payload.deathCertificateId)
-    } else if (hasMandateCertificate) {
-      alreadyExistsQuery.where('mandateCertificateId', payload.mandateCertificateId!)
-    } else if (hasSecondcopyCertificate) {
-      alreadyExistsQuery.where('secondcopyCertificateId', payload.secondcopyCertificateId!)
-    } else {
-      alreadyExistsQuery.where('communicationCertificateId', payload.communicationCertificateId!)
-    }
+    const item = await Database.transaction(async (trx) => {
+      const parent = await trx.from(target.table).where('id', target.id).where('companies_id', companiesId).forUpdate().first()
+      if (!parent) return null
 
-    const alreadyExists = await alreadyExistsQuery.first()
+      const last = await EmployeeVerificationXCertificate.query({ client: trx })
+        .where('companiesId', companiesId)
+        .where(target.field, target.id)
+        .orderBy('id', 'desc')
+        .preload('employeeVerification')
+        .first()
 
-    if (alreadyExists) {
-      return response.status(409).json({
-        message: 'Já existe um vínculo para este certificado e conferência de funcionário nesta empresa',
-      })
-    }
+      if (last && last.employeeVerification?.ordem == null) return false
+      if (verification.ordem !== (last?.employeeVerification?.ordem ?? 0) + 1) return false
 
-    const item = await EmployeeVerificationXCertificate.create({
-      marriedCertificateId: payload.marriedCertificateId ?? null,
-      bornCertificateId: payload.bornCertificateId ?? null,
-      deathCertificateId: payload.deathCertificateId ?? null,
-      mandateCertificateId: payload.mandateCertificateId ?? null,
-      secondcopyCertificateId: payload.secondcopyCertificateId ?? null,
-      communicationCertificateId: payload.communicationCertificateId ?? null,
-      companiesId,
-      employeeVerificationId: payload.employeeVerificationId,
-      userId,
-      status: payload.status ?? '',
-      date: payload.date as DateTime,
+      return EmployeeVerificationXCertificate.create({
+        marriedCertificateId: payload.marriedCertificateId ?? null,
+        bornCertificateId: payload.bornCertificateId ?? null,
+        deathCertificateId: payload.deathCertificateId ?? null,
+        mandateCertificateId: payload.mandateCertificateId ?? null,
+        secondcopyCertificateId: payload.secondcopyCertificateId ?? null,
+        communicationCertificateId: payload.communicationCertificateId ?? null,
+        companiesId,
+        employeeVerificationId: payload.employeeVerificationId,
+        userId,
+        status: payload.status ?? '',
+        date: payload.date as DateTime,
+      }, { client: trx })
     })
+
+    if (item === false) {
+      return response.status(422).json({ message: 'Selecione a próxima conferência na ordem do certificado' })
+    }
+
+    if (!item) return response.status(404).json({ message: 'Certificado não encontrado' })
 
     await item.refresh()
     return item

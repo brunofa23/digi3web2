@@ -27,6 +27,9 @@ export default class EmployeeVerification extends BaseModel {
   @column()
   public inactive: boolean
 
+  @column()
+  public ordem: number | null
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
