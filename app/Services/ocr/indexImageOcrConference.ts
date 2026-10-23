@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import sharp from 'sharp'
+import { PDFParse } from 'pdf-parse'
 import { extractOcrPageFromBuffer, extractTextFromFileBuffer, OcrPage } from './googleVision'
 
 export type OcrEntity = {
@@ -471,6 +472,52 @@ function sharpInput(fileBuffer: Buffer, fileName: string) {
   return isPdfFile(fileName)
     ? sharp(fileBuffer, { density: 200, page: 0, pages: 1 })
     : sharp(fileBuffer)
+}
+
+export async function detectImageSide(fileBuffer: Buffer, fileName: string) {
+  let imageBuffer = fileBuffer
+  if (isPdfFile(fileName)) {
+    const parser = new PDFParse({ data: fileBuffer })
+    try {
+      const screenshot = await parser.getScreenshot({ first: 1, desiredWidth: 512, imageDataUrl: false })
+      if (!screenshot.pages[0]?.data) throw new Error('PDF sem imagem de página')
+      imageBuffer = Buffer.from(screenshot.pages[0].data)
+    } finally {
+      await parser.destroy()
+    }
+  }
+
+  const { data, info } = await sharp(imageBuffer)
+    .rotate()
+    .resize({ width: 256 })
+    .grayscale()
+    .raw()
+    .toBuffer({ resolveWithObject: true })
+  const bandWidth = Math.max(1, Math.floor(info.width * 0.05))
+  const top = Math.floor(info.height * 0.25)
+  const bottom = Math.floor(info.height * 0.75)
+  const median = (left: number) => {
+    const values: number[] = []
+    for (let y = top; y < bottom; y++) {
+      for (let x = left; x < left + bandWidth; x++) {
+        values.push(data[y * info.width + x])
+      }
+    }
+    values.sort((a, b) => a - b)
+    return values[Math.floor(values.length / 2)] || 0
+  }
+  const left = median(0)
+  const right = median(info.width - bandWidth)
+  const difference = Math.abs(left - right)
+  const detectedSide = difference >= 45 && Math.max(left, right) >= 150 && Math.min(left, right) <= 130
+    ? right < left ? 'F' : 'V'
+    : null
+
+  return {
+    detectedSide,
+    confidence: detectedSide ? Math.min(0.99, difference / 120) : 0,
+    evidence: `Bordas externas: esquerda ${left}, direita ${right}`,
+  }
 }
 
 async function buildTopCrop(fileBuffer: Buffer, ratio: number, fileName: string) {
