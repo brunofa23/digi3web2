@@ -678,6 +678,8 @@ class OrderCertificatesController {
         const perPage = perPageInput > 100 ? 100 : perPageInput;
         const freeReceipt = request.input('freeReceipt');
         const stampStatus = request.input('stampStatus');
+        const stampStatuses = (Array.isArray(stampStatus) ? stampStatus : [stampStatus])
+            .filter((status) => ['sealed', 'unsealed', 'withoutReceipt'].includes(status));
         const dateStartReceipt = this.normalizeDateBoundary(request.input('dateStartReceipt'), 'start');
         const dateEndReceipt = this.normalizeDateBoundary(request.input('dateEndReceipt'), 'end');
         const dateStartProtocol = this.normalizeDateBoundary(request.input('dateStartProtocol'), 'start');
@@ -804,26 +806,31 @@ class OrderCertificatesController {
         }
         if (freeReceipt === 'true') {
             query.whereHas('receipt', (r) => {
-                r.where('free', true);
+                r.where('free', true).where((activeReceipt) => activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO'));
             });
         }
         else if (freeReceipt === 'false') {
             query.whereHas('receipt', (r) => {
-                r.where('free', false);
+                r.where('free', false).where((activeReceipt) => activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO'));
             });
         }
-        if (stampStatus === 'withoutReceipt') {
-            query.whereDoesntHave('receipt', (receipt) => {
-                receipt.where((activeReceipt) => activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO')).where((dates) => dates.whereNotNull('date_protocol').orWhereNotNull('date_stamp'));
-            });
-        }
-        else if (stampStatus === 'sealed' || stampStatus === 'unsealed') {
-            query.whereHas('receipt', (r) => {
-                r.where((activeReceipt) => activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO'));
-                if (stampStatus === 'sealed')
-                    r.whereNotNull('date_stamp');
-                else
-                    r.whereNotNull('date_protocol').whereNull('date_stamp');
+        if (stampStatuses.length) {
+            query.where((statuses) => {
+                if (stampStatuses.includes('withoutReceipt')) {
+                    statuses.orWhereDoesntHave('receipt', (receipt) => {
+                        receipt.where((activeReceipt) => activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO')).where((dates) => dates.whereNotNull('date_protocol').orWhereNotNull('date_stamp'));
+                    });
+                }
+                if (stampStatuses.includes('sealed') || stampStatuses.includes('unsealed')) {
+                    statuses.orWhereHas('receipt', (r) => {
+                        r.where((activeReceipt) => activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO')).where((dates) => {
+                            if (stampStatuses.includes('sealed'))
+                                dates.orWhereNotNull('date_stamp');
+                            if (stampStatuses.includes('unsealed'))
+                                dates.orWhere((unsealed) => unsealed.whereNotNull('date_protocol').whereNull('date_stamp'));
+                        });
+                    });
+                }
             });
         }
         if (securitySheet) {

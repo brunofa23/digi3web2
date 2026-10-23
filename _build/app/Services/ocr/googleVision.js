@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractTextFromFileBuffer = exports.extractPdfOcrTextFromBuffer = exports.extractPdfSearchableTextFromBuffer = exports.extractDocumentTextFromBuffer = void 0;
+exports.extractOcrPageFromBuffer = exports.extractTextFromFileBuffer = exports.extractPdfOcrTextFromBuffer = exports.extractPdfSearchableTextFromBuffer = exports.extractDocumentTextFromBuffer = exports.extractDocumentOcrFromBuffer = void 0;
 const vision_1 = __importDefault(require("@google-cloud/vision"));
 const fs_1 = require("fs");
 const path_1 = require("path");
@@ -21,13 +21,44 @@ function getClient() {
     }
     return client;
 }
-async function extractDocumentTextFromBuffer(imageBuffer) {
+async function extractDocumentOcrFromBuffer(imageBuffer) {
     const [result] = await getClient().documentTextDetection({
         image: {
             content: imageBuffer,
         },
     });
-    return result.fullTextAnnotation?.text || result.textAnnotations?.[0]?.description || '';
+    const page = result.fullTextAnnotation?.pages?.[0];
+    const words = [];
+    for (const block of page?.blocks || []) {
+        for (const paragraph of block.paragraphs || []) {
+            for (const word of paragraph.words || []) {
+                const text = (word.symbols || []).map((symbol) => symbol.text || '').join('').trim();
+                const vertices = word.boundingBox?.vertices || [];
+                const xs = vertices.map((vertex) => Number(vertex.x)).filter(Number.isFinite);
+                const ys = vertices.map((vertex) => Number(vertex.y)).filter(Number.isFinite);
+                if (!text || !xs.length || !ys.length)
+                    continue;
+                words.push({
+                    text,
+                    left: Math.min(...xs),
+                    top: Math.min(...ys),
+                    right: Math.max(...xs),
+                    bottom: Math.max(...ys),
+                    confidence: Number(word.confidence) || 0,
+                });
+            }
+        }
+    }
+    return {
+        text: result.fullTextAnnotation?.text || result.textAnnotations?.[0]?.description || '',
+        words,
+        width: Number(page?.width) || 0,
+        height: Number(page?.height) || 0,
+    };
+}
+exports.extractDocumentOcrFromBuffer = extractDocumentOcrFromBuffer;
+async function extractDocumentTextFromBuffer(imageBuffer) {
+    return (await extractDocumentOcrFromBuffer(imageBuffer)).text;
 }
 exports.extractDocumentTextFromBuffer = extractDocumentTextFromBuffer;
 function normalizeExtractedText(value) {
@@ -102,4 +133,11 @@ async function extractTextFromFileBuffer(fileBuffer, fileNameOrExtension) {
     return extractDocumentTextFromBuffer(fileBuffer);
 }
 exports.extractTextFromFileBuffer = extractTextFromFileBuffer;
+async function extractOcrPageFromBuffer(fileBuffer, fileNameOrExtension) {
+    if (String(fileNameOrExtension || '').toLowerCase().endsWith('.pdf')) {
+        return { text: await extractTextFromFileBuffer(fileBuffer, fileNameOrExtension), words: [], width: 0, height: 0 };
+    }
+    return extractDocumentOcrFromBuffer(fileBuffer);
+}
+exports.extractOcrPageFromBuffer = extractOcrPageFromBuffer;
 //# sourceMappingURL=googleVision.js.map

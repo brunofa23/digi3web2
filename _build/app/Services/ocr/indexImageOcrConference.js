@@ -420,21 +420,80 @@ async function buildRatioCrop(fileBuffer, crop, fileName) {
         .toBuffer();
 }
 function firstCandidate(candidates, minimumPriority) {
-    const candidate = candidates
+    const ranked = candidates
         .sort((current, next) => {
         if (next.priority !== current.priority)
             return next.priority - current.priority;
         if (next.confidence !== current.confidence)
             return next.confidence - current.confidence;
         return current.lineIndex - next.lineIndex;
-    })[0] || null;
-    return candidate && candidate.priority >= minimumPriority ? candidate : null;
+    });
+    const candidate = ranked[0] || null;
+    if (!candidate || candidate.priority < minimumPriority)
+        return { candidate: null, ambiguity: null };
+    const selectedNumber = normalizeNumber(candidate.value);
+    const conflict = ranked.find((item) => item !== candidate &&
+        item.priority >= minimumPriority &&
+        item.priority >= candidate.priority - 15 &&
+        normalizeNumber(item.value) !== selectedNumber);
+    if (conflict) {
+        return {
+            candidate: null,
+            ambiguity: `Números conflitantes: ${candidate.value.trim()} e ${conflict.value.trim()}`,
+        };
+    }
+    return { candidate, ambiguity: null };
 }
-function buildCheckResult(fullText, sheet, term, defaultSource) {
+function extractProminentNumberCandidates(page) {
+    const textHeights = page.words
+        .filter((word) => /[A-Za-zÀ-ÖØ-öø-ÿ]{2}/.test(word.text))
+        .map((word) => word.bottom - word.top)
+        .filter((height) => height > 0)
+        .sort((a, b) => a - b);
+    const typicalHeight = textHeights.length
+        ? textHeights[Math.floor(textHeights.length / 2)]
+        : 0;
+    if (!typicalHeight)
+        return [];
+    return page.words.flatMap((word, lineIndex) => {
+        const value = word.text.trim().replace(/[.,;:]$/, '');
+        const height = word.bottom - word.top;
+        const number = normalizeNumber(value);
+        if (!/^[0-9OoIl]{1,4}$/.test(value) || !/\d/.test(value) || number === null || height <= 0)
+            return [];
+        const sizeRatio = height / typicalHeight;
+        const nearestGap = page.words.reduce((nearest, other) => {
+            if (other === word)
+                return nearest;
+            const horizontalGap = Math.max(0, other.left - word.right, word.left - other.right);
+            const verticalGap = Math.max(0, other.top - word.bottom, word.top - other.bottom);
+            return Math.min(nearest, Math.hypot(horizontalGap, verticalGap));
+        }, Number.POSITIVE_INFINITY);
+        const isolated = nearestGap >= typicalHeight * 3;
+        if (sizeRatio < 1.35 && !isolated)
+            return [];
+        const nearMargin = page.width > 0 && page.height > 0 && (word.left < page.width * 0.18 || word.right > page.width * 0.82 ||
+            word.top < page.height * 0.15 || word.bottom > page.height * 0.85);
+        const priority = 35 + Math.min(35, Math.max(0, sizeRatio - 1) * 30) +
+            (isolated ? 20 : 0) + (nearMargin ? 5 : 0) + Math.min(10, Math.max(0, word.confidence) * 10);
+        if (priority < 55)
+            return [];
+        return [{
+                value: String(number),
+                confidence: Math.min(0.95, 0.45 + Math.min(0.25, Math.max(0, sizeRatio - 1) * 0.25) +
+                    (isolated ? 0.15 : 0) + Math.min(0.1, Math.max(0, word.confidence) * 0.1)),
+                evidence: `Número destacado ${word.text} (${Math.round(sizeRatio * 10) / 10}x o texto, posição ${Math.round(word.left / (page.width || 1) * 100)}%/${Math.round(word.top / (page.height || 1) * 100)}%)`,
+                source: 'google_vision_page_layout',
+                priority,
+                lineIndex,
+            }];
+    });
+}
+function buildCheckResult(fullText, sheet, term, defaultSource, ambiguity = null) {
     const detectedSheet = sheet ? normalizeNumber(sheet.value) : null;
     const detectedTerm = term ? normalizeDigitsText(term.value) || term.value : null;
-    const confidence = Math.max(sheet?.confidence || 0, term?.confidence || 0);
-    const evidenceText = normalizeEvidence([sheet?.evidence, term?.evidence].filter(Boolean).join(' | ')) || null;
+    const confidence = sheet?.confidence || 0;
+    const evidenceText = normalizeEvidence([ambiguity, sheet?.evidence, term?.evidence].filter(Boolean).join(' | ')) || null;
     const source = sheet?.source || term?.source || defaultSource;
     const entities = extractOcrEntitiesFromText(fullText, {
         detectedSheet,
@@ -455,9 +514,10 @@ function buildCheckResult(fullText, sheet, term, defaultSource) {
     };
 }
 async function extractHeaderKeywordConference(fileBuffer, fileName, options = {}) {
-    const fullText = await (0, googleVision_1.extractTextFromFileBuffer)(fileBuffer, fileName);
+    const page = await (0, googleVision_1.extractOcrPageFromBuffer)(fileBuffer, fileName);
+    const fullText = page.text;
     const level1 = extractHeaderCandidates(fullText, 'google_vision_level_1', options);
-    let sheetCandidates = [...level1.sheetCandidates];
+    let sheetCandidates = [...level1.sheetCandidates, ...extractProminentNumberCandidates(page)];
     let termCandidates = [...level1.termCandidates];
     const cropRatio = cropRatioByRegion(options.extractionRegion);
     if (cropRatio) {
@@ -474,12 +534,25 @@ async function extractHeaderKeywordConference(fileBuffer, fileName, options = {}
         }
     }
     const minimumPriority = minimumPriorityByRegion(options.extractionRegion);
-    const sheet = firstCandidate(sheetCandidates, minimumPriority);
-    const term = firstCandidate(termCandidates, minimumPriority);
-    return buildCheckResult(fullText, sheet, term, 'google_vision_level_1');
+    const sheetSelection = firstCandidate(sheetCandidates, minimumPriority);
+    const termSelection = firstCandidate(termCandidates, minimumPriority);
+    if (!sheetSelection.candidate && !sheetSelection.ambiguity) {
+        const cornerSelection = await extractTopNumberFromCrops(fileBuffer, fileName, 'top_right');
+        sheetSelection.candidate = cornerSelection.candidate;
+        sheetSelection.ambiguity = cornerSelection.ambiguity;
+    }
+    return buildCheckResult(fullText, sheetSelection.candidate, termSelection.candidate, 'google_vision_level_1', sheetSelection.ambiguity || termSelection.ambiguity);
 }
 exports.extractHeaderKeywordConference = extractHeaderKeywordConference;
 function topNumberCropsByRegion(region) {
+    const topRightFocused = {
+        source: 'google_vision_top_number_right_focused',
+        left: 0.78,
+        top: 0.02,
+        width: 0.18,
+        height: 0.16,
+        priority: 70,
+    };
     const topRight = {
         source: 'google_vision_top_number_right',
         left: 0.68,
@@ -505,7 +578,7 @@ function topNumberCropsByRegion(region) {
         priority: 25,
     };
     if (region === 'top_right')
-        return [topRight, topFull];
+        return [topRightFocused, topRight];
     if (region === 'top_left')
         return [topLeft, topFull];
     if (region === 'top_full')
@@ -552,10 +625,9 @@ function extractTopNumberCandidates(text, source, sourcePriority) {
     }
     return candidates;
 }
-async function extractTopIsolatedNumberConference(fileBuffer, fileName, options = {}) {
-    const fullText = await (0, googleVision_1.extractTextFromFileBuffer)(fileBuffer, fileName);
+async function extractTopNumberFromCrops(fileBuffer, fileName, region, fullText = '') {
     let sheetCandidates = [];
-    for (const crop of topNumberCropsByRegion(options.extractionRegion)) {
+    for (const crop of topNumberCropsByRegion(region)) {
         let croppedImage = null;
         try {
             croppedImage = await buildRatioCrop(fileBuffer, crop, fileName);
@@ -569,11 +641,15 @@ async function extractTopIsolatedNumberConference(fileBuffer, fileName, options 
             ...extractTopNumberCandidates(croppedText, crop.source, crop.priority),
         ];
     }
-    if (!sheetCandidates.length) {
+    if (!sheetCandidates.length && fullText) {
         sheetCandidates = extractTopNumberCandidates(fullText, 'google_vision_top_number_full_text', 25);
     }
-    const sheet = firstCandidate(sheetCandidates, 50);
-    return buildCheckResult(fullText, sheet, null, 'google_vision_top_number');
+    return firstCandidate(sheetCandidates, 50);
+}
+async function extractTopIsolatedNumberConference(fileBuffer, fileName, options = {}) {
+    const fullText = await (0, googleVision_1.extractTextFromFileBuffer)(fileBuffer, fileName);
+    const sheetSelection = await extractTopNumberFromCrops(fileBuffer, fileName, options.extractionRegion || 'top_external', fullText);
+    return buildCheckResult(fullText, sheetSelection.candidate, null, 'google_vision_top_number', sheetSelection.ambiguity);
 }
 exports.extractTopIsolatedNumberConference = extractTopIsolatedNumberConference;
 function compareNumberStatus(expected, detected) {
