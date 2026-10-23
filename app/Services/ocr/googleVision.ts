@@ -29,14 +29,64 @@ function getClient() {
   return client
 }
 
-export async function extractDocumentTextFromBuffer(imageBuffer: Buffer): Promise<string> {
+export type OcrWordBox = {
+  text: string
+  left: number
+  top: number
+  right: number
+  bottom: number
+  confidence: number
+}
+
+export type OcrPage = {
+  text: string
+  words: OcrWordBox[]
+  width: number
+  height: number
+}
+
+export async function extractDocumentOcrFromBuffer(imageBuffer: Buffer): Promise<OcrPage> {
   const [result] = await getClient().documentTextDetection({
     image: {
       content: imageBuffer,
     },
   })
 
-  return result.fullTextAnnotation?.text || result.textAnnotations?.[0]?.description || ''
+  const page = result.fullTextAnnotation?.pages?.[0]
+  const words: OcrWordBox[] = []
+
+  for (const block of page?.blocks || []) {
+    for (const paragraph of block.paragraphs || []) {
+      for (const word of paragraph.words || []) {
+        const text = (word.symbols || []).map((symbol) => symbol.text || '').join('').trim()
+        const vertices = word.boundingBox?.vertices || []
+        const xs = vertices.map((vertex) => Number(vertex.x)).filter(Number.isFinite)
+        const ys = vertices.map((vertex) => Number(vertex.y)).filter(Number.isFinite)
+
+        if (!text || !xs.length || !ys.length) continue
+
+        words.push({
+          text,
+          left: Math.min(...xs),
+          top: Math.min(...ys),
+          right: Math.max(...xs),
+          bottom: Math.max(...ys),
+          confidence: Number(word.confidence) || 0,
+        })
+      }
+    }
+  }
+
+  return {
+    text: result.fullTextAnnotation?.text || result.textAnnotations?.[0]?.description || '',
+    words,
+    width: Number(page?.width) || 0,
+    height: Number(page?.height) || 0,
+  }
+}
+
+export async function extractDocumentTextFromBuffer(imageBuffer: Buffer): Promise<string> {
+  return (await extractDocumentOcrFromBuffer(imageBuffer)).text
 }
 
 function normalizeExtractedText(value: string) {
@@ -121,4 +171,12 @@ export async function extractTextFromFileBuffer(fileBuffer: Buffer, fileNameOrEx
   }
 
   return extractDocumentTextFromBuffer(fileBuffer)
+}
+
+export async function extractOcrPageFromBuffer(fileBuffer: Buffer, fileNameOrExtension: string): Promise<OcrPage> {
+  if (String(fileNameOrExtension || '').toLowerCase().endsWith('.pdf')) {
+    return { text: await extractTextFromFileBuffer(fileBuffer, fileNameOrExtension), words: [], width: 0, height: 0 }
+  }
+
+  return extractDocumentOcrFromBuffer(fileBuffer)
 }

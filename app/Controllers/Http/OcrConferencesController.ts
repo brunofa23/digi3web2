@@ -555,7 +555,7 @@ export default class OcrConferencesController {
       errors: [] as any[],
       checks: [] as any[],
       debug: {
-        version: 'ocr-process-2026-08-18-06',
+        version: 'ocr-process-2026-10-22-layout-01',
         layout_profile: layoutProfile,
         force,
         limit,
@@ -672,24 +672,53 @@ export default class OcrConferencesController {
           .andWhere('typebooks_id', indeximage.typebooks_id)
           .andWhere('bookrecords_id', indeximage.bookrecords_id)
           .andWhere('seq', indeximage.seq)
+          .whereIn('entity_type', ['sheet', 'term'])
           .delete()
 
-        if (extracted.entities.length) {
-          await IndeximageOcrEntity.createMany(
-            extracted.entities.map((entity) => ({
-              companies_id: indeximage.companies_id,
-              typebooks_id: indeximage.typebooks_id,
-              bookrecords_id: indeximage.bookrecords_id,
-              seq: indeximage.seq,
-              entity_type: entity.entity_type,
+        const existingSearchEntities = await IndeximageOcrEntity
+          .query()
+          .where('companies_id', indeximage.companies_id)
+          .andWhere('typebooks_id', indeximage.typebooks_id)
+          .andWhere('bookrecords_id', indeximage.bookrecords_id)
+          .andWhere('seq', indeximage.seq)
+          .whereIn('entity_type', ['name', 'document'])
+        const existingByKey = new Map(
+          existingSearchEntities.map((entity) => [`${entity.entity_type}:${entity.normalized_value}`, entity])
+        )
+
+        for (const entity of extracted.entities) {
+          const identity = {
+            companies_id: indeximage.companies_id,
+            typebooks_id: indeximage.typebooks_id,
+            bookrecords_id: indeximage.bookrecords_id,
+            seq: indeximage.seq,
+            entity_type: entity.entity_type,
+            normalized_value: entity.normalized_value,
+          }
+          const existing = existingByKey.get(`${entity.entity_type}:${entity.normalized_value}`)
+
+          if (existing && Number(existing.confidence || 0) >= entity.confidence) continue
+
+          if (existing) {
+            existing.merge({
               value: entity.value,
-              normalized_value: entity.normalized_value,
               normalized_hash: hashOcrSearchValue(entity.normalized_value),
               confidence: entity.confidence,
               source: extracted.source,
               evidence_text: entity.evidence_text,
-            }))
-          )
+            })
+            await existing.save()
+          } else {
+            const created = await IndeximageOcrEntity.create({
+              ...identity,
+              value: entity.value,
+              normalized_hash: hashOcrSearchValue(entity.normalized_value),
+              confidence: entity.confidence,
+              source: extracted.source,
+              evidence_text: entity.evidence_text,
+            })
+            existingByKey.set(`${entity.entity_type}:${entity.normalized_value}`, created)
+          }
         }
 
         result.processed++
