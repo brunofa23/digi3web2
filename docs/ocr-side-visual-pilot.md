@@ -1,6 +1,6 @@
 # Piloto de identificação visual do lado
 
-O piloto está restrito a empresa 102, tipo de livro 6, livro 31. O modelo é experimental e não é usado pelo botão de conferência de lados da tela OCR.
+O piloto está restrito a empresa 102, tipo de livro 6, livro 31. O modelo é experimental. A tela OCR permite escolhê-lo no perfil **Modelo visual do lado — assistido**, separado dos perfis de OCR existentes.
 
 ## Método e dados
 
@@ -20,6 +20,14 @@ Na tela `/typebooks/6/side-training?book=31`, o botão **Validar modelo com outr
 Após a revisão, **Avaliar modelo visual nesta amostra** grava as previsões em `indeximage_ocr_checks`, usando `layout_profile` igual à versão do piloto. Elas não se misturam com o diagnóstico de bordas. O campo `side_confidence` permanece nulo: o piloto ainda não tem probabilidades calibradas. O cadastro `bookrecords.side` não é alterado.
 
 Um resultado ruim na amostra independente exige outro ciclo de desenvolvimento e uma nova amostra de teste. A validação existente não deve ser usada repetidamente para ajustar o método e continuar sendo chamada de independente. Não há liberação automática do piloto para produção.
+
+## Resultado independente e conferência assistida
+
+A primeira amostra independente terminou com 40 acertos em 40 imagens, sem erros ou inconclusivos. Três processamentos que inicialmente ficaram pendentes foram repetidos com a mesma versão congelada e também acertaram. Esse resultado descreve essa amostra e não garante a mesma precisão em todas as páginas ou em outros livros.
+
+O botão **Conferir restante do livro 31** abre `/typebooks/6/ocrconference?book=31&sideModel=visual`. O perfil visual mostra Lado, Lado Lido e a divergência com o cadastro. **Conferir lados** processa um lote do único livro selecionado e grava as sugestões sob a versão do modelo, preservando os resultados da regra de bordas. O usuário abre a imagem e altera o lado cadastrado explicitamente quando necessário.
+
+A API exige pelo menos 40 referências independentes completas e sem divergências, com os dados das revisões e imagens ainda correspondentes à versão avaliada. Esse requisito habilita somente o teste assistido; não é uma certificação estatística. Um escopo sem modelo, outro livro, revisões de treinamento alteradas ou uma validação incompleta bloqueiam o perfil.
 
 ## Reprodução
 

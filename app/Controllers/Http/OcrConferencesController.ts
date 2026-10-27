@@ -6,6 +6,7 @@ import Typebook from 'App/Models/Typebook'
 import Bookrecord from 'App/Models/Bookrecord'
 import IndeximageOcrCheck from 'App/Models/IndeximageOcrCheck'
 import IndeximageOcrEntity from 'App/Models/IndeximageOcrEntity'
+import { loadBookSideVisualModel, bookSideVisualReadiness, extractBookSideVisualFeatures, predictBookSideVisual } from 'App/Services/ocr/bookSideVisualModel'
 import { verifyPermission } from 'App/Services/util'
 import {
   sendDownloadFileBuffer,
@@ -26,6 +27,19 @@ export default class OcrConferencesController {
   private static cancelledProcesses = new Set<string>()
 
   private ocrConferencePermissiongroupId = 44
+
+  private async assistedSideModel(companyId: number, typebookId: number, input: any) {
+    const book = Number(input.bookstart ?? input.bookStart)
+    const end = input.bookend ?? input.bookEnd
+    if (!Number.isInteger(book) || book <= 0 || (end !== undefined && end !== null && end !== '' && Number(end) !== book)) {
+      throw new BadRequestException('Selecione um único livro para usar o modelo visual assistido', 422)
+    }
+    const model = await loadBookSideVisualModel(companyId, typebookId, book)
+    if (!model) throw new BadRequestException('Este livro ainda não tem modelo visual disponível', 422)
+    const readiness = await bookSideVisualReadiness(model)
+    if (!readiness.ready) throw new BadRequestException('O modelo precisa de 40 validações independentes completas, sem erros, e revisões de treinamento preservadas para este teste assistido', 422)
+    return model
+  }
 
   private ensureOcrConferenceAccess(authenticate: any, permissions: any[] = []) {
     if (!verifyPermission(Boolean(authenticate.superuser), permissions, this.ocrConferencePermissiongroupId)) {
@@ -227,7 +241,9 @@ export default class OcrConferencesController {
     const qs = request.qs()
     const page = Number(qs.page || 1)
     const perPage = Math.min(Math.max(Number(qs.perpage || qs.perPage || 20), 1), 200)
-    const layoutProfile = this.layoutProfile(qs.layoutprofile || qs.layoutProfile)
+    const visualMode = (qs.layoutprofile || qs.layoutProfile) === 'side_visual'
+    const visualModel = visualMode ? await this.assistedSideModel(authenticate.companies_id, typebooksId, qs) : null
+    const layoutProfile = visualModel?.version || this.layoutProfile(qs.layoutprofile || qs.layoutProfile)
     const search = normalizeOcrSearchValue(String(qs.ocrsearch || ''))
     const searchDigits = String(qs.ocrsearch || '').replace(/\D/g, '')
     const searchHash = hashOcrSearchValue(searchDigits || search)
@@ -302,6 +318,7 @@ export default class OcrConferencesController {
       .orderBy('indeximages.seq', 'asc')
 
     this.applyBookrecordFilters(query, qs, 'bookrecords')
+    if (visualModel) query.andWhere('bookrecords.book', visualModel.book)
 
     if (qs.sheetstatus === 'not_processed') {
       query.where((notProcessedQuery) => {
@@ -435,7 +452,10 @@ export default class OcrConferencesController {
       obs: input.obs,
       lineMarker: input.lineMarker !== undefined ? input.lineMarker : input.linemarker,
     }
-    const layoutProfile = this.layoutProfile(body.layoutProfile)
+    const visualMode = body.layoutProfile === 'side_visual'
+    if (visualMode && !this.booleanValue(body.sideOnly)) return response.status(422).send({ message: 'O perfil visual processa somente lados; use Conferir lados' })
+    const visualModel = visualMode ? await this.assistedSideModel(authenticate.companies_id, typebooksId, body) : null
+    const layoutProfile = visualModel?.version || this.layoutProfile(body.layoutProfile)
     const extractionOptions = {
       extractionRegion: this.extractionRegion(body.extractionRegion),
       positiveKeywords: this.keywordList(body.positiveKeywords),
@@ -501,6 +521,7 @@ export default class OcrConferencesController {
         .andWhere('indeximages.typebooks_id', typebooksId)
 
       this.applyBookrecordFilters(selectionQuery, filterValues, 'bookrecords')
+      if (visualModel) selectionQuery.andWhere('bookrecords.book', visualModel.book)
 
       if (sideOnly && body.sideStatus) {
         selectionQuery.leftJoin('indeximage_ocr_checks as side_checks', (join) => {
@@ -665,7 +686,9 @@ export default class OcrConferencesController {
           break
         }
 
-        const side = await detectImageSide(imageBuffer, indeximage.file_name)
+        const side = visualModel
+          ? { detectedSide: predictBookSideVisual(visualModel, (await extractBookSideVisualFeatures(imageBuffer, visualModel.extractor_sha256)).features).side, confidence: null, evidence: visualModel.version }
+          : await detectImageSide(imageBuffer, indeximage.file_name)
         const sidePayload = {
           detected_side: side.detectedSide,
           side_confidence: side.confidence,

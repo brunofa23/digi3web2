@@ -2,6 +2,7 @@ import fs from 'fs/promises'
 import path from 'path'
 import crypto from 'crypto'
 import Application from '@ioc:Adonis/Core/Application'
+import Database from '@ioc:Adonis/Lucid/Database'
 
 export type BookSideVisualModel = {
   version: string
@@ -85,5 +86,26 @@ export async function extractBookSideVisualFeatures(buffer: Buffer, expectedHash
 export function predictBookSideVisual(model: BookSideVisualModel, features: number[]) {
   if (features.length !== model.weights.length) throw new Error('Características incompatíveis com o modelo visual')
   const score = features.reduce((sum, value, index) => sum + value * model.weights[index], model.bias)
+  if (!Number.isFinite(score)) throw new Error('O modelo visual não produziu um resultado válido')
   return { side: score >= 0 ? 'F' : 'V', score }
+}
+
+export async function bookSideVisualReadiness(model: BookSideVisualModel) {
+  const training = await Database.from('indeximage_side_labels')
+    .where('companies_id', model.company_id).andWhere('typebooks_id', model.typebook_id)
+    .whereIn('bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
+    .select('bookrecords_id', 'seq', 'label')
+  const trainingUnchanged = model.training_samples.every((sample) => training.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && row.label === sample.label))
+  const validation = await Database.from('indeximage_side_labels as labels')
+    .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
+    .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.file_name', 'labels.file_name').andOn('images.drive_file_id', 'labels.drive_file_id'))
+    .leftJoin('indeximage_ocr_checks as checks', (join) => join.on('checks.bookrecords_id', 'labels.bookrecords_id').andOn('checks.companies_id', 'labels.companies_id').andOn('checks.typebooks_id', 'labels.typebooks_id').andOn('checks.seq', 'labels.seq').andOnVal('checks.layout_profile', model.version))
+    .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).andWhere('records.book', model.book)
+    .whereNotIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
+    .whereNotIn('records.sheet', model.training_samples.map((sample) => sample.sheet))
+    .whereIn('labels.label', ['F', 'V'])
+    .select('labels.label', 'checks.detected_side', 'checks.side_processed_at')
+  const correct = validation.filter((row) => row.side_processed_at && row.detected_side === row.label).length
+  const complete = validation.length >= 40 && correct === validation.length
+  return { ready: trainingUnchanged && complete, trainingUnchanged, total: validation.length, correct }
 }
