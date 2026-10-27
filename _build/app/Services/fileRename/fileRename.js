@@ -590,7 +590,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
                 fs.renameSync(returnPathFile, newPath);
             }
         }
-        const localMetadata = await getLocalFileMetadata(localFilePath);
+        let localMetadata = await getLocalFileMetadata(localFilePath);
         const duplicateIndeximage = await findDuplicateIndeximage(objfileRename.companies_id, objfileRename.typebooks_id, objfileRename.bookrecords_id, idParent, originalSha256, localMetadata.md5Checksum, localMetadata.size);
         if (duplicateIndeximage) {
             await deleteImage(localFilePath);
@@ -615,6 +615,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
             };
         }
         const sendUpload = await (0, googledrive_1.sendUploadFiles)(idParent, folderPath, `${objfileRename.file_name}`, cloud_number);
+        localMetadata = await getLocalFileMetadata(localFilePath);
         if (sendUpload.status !== 200) {
             delete objfileRename.date_atualization;
             await ErrorlogImage_1.default.create(objfileRename);

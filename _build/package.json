@@ -39,6 +39,7 @@
     "@adonisjs/view": "^6.2.0",
     "@google-cloud/local-auth": "^2.1.1",
     "@google-cloud/vision": "^5.3.6",
+    "@huggingface/transformers": "4.3.1",
     "@logtail/node": "^0.3.1",
     "@simplewebauthn/server": "^13.3.0",
     "googleapis": "^109.0.1",

@@ -306,7 +306,7 @@ class IndeximagesController {
         const uploadLimitBytes = uploadLimitMb * 1024 * 1024;
         let images = request.files('images', {
             size: `${uploadLimitMb}mb`,
-            extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF', 'tiff', 'TIFF', 'bmp', 'BMP', 'tif', 'TIF', 'webp', 'WEBP'],
+            extnames: ['jpg', 'png', 'jpeg', 'pdf', 'JPG', 'PNG', 'JPEG', 'PDF', 'jfif', 'JFIF', 'bmp', 'BMP', 'webp', 'WEBP'],
         });
         let dataImagesRaw = request.input('dataImages');
         if (!dataImagesRaw) {

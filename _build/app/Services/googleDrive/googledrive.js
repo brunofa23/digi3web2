@@ -7,8 +7,51 @@ exports.sendRenameFile = exports.sendListAllFilesMetadata = exports.sendListAllF
 const Token_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Token"));
 const Helpers_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Helpers");
 const sharp_1 = __importDefault(require("sharp"));
+const path_1 = __importDefault(require("path"));
+const crypto_1 = __importDefault(require("crypto"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const fs = require('fs');
 const { google } = require('googleapis');
+async function compressImageForDrive(filePath) {
+    const extension = path_1.default.extname(filePath).toLowerCase();
+    if (['.tif', '.tiff'].includes(extension)) {
+        throw new BadRequestException_1.default('Arquivos TIFF não são permitidos para upload.', 422);
+    }
+    if (!['.jpg', '.jpeg', '.jfif', '.png', '.webp', '.bmp', '.gif'].includes(extension))
+        return;
+    if (extension === '.bmp') {
+        throw new Error('Imagem BMP não pode ser compactada mantendo o formato; converta para PNG ou JPEG antes do upload.');
+    }
+    const metadata = await (0, sharp_1.default)(filePath).metadata();
+    if (metadata.format === 'tiff') {
+        throw new BadRequestException_1.default('Arquivos TIFF não são permitidos para upload.', 422);
+    }
+    if ((metadata.pages || 1) > 1) {
+        throw new Error('Imagem com múltiplas páginas ou quadros não pode ser compactada com segurança antes do upload.');
+    }
+    let image = (0, sharp_1.default)(filePath).rotate().resize({ width: 3200, height: 3200, fit: 'inside', withoutEnlargement: true });
+    if (['.jpg', '.jpeg', '.jfif'].includes(extension))
+        image = image.jpeg({ quality: 82, mozjpeg: true });
+    else if (extension === '.png')
+        image = image.png({ compressionLevel: 9, adaptiveFiltering: true });
+    else if (extension === '.webp')
+        image = image.webp({ quality: 82, effort: 6 });
+    else
+        image = image.gif({ effort: 10 });
+    const temporaryPath = `${filePath}.drive-compressed-${crypto_1.default.randomUUID()}`;
+    try {
+        await image.toFile(temporaryPath);
+        const [original, compressed] = await Promise.all([fs.promises.stat(filePath), fs.promises.stat(temporaryPath)]);
+        if (compressed.size < original.size)
+            await fs.promises.rename(temporaryPath, filePath);
+    }
+    finally {
+        await fs.promises.unlink(temporaryPath).catch((error) => {
+            if (error.code !== 'ENOENT')
+                throw error;
+        });
+    }
+}
 function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -487,8 +530,9 @@ async function sendListAllFilesMetadata(cloud_number, folderId = "", book = []) 
 }
 exports.sendListAllFilesMetadata = sendListAllFilesMetadata;
 async function sendUploadFiles(parent, folderPath, fileName, cloud_number, mimeType = undefined) {
+    await compressImageForDrive(path_1.default.join(folderPath, fileName));
     const auth = await authorize(cloud_number);
-    const response = uploadFiles(auth, parent, folderPath, fileName, mimeType);
+    const response = await uploadFiles(auth, parent, folderPath, fileName, mimeType);
     return response;
 }
 exports.sendUploadFiles = sendUploadFiles;
