@@ -64,6 +64,18 @@ export default class IndeximageOcrCheck extends BaseModel {
   @column.dateTime()
   public processed_at: DateTime | null
 
+  @column()
+  public detected_side: string | null
+
+  @column()
+  public side_confidence: number | null
+
+  @column()
+  public side_evidence: string | null
+
+  @column.dateTime()
+  public side_processed_at: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
