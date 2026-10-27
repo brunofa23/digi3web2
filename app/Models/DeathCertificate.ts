@@ -182,6 +182,9 @@ export default class DeathCertificate extends BaseModel {
   @column({ columnName: 'burial_doctor', serializeAs: 'burialDoctor' })
   public burialDoctor: string | null
 
+  @column({ columnName: 'funeral_home_name', serializeAs: 'funeralHomeName' })
+  public funeralHomeName: string | null
+
   @column({ columnName: 'burial_doctor_crm', serializeAs: 'burialDoctorCrm' })
   public burialDoctorCrm: string | null
 
