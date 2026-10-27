@@ -243,6 +243,10 @@ __decorate([
     __metadata("design:type", Object)
 ], DeathCertificate.prototype, "burialDoctor", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'funeral_home_name', serializeAs: 'funeralHomeName' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "funeralHomeName", void 0);
+__decorate([
     (0, Orm_1.column)({ columnName: 'burial_doctor_crm', serializeAs: 'burialDoctorCrm' }),
     __metadata("design:type", Object)
 ], DeathCertificate.prototype, "burialDoctorCrm", void 0);

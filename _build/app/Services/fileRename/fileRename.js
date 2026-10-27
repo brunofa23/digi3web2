@@ -281,13 +281,6 @@ function getUploadReportItem(objfileRename, image, idParent) {
     };
 }
 async function downloadImage(fileName, typebook_id, company_id, cloud_number, driveFileId = null) {
-    const directoryParent = await Typebook_1.default.query()
-        .where('id', typebook_id)
-        .andWhere('companies_id', company_id)
-        .first();
-    if (!directoryParent) {
-        throw new Error(`Typebook ${typebook_id} não encontrado para empresa ${company_id}`);
-    }
     const extension = path_1.default.extname(fileName);
     if (driveFileId) {
         try {
@@ -301,6 +294,13 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number, dr
                 driveFileId,
             });
         }
+    }
+    const directoryParent = await Typebook_1.default.query()
+        .where('id', typebook_id)
+        .andWhere('companies_id', company_id)
+        .first();
+    if (!directoryParent) {
+        throw new Error(`Typebook ${typebook_id} não encontrado para empresa ${company_id}`);
     }
     const parent = await (0, googledrive_1.sendSearchFile)(directoryParent.path, cloud_number);
     if (!parent?.length) {

@@ -834,6 +834,8 @@ class IndeximagesController {
             book: indexImage?.bookrecord?.book,
             sheet: indexImage?.bookrecord?.sheet,
             side: indexImage?.bookrecord?.side,
+            indexbook: indexImage?.bookrecord?.indexbook,
+            cod: indexImage?.bookrecord?.cod,
         };
     }
     async countProcessing({ auth, params, response }) {
