@@ -221,6 +221,9 @@ export default class DeathCertificate extends BaseModel {
   @column({ columnName: 'other_significant_conditions', serializeAs: 'otherSignificantConditions' })
   public otherSignificantConditions: boolean
 
+  @column({ columnName: 'was_voter', serializeAs: 'wasVoter' })
+  public wasVoter: boolean | null
+
   @column({ columnName: 'left_assets', serializeAs: 'leftAssets' })
   public leftAssets: boolean | null
 

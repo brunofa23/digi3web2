@@ -50,13 +50,44 @@ export default class SideTrainingController {
       .where('companies_id', user.companies_id)
       .andWhere('typebooks_id', typebooksId)
       .whereIn('id', rows.map((row) => row.bookrecords_id))
-      .select('id', 'cod', 'book', 'sheet')
+      .select('id', 'cod', 'book', 'sheet', 'side')
     const recordById = new Map(records.map((record) => [Number(record.id), record]))
     const visibleRows = book === null ? rows : rows.filter((row) => Number(recordById.get(row.bookrecords_id)?.book) === book)
+    const completed = visibleRows.length > 0 && visibleRows.every((row) => row.label !== null)
+    const audit = completed ? { matches: 0, divergent: 0, missing: 0, inconclusive: 0, cases: [] as any[] } : null
+
+    if (audit) {
+      for (const row of visibleRows) {
+        if (row.label === 'U') {
+          audit.inconclusive++
+          continue
+        }
+        const record = recordById.get(row.bookrecords_id)
+        const savedSide = String(record?.side || '').trim().toUpperCase()
+        if (savedSide === row.label) {
+          audit.matches++
+          continue
+        }
+        const status = ['F', 'V'].includes(savedSide) ? 'divergent' : 'missing'
+        if (status === 'divergent') audit.divergent++
+        else audit.missing++
+        audit.cases.push({
+          label_id: row.id,
+          bookrecords_id: row.bookrecords_id,
+          cod: record?.cod ?? null,
+          book: record?.book ?? null,
+          sheet: record?.sheet ?? null,
+          saved_side: savedSide || null,
+          reviewed_side: row.label,
+          status,
+        })
+      }
+    }
 
     return ctx.response.ok({
       total: visibleRows.length,
       reviewed: visibleRows.filter((row) => row.label !== null).length,
+      audit,
       items: visibleRows.map((row) => ({
         id: row.id,
         position: row.position,
