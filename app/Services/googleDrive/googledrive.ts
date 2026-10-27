@@ -1,9 +1,49 @@
 import Token from 'App/Models/Token';
 import { types } from '@ioc:Adonis/Core/Helpers'
 import sharp from 'sharp'
+import path from 'path'
+import crypto from 'crypto'
+import BadRequestException from 'App/Exceptions/BadRequestException'
 
 const fs = require('fs')
 const { google } = require('googleapis');
+
+async function compressImageForDrive(filePath: string) {
+  const extension = path.extname(filePath).toLowerCase()
+  if (['.tif', '.tiff'].includes(extension)) {
+    throw new BadRequestException('Arquivos TIFF não são permitidos para upload.', 422)
+  }
+  if (!['.jpg', '.jpeg', '.jfif', '.png', '.webp', '.bmp', '.gif'].includes(extension)) return
+
+  if (extension === '.bmp') {
+    throw new Error('Imagem BMP não pode ser compactada mantendo o formato; converta para PNG ou JPEG antes do upload.')
+  }
+
+  const metadata = await sharp(filePath).metadata()
+  if (metadata.format === 'tiff') {
+    throw new BadRequestException('Arquivos TIFF não são permitidos para upload.', 422)
+  }
+  if ((metadata.pages || 1) > 1) {
+    throw new Error('Imagem com múltiplas páginas ou quadros não pode ser compactada com segurança antes do upload.')
+  }
+
+  let image = sharp(filePath).rotate().resize({ width: 3200, height: 3200, fit: 'inside', withoutEnlargement: true })
+  if (['.jpg', '.jpeg', '.jfif'].includes(extension)) image = image.jpeg({ quality: 82, mozjpeg: true })
+  else if (extension === '.png') image = image.png({ compressionLevel: 9, adaptiveFiltering: true })
+  else if (extension === '.webp') image = image.webp({ quality: 82, effort: 6 })
+  else image = image.gif({ effort: 10 })
+
+  const temporaryPath = `${filePath}.drive-compressed-${crypto.randomUUID()}`
+  try {
+    await image.toFile(temporaryPath)
+    const [original, compressed] = await Promise.all([fs.promises.stat(filePath), fs.promises.stat(temporaryPath)])
+    if (compressed.size < original.size) await fs.promises.rename(temporaryPath, filePath)
+  } finally {
+    await fs.promises.unlink(temporaryPath).catch((error) => {
+      if (error.code !== 'ENOENT') throw error
+    })
+  }
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -620,8 +660,9 @@ async function sendListAllFilesMetadata(cloud_number: number, folderId: any = ""
 }
 
 async function sendUploadFiles(parent, folderPath, fileName, cloud_number: number, mimeType = undefined) {
+  await compressImageForDrive(path.join(folderPath, fileName))
   const auth = await authorize(cloud_number)
-  const response = uploadFiles(auth, parent, folderPath, fileName, mimeType)
+  const response = await uploadFiles(auth, parent, folderPath, fileName, mimeType)
   return response
 }
 
