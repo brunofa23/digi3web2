@@ -46,6 +46,7 @@
   "metaFiles": [
     "tmp/uploads/*",
     "resources/side-models/*.json",
+    "resources/side-training/*.cjs",
     ".env.example",
     "config/credentials/*",
     "config/tokens/*",
@@ -54,5 +55,5 @@
       "reloadServer": false
     }
   ],
-  "lastCompiledAt": "2026-10-27T18:28:57.291Z"
+  "lastCompiledAt": "2026-10-27T20:06:09.720Z"
 }
