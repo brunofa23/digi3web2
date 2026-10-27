@@ -7,6 +7,14 @@ import { verifyPermission } from 'App/Services/util'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 
 export default class SideTrainingController {
+  private requestedBook(ctx: HttpContextContract) {
+    const value = ctx.request.input('book')
+    if (value === undefined || value === null || value === '') return null
+    const book = Number(value)
+    if (!Number.isInteger(book) || book <= 0) throw new BadRequestException('Número do livro inválido', 422)
+    return book
+  }
+
   private async access(ctx: HttpContextContract) {
     const user = await ctx.auth.use('api').authenticate()
     const permissions = ctx.auth.use('api').token?.meta.payload.permissions || []
@@ -32,6 +40,7 @@ export default class SideTrainingController {
 
   public async index(ctx: HttpContextContract) {
     const { user, typebooksId } = await this.access(ctx)
+    const book = this.requestedBook(ctx)
     const rows = await IndeximageSideLabel.query()
       .where('companies_id', user.companies_id)
       .andWhere('typebooks_id', typebooksId)
@@ -43,11 +52,12 @@ export default class SideTrainingController {
       .whereIn('id', rows.map((row) => row.bookrecords_id))
       .select('id', 'cod', 'book', 'sheet')
     const recordById = new Map(records.map((record) => [Number(record.id), record]))
+    const visibleRows = book === null ? rows : rows.filter((row) => Number(recordById.get(row.bookrecords_id)?.book) === book)
 
     return ctx.response.ok({
-      total: rows.length,
-      reviewed: rows.filter((row) => row.label !== null).length,
-      items: rows.map((row) => ({
+      total: visibleRows.length,
+      reviewed: visibleRows.filter((row) => row.label !== null).length,
+      items: visibleRows.map((row) => ({
         id: row.id,
         position: row.position,
         bookrecords_id: row.bookrecords_id,
@@ -63,6 +73,7 @@ export default class SideTrainingController {
 
   public async createSample(ctx: HttpContextContract) {
     const { user, typebooksId } = await this.access(ctx)
+    const book = this.requestedBook(ctx)
 
     await Database.transaction(async (trx) => {
       await Typebook.query({ client: trx })
@@ -71,17 +82,28 @@ export default class SideTrainingController {
         .forUpdate()
         .firstOrFail()
 
-      const existing = await IndeximageSideLabel.query({ client: trx })
+      const existingRows = await IndeximageSideLabel.query({ client: trx })
         .where('companies_id', user.companies_id)
         .andWhere('typebooks_id', typebooksId)
-        .first()
 
-      if (existing) return
+      if (book === null && existingRows.length) return
 
       const selected: any[] = []
+      let existingForBook: number[] = []
+      if (book !== null) {
+        const records = await Database.from('bookrecords')
+          .useTransaction(trx)
+          .where('companies_id', user.companies_id)
+          .andWhere('typebooks_id', typebooksId)
+          .whereIn('id', existingRows.map((row) => row.bookrecords_id))
+          .andWhere('book', book)
+          .select('id')
+        existingForBook = records.map((row) => Number(row.id))
+        if (existingForBook.length >= 40) return
+      }
 
-      for (const side of ['F', 'V']) {
-        const rows = await Database.from('bookrecords as bookrecords')
+      if (book !== null) {
+        const query = Database.from('bookrecords as bookrecords')
           .useTransaction(trx)
           .join('indeximages as indeximages', (join) => {
             join.on('indeximages.bookrecords_id', 'bookrecords.id')
@@ -91,24 +113,47 @@ export default class SideTrainingController {
           })
           .where('bookrecords.companies_id', user.companies_id)
           .andWhere('bookrecords.typebooks_id', typebooksId)
-          .andWhere('bookrecords.side', side)
+          .andWhere('bookrecords.book', book)
           .whereNotNull('indeximages.drive_file_id')
           .whereIn('indeximages.ext', ['.jpg', '.jpeg', '.png', '.webp'])
-          .orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-v1'))")
-          .limit(20)
+          .orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-book-v1'))")
+          .limit(40 - existingForBook.length)
           .select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
-
+        if (existingForBook.length) query.whereNotIn('bookrecords.id', existingForBook)
+        const rows = await query
         selected.push(...rows)
+      } else {
+        for (const side of ['F', 'V']) {
+          const rows = await Database.from('bookrecords as bookrecords')
+            .useTransaction(trx)
+            .join('indeximages as indeximages', (join) => {
+              join.on('indeximages.bookrecords_id', 'bookrecords.id')
+                .andOn('indeximages.typebooks_id', 'bookrecords.typebooks_id')
+                .andOn('indeximages.companies_id', 'bookrecords.companies_id')
+                .andOnVal('indeximages.seq', 0)
+            })
+            .where('bookrecords.companies_id', user.companies_id)
+            .andWhere('bookrecords.typebooks_id', typebooksId)
+            .andWhere('bookrecords.side', side)
+            .whereNotNull('indeximages.drive_file_id')
+            .whereIn('indeximages.ext', ['.jpg', '.jpeg', '.png', '.webp'])
+            .orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-v1'))")
+            .limit(20)
+            .select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
+          selected.push(...rows)
+        }
       }
 
-      if (!selected.length) throw new BadRequestException('Nenhuma imagem disponível para revisão', 422)
+      if (!selected.length && !existingForBook.length) throw new BadRequestException('Nenhuma imagem disponível para revisão', 422)
+      if (!selected.length) return
 
+      const nextPosition = existingRows.reduce((max, row) => Math.max(max, row.position), 0) + 1
       await IndeximageSideLabel.createMany(selected.map((row, index) => ({
         companies_id: user.companies_id,
         typebooks_id: typebooksId,
         bookrecords_id: row.bookrecords_id,
         seq: row.seq,
-        position: index + 1,
+        position: nextPosition + index,
         drive_file_id: row.drive_file_id,
         file_name: row.file_name,
       })), { client: trx })
