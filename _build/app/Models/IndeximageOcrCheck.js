@@ -95,6 +95,22 @@ __decorate([
     __metadata("design:type", Object)
 ], IndeximageOcrCheck.prototype, "processed_at", void 0);
 __decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], IndeximageOcrCheck.prototype, "detected_side", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], IndeximageOcrCheck.prototype, "side_confidence", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], IndeximageOcrCheck.prototype, "side_evidence", void 0);
+__decorate([
+    Orm_1.column.dateTime(),
+    __metadata("design:type", Object)
+], IndeximageOcrCheck.prototype, "side_processed_at", void 0);
+__decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
 ], IndeximageOcrCheck.prototype, "createdAt", void 0);

@@ -627,6 +627,7 @@ class OrderCertificatesController {
                 filiation2OtherOccupation: this.toBoolean(deathData.filiation2OtherOccupation),
                 filiation2ResidenceCountry: deathData.filiation2ResidenceCountry ?? '',
                 otherSignificantConditions: deathData.otherSignificantConditions == null ? true : this.toBoolean(deathData.otherSignificantConditions),
+                wasVoter: deathData.wasVoter == null ? null : this.toBoolean(deathData.wasVoter),
                 leftAssets: deathData.leftAssets == null ? null : this.toBoolean(deathData.leftAssets),
                 leftChildren: deathData.leftChildren == null ? null : this.toBoolean(deathData.leftChildren),
                 leftWill: deathData.leftWill == null ? null : this.toBoolean(deathData.leftWill),

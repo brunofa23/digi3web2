@@ -295,6 +295,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], DeathCertificate.prototype, "otherSignificantConditions", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'was_voter', serializeAs: 'wasVoter' }),
+    __metadata("design:type", Object)
+], DeathCertificate.prototype, "wasVoter", void 0);
+__decorate([
     (0, Orm_1.column)({ columnName: 'left_assets', serializeAs: 'leftAssets' }),
     __metadata("design:type", Object)
 ], DeathCertificate.prototype, "leftAssets", void 0);

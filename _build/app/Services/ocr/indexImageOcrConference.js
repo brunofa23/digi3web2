@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.extractOcrEntitiesFromText = exports.hashOcrSearchValue = exports.normalizeOcrSearchValue = exports.compareTermStatus = exports.compareNumberStatus = exports.extractTopIsolatedNumberConference = exports.extractHeaderKeywordConference = void 0;
+exports.extractOcrEntitiesFromText = exports.hashOcrSearchValue = exports.normalizeOcrSearchValue = exports.compareTermStatus = exports.compareNumberStatus = exports.extractTopIsolatedNumberConference = exports.extractHeaderKeywordConference = exports.detectImageSide = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 const sharp_1 = __importDefault(require("sharp"));
+const pdf_parse_1 = require("pdf-parse");
 const googleVision_1 = require("./googleVision");
 const DEFAULT_POSITIVE_KEYWORDS = ['LIVRO', 'FOLHAS', 'TERMO'];
 const DEFAULT_NEGATIVE_KEYWORDS = [
@@ -383,6 +384,52 @@ function sharpInput(fileBuffer, fileName) {
         ? (0, sharp_1.default)(fileBuffer, { density: 200, page: 0, pages: 1 })
         : (0, sharp_1.default)(fileBuffer);
 }
+async function detectImageSide(fileBuffer, fileName) {
+    let imageBuffer = fileBuffer;
+    if (isPdfFile(fileName)) {
+        const parser = new pdf_parse_1.PDFParse({ data: fileBuffer });
+        try {
+            const screenshot = await parser.getScreenshot({ first: 1, desiredWidth: 512, imageDataUrl: false });
+            if (!screenshot.pages[0]?.data)
+                throw new Error('PDF sem imagem de página');
+            imageBuffer = Buffer.from(screenshot.pages[0].data);
+        }
+        finally {
+            await parser.destroy();
+        }
+    }
+    const { data, info } = await (0, sharp_1.default)(imageBuffer)
+        .rotate()
+        .resize({ width: 256 })
+        .grayscale()
+        .raw()
+        .toBuffer({ resolveWithObject: true });
+    const bandWidth = Math.max(1, Math.floor(info.width * 0.05));
+    const top = Math.floor(info.height * 0.25);
+    const bottom = Math.floor(info.height * 0.75);
+    const median = (left) => {
+        const values = [];
+        for (let y = top; y < bottom; y++) {
+            for (let x = left; x < left + bandWidth; x++) {
+                values.push(data[y * info.width + x]);
+            }
+        }
+        values.sort((a, b) => a - b);
+        return values[Math.floor(values.length / 2)] || 0;
+    };
+    const left = median(0);
+    const right = median(info.width - bandWidth);
+    const difference = Math.abs(left - right);
+    const detectedSide = difference >= 45 && Math.max(left, right) >= 150 && Math.min(left, right) <= 130
+        ? right < left ? 'F' : 'V'
+        : null;
+    return {
+        detectedSide,
+        confidence: detectedSide ? Math.min(0.99, difference / 120) : 0,
+        evidence: `Bordas externas: esquerda ${left}, direita ${right}`,
+    };
+}
+exports.detectImageSide = detectImageSide;
 async function buildTopCrop(fileBuffer, ratio, fileName) {
     const image = sharpInput(fileBuffer, fileName);
     const metadata = await image.metadata();
