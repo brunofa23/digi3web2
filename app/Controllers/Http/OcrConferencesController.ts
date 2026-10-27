@@ -37,7 +37,7 @@ export default class OcrConferencesController {
     const model = await loadBookSideVisualModel(companyId, typebookId, book)
     if (!model) throw new BadRequestException('Este livro ainda não tem modelo visual disponível', 422)
     const readiness = await bookSideVisualReadiness(model)
-    if (!readiness.ready) throw new BadRequestException('O modelo precisa de 40 validações independentes completas, sem erros, e revisões de treinamento preservadas para este teste assistido', 422)
+    if (!readiness.ready) throw new BadRequestException('O modelo precisa de 40 validações independentes completas, incluindo cinco de cada lado, sem erros, e revisões de treinamento preservadas para este teste assistido', 422)
     return model
   }
 
@@ -652,33 +652,45 @@ export default class OcrConferencesController {
 
     result.drive_files_found = driveFileIdsFound + driveFilesByName.size
 
+    const streamProgress = this.booleanValue(input.streamProgress || input.streamprogress)
+    const sendProgress = () => {
+      if (!streamProgress || response.response.destroyed || response.response.writableEnded) return
+      response.response.write(`${JSON.stringify({ type: 'progress', total: result.selected,
+        completed: result.processed + result.errors.length, processed: result.processed, failed: result.errors.length })}\n`)
+    }
+    if (streamProgress) {
+      response.header('Content-Type', 'application/x-ndjson; charset=utf-8')
+        .header('Cache-Control', 'no-store').header('X-Accel-Buffering', 'no').flushHeaders(200)
+      sendProgress()
+    }
+
     for (const indeximage of indeximages) {
       if (isCancelled()) {
         result.cancelled = true
         break
       }
 
-      let driveFile = indeximage.drive_file_id
-        ? { id: indeximage.drive_file_id, name: indeximage.file_name }
-        : driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name))
-
-      if (!driveFile?.id) {
-        const foundFiles = await sendSearchFile(indeximage.file_name, typebook.company.cloud, folder[0].id)
-
-        if (Array.isArray(foundFiles)) {
-          driveFile = foundFiles.find((file) => {
-            return this.normalizeDriveFileName(file?.name) === this.normalizeDriveFileName(indeximage.file_name)
-          }) || foundFiles[0]
-        }
-      }
-
-      if (!driveFile?.id) {
-        result.skipped++
-        result.errors.push({ file_name: indeximage.file_name, message: 'Arquivo não encontrado no Google Drive' })
-        continue
-      }
-
       try {
+        let driveFile = indeximage.drive_file_id
+          ? { id: indeximage.drive_file_id, name: indeximage.file_name }
+          : driveFilesByName.get(this.normalizeDriveFileName(indeximage.file_name))
+
+        if (!driveFile?.id) {
+          const foundFiles = await sendSearchFile(indeximage.file_name, typebook.company.cloud, folder[0].id)
+
+          if (Array.isArray(foundFiles)) {
+            driveFile = foundFiles.find((file) => {
+              return this.normalizeDriveFileName(file?.name) === this.normalizeDriveFileName(indeximage.file_name)
+            }) || foundFiles[0]
+          }
+        }
+
+        if (!driveFile?.id) {
+          result.skipped++
+          result.errors.push({ file_name: indeximage.file_name, message: 'Arquivo não encontrado no Google Drive' })
+          continue
+        }
+
         const imageBuffer = await sendDownloadFileBuffer(driveFile.id, typebook.company.cloud)
 
         if (isCancelled()) {
@@ -687,7 +699,7 @@ export default class OcrConferencesController {
         }
 
         const side = visualModel
-          ? { detectedSide: predictBookSideVisual(visualModel, (await extractBookSideVisualFeatures(imageBuffer, visualModel.extractor_sha256)).features).side, confidence: null, evidence: visualModel.version }
+          ? { detectedSide: predictBookSideVisual(visualModel, (await extractBookSideVisualFeatures(imageBuffer, visualModel.extractor_sha256)).features).side, confidence: null, evidence: visualModel.model_id ? `Livro ${visualModel.book} · versão ${visualModel.model_id}` : visualModel.version }
           : await detectImageSide(imageBuffer, indeximage.file_name)
         const sidePayload = {
           detected_side: side.detectedSide,
@@ -832,11 +844,19 @@ export default class OcrConferencesController {
           file_name: indeximage.file_name,
           message: error?.message || 'Erro ao processar OCR da imagem',
         })
+      } finally {
+        sendProgress()
       }
     }
 
     if (cancelKey) OcrConferencesController.cancelledProcesses.delete(cancelKey)
 
+    if (streamProgress) {
+      if (!response.response.destroyed && !response.response.writableEnded) {
+        response.response.end(`${JSON.stringify({ type: 'result', data: result })}\n`)
+      }
+      return
+    }
     return response.status(200).send(result)
   }
 

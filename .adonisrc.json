@@ -46,6 +46,7 @@
   "metaFiles": [
     "tmp/uploads/*",
     "resources/side-models/*.json",
+    "resources/side-training/*.cjs",
     ".env.example",
     "config/credentials/*",
     "config/tokens/*",

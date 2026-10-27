@@ -13,10 +13,16 @@ export default class AppProvider {
   }
 
   public async ready () {
-    // App is ready
+    if (this.app.environment === 'web') {
+      const { startBookSideTrainingWorker } = await import('App/Services/ocr/bookSideModelTraining')
+      startBookSideTrainingWorker()
+    }
   }
 
   public async shutdown () {
-    // Cleanup, since app is going down
+    if (this.app.environment === 'web') {
+      const { stopBookSideTrainingWorker } = await import('App/Services/ocr/bookSideModelTraining')
+      await stopBookSideTrainingWorker()
+    }
   }
 }
