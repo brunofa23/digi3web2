@@ -3,19 +3,26 @@ import { types } from '@ioc:Adonis/Core/Helpers'
 import sharp from 'sharp'
 import path from 'path'
 import crypto from 'crypto'
+import BadRequestException from 'App/Exceptions/BadRequestException'
 
 const fs = require('fs')
 const { google } = require('googleapis');
 
 async function compressImageForDrive(filePath: string) {
   const extension = path.extname(filePath).toLowerCase()
-  if (!['.jpg', '.jpeg', '.jfif', '.png', '.webp', '.tif', '.tiff', '.bmp', '.gif'].includes(extension)) return
+  if (['.tif', '.tiff'].includes(extension)) {
+    throw new BadRequestException('Arquivos TIFF não são permitidos para upload.', 422)
+  }
+  if (!['.jpg', '.jpeg', '.jfif', '.png', '.webp', '.bmp', '.gif'].includes(extension)) return
 
   if (extension === '.bmp') {
     throw new Error('Imagem BMP não pode ser compactada mantendo o formato; converta para PNG ou JPEG antes do upload.')
   }
 
   const metadata = await sharp(filePath).metadata()
+  if (metadata.format === 'tiff') {
+    throw new BadRequestException('Arquivos TIFF não são permitidos para upload.', 422)
+  }
   if ((metadata.pages || 1) > 1) {
     throw new Error('Imagem com múltiplas páginas ou quadros não pode ser compactada com segurança antes do upload.')
   }
@@ -24,8 +31,7 @@ async function compressImageForDrive(filePath: string) {
   if (['.jpg', '.jpeg', '.jfif'].includes(extension)) image = image.jpeg({ quality: 82, mozjpeg: true })
   else if (extension === '.png') image = image.png({ compressionLevel: 9, adaptiveFiltering: true })
   else if (extension === '.webp') image = image.webp({ quality: 82, effort: 6 })
-  else if (extension === '.gif') image = image.gif({ effort: 10 })
-  else image = image.tiff({ compression: 'lzw' })
+  else image = image.gif({ effort: 10 })
 
   const temporaryPath = `${filePath}.drive-compressed-${crypto.randomUUID()}`
   try {

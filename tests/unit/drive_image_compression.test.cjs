@@ -13,6 +13,7 @@ const compiled = ts.transpileModule(source, {
 const exportsObject = {}
 const resolve = (name) => {
   if (name === 'App/Models/Token') return { default: {} }
+  if (name === 'App/Exceptions/BadRequestException') return class BadRequestException extends Error {}
   if (name === '@ioc:Adonis/Core/Helpers') return { types: {} }
   if (name === 'googleapis') return { google: {} }
   return require(name)
@@ -33,7 +34,7 @@ async function run() {
     assert.ok(jpeg.width <= 3200 && jpeg.height <= 3200)
     assert.ok(fs.statSync(jpegPath).size < originalSize)
 
-    for (const format of ['png', 'webp', 'gif', 'tiff']) {
+    for (const format of ['png', 'webp', 'gif']) {
       const imagePath = path.join(directory, `image.${format}`)
       await sharp({ create: { width: 32, height: 32, channels: 3, background: '#eeeeee' } })
         .toFormat(format)
@@ -50,7 +51,16 @@ async function run() {
     const bmpPath = path.join(directory, 'image.bmp')
     fs.writeFileSync(bmpPath, 'BMP')
     await assert.rejects(exportsObject.compressImageForDrive(bmpPath), /BMP não pode ser compactada/)
-    assert.equal(fs.readdirSync(directory).length, 7)
+
+    const tiffPath = path.join(directory, 'image.tiff')
+    await sharp({ create: { width: 32, height: 32, channels: 3, background: '#eeeeee' } })
+      .tiff()
+      .toFile(tiffPath)
+    await assert.rejects(exportsObject.compressImageForDrive(tiffPath), /TIFF não são permitidos/)
+    const disguisedTiffPath = path.join(directory, 'disguised.jpg')
+    fs.copyFileSync(tiffPath, disguisedTiffPath)
+    await assert.rejects(exportsObject.compressImageForDrive(disguisedTiffPath), /TIFF não são permitidos/)
+    assert.equal(fs.readdirSync(directory).length, 8)
   } finally {
     fs.rmSync(directory, { recursive: true, force: true })
   }
