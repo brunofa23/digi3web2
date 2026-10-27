@@ -763,7 +763,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
 
     }
 
-    const localMetadata = await getLocalFileMetadata(localFilePath)
+    let localMetadata = await getLocalFileMetadata(localFilePath)
     const duplicateIndeximage = await findDuplicateIndeximage(
       objfileRename.companies_id,
       objfileRename.typebooks_id,
@@ -803,6 +803,7 @@ async function pushImageToGoogle(image, folderPath, objfileRename, idParent, clo
     // await imageProcessing(fullPathFileInput)
     //copia o arquivo para o googledrive
     const sendUpload = await sendUploadFiles(idParent, folderPath, `${objfileRename.file_name}`, cloud_number)
+    localMetadata = await getLocalFileMetadata(localFilePath)
 
     if (sendUpload.status !== 200) {
       delete objfileRename.date_atualization

@@ -130,6 +130,7 @@ Route.group(() => {
   Route.get('/typebooks/:typebooks_id/side-training', 'SideTrainingController.index').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/sample', 'SideTrainingController.createSample').middleware('auth')
   Route.patch('/typebooks/:typebooks_id/side-training/labels/:id', 'SideTrainingController.updateLabel').middleware('auth')
+  Route.post('/typebooks/:typebooks_id/side-training/labels/:id/evaluate-visual', 'SideTrainingController.evaluateVisual').middleware('auth')
   Route.get('/typebooks/:typebooks_id/ocrconferences/entities', 'OcrConferencesController.entities').middleware('auth')
   Route.post('/typebooks/:typebooks_id/ocrconferences/process', 'OcrConferencesController.process').middleware('auth')
   Route.post('/typebooks/:typebooks_id/ocrconferences/process/cancel', 'OcrConferencesController.cancelProcess').middleware('auth')
