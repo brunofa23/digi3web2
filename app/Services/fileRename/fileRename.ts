@@ -367,16 +367,6 @@ function getUploadReportItem(objfileRename: any, image: any, idParent: string) {
 //   return download
 // }
 async function downloadImage(fileName, typebook_id, company_id, cloud_number: number, driveFileId: string | null = null) {
-  // 🔹 Busca o diretório principal
-  const directoryParent = await Typebook.query()
-    .where('id', typebook_id)
-    .andWhere('companies_id', company_id)
-    .first()
-
-  if (!directoryParent) {
-    throw new Error(`Typebook ${typebook_id} não encontrado para empresa ${company_id}`)
-  }
-
   const extension = path.extname(fileName)
 
   if (driveFileId) {
@@ -390,6 +380,16 @@ async function downloadImage(fileName, typebook_id, company_id, cloud_number: nu
         driveFileId,
       })
     }
+  }
+
+  // 🔹 Busca o diretório principal somente quando precisar localizar o arquivo pelo nome
+  const directoryParent = await Typebook.query()
+    .where('id', typebook_id)
+    .andWhere('companies_id', company_id)
+    .first()
+
+  if (!directoryParent) {
+    throw new Error(`Typebook ${typebook_id} não encontrado para empresa ${company_id}`)
   }
 
   // 🔹 Busca a pasta principal na nuvem
