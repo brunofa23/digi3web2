@@ -751,6 +751,7 @@ export default class OrderCertificatesController {
         willBeCremated: this.toBoolean(deathData.willBeCremated),
         burialPlace: deathData.burialPlace ?? '',
         burialDoctor: deathData.burialDoctor ?? '',
+        funeralHomeName: deathData.funeralHomeName ?? '',
         burialDoctorCrm: deathData.burialDoctorCrm ?? '',
         burialObservation: deathData.burialObservation ?? '',
 
