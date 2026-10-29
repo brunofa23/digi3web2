@@ -138,6 +138,7 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/ocrconferences/process', 'OcrConferencesController.process').middleware('auth')
   Route.post('/typebooks/:typebooks_id/ocrconferences/process/cancel', 'OcrConferencesController.cancelProcess').middleware('auth')
   Route.patch('/typebooks/:typebooks_id/ocrconferences/apply-sheets', 'OcrConferencesController.bulkApplySheets').middleware('auth')
+  Route.patch('/typebooks/:typebooks_id/ocrconferences/apply-sides', 'OcrConferencesController.bulkApplySides').middleware('auth')
   Route.patch('/typebooks/:typebooks_id/ocrconferences/bookrecords/:bookrecord_id/sheet', 'OcrConferencesController.updateSheet').middleware('auth')
   Route.patch('/typebooks/:typebooks_id/ocrconferences/bookrecords/:bookrecord_id/side', 'OcrConferencesController.updateSide').middleware('auth')
   Route.patch('/typebooks/:typebooks_id/ocrconferences/bookrecords/:bookrecord_id/marker', 'OcrConferencesController.updateRowMarker').middleware('auth')
