@@ -52,6 +52,10 @@ __decorate([
     __metadata("design:type", Number)
 ], OrderCertificateAverbation.prototype, "documentTypeBookId", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'label_text' }),
+    __metadata("design:type", Object)
+], OrderCertificateAverbation.prototype, "labelText", void 0);
+__decorate([
     (0, Orm_1.belongsTo)(() => AverbationDescription_1.default, { foreignKey: 'averbationDescriptionId' }),
     __metadata("design:type", Object)
 ], OrderCertificateAverbation.prototype, "averbationDescription", void 0);

@@ -62,6 +62,7 @@ class OrderCertificatesController {
                 termNumber: Number(row.termNumber),
                 averbationDescriptionId: Number(row.averbationDescriptionId),
                 documentTypeBookId: Number(row.documentTypeBookId),
+                labelText: row.labelText == null ? null : String(row.labelText),
             }, { client: trx });
         }
     }
@@ -251,12 +252,19 @@ class OrderCertificatesController {
         if (!hasAny)
             return null;
         const personId = this.toNumber(personData?.id);
+        const cpf = this.normalizeCpfValue(personData?.cpf);
         let person;
         if (personId) {
             person = await Person_1.default.findOrFail(personId, { client: trx });
         }
         else {
-            person = new Person_1.default();
+            const existingByCpf = cpf?.length === 11
+                ? await Person_1.default.query({ client: trx })
+                    .where('companies_id', companiesId)
+                    .where('cpf', cpf)
+                    .first()
+                : null;
+            person = existingByCpf ?? new Person_1.default();
         }
         person.useTransaction(trx);
         const payload = {
@@ -295,6 +303,14 @@ class OrderCertificatesController {
         };
         if (String(personData.occupation ?? '').trim() !== '') {
             payload.occupation = personData.occupation;
+        }
+        if (!personId && person.id) {
+            for (const field of Object.keys(payload)) {
+                const value = payload[field];
+                if (value === '' || value === null || value === undefined || value === false) {
+                    payload[field] = person[field];
+                }
+            }
         }
         person.merge(payload);
         await person.save();

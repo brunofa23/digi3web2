@@ -217,6 +217,13 @@ class EmployeeVerificationXReceiptsController {
                 return;
             if (current.receiptId !== item.receiptId)
                 return false;
+            const last = await EmployeeVerificationXReceipt_1.default.query({ client: trx })
+                .where('receiptId', current.receiptId)
+                .orderBy('item', 'desc')
+                .orderBy('id', 'desc')
+                .first();
+            if (!last || last.id !== current.id)
+                return false;
             await current.delete();
             const following = await EmployeeVerificationXReceipt_1.default.query({ client: trx })
                 .where('receiptId', current.receiptId)
@@ -228,7 +235,7 @@ class EmployeeVerificationXReceiptsController {
             }
         });
         if (deleted === false) {
-            return response.status(409).json({ message: 'O vínculo mudou de recibo. Atualize e tente novamente.' });
+            return response.status(409).json({ message: 'Somente a última conferência do recibo pode ser excluída' });
         }
         return response.status(204);
     }
