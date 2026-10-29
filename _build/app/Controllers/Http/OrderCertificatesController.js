@@ -1341,6 +1341,7 @@ class OrderCertificatesController {
                 .select([
                 'evxr.id',
                 'evxr.receipt_id',
+                'evxr.item',
                 'evxr.date',
                 'ev.description',
                 'evxr.created_at',
@@ -1352,13 +1353,17 @@ class OrderCertificatesController {
                 const receiptId = Number(row.receipt_id);
                 const candidate = {
                     id: row.id,
+                    item: Number(row.item),
                     status: null,
                     observation: row.description,
                     date: row.date,
                     createdAt: row.created_at,
                     source: 'receipt',
                 };
-                latestEmployeeVerificationByReceipt.set(receiptId, this.getLatestEmployeeVerification(latestEmployeeVerificationByReceipt.get(receiptId) ?? null, candidate));
+                const current = latestEmployeeVerificationByReceipt.get(receiptId) ?? null;
+                if (!current || candidate.item > current.item) {
+                    latestEmployeeVerificationByReceipt.set(receiptId, candidate);
+                }
             });
         }
         const result = orders.map((order) => {
