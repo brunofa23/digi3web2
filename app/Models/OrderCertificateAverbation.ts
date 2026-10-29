@@ -14,6 +14,7 @@ export default class OrderCertificateAverbation extends BaseModel {
   @column() public termNumber: number
   @column() public averbationDescriptionId: number
   @column() public documentTypeBookId: number
+  @column({ columnName: 'label_text' }) public labelText: string | null
 
   @belongsTo(() => AverbationDescription, { foreignKey: 'averbationDescriptionId' })
   public averbationDescription: BelongsTo<typeof AverbationDescription>
