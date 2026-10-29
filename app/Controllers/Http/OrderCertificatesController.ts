@@ -82,7 +82,6 @@ export default class OrderCertificatesController {
     if (required.some((field) => !String(data[field] ?? '').trim())) throw new Error('Mandado: preencha os campos obrigatórios')
     const mandateType = Number(data.mandateType)
     const rectificationType = this.toNumber(data.rectificationType)
-    const transcriptionType = this.toNumber(data.transcriptionType)
     const cpf = this.normalizeCpfValue(data.applicantCpf)
     const whatsappRaw = String(data.applicantWhatsapp).trim()
     const whatsappWithCountryCode = whatsappRaw.replace(/\D/g, '')
@@ -97,12 +96,10 @@ export default class OrderCertificatesController {
     }
     const requestDate = DateTime.fromISO(String(data.requestDate), { zone: 'America/Sao_Paulo' })
     const scheduleDate = data.scheduleDate ? DateTime.fromISO(String(data.scheduleDate), { zone: 'America/Sao_Paulo' }) : null
-    if (!Number.isInteger(mandateType) || mandateType < 1 || mandateType > 17 ||
+    if (!Number.isInteger(mandateType) || mandateType < 1 || mandateType > 15 ||
       !requestDate.isValid || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.requestDate)) ||
       (scheduleDate && (!scheduleDate.isValid || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(data.scheduleDate)))) ||
       (mandateType === 2 && ![1, 2, 3].includes(rectificationType ?? 0)) ||
-      (mandateType === 7 && ![1, 2, 3].includes(transcriptionType ?? 0)) ||
-      (mandateType === 7 && ![true, false, 'true', 'false', '1', '0'].includes(data.hasPowerOfAttorney)) ||
       String(data.applicantName).trim().length > 100 || whatsappRaw.length > 20 ||
       String(data.applicantPhone ?? '').length > 20 || String(data.applicantEmail ?? '').length > 100 ||
       String(data.registeredData ?? '').length > 255 || String(data.registeredCity ?? '').length > 100 ||
@@ -119,8 +116,8 @@ export default class OrderCertificatesController {
       companiesId, usrId, requestDate, scheduleDate,
       mandateType,
       rectificationType: mandateType === 2 ? rectificationType : null,
-      transcriptionType: mandateType === 7 ? transcriptionType : null,
-      hasPowerOfAttorney: mandateType === 7 ? this.toBoolean(data.hasPowerOfAttorney) : null,
+      transcriptionType: null,
+      hasPowerOfAttorney: null,
       applicantName: String(data.applicantName).trim(), applicantCpf: cpf,
       applicantWhatsapp: whatsapp,
       applicantPhone: data.applicantPhone || null, applicantEmail: data.applicantEmail || null,
