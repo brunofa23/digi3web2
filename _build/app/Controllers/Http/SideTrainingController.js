@@ -253,7 +253,7 @@ class SideTrainingController {
                 await this.storeLegacyModel(model, user.id, trx);
             const labels = await Database_1.default.from('indeximage_side_labels as labels').useTransaction(trx)
                 .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
-                .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id').andOn('images.file_name', 'labels.file_name'))
+                .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
                 .where('labels.companies_id', user.companies_id).andWhere('labels.typebooks_id', typebooksId).andWhere('records.book', book).whereIn('labels.label', ['F', 'V'])
                 .orderBy('records.sheet').orderBy('records.cod').select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet');
             if (labels.length < 40 || !['F', 'V'].every((side) => labels.filter((label) => label.label === side).length >= 5)) {
@@ -453,7 +453,10 @@ class SideTrainingController {
         if (model.training_samples.some((sample) => sample.bookrecords_id === row.bookrecords_id)) {
             throw new BadRequestException_1.default('Esta imagem foi usada no desenvolvimento e não pode ser usada na validação independente', 422);
         }
-        if (model.training_samples.some((sample) => Number(sample.sheet) === Number(record.sheet))) {
+        const trainingRecords = await Database_1.default.from('bookrecords')
+            .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', model.book)
+            .whereIn('id', model.training_samples.map((sample) => sample.bookrecords_id)).select('sheet');
+        if ([...trainingRecords, ...model.training_samples].some((sample) => Number(sample.sheet) === Number(record.sheet))) {
             throw new BadRequestException_1.default('Esta folha já participou do desenvolvimento. Use uma folha diferente para validação independente', 422);
         }
         const trainingRows = await IndeximageSideLabel_1.default.query()
@@ -465,7 +468,7 @@ class SideTrainingController {
         const image = await Database_1.default.from('indeximages')
             .where('bookrecords_id', row.bookrecords_id).andWhere('companies_id', user.companies_id)
             .andWhere('typebooks_id', typebooksId).andWhere('seq', row.seq)
-            .andWhere('drive_file_id', row.drive_file_id).andWhere('file_name', row.file_name).first();
+            .andWhere('drive_file_id', row.drive_file_id).first();
         if (!image)
             throw new BadRequestException_1.default('A imagem original da revisão foi alterada', 409);
         await typebook.load('company');
@@ -528,7 +531,6 @@ class SideTrainingController {
             .andWhere('bookrecords_id', row.bookrecords_id)
             .andWhere('seq', row.seq)
             .andWhere('drive_file_id', row.drive_file_id)
-            .andWhere('file_name', row.file_name)
             .first();
         if (!image)
             throw new BadRequestException_1.default('A imagem original da amostra foi alterada', 409);

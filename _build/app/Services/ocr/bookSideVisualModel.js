@@ -107,17 +107,18 @@ exports.predictBookSideVisual = predictBookSideVisual;
 async function bookSideVisualReadiness(model) {
     const training = await Database_1.default.from('indeximage_side_labels as labels')
         .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
-        .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.file_name', 'labels.file_name').andOn('images.drive_file_id', 'labels.drive_file_id'))
+        .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
         .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).andWhere('records.book', model.book)
         .whereIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
         .select('labels.bookrecords_id', 'labels.seq', 'labels.label', 'records.sheet');
-    const trainingUnchanged = model.training_samples.every((sample) => training.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && Number(row.sheet) === Number(sample.sheet) && row.label === sample.label));
+    const trainingUnchanged = model.training_samples.every((sample) => training.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && row.label === sample.label));
     const validationQuery = Database_1.default.from('indeximage_side_labels as labels')
         .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
-        .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.file_name', 'labels.file_name').andOn('images.drive_file_id', 'labels.drive_file_id'))
+        .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
         .leftJoin('indeximage_ocr_checks as checks', (join) => join.on('checks.bookrecords_id', 'labels.bookrecords_id').andOn('checks.companies_id', 'labels.companies_id').andOn('checks.typebooks_id', 'labels.typebooks_id').andOn('checks.seq', 'labels.seq').andOnVal('checks.layout_profile', model.version))
         .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).andWhere('records.book', model.book)
         .whereNotIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
+        .whereNotIn('records.sheet', training.map((row) => row.sheet))
         .whereNotIn('records.sheet', model.training_samples.map((sample) => sample.sheet))
         .whereIn('labels.label', ['F', 'V'])
         .select('labels.id', 'labels.label', 'checks.detected_side', 'checks.side_processed_at');

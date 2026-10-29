@@ -22,7 +22,7 @@ const leaseEnd = () => luxon_1.DateTime.utc().plus({ minutes: 2 }).toSQL({ inclu
 async function verifySideTrainingSnapshot(job) {
     const rows = await Database_1.default.from('indeximage_side_labels as labels')
         .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
-        .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id').andOn('images.file_name', 'labels.file_name'))
+        .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
         .where('labels.companies_id', job.companies_id).andWhere('labels.typebooks_id', job.typebooks_id).andWhere('records.book', job.book)
         .whereIn('labels.id', job.training_samples.map((sample) => sample.label_id))
         .select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet');

@@ -28,8 +28,10 @@ class OcrConferencesController {
         if (!model)
             throw new BadRequestException_1.default('Este livro ainda não tem modelo visual disponível', 422);
         const readiness = await (0, bookSideVisualModel_1.bookSideVisualReadiness)(model);
+        if (!readiness.trainingUnchanged)
+            throw new BadRequestException_1.default('As imagens ou marcações Frente/Verso usadas no treinamento mudaram ou não foram encontradas neste livro. Abra a revisão do livro para conferir o modelo', 422);
         if (!readiness.ready)
-            throw new BadRequestException_1.default('O modelo precisa de 40 validações independentes completas, incluindo cinco de cada lado, sem erros, e revisões de treinamento preservadas para este teste assistido', 422);
+            throw new BadRequestException_1.default(`Validação do livro ${book}: ${readiness.correct} acertos em ${readiness.total} imagens (${readiness.sides.F} frentes e ${readiness.sides.V} versos). São necessárias pelo menos 40 validações independentes, com cinco de cada lado e sem erros. Abra a revisão do livro para consultar as pendências`, 422);
         return model;
     }
     ensureOcrConferenceAccess(authenticate, permissions = []) {
@@ -205,9 +207,10 @@ class OcrConferencesController {
         const qs = request.qs();
         const page = Number(qs.page || 1);
         const perPage = Math.min(Math.max(Number(qs.perpage || qs.perPage || 20), 1), 200);
-        const visualMode = (qs.layoutprofile || qs.layoutProfile) === 'side_visual';
+        const visualMode = qs.sidemodel === 'visual' || (qs.layoutprofile || qs.layoutProfile) === 'side_visual';
         const visualModel = visualMode ? await this.assistedSideModel(authenticate.companies_id, typebooksId, qs) : null;
-        const layoutProfile = visualModel?.version || this.layoutProfile(qs.layoutprofile || qs.layoutProfile);
+        const layoutProfile = this.layoutProfile(qs.layoutprofile || qs.layoutProfile);
+        const sideChecks = visualModel ? 'visual_checks' : 'checks';
         const search = (0, indexImageOcrConference_1.normalizeOcrSearchValue)(String(qs.ocrsearch || ''));
         const searchDigits = String(qs.ocrsearch || '').replace(/\D/g, '');
         const searchHash = (0, indexImageOcrConference_1.hashOcrSearchValue)(searchDigits || search);
@@ -232,17 +235,25 @@ class OcrConferencesController {
         })
             .where('indeximages.companies_id', authenticate.companies_id)
             .andWhere('indeximages.typebooks_id', typebooksId)
-            .select('checks.id', 'checks.layout_profile', 'checks.expected_sheet', 'checks.detected_sheet', 'checks.expected_term', 'checks.detected_term', 'checks.sheet_status', 'checks.term_status', 'checks.confidence', 'checks.confidence_level', 'checks.evidence_text', 'checks.source', 'checks.auto_applied', 'checks.review_status', 'checks.line_marker', 'checks.processed_at', 'checks.detected_side', 'checks.side_confidence', 'checks.side_evidence', 'checks.side_processed_at', Database_1.default.raw(`CASE
-          WHEN checks.side_processed_at IS NULL THEN NULL
-          WHEN checks.detected_side IS NULL THEN 'not_found'
+            .select('checks.id', 'checks.layout_profile', 'checks.expected_sheet', 'checks.detected_sheet', 'checks.expected_term', 'checks.detected_term', 'checks.sheet_status', 'checks.term_status', 'checks.confidence', 'checks.confidence_level', 'checks.evidence_text', 'checks.source', 'checks.auto_applied', 'checks.review_status', 'checks.line_marker', 'checks.processed_at', `${sideChecks}.detected_side as detected_side`, `${sideChecks}.side_confidence as side_confidence`, `${sideChecks}.side_evidence as side_evidence`, `${sideChecks}.side_processed_at as side_processed_at`, Database_1.default.raw(`CASE
+          WHEN ${sideChecks}.side_processed_at IS NULL THEN NULL
+          WHEN ${sideChecks}.detected_side IS NULL THEN 'not_found'
           WHEN bookrecords.side IS NULL THEN 'detected'
-          WHEN bookrecords.side = checks.detected_side THEN 'match'
+          WHEN bookrecords.side = ${sideChecks}.detected_side THEN 'match'
           ELSE 'divergent'
         END as side_status`), 'bookrecords.id as bookrecord_id', 'bookrecords.cod', 'bookrecords.book', 'bookrecords.sheet', 'bookrecords.side', 'bookrecords.approximate_term', 'bookrecords.indexbook', 'bookrecords.year', 'bookrecords.letter', 'bookrecords.obs', 'indeximages.seq', 'indeximages.file_name', 'indeximages.ext')
             .orderBy('bookrecords.book', 'asc')
             .orderBy('bookrecords.sheet', 'asc')
             .orderBy('bookrecords.cod', 'asc')
             .orderBy('indeximages.seq', 'asc');
+        if (visualModel)
+            query.leftJoin('indeximage_ocr_checks as visual_checks', (join) => {
+                join.on('visual_checks.bookrecords_id', 'indeximages.bookrecords_id')
+                    .andOn('visual_checks.typebooks_id', 'indeximages.typebooks_id')
+                    .andOn('visual_checks.companies_id', 'indeximages.companies_id')
+                    .andOn('visual_checks.seq', 'indeximages.seq')
+                    .andOnVal('visual_checks.layout_profile', visualModel.version);
+            });
         this.applyBookrecordFilters(query, qs, 'bookrecords');
         if (visualModel)
             query.andWhere('bookrecords.book', visualModel.book);
@@ -261,15 +272,15 @@ class OcrConferencesController {
         else if (qs.termstatus)
             query.andWhere('checks.term_status', qs.termstatus);
         if (qs.sidestatus === 'not_processed')
-            query.whereNull('checks.side_processed_at');
+            query.whereNull(`${sideChecks}.side_processed_at`);
         else if (qs.sidestatus === 'not_found')
-            query.whereNotNull('checks.side_processed_at').whereNull('checks.detected_side');
+            query.whereNotNull(`${sideChecks}.side_processed_at`).whereNull(`${sideChecks}.detected_side`);
         else if (qs.sidestatus === 'detected')
-            query.whereNotNull('checks.detected_side').whereNull('bookrecords.side');
+            query.whereNotNull(`${sideChecks}.detected_side`).whereNull('bookrecords.side');
         else if (qs.sidestatus === 'match')
-            query.whereNotNull('checks.detected_side').whereRaw('bookrecords.side = checks.detected_side');
+            query.whereNotNull(`${sideChecks}.detected_side`).whereRaw(`bookrecords.side = ${sideChecks}.detected_side`);
         else if (qs.sidestatus === 'divergent')
-            query.whereNotNull('checks.detected_side').whereRaw('bookrecords.side <> checks.detected_side');
+            query.whereNotNull(`${sideChecks}.detected_side`).whereRaw(`bookrecords.side <> ${sideChecks}.detected_side`);
         if (qs.confidencelevel)
             query.andWhere('checks.confidence_level', qs.confidencelevel);
         if (qs.reviewstatus === 'not_processed') {
@@ -377,7 +388,7 @@ class OcrConferencesController {
             obs: input.obs,
             lineMarker: input.lineMarker !== undefined ? input.lineMarker : input.linemarker,
         };
-        const visualMode = body.layoutProfile === 'side_visual';
+        const visualMode = input.sideModel === 'visual' || body.layoutProfile === 'side_visual';
         if (visualMode && !this.booleanValue(body.sideOnly))
             return response.status(422).send({ message: 'O perfil visual processa somente lados; use Conferir lados' });
         const visualModel = visualMode ? await this.assistedSideModel(authenticate.companies_id, typebooksId, body) : null;
@@ -806,13 +817,20 @@ class OcrConferencesController {
         await check.save();
         return response.status(200).send({ check, applied: payload });
     }
-    async bulkApplySheets({ auth, params, request, response }) {
+    async bulkApplySides(ctx) {
+        return this.bulkApplySheets(ctx, 'side');
+    }
+    async bulkApplySheets({ auth, params, request, response }, field = 'sheet') {
         const authenticate = await auth.use('api').authenticate();
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
         this.ensureOcrConferenceAccess(authenticate, permissions);
         const typebooksId = Number(params.typebooks_id);
         const input = { ...request.qs(), ...request.body() };
         const layoutProfile = this.layoutProfile(input.layoutProfile || input.layoutprofile);
+        const visualModel = field === 'side' && (input.sideModel || input.sidemodel) === 'visual'
+            ? await this.assistedSideModel(authenticate.companies_id, typebooksId, input) : null;
+        const detectedProfile = visualModel?.version || layoutProfile;
+        const ocrChecks = visualModel ? 'ocr_checks' : 'checks';
         const markerScope = String(input.markerScope || input.markerscope || '').trim();
         const search = (0, indexImageOcrConference_1.normalizeOcrSearchValue)(String(input.ocrSearch || input.ocrsearch || ''));
         const searchDigits = String(input.ocrSearch || input.ocrsearch || '').replace(/\D/g, '');
@@ -855,12 +873,25 @@ class OcrConferencesController {
         })
             .where('checks.companies_id', authenticate.companies_id)
             .andWhere('checks.typebooks_id', typebooksId)
-            .andWhere('checks.layout_profile', layoutProfile)
-            .whereNotNull('checks.detected_sheet')
-            .select('checks.id', 'checks.bookrecords_id', 'checks.detected_sheet');
+            .andWhere('checks.layout_profile', detectedProfile)
+            .select('checks.id', 'checks.bookrecords_id', field === 'side' ? 'checks.detected_side' : 'checks.detected_sheet');
+        if (visualModel)
+            query.leftJoin('indeximage_ocr_checks as ocr_checks', (join) => {
+                join.on('ocr_checks.bookrecords_id', 'checks.bookrecords_id')
+                    .andOn('ocr_checks.typebooks_id', 'checks.typebooks_id')
+                    .andOn('ocr_checks.companies_id', 'checks.companies_id')
+                    .andOn('ocr_checks.seq', 'checks.seq')
+                    .andOnVal('ocr_checks.layout_profile', layoutProfile);
+            });
+        if (field === 'side')
+            query.whereNotNull('checks.side_processed_at').whereIn('checks.detected_side', ['F', 'V']);
+        else
+            query.whereNotNull('checks.detected_sheet');
         this.applyBookrecordFilters(query, filterValues, 'bookrecords');
         if (markerScope === 'marked')
-            query.andWhere('checks.line_marker', true);
+            query.andWhere(`${ocrChecks}.line_marker`, true);
+        else if (visualModel)
+            query.where((unmarked) => unmarked.where(`${ocrChecks}.line_marker`, false).orWhereNull(`${ocrChecks}.line_marker`));
         else
             query.andWhere('checks.line_marker', false);
         const sheetStatus = input.sheetStatus || input.sheetstatus;
@@ -868,19 +899,32 @@ class OcrConferencesController {
         const confidenceLevel = input.confidenceLevel || input.confidencelevel;
         const reviewStatus = input.reviewStatus || input.reviewstatus;
         if (sheetStatus === 'not_processed')
-            query.whereNull('checks.processed_at');
+            query.whereNull(`${ocrChecks}.processed_at`);
         else if (sheetStatus)
-            query.andWhere('checks.sheet_status', sheetStatus);
+            query.andWhere(`${ocrChecks}.sheet_status`, sheetStatus);
         if (termStatus === 'not_processed')
-            query.whereNull('checks.processed_at');
+            query.whereNull(`${ocrChecks}.processed_at`);
         else if (termStatus)
-            query.andWhere('checks.term_status', termStatus);
+            query.andWhere(`${ocrChecks}.term_status`, termStatus);
         if (confidenceLevel)
-            query.andWhere('checks.confidence_level', confidenceLevel);
+            query.andWhere(`${ocrChecks}.confidence_level`, confidenceLevel);
         if (reviewStatus === 'not_processed')
-            query.whereNull('checks.processed_at');
+            query.whereNull(`${ocrChecks}.processed_at`);
         else if (reviewStatus)
-            query.andWhere('checks.review_status', reviewStatus);
+            query.andWhere(`${ocrChecks}.review_status`, reviewStatus);
+        if (field === 'side') {
+            const sideStatus = input.sideStatus || input.sidestatus;
+            if (sideStatus === 'match')
+                query.whereRaw('bookrecords.side = checks.detected_side');
+            else if (sideStatus === 'divergent')
+                query.whereRaw('bookrecords.side <> checks.detected_side');
+            else if (sideStatus === 'detected')
+                query.whereNull('bookrecords.side');
+            else if (sideStatus === 'not_found' || sideStatus === 'not_processed')
+                query.whereRaw('1 = 0');
+        }
+        if (this.booleanValue(input.lineMarker || input.linemarker))
+            query.andWhere(`${ocrChecks}.line_marker`, true);
         if (search) {
             query.whereExists((entityQuery) => {
                 entityQuery
@@ -904,25 +948,51 @@ class OcrConferencesController {
         const grouped = new Map();
         for (const row of rows) {
             const bookrecordId = Number(row.bookrecords_id);
-            const detectedSheet = Number(row.detected_sheet);
-            if (!Number.isInteger(bookrecordId) || !Number.isInteger(detectedSheet))
+            const detectedValue = field === 'side' ? row.detected_side : Number(row.detected_sheet);
+            if (!Number.isInteger(bookrecordId) || (field === 'sheet' && !Number.isInteger(detectedValue)))
                 continue;
-            const group = grouped.get(bookrecordId) || { detectedSheets: new Set(), checkIds: [] };
-            group.detectedSheets.add(detectedSheet);
+            const group = grouped.get(bookrecordId) || { detectedValues: new Set(), checkIds: [] };
+            group.detectedValues.add(detectedValue);
             group.checkIds.push(Number(row.id));
             grouped.set(bookrecordId, group);
         }
+        const conflictingRecords = new Set();
+        if (field === 'side' && grouped.size) {
+            const conflicts = await Database_1.default.from('indeximage_ocr_checks as other')
+                .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'other.bookrecords_id')
+                .andOn('images.companies_id', 'other.companies_id')
+                .andOn('images.typebooks_id', 'other.typebooks_id').andOn('images.seq', 'other.seq'))
+                .where('other.companies_id', authenticate.companies_id)
+                .andWhere('other.typebooks_id', typebooksId)
+                .andWhere('other.layout_profile', detectedProfile)
+                .whereIn('other.bookrecords_id', Array.from(grouped.keys()))
+                .whereNotNull('other.side_processed_at')
+                .whereIn('other.detected_side', ['F', 'V'])
+                .groupBy('other.bookrecords_id')
+                .havingRaw('COUNT(DISTINCT other.detected_side) > 1')
+                .select('other.bookrecords_id');
+            for (const row of conflicts)
+                conflictingRecords.add(Number(row.bookrecords_id));
+        }
         const targets = Array.from(grouped.entries())
-            .filter(([, group]) => group.detectedSheets.size === 1)
+            .filter(([bookrecordId, group]) => group.detectedValues.size === 1 && !conflictingRecords.has(bookrecordId))
             .map(([bookrecordId, group]) => ({
             bookrecordId,
-            detectedSheet: Array.from(group.detectedSheets)[0],
+            detectedValue: Array.from(group.detectedValues)[0],
             checkIds: group.checkIds.filter(Boolean),
         }));
         const conflicts = grouped.size - targets.length;
-        const now = luxon_1.DateTime.local().toSQL();
+        const now = luxon_1.DateTime.local().toSQL({ includeOffset: false });
         await Database_1.default.transaction(async (trx) => {
             for (const target of targets) {
+                if (field === 'side') {
+                    await Database_1.default.from('bookrecords').useTransaction(trx)
+                        .where('id', target.bookrecordId)
+                        .andWhere('companies_id', authenticate.companies_id)
+                        .andWhere('typebooks_id', typebooksId)
+                        .update({ side: target.detectedValue, updated_at: now });
+                    continue;
+                }
                 await Database_1.default
                     .from('bookrecords')
                     .useTransaction(trx)
@@ -930,7 +1000,7 @@ class OcrConferencesController {
                     .andWhere('companies_id', authenticate.companies_id)
                     .andWhere('typebooks_id', typebooksId)
                     .update({
-                    sheet: target.detectedSheet,
+                    sheet: target.detectedValue,
                     updated_at: now,
                 });
                 await Database_1.default.rawQuery(`
@@ -951,8 +1021,8 @@ class OcrConferencesController {
               AND bookrecords_id = ?
               AND layout_profile = ?
           `, [
-                    target.detectedSheet,
-                    target.detectedSheet,
+                    target.detectedValue,
+                    target.detectedValue,
                     ...target.checkIds,
                     now,
                     authenticate.companies_id,
