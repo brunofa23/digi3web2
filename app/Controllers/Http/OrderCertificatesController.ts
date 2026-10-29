@@ -62,6 +62,7 @@ export default class OrderCertificatesController {
         termNumber: Number(row.termNumber),
         averbationDescriptionId: Number(row.averbationDescriptionId),
         documentTypeBookId: Number(row.documentTypeBookId),
+        labelText: row.labelText == null ? null : String(row.labelText),
       }, { client: trx })
     }
   }
@@ -288,13 +289,20 @@ export default class OrderCertificatesController {
     if (!hasAny) return null
 
     const personId = this.toNumber(personData?.id)
+    const cpf = this.normalizeCpfValue(personData?.cpf)
 
     let person: Person
     if (personId) {
       // ✅ garante update no registro certo dentro da trx
       person = await Person.findOrFail(personId, { client: trx })
     } else {
-      person = new Person()
+      const existingByCpf = cpf?.length === 11
+        ? await Person.query({ client: trx })
+          .where('companies_id', companiesId)
+          .where('cpf', cpf)
+          .first()
+        : null
+      person = existingByCpf ?? new Person()
     }
 
     person.useTransaction(trx)
@@ -346,6 +354,17 @@ export default class OrderCertificatesController {
 
     if (String(personData.occupation ?? '').trim() !== '') {
       payload.occupation = personData.occupation
+    }
+
+    // Cadastros localizados pelo CPF recebem apenas os valores informados;
+    // campos ausentes ou vazios do formulário não apagam o cadastro existente.
+    if (!personId && person.id) {
+      for (const field of Object.keys(payload)) {
+        const value = payload[field]
+        if (value === '' || value === null || value === undefined || value === false) {
+          payload[field] = (person as any)[field]
+        }
+      }
     }
 
     person.merge(payload)

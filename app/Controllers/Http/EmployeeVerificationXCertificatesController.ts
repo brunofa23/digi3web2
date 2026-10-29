@@ -370,7 +370,49 @@ export default class EmployeeVerificationXCertificatesController {
       })
     }
 
-    await item.delete()
+    const target = item.marriedCertificateId
+      ? { table: MarriedCertificate.table, field: 'marriedCertificateId', id: item.marriedCertificateId }
+      : item.bornCertificateId
+        ? { table: BornCertificate.table, field: 'bornCertificateId', id: item.bornCertificateId }
+        : item.deathCertificateId
+          ? { table: DeathCertificate.table, field: 'deathCertificateId', id: item.deathCertificateId }
+          : item.mandateCertificateId
+            ? { table: MandateCertificate.table, field: 'mandateCertificateId', id: item.mandateCertificateId }
+            : item.secondcopyCertificateId
+              ? { table: SecondcopyCertificate.table, field: 'secondcopyCertificateId', id: item.secondcopyCertificateId }
+              : { table: CommunicationCertificate.table, field: 'communicationCertificateId', id: item.communicationCertificateId! }
+
+    const deleted = await Database.transaction(async (trx) => {
+      const parent = await trx.from(target.table)
+        .where('id', target.id)
+        .where('companies_id', companiesId)
+        .forUpdate()
+        .first()
+      if (!parent) return null
+
+      const last = await EmployeeVerificationXCertificate.query({ client: trx })
+        .where('companiesId', companiesId)
+        .where(target.field, target.id)
+        .orderBy('id', 'desc')
+        .first()
+      if (!last || last.id !== item.id) return false
+
+      const current = await EmployeeVerificationXCertificate.query({ client: trx })
+        .where('id', item.id)
+        .where('companiesId', companiesId)
+        .first()
+      if (!current) return null
+      await current.delete()
+      return true
+    })
+
+    if (deleted === false) {
+      return response.status(409).json({ message: 'Somente a última conferência pode ser excluída' })
+    }
+    if (!deleted) {
+      return response.status(404).json({ message: 'Certificado não encontrado' })
+    }
+
     return response.status(204)
   }
 }
