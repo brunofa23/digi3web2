@@ -812,6 +812,12 @@ export default class OrderCertificatesController {
     const bookIds = (request.input('bookIds', []) || [])
       .map((id) => Number(id))
       .filter((id) => Number.isInteger(id) && id > 0)
+    const mandateTypeIds = (request.input('mandateTypeIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id >= 1 && id <= 15)
+    const documenttypeIds = (request.input('documenttypeIds', []) || [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isInteger(id) && id > 0)
     const onlyBookId = bookIds.length ? (bookIds.length === 1 ? bookIds[0] : null) : bookId
 
     // pega cpf (se vier) e tira máscara
@@ -996,6 +1002,18 @@ export default class OrderCertificatesController {
       query.whereIn('book_id', bookIds)
     else if (bookId)
       query.andWhere('book_id', bookId)
+
+    if (mandateTypeIds.length) {
+      query.where('book_id', 24).whereHas('mandateCertificate', (mandate) => {
+        mandate.whereIn('mandate_type', mandateTypeIds)
+      })
+    }
+
+    if (documenttypeIds.length) {
+      query.where('book_id', 21).whereHas('secondcopyCertificate', (secondCopy) => {
+        secondCopy.whereIn('documenttype_id', documenttypeIds)
+      })
+    }
 
     if (origin && ['internal', 'public'].includes(origin)) {
       query.andWhere('origin', origin)
