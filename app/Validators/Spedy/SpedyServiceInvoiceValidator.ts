@@ -6,6 +6,7 @@ export default class SpedyServiceInvoiceValidator {
 
   public schema = schema.create({
     integrationId: schema.string.optional({ trim: true }, [rules.maxLength(36)]),
+    finAccountId: schema.number.nullableAndOptional([rules.unsigned()]),
     effectiveDate: schema.date.optional(),
     description: schema.string({ trim: true }),
     amount: schema.number(),

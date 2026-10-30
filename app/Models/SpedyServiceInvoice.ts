@@ -4,6 +4,7 @@ import Database from '@ioc:Adonis/Lucid/Database'
 import { BaseModel, belongsTo, BelongsTo, column } from '@ioc:Adonis/Lucid/Orm'
 import Company from './Company'
 import Receipt from './Receipt'
+import FinAccount from './FinAccount'
 
 function parseJson(value: any) {
   if (!value) return null
@@ -22,6 +23,9 @@ export default class SpedyServiceInvoice extends BaseModel {
 
   @column()
   public receiptId?: number | null
+
+  @column()
+  public finAccountId?: number | null
 
   @column()
   public environment: 'sandbox' | 'production'
@@ -139,4 +143,7 @@ export default class SpedyServiceInvoice extends BaseModel {
 
   @belongsTo(() => Receipt, { foreignKey: 'receiptId' })
   public receipt: BelongsTo<typeof Receipt>
+
+  @belongsTo(() => FinAccount, { foreignKey: 'finAccountId' })
+  public finAccount: BelongsTo<typeof FinAccount>
 }

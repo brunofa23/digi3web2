@@ -57,7 +57,8 @@ export default class FinAccountsController {
         .preload('finemp', q => q.select('name'))
         .preload('finPaymentMethod', q => q.select('description'))
         .preload('finimage', q => q.select('id', 'file_name', 'fin_account_id', 'companies_id', 'path'))
-        .preload('finentity', q => { q.select('fin_entities.id', 'fin_entities.description', 'fin_entities.cpf_cnpj', 'fin_entities.email') })
+        .preload('finentity', q => { q.select('fin_entities.id', 'fin_entities.description', 'fin_entities.cpf_cnpj', 'fin_entities.email', 'fin_entities.responsible', 'fin_entities.phone') })
+        .preload('spedyServiceInvoice', q => { q.select('id', 'fin_account_id', 'status', 'number') })
 
       // Filtros dinâmicos
       query.if(body.description, q =>
@@ -198,7 +199,8 @@ export default class FinAccountsController {
       return response.ok(data)
 
     } catch (error) {
-      throw new BadRequestException('Erro ao buscar lançamentos', 401, error)
+      console.error('Erro ao buscar lançamentos financeiros:', error)
+      throw new BadRequestException('Erro ao buscar lançamentos', 500, 'fin_accounts_fetch_failed')
     }
   }
 
