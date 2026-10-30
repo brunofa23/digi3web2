@@ -18,6 +18,7 @@ const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/D
 const Orm_1 = global[Symbol.for('ioc.use')]("Adonis/Lucid/Orm");
 const Company_1 = __importDefault(require("./Company"));
 const Receipt_1 = __importDefault(require("./Receipt"));
+const FinAccount_1 = __importDefault(require("./FinAccount"));
 function parseJson(value) {
     if (!value)
         return null;
@@ -78,6 +79,10 @@ __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
 ], SpedyServiceInvoice.prototype, "receiptId", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], SpedyServiceInvoice.prototype, "finAccountId", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", String)
@@ -171,5 +176,9 @@ __decorate([
     (0, Orm_1.belongsTo)(() => Receipt_1.default, { foreignKey: 'receiptId' }),
     __metadata("design:type", Object)
 ], SpedyServiceInvoice.prototype, "receipt", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => FinAccount_1.default, { foreignKey: 'finAccountId' }),
+    __metadata("design:type", Object)
+], SpedyServiceInvoice.prototype, "finAccount", void 0);
 exports.default = SpedyServiceInvoice;
 //# sourceMappingURL=SpedyServiceInvoice.js.map

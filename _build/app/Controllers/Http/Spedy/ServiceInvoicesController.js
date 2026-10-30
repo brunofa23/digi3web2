@@ -8,6 +8,7 @@ const promises_1 = __importDefault(require("fs/promises"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const CompanySpedyIntegration_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/CompanySpedyIntegration"));
 const SpedyServiceInvoice_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SpedyServiceInvoice"));
+const FinAccount_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/FinAccount"));
 const SpedyNfseExportJob_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SpedyNfseExportJob"));
 const SpedyNfseExportService_1 = global[Symbol.for('ioc.use')]("App/Services/Spedy/SpedyNfseExportService");
 const SpedyCompaniesService_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Spedy/SpedyCompaniesService"));
@@ -242,6 +243,24 @@ class ServiceInvoicesController {
         const environment = request.input('environment', 'sandbox');
         const companiesId = this.getIssuerCompanyId(user, request);
         const integration = await this.getCompanyIntegration(companiesId, environment);
+        if (payload.finAccountId) {
+            const account = await FinAccount_1.default.query()
+                .where('id', payload.finAccountId)
+                .where('companies_id', companiesId)
+                .where('debit_credit', 'C')
+                .whereNotNull('entity_id')
+                .first();
+            if (!account) {
+                throw new BadRequestException_1.default('Lançamento não encontrado ou não elegível para emissão de NFS-e.', 400, 'spedy_fin_account_invalid');
+            }
+            const linkedInvoice = await SpedyServiceInvoice_1.default.query()
+                .where('companies_id', companiesId)
+                .where('fin_account_id', payload.finAccountId)
+                .first();
+            if (linkedInvoice && linkedInvoice.integrationId !== payload.integrationId) {
+                throw new BadRequestException_1.default('Este lançamento já possui uma NFS-e vinculada.', 400, 'spedy_fin_account_invoice_exists');
+            }
+        }
         const integrationId = payload.integrationId || `digi3-nfse-${companiesId}-${Date.now()}`;
         const requestPayload = this.buildPayload(payload, integrationId);
         const existing = await SpedyServiceInvoice_1.default
@@ -256,6 +275,7 @@ class ServiceInvoicesController {
         const normalized = this.normalizeInvoice(remote);
         return SpedyServiceInvoice_1.default.saveWithHistory({
             companiesId,
+            finAccountId: payload.finAccountId || existing?.finAccountId || null,
             environment,
             spedyCompanyId: integration.spedyCompanyId,
             integrationId,

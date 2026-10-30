@@ -6,6 +6,7 @@ class SpedyServiceInvoiceValidator {
         this.ctx = ctx;
         this.schema = Validator_1.schema.create({
             integrationId: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(36)]),
+            finAccountId: Validator_1.schema.number.nullableAndOptional([Validator_1.rules.unsigned()]),
             effectiveDate: Validator_1.schema.date.optional(),
             description: Validator_1.schema.string({ trim: true }),
             amount: Validator_1.schema.number(),

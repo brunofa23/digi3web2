@@ -56,7 +56,8 @@ class FinAccountsController {
                 .preload('finemp', q => q.select('name'))
                 .preload('finPaymentMethod', q => q.select('description'))
                 .preload('finimage', q => q.select('id', 'file_name', 'fin_account_id', 'companies_id', 'path'))
-                .preload('finentity', q => { q.select('fin_entities.id', 'fin_entities.description', 'fin_entities.cpf_cnpj', 'fin_entities.email'); });
+                .preload('finentity', q => { q.select('fin_entities.id', 'fin_entities.description', 'fin_entities.cpf_cnpj', 'fin_entities.email', 'fin_entities.responsible', 'fin_entities.phone'); })
+                .preload('spedyServiceInvoice', q => { q.select('id', 'fin_account_id', 'status', 'number'); });
             query.if(body.description, q => q.where('description', 'like', `%${body.description}%`));
             query.if(body.fin_emp_id, q => q.where('fin_emp_id', body.fin_emp_id));
             query.if(body.fin_class_id, q => q.where('fin_class_id', body.fin_class_id));
@@ -159,7 +160,8 @@ class FinAccountsController {
             return response.ok(data);
         }
         catch (error) {
-            throw new BadRequestException_1.default('Erro ao buscar lançamentos', 401, error);
+            console.error('Erro ao buscar lançamentos financeiros:', error);
+            throw new BadRequestException_1.default('Erro ao buscar lançamentos', 500, 'fin_accounts_fetch_failed');
         }
     }
     async show({ auth, params, response }) {
