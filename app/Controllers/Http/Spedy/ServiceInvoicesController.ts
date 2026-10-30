@@ -4,6 +4,7 @@ import fs from 'fs/promises'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 import CompanySpedyIntegration from 'App/Models/CompanySpedyIntegration'
 import SpedyServiceInvoice from 'App/Models/SpedyServiceInvoice'
+import FinAccount from 'App/Models/FinAccount'
 import SpedyNfseExportJob from 'App/Models/SpedyNfseExportJob'
 import { enqueueExport, exportPath } from 'App/Services/Spedy/SpedyNfseExportService'
 import SpedyCompaniesService from 'App/Services/Spedy/SpedyCompaniesService'
@@ -283,6 +284,24 @@ export default class ServiceInvoicesController {
     const environment = request.input('environment', 'sandbox')
     const companiesId = this.getIssuerCompanyId(user, request)
     const integration = await this.getCompanyIntegration(companiesId, environment)
+    if (payload.finAccountId) {
+      const account = await FinAccount.query()
+        .where('id', payload.finAccountId)
+        .where('companies_id', companiesId)
+        .where('debit_credit', 'C')
+        .whereNotNull('entity_id')
+        .first()
+      if (!account) {
+        throw new BadRequestException('Lançamento não encontrado ou não elegível para emissão de NFS-e.', 400, 'spedy_fin_account_invalid')
+      }
+      const linkedInvoice = await SpedyServiceInvoice.query()
+        .where('companies_id', companiesId)
+        .where('fin_account_id', payload.finAccountId)
+        .first()
+      if (linkedInvoice && linkedInvoice.integrationId !== payload.integrationId) {
+        throw new BadRequestException('Este lançamento já possui uma NFS-e vinculada.', 400, 'spedy_fin_account_invoice_exists')
+      }
+    }
     const integrationId = payload.integrationId || `digi3-nfse-${companiesId}-${Date.now()}`
     const requestPayload = this.buildPayload(payload, integrationId)
     const existing = await SpedyServiceInvoice
@@ -300,6 +319,7 @@ export default class ServiceInvoicesController {
 
     return SpedyServiceInvoice.saveWithHistory({
       companiesId,
+      finAccountId: payload.finAccountId || existing?.finAccountId || null,
       environment,
       spedyCompanyId: integration.spedyCompanyId,
       integrationId,

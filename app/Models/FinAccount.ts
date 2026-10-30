@@ -5,6 +5,7 @@ import FinEmp from './FinEmp'
 import FinPaymentMethod from './FinPaymentMethod'
 import Entity from './Entity'
 import FinImage from './FinImage'
+import SpedyServiceInvoice from './SpedyServiceInvoice'
 export default class FinAccount extends BaseModel {
 
   public static get fillable() {
@@ -76,6 +77,9 @@ export default class FinAccount extends BaseModel {
     localKey: 'id'
   })
   public finimage: HasMany<typeof FinImage>
+
+  @hasOne(() => SpedyServiceInvoice, { foreignKey: 'finAccountId', localKey: 'id' })
+  public spedyServiceInvoice: HasOne<typeof SpedyServiceInvoice>
 
 
 
