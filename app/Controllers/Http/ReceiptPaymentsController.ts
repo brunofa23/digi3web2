@@ -49,6 +49,13 @@ export default class ReceiptPaymentsController {
       .orderBy('id', 'asc')
 
     if (receiptId) query.where('receipt_id', receiptId)
+    const preAttendanceIds = String(request.input('preAttendanceIds', ''))
+      .split(',').map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
+    if (preAttendanceIds.length) {
+      query.whereHas('receipt', (receipt) => receipt.whereHas('orderCertificate', (order) => {
+        order.whereIn('book_id', preAttendanceIds)
+      }))
+    }
     const status = request.input('status')
     if (status === 'pending') query.whereNull('received_at')
     if (status === 'received') query.whereNotNull('received_at')
@@ -69,6 +76,16 @@ export default class ReceiptPaymentsController {
         payment.preload('receipt').preload('paymentMethod')
       })
       .orderBy('received_at', 'desc')
+    const preAttendanceIds = String(request.input('preAttendanceIds', ''))
+      .split(',').map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)
+    if (preAttendanceIds.length) {
+      query.whereHas('receiptPayment', (payment) => payment.whereHas('receipt', (receipt) =>
+        receipt.whereHas('orderCertificate', (order) => order.whereIn('book_id', preAttendanceIds))
+      ))
+      totalQuery.whereHas('receiptPayment', (payment) => payment.whereHas('receipt', (receipt) =>
+        receipt.whereHas('orderCertificate', (order) => order.whereIn('book_id', preAttendanceIds))
+      ))
+    }
     const date = request.input('date')
     if (date) {
       const day = DateTime.fromISO(String(date))
