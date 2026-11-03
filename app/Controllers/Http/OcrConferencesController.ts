@@ -390,19 +390,46 @@ export default class OcrConferencesController {
 
     const typebooksId = Number(params.typebooks_id)
     const book = Number(request.input('book'))
+    const rawSheetStart = request.input('sheetStart')
+    const rawSheetEnd = request.input('sheetEnd')
+    const sheetStart = this.numberOrNull(rawSheetStart)
+    const sheetEnd = this.numberOrNull(rawSheetEnd)
+    const rawAfterRecordId = request.input('afterRecordId')
+    const afterRecordId = this.numberOrNull(rawAfterRecordId)
+    const rawSidePattern = request.input('sidePattern')
+    const requestedSidePattern = typeof rawSidePattern === 'string' ? rawSidePattern.trim().toUpperCase() : ''
+    const patternAnchorRecordId = this.numberOrNull(request.input('patternAnchorRecordId'))
+    const rawPatternOffset = request.input('patternOffset')
+    const requestedPatternOffset = this.numberOrNull(rawPatternOffset) ?? 0
+    const patternPhaseStartRecordId = this.numberOrNull(request.input('patternPhaseStartRecordId'))
+    const hasSheetStart = rawSheetStart !== undefined && rawSheetStart !== null && rawSheetStart !== ''
+    const hasSheetEnd = rawSheetEnd !== undefined && rawSheetEnd !== null && rawSheetEnd !== ''
     if (!Number.isInteger(typebooksId) || typebooksId <= 0 || !Number.isInteger(book) || book <= 0) {
       return response.status(422).send({ message: 'Selecione um único livro válido para diagnosticar a sequência' })
     }
-    if (authenticate.companies_id !== 102 || typebooksId !== 6 || book !== 31) {
-      return response.status(422).send({ message: 'O diagnóstico está liberado somente para o piloto da empresa 102, tipo 6, livro 31' })
+    if ((hasSheetStart && (sheetStart === null || !Number.isInteger(sheetStart) || sheetStart <= 0))
+      || (hasSheetEnd && (sheetEnd === null || !Number.isInteger(sheetEnd) || sheetEnd <= 0))
+      || (sheetStart !== null && sheetEnd !== null && sheetEnd < sheetStart)) {
+      return response.status(422).send({ message: 'Informe um intervalo válido para folha inicial e final' })
     }
-
+    if (rawAfterRecordId !== undefined && rawAfterRecordId !== null && rawAfterRecordId !== ''
+      && (afterRecordId === null || !Number.isInteger(afterRecordId) || afterRecordId <= 0)) {
+      return response.status(422).send({ message: 'O registro de retomada informado é inválido' })
+    }
+    if (rawSidePattern !== undefined && rawSidePattern !== null && rawSidePattern !== ''
+      && (!/^[FV]{1,5}$/.test(requestedSidePattern) || patternAnchorRecordId === null || !Number.isInteger(patternAnchorRecordId) || patternAnchorRecordId <= 0)) {
+      return response.status(422).send({ message: 'O padrão de lados informado é inválido' })
+    }
+    if (rawPatternOffset !== undefined && rawPatternOffset !== null && rawPatternOffset !== ''
+      && (this.numberOrNull(rawPatternOffset) === null || requestedPatternOffset < 0 || !Number.isInteger(requestedPatternOffset))) {
+      return response.status(422).send({ message: 'A fase do padrão de lados informada é inválida' })
+    }
     const visualModel = await this.assistedSideModel(authenticate.companies_id, typebooksId, { bookStart: book, bookEnd: book })
     const typebook = await this.getTypebook(authenticate.companies_id, typebooksId)
     if (!typebook) return response.status(404).send({ message: 'Typebook não encontrado' })
     if (!typebook.company?.cloud) return response.status(422).send({ message: 'Empresa sem configuração de cloud' })
 
-    const rows = await Database.from('bookrecords as records')
+    const recordsQuery = Database.from('bookrecords as records')
       .leftJoin('indeximages as images', (join) => {
         join.on('images.bookrecords_id', 'records.id')
           .andOn('images.typebooks_id', 'records.typebooks_id')
@@ -411,8 +438,10 @@ export default class OcrConferencesController {
       .where('records.companies_id', authenticate.companies_id)
       .andWhere('records.typebooks_id', typebooksId)
       .andWhere('records.book', book)
-      .select(
-        'records.id as bookrecord_id', 'records.cod', 'records.book', 'records.side',
+    if (sheetStart !== null) recordsQuery.andWhere('records.sheet', '>=', sheetStart)
+    if (sheetEnd !== null) recordsQuery.andWhere('records.sheet', '<=', sheetEnd)
+    const rows = await recordsQuery.select(
+        'records.id as bookrecord_id', 'records.cod', 'records.book', 'records.sheet', 'records.side',
         'images.seq', 'images.ext', 'images.file_name', 'images.drive_file_id'
       )
       .orderBy('records.cod', 'asc')
@@ -423,7 +452,7 @@ export default class OcrConferencesController {
     for (const row of rows) {
       const id = Number(row.bookrecord_id)
       if (!recordsById.has(id)) {
-        recordsById.set(id, { bookrecord_id: id, cod: row.cod, book: row.book, side: row.side, images: [] })
+        recordsById.set(id, { bookrecord_id: id, cod: row.cod, book: row.book, sheet: row.sheet, side: row.side, images: [] })
       }
       if (row.seq !== null && row.seq !== undefined) recordsById.get(id).images.push(row)
     }
@@ -435,28 +464,59 @@ export default class OcrConferencesController {
       const ext = String(image.ext || '').toLowerCase()
       return image.drive_file_id && ['.jpg', '.jpeg', '.png', '.webp'].includes(ext)
     }) || null
-    const anchorIndex = records.findIndex((record) => ['F', 'V'].includes(String(record.side || '').trim().toUpperCase()) && imageForRecord(record))
-    if (anchorIndex < 0) return response.status(422).send({ message: 'Não há registro com lado cadastrado e imagem para estabelecer o início da sequência' })
-    const startSide = String(records[anchorIndex].side).trim().toUpperCase()
+    const anchorIndex = records.findIndex((record) => imageForRecord(record))
+    if (anchorIndex < 0) return response.status(422).send({ message: 'Não há imagens compatíveis neste livro para iniciar a conferência' })
+    let sidePattern: string | null = null
+    if (requestedSidePattern) {
+      const calibration = records.slice(anchorIndex, anchorIndex + 15)
+      const savedSidesMatchPattern = calibration.length === 15
+        && calibration.every((record, index) => String(record.side || '').trim().toUpperCase() === requestedSidePattern[index % requestedSidePattern.length])
+      const phaseStartIndex = patternPhaseStartRecordId === null ? -1 : records.findIndex((record) => record.bookrecord_id === patternPhaseStartRecordId)
+      if (records[anchorIndex].bookrecord_id !== patternAnchorRecordId || !savedSidesMatchPattern
+        || requestedPatternOffset >= requestedSidePattern.length
+        || (patternPhaseStartRecordId !== null && phaseStartIndex < anchorIndex)) {
+        return response.status(409).send({ message: 'A amostra inicial mudou; execute novamente a calibração do padrão' })
+      }
+      sidePattern = requestedSidePattern
+    }
+    const currentPhaseStartIndex = patternPhaseStartRecordId === null
+      ? -1 : records.findIndex((record) => record.bookrecord_id === patternPhaseStartRecordId)
+    const resumeAfterIndex = afterRecordId === null ? -1 : records.findIndex((record) => record.bookrecord_id === afterRecordId)
+    if (afterRecordId !== null && (resumeAfterIndex < anchorIndex || !imageForRecord(records[resumeAfterIndex]))) {
+      return response.status(422).send({ message: 'O registro de retomada não pertence ao intervalo ou não tem imagem válida' })
+    }
+    const scanStartIndex = afterRecordId === null ? anchorIndex : resumeAfterIndex + 1
     const positionForIndex = (index: number) => index - anchorIndex + 1
-    const expectedForPosition = (position: number) => (position % 2 === 1 ? startSide : startSide === 'F' ? 'V' : 'F')
     const initialSamplePositions = new Set<number>()
-    for (let index = anchorIndex; index < Math.min(records.length, anchorIndex + 15); index++) initialSamplePositions.add(index)
+    for (let index = scanStartIndex; index < Math.min(records.length, scanStartIndex + 15); index++) initialSamplePositions.add(index)
     const checkpointGroups: number[][] = []
-    for (let groupStart = anchorIndex + 15; groupStart < records.length; groupStart += 15) {
+    for (let groupStart = scanStartIndex + 15; groupStart < records.length; groupStart += 15) {
       checkpointGroups.push(Array.from({ length: Math.min(3, records.length - groupStart) }, (_value, offset) => groupStart + offset))
     }
     const streaming = this.booleanValue(request.input('streamProgress'))
+    const isClientDisconnected = () => streaming && response.response.destroyed
     const result = {
       book,
-      start_side: startSide,
-      anchor_cod: records[anchorIndex].cod,
+      sheet_start: sheetStart,
+      sheet_end: sheetEnd,
+      anchor_cod: records[scanStartIndex]?.cod ?? null,
+      resumed_after_cod: afterRecordId === null ? null : records[resumeAfterIndex].cod,
+      pattern_anchor_record_id: records[anchorIndex].bookrecord_id,
+      side_pattern: null as string | null,
+      side_pattern_offset: requestedPatternOffset,
+      pattern_phase_start_record_id: patternPhaseStartRecordId,
+      pattern_calibrated_positions: 0,
+      can_propagate_pattern: false,
+      proposed_side_changes: [] as any[],
+      correction_pattern_offset: null as number | null,
+      correction_side_pattern: null as string | null,
+      correction_resume_after_record_id: null as number | null,
       model_version: visualModel.version,
-      total_positions: records.length - anchorIndex,
+      total_positions: records.length - scanStartIndex,
       initial_sample_positions: initialSamplePositions.size,
       sampled_positions: 0,
       inspected_positions: 0,
-      additional_images_not_counted: records.slice(anchorIndex).reduce((sum, record) => sum + Math.max(0, record.images.length - 1), 0),
+      additional_images_not_counted: records.slice(scanStartIndex).reduce((sum, record) => sum + Math.max(0, record.images.length - 1), 0),
       stopped_at_first_error: false,
       first_error: null as any,
       diagnostics: [] as any[],
@@ -475,22 +535,27 @@ export default class OcrConferencesController {
 
     const analyzed = new Map<number, any>()
     let completed = 0
+    const expectedSideWithPhase = (index: number, offset: number, phaseStartIndex: number) => sidePattern
+      ? sidePattern[((index - anchorIndex) + (phaseStartIndex >= 0 && index >= phaseStartIndex ? offset : 0)) % sidePattern.length]
+      : null
+    const expectedSideAtIndex = (index: number) => expectedSideWithPhase(index, requestedPatternOffset, currentPhaseStartIndex)
     const analyzePosition = async (index: number, sampleType: string) => {
       if (analyzed.has(index)) return analyzed.get(index)
+      if (isClientDisconnected()) return null
       const record = records[index]
       const image = imageForRecord(record)
-      const expectedSide = expectedForPosition(positionForIndex(index))
       const savedSide = String(record.side || '').trim().toUpperCase() || null
       const diagnostic: any = {
         position: positionForIndex(index),
         bookrecord_id: record.bookrecord_id,
         cod: record.cod,
         book: record.book,
+        sheet: record.sheet,
         seq: image?.seq ?? null,
         file_name: image?.file_name ?? null,
         image_count: record.images.length,
         sample_type: sampleType,
-        expected_side: expectedSide,
+        expected_side: expectedSideAtIndex(index),
         saved_side: ['F', 'V'].includes(savedSide || '') ? savedSide : null,
         side: ['F', 'V'].includes(savedSide || '') ? savedSide : null,
         detected_side: null,
@@ -498,6 +563,7 @@ export default class OcrConferencesController {
       try {
         if (!image) throw new Error('Registro sem imagem compatível disponível no Drive')
         const imageBuffer = await sendDownloadFileBuffer(image.drive_file_id, typebook.company.cloud)
+        if (isClientDisconnected()) return null
         diagnostic.detected_side = predictBookSideVisual(
           visualModel,
           (await extractBookSideVisualFeatures(imageBuffer, visualModel.extractor_sha256)).features
@@ -506,9 +572,9 @@ export default class OcrConferencesController {
         diagnostic.error = error?.message || 'Erro ao analisar a imagem'
         result.errors.push({ position: diagnostic.position, cod: diagnostic.cod, message: diagnostic.error })
       }
-      diagnostic.detected_matches_expected = diagnostic.detected_side ? diagnostic.detected_side === expectedSide : null
-      diagnostic.saved_matches_expected = diagnostic.saved_side === expectedSide
       diagnostic.detected_matches_saved = diagnostic.detected_side && diagnostic.saved_side ? diagnostic.detected_side === diagnostic.saved_side : null
+      diagnostic.detected_matches_expected = diagnostic.expected_side && diagnostic.detected_side ? diagnostic.expected_side === diagnostic.detected_side : null
+      diagnostic.saved_matches_expected = diagnostic.expected_side && diagnostic.saved_side ? diagnostic.expected_side === diagnostic.saved_side : null
       analyzed.set(index, diagnostic)
       if (initialSamplePositions.has(index) || sampleType === 'Checkpoint de 3') result.sampled_positions++
       result.inspected_positions = analyzed.size
@@ -517,30 +583,61 @@ export default class OcrConferencesController {
       return diagnostic
     }
 
-    const isConforming = (diagnostic: any) => diagnostic.detected_side === diagnostic.expected_side
-      && diagnostic.saved_side === diagnostic.expected_side
-    let lastVerifiedIndex = anchorIndex - 1
+    const isConforming = (diagnostic: any) => sidePattern
+      ? diagnostic.detected_matches_expected === true && diagnostic.saved_matches_expected === true
+      : diagnostic.detected_matches_saved === true
+    const divergenceReason = (diagnostic: any) => diagnostic.error
+      || (!diagnostic.detected_side ? 'O modelo não conseguiu identificar o lado da imagem'
+        : !diagnostic.saved_side ? 'O registro não tem lado cadastrado válido'
+          : sidePattern && diagnostic.detected_side !== diagnostic.expected_side ? 'O lado detectado diverge do ciclo calibrado'
+            : sidePattern && diagnostic.saved_side !== diagnostic.expected_side ? 'O lado cadastrado diverge do ciclo calibrado'
+              : 'O lado detectado diverge do lado cadastrado')
+    let lastVerifiedIndex = scanStartIndex - 1
     let firstErrorIndex: number | null = null
     let firstErrorReason = ''
 
     for (const index of initialSamplePositions) {
+      if (isClientDisconnected()) return
       const diagnostic = await analyzePosition(index, 'Amostra sequencial inicial')
+      if (isClientDisconnected()) return
       if (!isConforming(diagnostic)) {
         firstErrorIndex = index
-        firstErrorReason = diagnostic.error || 'O lado detectado ou cadastrado diverge da sequência esperada'
+        firstErrorReason = divergenceReason(diagnostic)
         break
       }
       lastVerifiedIndex = index
     }
 
+    if (!sidePattern && scanStartIndex === anchorIndex && initialSamplePositions.size === 15 && firstErrorIndex === null) {
+      const calibratedSides = Array.from(initialSamplePositions).map((index) => analyzed.get(index)?.detected_side)
+      for (let period = 1; period <= Math.floor(calibratedSides.length / 3); period++) {
+        if (calibratedSides.every((side, index) => side && side === calibratedSides[index % period])) {
+          sidePattern = calibratedSides.slice(0, period).join('')
+          break
+        }
+      }
+    }
+    if (sidePattern) {
+      result.side_pattern = sidePattern
+      result.pattern_calibrated_positions = 15
+      for (const [index, diagnostic] of analyzed) {
+        diagnostic.expected_side = expectedSideAtIndex(index)
+        diagnostic.detected_matches_expected = diagnostic.detected_side ? diagnostic.detected_side === diagnostic.expected_side : null
+        diagnostic.saved_matches_expected = diagnostic.saved_side ? diagnostic.saved_side === diagnostic.expected_side : null
+      }
+    }
+
     if (firstErrorIndex === null) {
       for (const group of checkpointGroups) {
+        if (isClientDisconnected()) return
         let failedIndex: number | null = null
         for (const index of group) {
+          if (isClientDisconnected()) return
           const diagnostic = await analyzePosition(index, 'Checkpoint de 3')
+          if (isClientDisconnected()) return
           if (!isConforming(diagnostic)) {
             failedIndex = index
-            firstErrorReason = diagnostic.error || 'O lado detectado ou cadastrado diverge da sequência esperada'
+            firstErrorReason = divergenceReason(diagnostic)
             break
           }
         }
@@ -549,28 +646,75 @@ export default class OcrConferencesController {
           continue
         }
 
-        firstErrorIndex = failedIndex
-        for (let index = failedIndex - 1; index > lastVerifiedIndex; index--) {
+        for (let index = lastVerifiedIndex + 1; index <= failedIndex; index++) {
+          if (isClientDisconnected()) return
           const diagnostic = await analyzePosition(index, 'Investigação do intervalo')
-          if (isConforming(diagnostic)) break
+          if (isClientDisconnected()) return
+          if (isConforming(diagnostic)) continue
           firstErrorIndex = index
-          firstErrorReason = diagnostic.error || 'O lado detectado ou cadastrado diverge da sequência esperada'
+          firstErrorReason = divergenceReason(diagnostic)
+          break
         }
         break
       }
     }
 
     if (firstErrorIndex !== null) {
+      if (isClientDisconnected()) return
       result.stopped_at_first_error = true
       const firstError = await analyzePosition(firstErrorIndex, 'Primeiro erro')
+      if (isClientDisconnected()) return
       result.first_error = { ...firstError, reason: firstErrorReason }
-      for (const neighbor of [firstErrorIndex - 1, firstErrorIndex + 1]) {
+      for (let neighbor = firstErrorIndex - 3; neighbor <= firstErrorIndex + 3; neighbor++) {
+        if (isClientDisconnected()) return
         if (neighbor < anchorIndex || neighbor >= records.length) continue
         await analyzePosition(neighbor, 'Imagem vizinha')
       }
+
+      const scorePatternOffset = (offset: number) => Array.from({ length: sidePattern?.length || 0 }, (_value, step) => {
+        const index = firstErrorIndex! + step
+        const diagnostic = analyzed.get(index)
+        return diagnostic?.detected_side === expectedSideWithPhase(index, offset, firstErrorIndex!) ? 1 : 0
+      }).reduce((sum, value) => sum + value, 0)
+      const currentOffsetAtError = currentPhaseStartIndex >= 0 && firstErrorIndex >= currentPhaseStartIndex
+        ? requestedPatternOffset : 0
+      const bestPatternOffset = sidePattern
+        ? Array.from({ length: sidePattern.length }, (_value, offset) => offset)
+          .sort((left, right) => scorePatternOffset(right) - scorePatternOffset(left))[0]
+        : null
+      const supportsPattern = (index: number, offset: number) => {
+        const diagnostic = analyzed.get(index)
+        const expectedSide = expectedSideWithPhase(index, offset, firstErrorIndex!)
+        return Boolean(diagnostic && expectedSide && diagnostic.detected_side === expectedSide && diagnostic.saved_side !== expectedSide)
+      }
+      if (result.pattern_calibrated_positions === 15 && firstErrorIndex + 1 < records.length
+        && bestPatternOffset !== null && scorePatternOffset(bestPatternOffset) > scorePatternOffset(currentOffsetAtError)
+        && supportsPattern(firstErrorIndex, bestPatternOffset) && supportsPattern(firstErrorIndex + 1, bestPatternOffset)) {
+        const correctionStartIndex = firstErrorIndex
+        result.can_propagate_pattern = true
+        result.correction_pattern_offset = bestPatternOffset
+        const phase = (correctionStartIndex - anchorIndex + bestPatternOffset) % sidePattern!.length
+        result.correction_side_pattern = sidePattern!.slice(phase) + sidePattern!.slice(0, phase)
+        result.correction_resume_after_record_id = correctionStartIndex > anchorIndex
+          ? records[correctionStartIndex - 1].bookrecord_id
+          : null
+        result.proposed_side_changes = records.slice(correctionStartIndex).flatMap((record, offset) => {
+          const index = correctionStartIndex + offset
+          const toSide = expectedSideWithPhase(index, bestPatternOffset, correctionStartIndex)
+          const fromSide = String(record.side || '').trim().toUpperCase() || null
+          return toSide && fromSide !== toSide ? [{
+            position: positionForIndex(index),
+            bookrecord_id: record.bookrecord_id,
+            cod: record.cod,
+            sheet: record.sheet,
+            from_side: ['F', 'V'].includes(fromSide || '') ? fromSide : null,
+            to_side: toSide,
+          }] : []
+        })
+      }
     }
     result.diagnostics = Array.from(analyzed.entries())
-      .filter(([index]) => firstErrorIndex === null || Math.abs(index - firstErrorIndex) <= 1)
+      .filter(([index]) => firstErrorIndex === null || Math.abs(index - firstErrorIndex) <= 3)
       .sort(([a], [b]) => a - b)
       .map(([, diagnostic]) => diagnostic)
 
@@ -581,6 +725,115 @@ export default class OcrConferencesController {
       return
     }
     return response.status(200).send(result)
+  }
+
+  public async applySequenceSidePattern({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
+    this.ensureOcrConferenceAccess(authenticate, permissions)
+
+    const typebooksId = Number(params.typebooks_id)
+    const book = Number(request.input('book'))
+    const sheetStart = this.numberOrNull(request.input('sheetStart'))
+    const sheetEnd = this.numberOrNull(request.input('sheetEnd'))
+    const startRecordId = this.numberOrNull(request.input('startRecordId'))
+    const patternAnchorRecordId = this.numberOrNull(request.input('patternAnchorRecordId'))
+    const patternPhaseStartRecordId = this.numberOrNull(request.input('patternPhaseStartRecordId'))
+    const patternOffset = this.numberOrNull(request.input('patternOffset')) ?? 0
+    const pattern = String(request.input('sidePattern') || '').trim().toUpperCase()
+    const previewChanges = request.input('changes')
+
+    if (!Number.isInteger(typebooksId) || typebooksId <= 0 || !Number.isInteger(book) || book <= 0
+      || !Number.isInteger(startRecordId) || !Number.isInteger(patternAnchorRecordId)
+      || !/^[FV]{1,5}$/.test(pattern) || !Array.isArray(previewChanges)
+      || !Number.isInteger(patternOffset) || patternOffset < 0 || patternOffset >= pattern.length
+      || patternPhaseStartRecordId !== startRecordId) {
+      return response.status(422).send({ message: 'Dados inválidos para aplicar a sequência de lados' })
+    }
+    if ((sheetStart !== null && (!Number.isInteger(sheetStart) || sheetStart <= 0))
+      || (sheetEnd !== null && (!Number.isInteger(sheetEnd) || sheetEnd <= 0))
+      || (sheetStart !== null && sheetEnd !== null && sheetEnd < sheetStart)) {
+      return response.status(422).send({ message: 'Informe um intervalo válido para folha inicial e final' })
+    }
+
+    await this.assistedSideModel(authenticate.companies_id, typebooksId, { bookStart: book, bookEnd: book })
+    const recordsQuery = Database.from('bookrecords')
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('typebooks_id', typebooksId)
+      .andWhere('book', book)
+    if (sheetStart !== null) recordsQuery.andWhere('sheet', '>=', sheetStart)
+    if (sheetEnd !== null) recordsQuery.andWhere('sheet', '<=', sheetEnd)
+    const records = await recordsQuery.select('id', 'cod', 'sheet', 'side').orderBy('cod', 'asc').orderBy('id', 'asc')
+    const anchorIndex = records.findIndex((record) => Number(record.id) === patternAnchorRecordId)
+    const startIndex = records.findIndex((record) => Number(record.id) === startRecordId)
+    if (anchorIndex < 0 || startIndex < anchorIndex + 15) {
+      return response.status(409).send({ message: 'O ponto inicial ou a amostra de calibração mudou; execute o diagnóstico novamente' })
+    }
+    const calibration = records.slice(anchorIndex, anchorIndex + 15)
+    if (calibration.length !== 15 || !calibration.every((record, index) => String(record.side || '').trim().toUpperCase() === pattern[index % pattern.length])) {
+      return response.status(409).send({ message: 'A sequência inicial mudou após a calibração; execute o diagnóstico novamente' })
+    }
+
+    const expectedSideAt = (index: number) => pattern[((index - anchorIndex) + (index >= startIndex ? patternOffset : 0)) % pattern.length]
+    const expectedAtStart = expectedSideAt(startIndex)
+    const expectedAtNext = expectedSideAt(startIndex + 1)
+    if (String(records[startIndex].side || '').trim().toUpperCase() === expectedAtStart
+      || !records[startIndex + 1]
+      || String(records[startIndex + 1].side || '').trim().toUpperCase() === expectedAtNext) {
+      return response.status(409).send({ message: 'A divergência contínua não confere mais com a prévia; execute o diagnóstico novamente' })
+    }
+
+    const changes = records.slice(startIndex).flatMap((record, offset) => {
+      const index = startIndex + offset
+      const fromSide = String(record.side || '').trim().toUpperCase() || null
+      const toSide = expectedSideAt(index)
+      return fromSide !== toSide ? [{ id: Number(record.id), from_side: fromSide, to_side: toSide }] : []
+    })
+    const previewMatches = changes.length === previewChanges.length && changes.every((change, index) => {
+      const preview = previewChanges[index]
+      const previewFromSide = String(preview.from_side || '').trim().toUpperCase() || null
+      return Number(preview.bookrecord_id) === change.id
+        && previewFromSide === change.from_side
+        && String(preview.to_side || '').trim().toUpperCase() === change.to_side
+    })
+    if (!changes.length || !previewMatches) {
+      return response.status(409).send({ message: 'A prévia mudou; execute o diagnóstico novamente antes de aplicar' })
+    }
+
+    const now = DateTime.local().toSQL({ includeOffset: false })
+    await Database.transaction(async (trx) => {
+      const currentRows = await Database.from('bookrecords').useTransaction(trx)
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('typebooks_id', typebooksId)
+        .andWhere('book', book)
+        .whereIn('id', changes.map((change) => change.id))
+        .forUpdate()
+        .select('id', 'side')
+      const currentById = new Map(currentRows.map((row) => [Number(row.id), String(row.side || '').trim().toUpperCase() || null]))
+      if (changes.some((change) => currentById.get(change.id) !== change.from_side)) {
+        throw new BadRequestException('Algum lado mudou após a prévia; execute o diagnóstico novamente', 409)
+      }
+      for (const side of ['F', 'V']) {
+        const ids = changes.filter((change) => change.to_side === side).map((change) => change.id)
+        if (!ids.length) continue
+        await Database.from('bookrecords').useTransaction(trx)
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('typebooks_id', typebooksId)
+          .andWhere('book', book)
+          .whereIn('id', ids)
+          .update({ side, updated_at: now })
+      }
+    })
+
+    return response.status(200).send({
+      applied: changes.length,
+      start_cod: records[startIndex].cod,
+      end_cod: records[records.length - 1].cod,
+      side_pattern: pattern,
+      side_pattern_offset: patternOffset,
+      pattern_phase_start_record_id: patternPhaseStartRecordId,
+      resume_after_record_id: records[startIndex - 1]?.id ?? null,
+    })
   }
 
   public async entities({ auth, params, request, response }: HttpContextContract) {
