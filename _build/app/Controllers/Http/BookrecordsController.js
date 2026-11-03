@@ -2233,7 +2233,7 @@ class BookrecordsController {
                         : Number(item.indexbook);
                     const yearGroup = item.year === null || item.year === undefined
                         ? null
-                        : Number(item.year);
+                        : String(item.year);
                     const letterGroup = item.letter === null || item.letter === undefined
                         ? null
                         : String(item.letter);
@@ -2245,7 +2245,11 @@ class BookrecordsController {
             return response.status(200).send(bookSummaryPayload);
         }
         catch (error) {
-            return error;
+            console.error('Erro ao gerar resumo de livros:', error);
+            return response.status(500).send({
+                message: 'Erro ao gerar resumo de livros',
+                error: error.message || error,
+            });
         }
     }
     async sheetWithSide({ auth, params, response }) {
