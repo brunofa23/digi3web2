@@ -13,6 +13,8 @@ import MarriedCertificate from 'App/Models/MarriedCertificate'
 import BornCertificate from 'App/Models/BornCertificate'
 import DeathCertificate from 'App/Models/DeathCertificate'
 import MandateCertificate from 'App/Models/MandateCertificate'
+import SecondcopyCertificate from 'App/Models/SecondcopyCertificate'
+import CommunicationCertificate from 'App/Models/CommunicationCertificate'
 
 export default class ImageCertificate extends BaseModel {
   @column({ isPrimary: true })
@@ -35,6 +37,12 @@ export default class ImageCertificate extends BaseModel {
 
   @column({ columnName: 'mandate_certificate_id' })
   public mandateCertificateId: number | null
+
+  @column({ columnName: 'secondcopy_certificate_id' })
+  public secondcopyCertificateId: number | null
+
+  @column({ columnName: 'communication_certificate_id' })
+  public communicationCertificateId: number | null
 
   @column()
   public seq: number
@@ -93,4 +101,10 @@ export default class ImageCertificate extends BaseModel {
 
   @belongsTo(() => MandateCertificate, { foreignKey: 'mandateCertificateId' })
   public mandateCertificate: BelongsTo<typeof MandateCertificate>
+
+  @belongsTo(() => SecondcopyCertificate, { foreignKey: 'secondcopyCertificateId' })
+  public secondcopyCertificate: BelongsTo<typeof SecondcopyCertificate>
+
+  @belongsTo(() => CommunicationCertificate, { foreignKey: 'communicationCertificateId' })
+  public communicationCertificate: BelongsTo<typeof CommunicationCertificate>
 }
