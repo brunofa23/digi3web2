@@ -61,9 +61,15 @@ class ReceiptPaymentsController {
             query.whereNull('received_at');
         if (status === 'received')
             query.whereNotNull('received_at');
+        const paymentMethodId = Number(request.input('paymentMethodId'));
+        if (Number.isInteger(paymentMethodId) && paymentMethodId > 0) {
+            query.where('fin_paymentmethod_id', paymentMethodId);
+        }
+        const total = await query.clone().clearOrder().sum('amount as total').first();
         const page = Math.max(1, Number(request.input('page', 1)) || 1);
         const perPage = Math.min(100, Math.max(1, Number(request.input('perPage', 50)) || 50));
-        return response.ok(await query.paginate(page, perPage));
+        const result = await query.paginate(page, perPage);
+        return response.ok({ ...result.serialize(), totalAmount: Number(total?.$extras.total ?? 0) });
     }
     async cash({ auth, request, response }) {
         const user = await auth.use('api').authenticate();
@@ -82,6 +88,11 @@ class ReceiptPaymentsController {
         if (preAttendanceIds.length) {
             query.whereHas('receiptPayment', (payment) => payment.whereHas('receipt', (receipt) => receipt.whereHas('orderCertificate', (order) => order.whereIn('book_id', preAttendanceIds))));
             totalQuery.whereHas('receiptPayment', (payment) => payment.whereHas('receipt', (receipt) => receipt.whereHas('orderCertificate', (order) => order.whereIn('book_id', preAttendanceIds))));
+        }
+        const paymentMethodId = Number(request.input('paymentMethodId'));
+        if (Number.isInteger(paymentMethodId) && paymentMethodId > 0) {
+            query.whereHas('receiptPayment', (payment) => payment.where('fin_paymentmethod_id', paymentMethodId));
+            totalQuery.whereHas('receiptPayment', (payment) => payment.where('fin_paymentmethod_id', paymentMethodId));
         }
         const date = request.input('date');
         if (date) {
