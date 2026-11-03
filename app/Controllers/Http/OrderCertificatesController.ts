@@ -2197,6 +2197,11 @@ export default class OrderCertificatesController {
         for (const file of files) await uploadImage({ companiesId: user.companies_id, mandateCertificateId: orderCertificate.certificateId, file, description: 'AnexoMandado' })
       }
 
+      if (orderCertificate.bookId === 21 && orderCertificate.certificateId) {
+        const files = request.files('SecondcopyAttachments', { size: '8mb', extnames: ['jpg', 'png', 'jpeg', 'pdf'] })
+        for (const file of files) await uploadImage({ companiesId: user.companies_id, secondcopyCertificateId: orderCertificate.certificateId, file, description: 'Anexo2Via' })
+      }
+
       await orderCertificate.load('book')
       if (orderCertificate.bookId === 2) await orderCertificate.load('marriedCertificate')
       if (orderCertificate.bookId === 3) await orderCertificate.load('bornCertificate')
@@ -2518,6 +2523,11 @@ export default class OrderCertificatesController {
       if (orderCertificate.bookId === 24 && orderCertificate.certificateId) {
         const files = request.files('MandateAttachments', { size: '8mb', extnames: ['jpg', 'png', 'jpeg', 'pdf', 'xls'] })
         for (const file of files) await uploadImage({ companiesId: user.companies_id, mandateCertificateId: orderCertificate.certificateId, file, description: 'AnexoMandado' })
+      }
+
+      if (orderCertificate.bookId === 21 && orderCertificate.certificateId) {
+        const files = request.files('SecondcopyAttachments', { size: '8mb', extnames: ['jpg', 'png', 'jpeg', 'pdf'] })
+        for (const file of files) await uploadImage({ companiesId: user.companies_id, secondcopyCertificateId: orderCertificate.certificateId, file, description: 'Anexo2Via' })
       }
 
       await orderCertificate.load('book')

@@ -18,6 +18,7 @@ interface UploadImageParams {
   bornCertificateId?: number | null
   deathCertificateId?: number | null
   mandateCertificateId?: number | null
+  secondcopyCertificateId?: number | null
   file: MultipartFileContract
   description?: string
 }
@@ -28,6 +29,7 @@ async function uploadImage({
   bornCertificateId,
   deathCertificateId,
   mandateCertificateId,
+  secondcopyCertificateId,
   file,
   description,
 }: UploadImageParams) {
@@ -64,14 +66,19 @@ async function uploadImage({
     query.andWhere('mandate_certificate_id', mandateCertificateId)
   }
 
+  if (secondcopyCertificateId) {
+    bookId = 21
+    query.andWhere('secondcopy_certificate_id', secondcopyCertificateId)
+  }
+
   const lastImage = await query.orderBy('seq', 'desc').first()
   const newSeq = lastImage?.seq ? lastImage.seq + 1 : 1
 
   const timestamp = DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss')
   const baseName = file.clientName.split('.').slice(0, -1).join('.')
 
-  if (bookId === 2 || bookId === 3 || bookId === 4 || bookId === 24) {
-    const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : bookId === 4 ? deathCertificateId : mandateCertificateId
+  if ([2, 3, 4, 21, 24].includes(bookId || 0)) {
+    const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : bookId === 4 ? deathCertificateId : bookId === 21 ? secondcopyCertificateId : mandateCertificateId
     clientName = `${description || ''}_${baseName}_id${certificateId}_${timestamp}.${file.extname}`
   } else {
     clientName = `${baseName}_${timestamp}.${file.extname}`
@@ -105,6 +112,7 @@ async function uploadImage({
     bornCertificateId: bornCertificateId ?? null,
     deathCertificateId: deathCertificateId ?? null,
     mandateCertificateId: mandateCertificateId ?? null,
+    secondcopyCertificateId: secondcopyCertificateId ?? null,
     ext: file.extname,
     fileName: clientName,
     description: description,
