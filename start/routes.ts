@@ -127,6 +127,7 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/fullreprocessing', 'BookrecordsController.fullReprocessing').middleware('bookrecord_permission:get')
   Route.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages').middleware('bookrecord_permission:get')
   Route.get('/typebooks/:typebooks_id/ocrconferences', 'OcrConferencesController.index').middleware('auth')
+  Route.post('/typebooks/:typebooks_id/ocrconferences/sequence-diagnostic', 'OcrConferencesController.sequenceDiagnostic').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training', 'SideTrainingController.index').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/models', 'SideTrainingController.modelStatus').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/train', 'SideTrainingController.trainModel').middleware('auth')
