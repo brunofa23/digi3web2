@@ -269,19 +269,25 @@ export default class ReceiptsController {
       // O status inicial segue a presença do selo.
       receiptData.status = receiptData.dateStamp ? 'SELADO' : 'PROTOCOLADO'
 
-      // Serializa a criação por certidão para manter apenas um recibo ativo.
+      // Serializa a criação por formulário para respeitar o limite de recibos ativos.
       const orderCertificate = await OrderCertificate.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
         .where('id', receiptData.orderCertificateId).forUpdate().firstOrFail()
       if (orderCertificate.inactive) {
         throw new BadRequestException('Formulário inativo não permite novo recibo.', 409, 'order_certificate_inactive')
       }
-      const activeReceipt = await Receipt.query({ client: trx })
+      const activeReceiptsQuery = Receipt.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
         .where('order_certificate_id', receiptData.orderCertificateId)
-        .where((q) => q.whereNull('status').orWhereNot('status', 'EXCLUIDO')).first()
-      if (activeReceipt) {
-        throw new BadRequestException('Já existe um recibo ativo para esta certidão.', 409, 'active_receipt_exists')
+        .where((q) => q.whereNull('status').orWhereNot('status', 'EXCLUIDO'))
+      const activeReceiptCount = await activeReceiptsQuery.count('* as total')
+      const activeReceipts = Number(activeReceiptCount[0]?.$extras?.total ?? 0)
+      const receiptLimit = Number(orderCertificate.bookId) === 2 ? 3 : 1
+      if (activeReceipts >= receiptLimit) {
+        const message = receiptLimit === 3
+          ? 'Este formulário de casamento já possui o limite de 3 recibos ativos.'
+          : 'Já existe um recibo ativo para esta certidão.'
+        throw new BadRequestException(message, 409, 'active_receipt_exists')
       }
 
       const initialVerification = await EmployeeVerification.query({ client: trx })

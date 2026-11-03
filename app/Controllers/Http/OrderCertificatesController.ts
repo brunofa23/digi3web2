@@ -1442,6 +1442,24 @@ export default class OrderCertificatesController {
       .paginate(page, perPage)
 
     const orders = paginated.all()
+    const marriageOrderIds = orders
+      .filter((order) => Number(order.bookId) === 2)
+      .map((order) => Number(order.id))
+    const receiptNumbersByOrder = new Map<number, number[]>()
+    if (marriageOrderIds.length) {
+      const marriageReceipts = await Database.from('receipts')
+        .where('companies_id', authenticate.companies_id)
+        .whereIn('order_certificate_id', marriageOrderIds)
+        .where((receipt) => receipt.whereNull('status').orWhereNot('status', 'EXCLUIDO'))
+        .select('order_certificate_id', 'id')
+        .orderBy('id', 'asc')
+      marriageReceipts.forEach((receipt) => {
+        const orderId = Number(receipt.order_certificate_id)
+        const numbers = receiptNumbersByOrder.get(orderId) ?? []
+        numbers.push(Number(receipt.id))
+        receiptNumbersByOrder.set(orderId, numbers)
+      })
+    }
     const marriedCertificateIds = orders
       .filter((order) => Number(order.bookId) === 2 && order.certificateId)
       .map((order) => order.certificateId)
@@ -1679,6 +1697,9 @@ export default class OrderCertificatesController {
     const result = orders.map((order) => {
       const json = order.toJSON()
       const bookId = Number(order.bookId)
+      json.receiptNumbers = bookId === 2
+        ? receiptNumbersByOrder.get(Number(order.id)) ?? []
+        : json.receipt?.id ? [Number(json.receipt.id)] : []
       if (bookId !== 24) delete json.mandateCertificate
       else json.mandateCertificate = mandateCertificates.get(Number(order.certificateId)) ?? null
       if (bookId !== 25) delete json.communicationCertificate
