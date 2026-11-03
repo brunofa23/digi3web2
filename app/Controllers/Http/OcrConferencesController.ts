@@ -390,14 +390,12 @@ export default class OcrConferencesController {
 
     const typebooksId = Number(params.typebooks_id)
     const book = Number(request.input('book'))
-    const startSide = String(request.input('startSide') || 'F').toUpperCase()
     if (!Number.isInteger(typebooksId) || typebooksId <= 0 || !Number.isInteger(book) || book <= 0) {
       return response.status(422).send({ message: 'Selecione um único livro válido para diagnosticar a sequência' })
     }
     if (authenticate.companies_id !== 102 || typebooksId !== 6 || book !== 31) {
       return response.status(422).send({ message: 'O diagnóstico está liberado somente para o piloto da empresa 102, tipo 6, livro 31' })
     }
-    if (!['F', 'V'].includes(startSide)) return response.status(422).send({ message: 'O lado inicial deve ser F ou V' })
 
     const visualModel = await this.assistedSideModel(authenticate.companies_id, typebooksId, { bookStart: book, bookEnd: book })
     const typebook = await this.getTypebook(authenticate.companies_id, typebooksId)
@@ -414,7 +412,7 @@ export default class OcrConferencesController {
       .andWhere('records.typebooks_id', typebooksId)
       .andWhere('records.book', book)
       .select(
-        'records.id as bookrecord_id', 'records.cod', 'records.book', 'records.sheet', 'records.side',
+        'records.id as bookrecord_id', 'records.cod', 'records.book', 'records.side',
         'images.seq', 'images.ext', 'images.file_name', 'images.drive_file_id'
       )
       .orderBy('records.cod', 'asc')
@@ -425,7 +423,7 @@ export default class OcrConferencesController {
     for (const row of rows) {
       const id = Number(row.bookrecord_id)
       if (!recordsById.has(id)) {
-        recordsById.set(id, { bookrecord_id: id, cod: row.cod, book: row.book, sheet: row.sheet, side: row.side, images: [] })
+        recordsById.set(id, { bookrecord_id: id, cod: row.cod, book: row.book, side: row.side, images: [] })
       }
       if (row.seq !== null && row.seq !== undefined) recordsById.get(id).images.push(row)
     }
@@ -437,59 +435,36 @@ export default class OcrConferencesController {
       const ext = String(image.ext || '').toLowerCase()
       return image.drive_file_id && ['.jpg', '.jpeg', '.png', '.webp'].includes(ext)
     }) || null
+    const anchorIndex = records.findIndex((record) => ['F', 'V'].includes(String(record.side || '').trim().toUpperCase()) && imageForRecord(record))
+    if (anchorIndex < 0) return response.status(422).send({ message: 'Não há registro com lado cadastrado e imagem para estabelecer o início da sequência' })
+    const startSide = String(records[anchorIndex].side).trim().toUpperCase()
+    const positionForIndex = (index: number) => index - anchorIndex + 1
     const expectedForPosition = (position: number) => (position % 2 === 1 ? startSide : startSide === 'F' ? 'V' : 'F')
-    const systematicPositions = new Set<number>()
-    records.forEach((_record, index) => {
-      const offset = index % 10
-      if ([0, 4, 9].includes(offset)) systematicPositions.add(index)
-    })
-
-    const divergentPositions = records.map((record, index) => {
-      const saved = String(record.side || '').trim().toUpperCase()
-      return saved !== expectedForPosition(index + 1) ? index : -1
-    }).filter((index) => index >= 0)
-    const mismatchSegments: any[] = []
-    for (const index of divergentPositions) {
-      const last = mismatchSegments[mismatchSegments.length - 1]
-      if (last && last.end_index === index - 1) {
-        last.end_index = index
-      } else {
-        mismatchSegments.push({ start_index: index, end_index: index })
-      }
+    const initialSamplePositions = new Set<number>()
+    for (let index = anchorIndex; index < Math.min(records.length, anchorIndex + 15); index++) initialSamplePositions.add(index)
+    const checkpointGroups: number[][] = []
+    for (let groupStart = anchorIndex + 15; groupStart < records.length; groupStart += 15) {
+      checkpointGroups.push(Array.from({ length: Math.min(3, records.length - groupStart) }, (_value, offset) => groupStart + offset))
     }
-    for (const segment of mismatchSegments) {
-      for (const index of [segment.start_index - 1, segment.start_index, segment.start_index + 1, segment.end_index - 1, segment.end_index, segment.end_index + 1]) {
-        if (index >= 0 && index < records.length) segment.inspect_indices = [...new Set([...(segment.inspect_indices || []), index])]
-      }
-      segment.position_start = segment.start_index + 1
-      segment.position_end = segment.end_index + 1
-      segment.cod_start = records[segment.start_index].cod
-      segment.cod_end = records[segment.end_index].cod
-      segment.length = segment.end_index - segment.start_index + 1
-      delete segment.start_index
-      delete segment.end_index
-    }
-
-    const inspectPositions = new Set(systematicPositions)
-    for (const segment of mismatchSegments) for (const index of segment.inspect_indices) inspectPositions.add(index)
-    const inspectionOrder = Array.from(inspectPositions).sort((a, b) => a - b)
     const streaming = this.booleanValue(request.input('streamProgress'))
     const result = {
       book,
       start_side: startSide,
+      anchor_cod: records[anchorIndex].cod,
       model_version: visualModel.version,
-      total_positions: records.length,
-      sampled_positions: systematicPositions.size,
-      planned_positions: inspectionOrder.length,
+      total_positions: records.length - anchorIndex,
+      initial_sample_positions: initialSamplePositions.size,
+      sampled_positions: 0,
       inspected_positions: 0,
-      additional_images_not_counted: records.reduce((sum, record) => sum + Math.max(0, record.images.length - 1), 0),
-      mismatch_segments: mismatchSegments.map(({ inspect_indices, ...segment }) => segment),
+      additional_images_not_counted: records.slice(anchorIndex).reduce((sum, record) => sum + Math.max(0, record.images.length - 1), 0),
+      stopped_at_first_error: false,
+      first_error: null as any,
       diagnostics: [] as any[],
       errors: [] as any[],
     }
     const sendProgress = (completed: number) => {
       if (streaming && !response.response.destroyed && !response.response.writableEnded) {
-        response.response.write(`${JSON.stringify({ type: 'progress', total: inspectionOrder.length, completed })}\n`)
+        response.response.write(`${JSON.stringify({ type: 'progress', total: result.total_positions, completed })}\n`)
       }
     }
     if (streaming) {
@@ -498,23 +473,23 @@ export default class OcrConferencesController {
       sendProgress(0)
     }
 
+    const analyzed = new Map<number, any>()
     let completed = 0
-    for (const index of inspectionOrder) {
+    const analyzePosition = async (index: number, sampleType: string) => {
+      if (analyzed.has(index)) return analyzed.get(index)
       const record = records[index]
       const image = imageForRecord(record)
-      const expectedSide = expectedForPosition(index + 1)
+      const expectedSide = expectedForPosition(positionForIndex(index))
       const savedSide = String(record.side || '').trim().toUpperCase() || null
-      const sampled = systematicPositions.has(index)
       const diagnostic: any = {
-        position: index + 1,
+        position: positionForIndex(index),
         bookrecord_id: record.bookrecord_id,
         cod: record.cod,
         book: record.book,
-        sheet: record.sheet,
         seq: image?.seq ?? null,
         file_name: image?.file_name ?? null,
         image_count: record.images.length,
-        sample_type: sampled ? 'Amostra regular' : 'Vizinho de divergência',
+        sample_type: sampleType,
         expected_side: expectedSide,
         saved_side: ['F', 'V'].includes(savedSide || '') ? savedSide : null,
         side: ['F', 'V'].includes(savedSide || '') ? savedSide : null,
@@ -534,11 +509,70 @@ export default class OcrConferencesController {
       diagnostic.detected_matches_expected = diagnostic.detected_side ? diagnostic.detected_side === expectedSide : null
       diagnostic.saved_matches_expected = diagnostic.saved_side === expectedSide
       diagnostic.detected_matches_saved = diagnostic.detected_side && diagnostic.saved_side ? diagnostic.detected_side === diagnostic.saved_side : null
-      result.diagnostics.push(diagnostic)
-      completed++
+      analyzed.set(index, diagnostic)
+      if (initialSamplePositions.has(index) || sampleType === 'Checkpoint de 3') result.sampled_positions++
+      result.inspected_positions = analyzed.size
+      completed = analyzed.size
       sendProgress(completed)
+      return diagnostic
     }
-    result.inspected_positions = result.diagnostics.filter((item) => item.detected_side).length
+
+    const isConforming = (diagnostic: any) => diagnostic.detected_side === diagnostic.expected_side
+      && diagnostic.saved_side === diagnostic.expected_side
+    let lastVerifiedIndex = anchorIndex - 1
+    let firstErrorIndex: number | null = null
+    let firstErrorReason = ''
+
+    for (const index of initialSamplePositions) {
+      const diagnostic = await analyzePosition(index, 'Amostra sequencial inicial')
+      if (!isConforming(diagnostic)) {
+        firstErrorIndex = index
+        firstErrorReason = diagnostic.error || 'O lado detectado ou cadastrado diverge da sequência esperada'
+        break
+      }
+      lastVerifiedIndex = index
+    }
+
+    if (firstErrorIndex === null) {
+      for (const group of checkpointGroups) {
+        let failedIndex: number | null = null
+        for (const index of group) {
+          const diagnostic = await analyzePosition(index, 'Checkpoint de 3')
+          if (!isConforming(diagnostic)) {
+            failedIndex = index
+            firstErrorReason = diagnostic.error || 'O lado detectado ou cadastrado diverge da sequência esperada'
+            break
+          }
+        }
+        if (failedIndex === null) {
+          lastVerifiedIndex = group[group.length - 1]
+          continue
+        }
+
+        firstErrorIndex = failedIndex
+        for (let index = failedIndex - 1; index > lastVerifiedIndex; index--) {
+          const diagnostic = await analyzePosition(index, 'Investigação do intervalo')
+          if (isConforming(diagnostic)) break
+          firstErrorIndex = index
+          firstErrorReason = diagnostic.error || 'O lado detectado ou cadastrado diverge da sequência esperada'
+        }
+        break
+      }
+    }
+
+    if (firstErrorIndex !== null) {
+      result.stopped_at_first_error = true
+      const firstError = await analyzePosition(firstErrorIndex, 'Primeiro erro')
+      result.first_error = { ...firstError, reason: firstErrorReason }
+      for (const neighbor of [firstErrorIndex - 1, firstErrorIndex + 1]) {
+        if (neighbor < anchorIndex || neighbor >= records.length) continue
+        await analyzePosition(neighbor, 'Imagem vizinha')
+      }
+    }
+    result.diagnostics = Array.from(analyzed.entries())
+      .filter(([index]) => firstErrorIndex === null || Math.abs(index - firstErrorIndex) <= 1)
+      .sort(([a], [b]) => a - b)
+      .map(([, diagnostic]) => diagnostic)
 
     if (streaming) {
       if (!response.response.destroyed && !response.response.writableEnded) {
