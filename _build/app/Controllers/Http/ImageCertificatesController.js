@@ -343,9 +343,11 @@ class ImageCertificatesController {
         const bornCertificateId = params.bornCertificateId ? Number(params.bornCertificateId) : null;
         const deathCertificateId = params.deathCertificateId ? Number(params.deathCertificateId) : null;
         const mandateCertificateId = params.mandateCertificateId ? Number(params.mandateCertificateId) : null;
+        const secondcopyCertificateId = params.secondcopyCertificateId ? Number(params.secondcopyCertificateId) : null;
+        const communicationCertificateId = params.communicationCertificateId ? Number(params.communicationCertificateId) : null;
         const marriedCertificateId = params.marriedCertificateId ? Number(params.marriedCertificateId) : null;
-        const certificateId = bornCertificateId ?? deathCertificateId ?? mandateCertificateId ?? marriedCertificateId;
-        const bookId = bornCertificateId ? 3 : deathCertificateId ? 4 : mandateCertificateId ? 24 : 2;
+        const certificateId = bornCertificateId ?? deathCertificateId ?? mandateCertificateId ?? secondcopyCertificateId ?? communicationCertificateId ?? marriedCertificateId;
+        const bookId = bornCertificateId ? 3 : deathCertificateId ? 4 : mandateCertificateId ? 24 : secondcopyCertificateId ? 21 : communicationCertificateId ? 25 : 2;
         if (!certificateId || !Number.isFinite(certificateId)) {
             return response.badRequest({ error: 'certificateId inválido' });
         }
@@ -360,6 +362,12 @@ class ImageCertificatesController {
         }
         else if (mandateCertificateId) {
             query.andWhere('mandate_certificate_id', mandateCertificateId);
+        }
+        else if (secondcopyCertificateId) {
+            query.andWhere('secondcopy_certificate_id', secondcopyCertificateId);
+        }
+        else if (communicationCertificateId) {
+            query.andWhere('communication_certificate_id', communicationCertificateId);
         }
         else {
             query.andWhere('married_certificate_id', marriedCertificateId);
@@ -384,6 +392,8 @@ class ImageCertificatesController {
                 bornCertificateId: image.bornCertificateId,
                 deathCertificateId: image.deathCertificateId,
                 mandateCertificateId: image.mandateCertificateId,
+                secondcopyCertificateId: image.secondcopyCertificateId,
+                communicationCertificateId: image.communicationCertificateId,
                 createdAt: image.createdAt,
             })),
         });

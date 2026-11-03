@@ -11,7 +11,7 @@ const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const luxon_1 = require("luxon");
 const promises_1 = __importDefault(require("fs/promises"));
-async function uploadImage({ companiesId, marriedCertificateId, bornCertificateId, deathCertificateId, mandateCertificateId, file, description, }) {
+async function uploadImage({ companiesId, marriedCertificateId, bornCertificateId, deathCertificateId, mandateCertificateId, secondcopyCertificateId, communicationCertificateId, file, description, }) {
     if (!file || !file.isValid) {
         console.log('Arquivo inválido ou inexistente, ignorando.');
         return;
@@ -36,12 +36,20 @@ async function uploadImage({ companiesId, marriedCertificateId, bornCertificateI
         bookId = 24;
         query.andWhere('mandate_certificate_id', mandateCertificateId);
     }
+    if (secondcopyCertificateId) {
+        bookId = 21;
+        query.andWhere('secondcopy_certificate_id', secondcopyCertificateId);
+    }
+    if (communicationCertificateId) {
+        bookId = 25;
+        query.andWhere('communication_certificate_id', communicationCertificateId);
+    }
     const lastImage = await query.orderBy('seq', 'desc').first();
     const newSeq = lastImage?.seq ? lastImage.seq + 1 : 1;
     const timestamp = luxon_1.DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss');
     const baseName = file.clientName.split('.').slice(0, -1).join('.');
-    if (bookId === 2 || bookId === 3 || bookId === 4 || bookId === 24) {
-        const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : bookId === 4 ? deathCertificateId : mandateCertificateId;
+    if ([2, 3, 4, 21, 24, 25].includes(bookId || 0)) {
+        const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : bookId === 4 ? deathCertificateId : bookId === 21 ? secondcopyCertificateId : bookId === 25 ? communicationCertificateId : mandateCertificateId;
         clientName = `${description || ''}_${baseName}_id${certificateId}_${timestamp}.${file.extname}`;
     }
     else {
@@ -66,6 +74,8 @@ async function uploadImage({ companiesId, marriedCertificateId, bornCertificateI
         bornCertificateId: bornCertificateId ?? null,
         deathCertificateId: deathCertificateId ?? null,
         mandateCertificateId: mandateCertificateId ?? null,
+        secondcopyCertificateId: secondcopyCertificateId ?? null,
+        communicationCertificateId: communicationCertificateId ?? null,
         ext: file.extname,
         fileName: clientName,
         description: description,

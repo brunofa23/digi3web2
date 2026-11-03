@@ -216,6 +216,7 @@ Route_1.default.group(() => {
     Route_1.default.post('/order-certificates/birth-mobile-captures', 'BirthMobileCapturesController.create').middleware('auth');
     Route_1.default.get('/order-certificates/birth-mobile-captures/:id', 'BirthMobileCapturesController.index').middleware('auth');
     Route_1.default.get('/order-certificates/birth-mobile-captures/:id/files/:fileId', 'BirthMobileCapturesController.download').middleware('auth');
+    Route_1.default.delete('/order-certificates/birth-mobile-captures/:id/files/:fileId', 'BirthMobileCapturesController.deleteFile').middleware('auth');
     Route_1.default.delete('/order-certificates/birth-mobile-captures/:id', 'BirthMobileCapturesController.destroy').middleware('auth');
     Route_1.default.get('/public/birth-mobile-captures', 'BirthMobileCapturesController.showPublic');
     Route_1.default.post('/public/birth-mobile-captures/files', 'BirthMobileCapturesController.uploadPublic');
@@ -230,6 +231,8 @@ Route_1.default.group(() => {
     Route_1.default.get('/imagecertificates/born/:bornCertificateId', 'ImageCertificatesController.index').middleware('auth');
     Route_1.default.get('/imagecertificates/death/:deathCertificateId', 'ImageCertificatesController.index').middleware('auth');
     Route_1.default.get('/imagecertificates/mandate/:mandateCertificateId', 'ImageCertificatesController.index').middleware('auth');
+    Route_1.default.get('/imagecertificates/secondcopy/:secondcopyCertificateId', 'ImageCertificatesController.index').middleware('auth');
+    Route_1.default.get('/imagecertificates/communication/:communicationCertificateId', 'ImageCertificatesController.index').middleware('auth');
     Route_1.default.get('/imagecertificates/:id/open', 'ImageCertificatesController.show').middleware('auth');
     Route_1.default.post('/imagecertificates/:id/visionocr', 'ImageCertificatesController.visionOcr').middleware('auth');
     Route_1.default.post('/imagecertificates/uploads', 'ImageCertificatesController.store');

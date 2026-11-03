@@ -20,6 +20,8 @@ const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/
 const BornCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/BornCertificate"));
 const DeathCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DeathCertificate"));
 const MandateCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/MandateCertificate"));
+const SecondcopyCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SecondcopyCertificate"));
+const CommunicationCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/CommunicationCertificate"));
 class ImageCertificate extends Orm_1.BaseModel {
 }
 __decorate([
@@ -50,6 +52,14 @@ __decorate([
     (0, Orm_1.column)({ columnName: 'mandate_certificate_id' }),
     __metadata("design:type", Object)
 ], ImageCertificate.prototype, "mandateCertificateId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'secondcopy_certificate_id' }),
+    __metadata("design:type", Object)
+], ImageCertificate.prototype, "secondcopyCertificateId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'communication_certificate_id' }),
+    __metadata("design:type", Object)
+], ImageCertificate.prototype, "communicationCertificateId", void 0);
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Number)
@@ -122,5 +132,13 @@ __decorate([
     (0, Orm_1.belongsTo)(() => MandateCertificate_1.default, { foreignKey: 'mandateCertificateId' }),
     __metadata("design:type", Object)
 ], ImageCertificate.prototype, "mandateCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => SecondcopyCertificate_1.default, { foreignKey: 'secondcopyCertificateId' }),
+    __metadata("design:type", Object)
+], ImageCertificate.prototype, "secondcopyCertificate", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => CommunicationCertificate_1.default, { foreignKey: 'communicationCertificateId' }),
+    __metadata("design:type", Object)
+], ImageCertificate.prototype, "communicationCertificate", void 0);
 exports.default = ImageCertificate;
 //# sourceMappingURL=ImageCertificate.js.map
