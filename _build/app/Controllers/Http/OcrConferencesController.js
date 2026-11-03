@@ -314,6 +314,167 @@ class OcrConferencesController {
         const result = await query.paginate(page, perPage);
         return response.status(200).send(result);
     }
+    async sequenceDiagnostic({ auth, params, request, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const permissions = auth.use('api').token?.meta.payload.permissions || [];
+        this.ensureOcrConferenceAccess(authenticate, permissions);
+        const typebooksId = Number(params.typebooks_id);
+        const book = Number(request.input('book'));
+        const startSide = String(request.input('startSide') || 'F').toUpperCase();
+        if (!Number.isInteger(typebooksId) || typebooksId <= 0 || !Number.isInteger(book) || book <= 0) {
+            return response.status(422).send({ message: 'Selecione um único livro válido para diagnosticar a sequência' });
+        }
+        if (authenticate.companies_id !== 102 || typebooksId !== 6 || book !== 31) {
+            return response.status(422).send({ message: 'O diagnóstico está liberado somente para o piloto da empresa 102, tipo 6, livro 31' });
+        }
+        if (!['F', 'V'].includes(startSide))
+            return response.status(422).send({ message: 'O lado inicial deve ser F ou V' });
+        const visualModel = await this.assistedSideModel(authenticate.companies_id, typebooksId, { bookStart: book, bookEnd: book });
+        const typebook = await this.getTypebook(authenticate.companies_id, typebooksId);
+        if (!typebook)
+            return response.status(404).send({ message: 'Typebook não encontrado' });
+        if (!typebook.company?.cloud)
+            return response.status(422).send({ message: 'Empresa sem configuração de cloud' });
+        const rows = await Database_1.default.from('bookrecords as records')
+            .leftJoin('indeximages as images', (join) => {
+            join.on('images.bookrecords_id', 'records.id')
+                .andOn('images.typebooks_id', 'records.typebooks_id')
+                .andOn('images.companies_id', 'records.companies_id');
+        })
+            .where('records.companies_id', authenticate.companies_id)
+            .andWhere('records.typebooks_id', typebooksId)
+            .andWhere('records.book', book)
+            .select('records.id as bookrecord_id', 'records.cod', 'records.book', 'records.sheet', 'records.side', 'images.seq', 'images.ext', 'images.file_name', 'images.drive_file_id')
+            .orderBy('records.cod', 'asc')
+            .orderBy('records.id', 'asc')
+            .orderBy('images.seq', 'asc');
+        const recordsById = new Map();
+        for (const row of rows) {
+            const id = Number(row.bookrecord_id);
+            if (!recordsById.has(id)) {
+                recordsById.set(id, { bookrecord_id: id, cod: row.cod, book: row.book, sheet: row.sheet, side: row.side, images: [] });
+            }
+            if (row.seq !== null && row.seq !== undefined)
+                recordsById.get(id).images.push(row);
+        }
+        const records = Array.from(recordsById.values());
+        if (!records.length)
+            return response.status(404).send({ message: `O livro ${book} não tem registros para conferir` });
+        const imageForRecord = (record) => record.images.find((image) => {
+            const ext = String(image.ext || '').toLowerCase();
+            return image.drive_file_id && ['.jpg', '.jpeg', '.png', '.webp'].includes(ext);
+        }) || null;
+        const expectedForPosition = (position) => (position % 2 === 1 ? startSide : startSide === 'F' ? 'V' : 'F');
+        const systematicPositions = new Set();
+        records.forEach((_record, index) => {
+            const offset = index % 10;
+            if ([0, 4, 9].includes(offset))
+                systematicPositions.add(index);
+        });
+        const divergentPositions = records.map((record, index) => {
+            const saved = String(record.side || '').trim().toUpperCase();
+            return saved !== expectedForPosition(index + 1) ? index : -1;
+        }).filter((index) => index >= 0);
+        const mismatchSegments = [];
+        for (const index of divergentPositions) {
+            const last = mismatchSegments[mismatchSegments.length - 1];
+            if (last && last.end_index === index - 1) {
+                last.end_index = index;
+            }
+            else {
+                mismatchSegments.push({ start_index: index, end_index: index });
+            }
+        }
+        for (const segment of mismatchSegments) {
+            for (const index of [segment.start_index - 1, segment.start_index, segment.start_index + 1, segment.end_index - 1, segment.end_index, segment.end_index + 1]) {
+                if (index >= 0 && index < records.length)
+                    segment.inspect_indices = [...new Set([...(segment.inspect_indices || []), index])];
+            }
+            segment.position_start = segment.start_index + 1;
+            segment.position_end = segment.end_index + 1;
+            segment.cod_start = records[segment.start_index].cod;
+            segment.cod_end = records[segment.end_index].cod;
+            segment.length = segment.end_index - segment.start_index + 1;
+            delete segment.start_index;
+            delete segment.end_index;
+        }
+        const inspectPositions = new Set(systematicPositions);
+        for (const segment of mismatchSegments)
+            for (const index of segment.inspect_indices)
+                inspectPositions.add(index);
+        const inspectionOrder = Array.from(inspectPositions).sort((a, b) => a - b);
+        const streaming = this.booleanValue(request.input('streamProgress'));
+        const result = {
+            book,
+            start_side: startSide,
+            model_version: visualModel.version,
+            total_positions: records.length,
+            sampled_positions: systematicPositions.size,
+            planned_positions: inspectionOrder.length,
+            inspected_positions: 0,
+            additional_images_not_counted: records.reduce((sum, record) => sum + Math.max(0, record.images.length - 1), 0),
+            mismatch_segments: mismatchSegments.map(({ inspect_indices, ...segment }) => segment),
+            diagnostics: [],
+            errors: [],
+        };
+        const sendProgress = (completed) => {
+            if (streaming && !response.response.destroyed && !response.response.writableEnded) {
+                response.response.write(`${JSON.stringify({ type: 'progress', total: inspectionOrder.length, completed })}\n`);
+            }
+        };
+        if (streaming) {
+            response.header('Content-Type', 'application/x-ndjson; charset=utf-8')
+                .header('Cache-Control', 'no-store').header('X-Accel-Buffering', 'no').flushHeaders(200);
+            sendProgress(0);
+        }
+        let completed = 0;
+        for (const index of inspectionOrder) {
+            const record = records[index];
+            const image = imageForRecord(record);
+            const expectedSide = expectedForPosition(index + 1);
+            const savedSide = String(record.side || '').trim().toUpperCase() || null;
+            const sampled = systematicPositions.has(index);
+            const diagnostic = {
+                position: index + 1,
+                bookrecord_id: record.bookrecord_id,
+                cod: record.cod,
+                book: record.book,
+                sheet: record.sheet,
+                seq: image?.seq ?? null,
+                file_name: image?.file_name ?? null,
+                image_count: record.images.length,
+                sample_type: sampled ? 'Amostra regular' : 'Vizinho de divergência',
+                expected_side: expectedSide,
+                saved_side: ['F', 'V'].includes(savedSide || '') ? savedSide : null,
+                side: ['F', 'V'].includes(savedSide || '') ? savedSide : null,
+                detected_side: null,
+            };
+            try {
+                if (!image)
+                    throw new Error('Registro sem imagem compatível disponível no Drive');
+                const imageBuffer = await (0, googledrive_1.sendDownloadFileBuffer)(image.drive_file_id, typebook.company.cloud);
+                diagnostic.detected_side = (0, bookSideVisualModel_1.predictBookSideVisual)(visualModel, (await (0, bookSideVisualModel_1.extractBookSideVisualFeatures)(imageBuffer, visualModel.extractor_sha256)).features).side;
+            }
+            catch (error) {
+                diagnostic.error = error?.message || 'Erro ao analisar a imagem';
+                result.errors.push({ position: diagnostic.position, cod: diagnostic.cod, message: diagnostic.error });
+            }
+            diagnostic.detected_matches_expected = diagnostic.detected_side ? diagnostic.detected_side === expectedSide : null;
+            diagnostic.saved_matches_expected = diagnostic.saved_side === expectedSide;
+            diagnostic.detected_matches_saved = diagnostic.detected_side && diagnostic.saved_side ? diagnostic.detected_side === diagnostic.saved_side : null;
+            result.diagnostics.push(diagnostic);
+            completed++;
+            sendProgress(completed);
+        }
+        result.inspected_positions = result.diagnostics.filter((item) => item.detected_side).length;
+        if (streaming) {
+            if (!response.response.destroyed && !response.response.writableEnded) {
+                response.response.end(`${JSON.stringify({ type: 'result', data: result })}\n`);
+            }
+            return;
+        }
+        return response.status(200).send(result);
+    }
     async entities({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
