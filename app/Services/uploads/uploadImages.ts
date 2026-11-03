@@ -19,6 +19,7 @@ interface UploadImageParams {
   deathCertificateId?: number | null
   mandateCertificateId?: number | null
   secondcopyCertificateId?: number | null
+  communicationCertificateId?: number | null
   file: MultipartFileContract
   description?: string
 }
@@ -30,6 +31,7 @@ async function uploadImage({
   deathCertificateId,
   mandateCertificateId,
   secondcopyCertificateId,
+  communicationCertificateId,
   file,
   description,
 }: UploadImageParams) {
@@ -71,14 +73,19 @@ async function uploadImage({
     query.andWhere('secondcopy_certificate_id', secondcopyCertificateId)
   }
 
+  if (communicationCertificateId) {
+    bookId = 25
+    query.andWhere('communication_certificate_id', communicationCertificateId)
+  }
+
   const lastImage = await query.orderBy('seq', 'desc').first()
   const newSeq = lastImage?.seq ? lastImage.seq + 1 : 1
 
   const timestamp = DateTime.now().toFormat('yyyy-MM-dd_HH-mm-ss')
   const baseName = file.clientName.split('.').slice(0, -1).join('.')
 
-  if ([2, 3, 4, 21, 24].includes(bookId || 0)) {
-    const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : bookId === 4 ? deathCertificateId : bookId === 21 ? secondcopyCertificateId : mandateCertificateId
+  if ([2, 3, 4, 21, 24, 25].includes(bookId || 0)) {
+    const certificateId = bookId === 2 ? marriedCertificateId : bookId === 3 ? bornCertificateId : bookId === 4 ? deathCertificateId : bookId === 21 ? secondcopyCertificateId : bookId === 25 ? communicationCertificateId : mandateCertificateId
     clientName = `${description || ''}_${baseName}_id${certificateId}_${timestamp}.${file.extname}`
   } else {
     clientName = `${baseName}_${timestamp}.${file.extname}`
@@ -113,6 +120,7 @@ async function uploadImage({
     deathCertificateId: deathCertificateId ?? null,
     mandateCertificateId: mandateCertificateId ?? null,
     secondcopyCertificateId: secondcopyCertificateId ?? null,
+    communicationCertificateId: communicationCertificateId ?? null,
     ext: file.extname,
     fileName: clientName,
     description: description,

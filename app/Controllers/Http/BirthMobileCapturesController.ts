@@ -22,10 +22,15 @@ const deathFields: Record<string, string> = {
   DeathDeclaration: 'Declaração de óbito',
 }
 const secondcopyFieldPrefix = 'Attachment'
+const dynamicAttachmentCaptureTypes = ['secondcopy', 'mandate', 'communication']
+
+function isDynamicAttachmentCapture(session: { capture_type: string }) {
+  return dynamicAttachmentCaptureTypes.includes(session.capture_type)
+}
 
 function fieldsFor(session: { capture_type: string }) {
   if (session.capture_type === 'death') return deathFields
-  if (session.capture_type === 'secondcopy') return { Attachment1: 'Anexo 1' }
+  if (isDynamicAttachmentCapture(session)) return { Attachment1: 'Anexo 1' }
   return fields
 }
 
@@ -59,7 +64,7 @@ export default class BirthMobileCapturesController {
   public async create({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
     const captureType = String(request.input('captureType') || 'birth')
-    if (!['birth', 'death', 'secondcopy'].includes(captureType)) return response.badRequest({ message: 'Tipo de captura inválido.' })
+    if (!['birth', 'death', ...dynamicAttachmentCaptureTypes].includes(captureType)) return response.badRequest({ message: 'Tipo de captura inválido.' })
     await this.removeExpiredSessions()
 
     const token = crypto.randomBytes(32).toString('hex')
@@ -99,7 +104,7 @@ export default class BirthMobileCapturesController {
       }
     }
     const captureFields = { ...fieldsFor(session) }
-    if (session.capture_type === 'secondcopy') {
+    if (isDynamicAttachmentCapture(session)) {
       const attachmentNumbers = uploads.map(({ fieldKey }) => Number(String(fieldKey).slice(secondcopyFieldPrefix.length))).filter(Number.isInteger)
       const lastNumber = Math.min(maxSecondcopyAttachments, Math.max(0, ...attachmentNumbers) + 1)
       for (let number = 1; number <= lastNumber; number += 1) {
@@ -124,8 +129,8 @@ export default class BirthMobileCapturesController {
     const fieldKey = String(request.input('fieldKey') || '')
     const sessionFields = fieldsFor(session)
     const attachmentNumber = Number(fieldKey.slice(secondcopyFieldPrefix.length))
-    const isSecondcopyAttachment = session.capture_type === 'secondcopy' && /^Attachment[1-9]\d*$/.test(fieldKey) && attachmentNumber <= maxSecondcopyAttachments
-    if (!sessionFields[fieldKey] && !isSecondcopyAttachment) return response.badRequest({ message: 'Tipo de documento inválido.' })
+    const isDynamicAttachment = isDynamicAttachmentCapture(session) && /^Attachment[1-9]\d*$/.test(fieldKey) && attachmentNumber <= maxSecondcopyAttachments
+    if (!sessionFields[fieldKey] && !isDynamicAttachment) return response.badRequest({ message: 'Tipo de documento inválido.' })
     const label = sessionFields[fieldKey] || `Anexo ${fieldKey.slice(secondcopyFieldPrefix.length)}`
     const pageId = String(request.input('pageId') || '')
     if (!/^[a-f0-9-]{36}$/i.test(pageId)) return response.badRequest({ message: 'Identificador da foto inválido.' })
@@ -137,7 +142,7 @@ export default class BirthMobileCapturesController {
       pageCount = pdf.getPageCount()
       return response.ok({ fieldKey, label, pageCount, duplicate: true })
     }
-    if (session.capture_type === 'secondcopy' && prior) {
+    if (isDynamicAttachmentCapture(session) && prior) {
       return response.badRequest({ message: 'Cada anexo aceita uma imagem. Use o próximo anexo para outro documento.' })
     }
 
@@ -170,9 +175,9 @@ export default class BirthMobileCapturesController {
       }
     }
     const totalPages = (existingPdf?.getPageCount() || 0) + incomingPdf.getPageCount()
-    const pageLimit = session.capture_type === 'secondcopy' ? 1 : maxPagesPerDocument
+    const pageLimit = isDynamicAttachmentCapture(session) ? 1 : maxPagesPerDocument
     if (totalPages > pageLimit) {
-      const message = session.capture_type === 'secondcopy'
+      const message = isDynamicAttachmentCapture(session)
         ? 'Cada anexo aceita uma imagem. Use o próximo anexo para outro documento.'
         : `Este documento pode ter até ${maxPagesPerDocument} páginas.`
       return response.badRequest({ message })
@@ -221,8 +226,8 @@ export default class BirthMobileCapturesController {
 
     const fieldKey = String(request.input('fieldKey') || '')
     const attachmentNumber = Number(fieldKey.slice(secondcopyFieldPrefix.length))
-    const isSecondcopyAttachment = session.capture_type === 'secondcopy' && /^Attachment[1-9]\d*$/.test(fieldKey) && attachmentNumber <= maxSecondcopyAttachments
-    if (!fieldsFor(session)[fieldKey] && !isSecondcopyAttachment) return response.badRequest({ message: 'Tipo de documento inválido.' })
+    const isDynamicAttachment = isDynamicAttachmentCapture(session) && /^Attachment[1-9]\d*$/.test(fieldKey) && attachmentNumber <= maxSecondcopyAttachments
+    if (!fieldsFor(session)[fieldKey] && !isDynamicAttachment) return response.badRequest({ message: 'Tipo de documento inválido.' })
     const file = await Database.from(fileTable).where('session_id', session.id).where('field_key', fieldKey).first()
     if (!file) return response.ok({ fieldKey, cleared: false })
 
@@ -275,7 +280,7 @@ export default class BirthMobileCapturesController {
       .where(`${sessionTable}.id`, params.id)
       .where(`${sessionTable}.companies_id`, user.companies_id)
       .where(`${sessionTable}.created_by`, user.id)
-      .where(`${sessionTable}.capture_type`, 'secondcopy')
+      .whereIn(`${sessionTable}.capture_type`, dynamicAttachmentCaptureTypes)
       .select(`${fileTable}.file_name`)
       .first()
 

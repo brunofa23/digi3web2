@@ -322,6 +322,7 @@ Route.group(() => {
   Route.get('/imagecertificates/death/:deathCertificateId', 'ImageCertificatesController.index').middleware('auth')
   Route.get('/imagecertificates/mandate/:mandateCertificateId', 'ImageCertificatesController.index').middleware('auth')
   Route.get('/imagecertificates/secondcopy/:secondcopyCertificateId', 'ImageCertificatesController.index').middleware('auth')
+  Route.get('/imagecertificates/communication/:communicationCertificateId', 'ImageCertificatesController.index').middleware('auth')
   Route.get('/imagecertificates/:id/open', 'ImageCertificatesController.show').middleware('auth')
   Route.post('/imagecertificates/:id/visionocr', 'ImageCertificatesController.visionOcr').middleware('auth')
   Route.post('/imagecertificates/uploads', 'ImageCertificatesController.store')
