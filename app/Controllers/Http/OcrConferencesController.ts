@@ -469,9 +469,12 @@ export default class OcrConferencesController {
     let sidePattern: string | null = null
     if (requestedSidePattern) {
       const calibration = records.slice(anchorIndex, anchorIndex + 15)
-      const savedSidesMatchPattern = calibration.length === 15
-        && calibration.every((record, index) => String(record.side || '').trim().toUpperCase() === requestedSidePattern[index % requestedSidePattern.length])
       const phaseStartIndex = patternPhaseStartRecordId === null ? -1 : records.findIndex((record) => record.bookrecord_id === patternPhaseStartRecordId)
+      const savedSidesMatchPattern = calibration.length === 15
+        && calibration.every((record, index) => {
+          const offset = phaseStartIndex >= anchorIndex && anchorIndex + index >= phaseStartIndex ? requestedPatternOffset : 0
+          return String(record.side || '').trim().toUpperCase() === requestedSidePattern[(index + offset) % requestedSidePattern.length]
+        })
       if (records[anchorIndex].bookrecord_id !== patternAnchorRecordId || !savedSidesMatchPattern
         || requestedPatternOffset >= requestedSidePattern.length
         || (patternPhaseStartRecordId !== null && phaseStartIndex < anchorIndex)) {
@@ -600,15 +603,14 @@ export default class OcrConferencesController {
       if (isClientDisconnected()) return
       const diagnostic = await analyzePosition(index, 'Amostra sequencial inicial')
       if (isClientDisconnected()) return
-      if (!isConforming(diagnostic)) {
+      if (!isConforming(diagnostic) && firstErrorIndex === null) {
         firstErrorIndex = index
         firstErrorReason = divergenceReason(diagnostic)
-        break
       }
-      lastVerifiedIndex = index
+      if (firstErrorIndex === null) lastVerifiedIndex = index
     }
 
-    if (!sidePattern && scanStartIndex === anchorIndex && initialSamplePositions.size === 15 && firstErrorIndex === null) {
+    if (!sidePattern && scanStartIndex === anchorIndex && initialSamplePositions.size === 15) {
       const calibratedSides = Array.from(initialSamplePositions).map((index) => analyzed.get(index)?.detected_side)
       for (let period = 1; period <= Math.floor(calibratedSides.length / 3); period++) {
         if (calibratedSides.every((side, index) => side && side === calibratedSides[index % period])) {
@@ -680,7 +682,8 @@ export default class OcrConferencesController {
         ? requestedPatternOffset : 0
       const bestPatternOffset = sidePattern
         ? Array.from({ length: sidePattern.length }, (_value, offset) => offset)
-          .sort((left, right) => scorePatternOffset(right) - scorePatternOffset(left))[0]
+          .sort((left, right) => scorePatternOffset(right) - scorePatternOffset(left)
+            || Number(right === currentOffsetAtError) - Number(left === currentOffsetAtError))[0]
         : null
       const supportsPattern = (index: number, offset: number) => {
         const diagnostic = analyzed.get(index)
@@ -688,7 +691,7 @@ export default class OcrConferencesController {
         return Boolean(diagnostic && expectedSide && diagnostic.detected_side === expectedSide && diagnostic.saved_side !== expectedSide)
       }
       if (result.pattern_calibrated_positions === 15 && firstErrorIndex + 1 < records.length
-        && bestPatternOffset !== null && scorePatternOffset(bestPatternOffset) > scorePatternOffset(currentOffsetAtError)
+        && bestPatternOffset !== null
         && supportsPattern(firstErrorIndex, bestPatternOffset) && supportsPattern(firstErrorIndex + 1, bestPatternOffset)) {
         const correctionStartIndex = firstErrorIndex
         result.can_propagate_pattern = true
@@ -766,12 +769,12 @@ export default class OcrConferencesController {
     const records = await recordsQuery.select('id', 'cod', 'sheet', 'side').orderBy('cod', 'asc').orderBy('id', 'asc')
     const anchorIndex = records.findIndex((record) => Number(record.id) === patternAnchorRecordId)
     const startIndex = records.findIndex((record) => Number(record.id) === startRecordId)
-    if (anchorIndex < 0 || startIndex < anchorIndex + 15) {
+    if (anchorIndex < 0 || startIndex < anchorIndex) {
       return response.status(409).send({ message: 'O ponto inicial ou a amostra de calibração mudou; execute o diagnóstico novamente' })
     }
     const calibration = records.slice(anchorIndex, anchorIndex + 15)
-    if (calibration.length !== 15 || !calibration.every((record, index) => String(record.side || '').trim().toUpperCase() === pattern[index % pattern.length])) {
-      return response.status(409).send({ message: 'A sequência inicial mudou após a calibração; execute o diagnóstico novamente' })
+    if (calibration.length !== 15) {
+      return response.status(409).send({ message: 'A amostra de calibração não está mais disponível; execute o diagnóstico novamente' })
     }
 
     const expectedSideAt = (index: number) => pattern[((index - anchorIndex) + (index >= startIndex ? patternOffset : 0)) % pattern.length]
@@ -834,6 +837,86 @@ export default class OcrConferencesController {
       pattern_phase_start_record_id: patternPhaseStartRecordId,
       resume_after_record_id: records[startIndex - 1]?.id ?? null,
     })
+  }
+
+  public async applyDetectedSequenceSides({ auth, params, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
+    this.ensureOcrConferenceAccess(authenticate, permissions)
+
+    const typebooksId = Number(params.typebooks_id)
+    const book = Number(request.input('book'))
+    const sheetStart = this.numberOrNull(request.input('sheetStart'))
+    const sheetEnd = this.numberOrNull(request.input('sheetEnd'))
+    const requestedChanges = request.input('records')
+    if (!Number.isInteger(typebooksId) || typebooksId <= 0 || !Number.isInteger(book) || book <= 0
+      || !Array.isArray(requestedChanges) || !requestedChanges.length) {
+      return response.status(422).send({ message: 'Selecione registros detectados válidos para igualar os lados' })
+    }
+    if ((sheetStart !== null && (!Number.isInteger(sheetStart) || sheetStart <= 0))
+      || (sheetEnd !== null && (!Number.isInteger(sheetEnd) || sheetEnd <= 0))
+      || (sheetStart !== null && sheetEnd !== null && sheetEnd < sheetStart)) {
+      return response.status(422).send({ message: 'Informe um intervalo válido para folha inicial e final' })
+    }
+
+    const changes = requestedChanges.map((item: any) => ({
+      id: Number(item?.bookrecord_id),
+      fromSide: item?.saved_side === null || item?.saved_side === undefined || item?.saved_side === ''
+        ? null : String(item.saved_side).trim().toUpperCase(),
+      toSide: String(item?.detected_side || '').trim().toUpperCase(),
+    }))
+    const ids = changes.map((change: any) => change.id)
+    if (changes.some((change: any) => !Number.isInteger(change.id) || change.id <= 0
+      || (change.fromSide !== null && !['F', 'V'].includes(change.fromSide))
+      || !['F', 'V'].includes(change.toSide)) || new Set(ids).size !== ids.length) {
+      return response.status(422).send({ message: 'A lista de lados detectados contém valores inválidos ou repetidos' })
+    }
+
+    const recordsQuery = Database.from('bookrecords')
+      .where('companies_id', authenticate.companies_id)
+      .andWhere('typebooks_id', typebooksId)
+      .andWhere('book', book)
+      .whereIn('id', ids)
+    if (sheetStart !== null) recordsQuery.andWhere('sheet', '>=', sheetStart)
+    if (sheetEnd !== null) recordsQuery.andWhere('sheet', '<=', sheetEnd)
+    const records = await recordsQuery.select('id', 'side')
+    if (records.length !== changes.length) {
+      return response.status(409).send({ message: 'Algum registro não pertence ao livro e intervalo selecionados' })
+    }
+
+    const currentById = new Map(records.map((record) => [Number(record.id), String(record.side || '').trim().toUpperCase() || null]))
+    if (changes.some((change: any) => currentById.get(change.id) !== change.fromSide)) {
+      return response.status(409).send({ message: 'Algum lado mudou desde o diagnóstico; execute a conferência novamente' })
+    }
+    const updates = changes.filter((change: any) => change.fromSide !== change.toSide)
+    if (!updates.length) return response.status(200).send({ applied: 0 })
+
+    const now = DateTime.local().toSQL({ includeOffset: false })
+    await Database.transaction(async (trx) => {
+      const lockedRows = await Database.from('bookrecords').useTransaction(trx)
+        .where('companies_id', authenticate.companies_id)
+        .andWhere('typebooks_id', typebooksId)
+        .andWhere('book', book)
+        .whereIn('id', updates.map((change: any) => change.id))
+        .forUpdate()
+        .select('id', 'side')
+      const lockedById = new Map(lockedRows.map((record) => [Number(record.id), String(record.side || '').trim().toUpperCase() || null]))
+      if (updates.some((change: any) => lockedById.get(change.id) !== change.fromSide)) {
+        throw new BadRequestException('Algum lado mudou durante a atualização; execute a conferência novamente', 409)
+      }
+      for (const side of ['F', 'V']) {
+        const sideIds = updates.filter((change: any) => change.toSide === side).map((change: any) => change.id)
+        if (!sideIds.length) continue
+        await Database.from('bookrecords').useTransaction(trx)
+          .where('companies_id', authenticate.companies_id)
+          .andWhere('typebooks_id', typebooksId)
+          .andWhere('book', book)
+          .whereIn('id', sideIds)
+          .update({ side, updated_at: now })
+      }
+    })
+
+    return response.status(200).send({ applied: updates.length })
   }
 
   public async entities({ auth, params, request, response }: HttpContextContract) {
