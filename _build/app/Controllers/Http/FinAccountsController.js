@@ -11,11 +11,13 @@ const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const finImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/finImages");
 const luxon_1 = require("luxon");
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
+const AuditLogger_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Audit/AuditLogger"));
 function toUTCISO(dateStr) {
     return dateStr ? luxon_1.DateTime.fromISO(dateStr).toUTC().toISO() : null;
 }
 class FinAccountsController {
-    async index({ auth, request, response }) {
+    async index(ctx) {
+        const { auth, request, response } = ctx;
         const user = await auth.use('api').authenticate();
         const querySchema = Validator_1.schema.create({
             fin_emp_id: Validator_1.schema.number.optional(),
@@ -157,6 +159,24 @@ class FinAccountsController {
                 q.where('obs', 'like', `%${body.obs}%`);
             });
             const data = await query;
+            const referer = request.header('referer') || '';
+            const page = referer.includes('/finaccounts-tabulated')
+                ? 'finaccounts-tabulated'
+                : 'finaccounts';
+            const filters = Object.fromEntries(Object.entries(body).filter(([key, value]) => value !== undefined && value !== null && value !== '' && value !== false &&
+                !(['typeDate', 'date_start', 'date_end'].includes(key) && page === 'finaccounts-tabulated')));
+            const isSearch = Object.keys(filters).length > 0;
+            await AuditLogger_1.default.record(ctx, {
+                companiesId: user.companies_id,
+                userId: user.id,
+                action: isSearch ? 'finaccount_search' : 'finaccount_view',
+                entityTable: 'finaccounts',
+                resourceKey: `finaccounts:${page}`,
+                description: isSearch
+                    ? `Usuário pesquisou lançamentos financeiros (${page})`
+                    : `Usuário acessou lançamentos financeiros (${page})`,
+                metadata: { page, filters },
+            });
             return response.ok(data);
         }
         catch (error) {
