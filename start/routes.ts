@@ -128,6 +128,8 @@ Route.group(() => {
   Route.post('/typebooks/:typebooks_id/visionocrindeximages', 'BookrecordsController.visionOcrIndeximages').middleware('bookrecord_permission:get')
   Route.get('/typebooks/:typebooks_id/ocrconferences', 'OcrConferencesController.index').middleware('auth')
   Route.post('/typebooks/:typebooks_id/ocrconferences/sequence-diagnostic', 'OcrConferencesController.sequenceDiagnostic').middleware('auth')
+  Route.post('/typebooks/:typebooks_id/ocrconferences/sequence-diagnostic/apply-pattern', 'OcrConferencesController.applySequenceSidePattern').middleware('auth')
+  Route.patch('/typebooks/:typebooks_id/ocrconferences/sequence-diagnostic/apply-detected-sides', 'OcrConferencesController.applyDetectedSequenceSides').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training', 'SideTrainingController.index').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/models', 'SideTrainingController.modelStatus').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/train', 'SideTrainingController.trainModel').middleware('auth')

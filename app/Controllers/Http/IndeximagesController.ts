@@ -967,7 +967,7 @@ export default class IndeximagesController {
     const authenticate = await auth.use('api').authenticate()
 
     if (!(await this.canViewImages(request, authenticate))) {
-      return response.unauthorized({
+      return response.forbidden({
         message: 'Acesso às imagens não autorizado para este usuário/dispositivo',
       })
     }
