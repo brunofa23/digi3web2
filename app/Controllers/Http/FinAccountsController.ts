@@ -7,13 +7,15 @@ import { currencyConverter } from "App/Services/util"
 import { uploadFinImage } from 'App/Services/uploads/finImages'
 import { DateTime } from 'luxon'
 import { schema } from '@ioc:Adonis/Core/Validator'
+import AuditLogger from 'App/Services/Audit/AuditLogger'
 
 
 function toUTCISO(dateStr: string | null | undefined) {
   return dateStr ? DateTime.fromISO(dateStr).toUTC().toISO() : null
 }
 export default class FinAccountsController {
-  public async index({ auth, request, response }: HttpContextContract) {
+  public async index(ctx: HttpContextContract) {
+    const { auth, request, response } = ctx
     const user = await auth.use('api').authenticate()
 
     const querySchema = schema.create({
@@ -196,6 +198,31 @@ export default class FinAccountsController {
       })
 
       const data = await query
+
+      const referer = request.header('referer') || ''
+      const page = referer.includes('/finaccounts-tabulated')
+        ? 'finaccounts-tabulated'
+        : 'finaccounts'
+      const filters = Object.fromEntries(
+        Object.entries(body).filter(([key, value]) =>
+          value !== undefined && value !== null && value !== '' && value !== false &&
+          !(['typeDate', 'date_start', 'date_end'].includes(key) && page === 'finaccounts-tabulated')
+        )
+      )
+      const isSearch = Object.keys(filters).length > 0
+
+      await AuditLogger.record(ctx, {
+        companiesId: user.companies_id,
+        userId: user.id,
+        action: isSearch ? 'finaccount_search' : 'finaccount_view',
+        entityTable: 'finaccounts',
+        resourceKey: `finaccounts:${page}`,
+        description: isSearch
+          ? `Usuário pesquisou lançamentos financeiros (${page})`
+          : `Usuário acessou lançamentos financeiros (${page})`,
+        metadata: { page, filters },
+      })
+
       return response.ok(data)
 
     } catch (error) {
