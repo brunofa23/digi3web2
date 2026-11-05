@@ -402,6 +402,7 @@ export default class OcrConferencesController {
     const rawPatternOffset = request.input('patternOffset')
     const requestedPatternOffset = this.numberOrNull(rawPatternOffset) ?? 0
     const patternPhaseStartRecordId = this.numberOrNull(request.input('patternPhaseStartRecordId'))
+    const rawIgnoredRecordIds = request.input('ignoredRecordIds', [])
     const hasSheetStart = rawSheetStart !== undefined && rawSheetStart !== null && rawSheetStart !== ''
     const hasSheetEnd = rawSheetEnd !== undefined && rawSheetEnd !== null && rawSheetEnd !== ''
     if (!Number.isInteger(typebooksId) || typebooksId <= 0 || !Number.isInteger(book) || book <= 0) {
@@ -424,6 +425,11 @@ export default class OcrConferencesController {
       && (this.numberOrNull(rawPatternOffset) === null || requestedPatternOffset < 0 || !Number.isInteger(requestedPatternOffset))) {
       return response.status(422).send({ message: 'A fase do padrão de lados informada é inválida' })
     }
+    if (!Array.isArray(rawIgnoredRecordIds)
+      || rawIgnoredRecordIds.some((id: any) => !Number.isInteger(Number(id)) || Number(id) <= 0)) {
+      return response.status(422).send({ message: 'A lista de registros ignorados é inválida' })
+    }
+    const ignoredRecordIds = new Set<number>(rawIgnoredRecordIds.map((id: any) => Number(id)))
     const visualModel = await this.assistedSideModel(authenticate.companies_id, typebooksId, { bookStart: book, bookEnd: book })
     const typebook = await this.getTypebook(authenticate.companies_id, typebooksId)
     if (!typebook) return response.status(404).send({ message: 'Typebook não encontrado' })
@@ -489,6 +495,10 @@ export default class OcrConferencesController {
       return response.status(422).send({ message: 'O registro de retomada não pertence ao intervalo ou não tem imagem válida' })
     }
     const scanStartIndex = afterRecordId === null ? anchorIndex : resumeAfterIndex + 1
+    const expectedSideWithPhase = (index: number, offset: number, phaseStartIndex: number) => sidePattern
+      ? sidePattern[((index - anchorIndex) + (phaseStartIndex >= 0 && index >= phaseStartIndex ? offset : 0)) % sidePattern.length]
+      : null
+    const expectedSideAtIndex = (index: number) => expectedSideWithPhase(index, requestedPatternOffset, currentPhaseStartIndex)
     const positionForIndex = (index: number) => index - anchorIndex + 1
     const initialSamplePositions = new Set<number>()
     for (let index = scanStartIndex; index < Math.min(records.length, scanStartIndex + 15); index++) initialSamplePositions.add(index)
@@ -538,11 +548,8 @@ export default class OcrConferencesController {
 
     const analyzed = new Map<number, any>()
     let completed = 0
-    const expectedSideWithPhase = (index: number, offset: number, phaseStartIndex: number) => sidePattern
-      ? sidePattern[((index - anchorIndex) + (phaseStartIndex >= 0 && index >= phaseStartIndex ? offset : 0)) % sidePattern.length]
-      : null
-    const expectedSideAtIndex = (index: number) => expectedSideWithPhase(index, requestedPatternOffset, currentPhaseStartIndex)
     const analyzePosition = async (index: number, sampleType: string) => {
+      if (ignoredRecordIds.has(records[index].bookrecord_id)) return null
       if (analyzed.has(index)) return analyzed.get(index)
       if (isClientDisconnected()) return null
       const record = records[index]
@@ -586,9 +593,9 @@ export default class OcrConferencesController {
       return diagnostic
     }
 
-    const isConforming = (diagnostic: any) => sidePattern
+    const isConforming = (diagnostic: any) => !diagnostic || ignoredRecordIds.has(Number(diagnostic.bookrecord_id)) || (sidePattern
       ? diagnostic.detected_matches_expected === true && diagnostic.saved_matches_expected === true
-      : diagnostic.detected_matches_saved === true
+      : diagnostic.detected_matches_saved === true)
     const divergenceReason = (diagnostic: any) => diagnostic.error
       || (!diagnostic.detected_side ? 'O modelo não conseguiu identificar o lado da imagem'
         : !diagnostic.saved_side ? 'O registro não tem lado cadastrado válido'
@@ -835,7 +842,7 @@ export default class OcrConferencesController {
       side_pattern: pattern,
       side_pattern_offset: patternOffset,
       pattern_phase_start_record_id: patternPhaseStartRecordId,
-      resume_after_record_id: records[startIndex - 1]?.id ?? null,
+      resume_after_record_id: records[startIndex]?.id ?? null,
     })
   }
 
