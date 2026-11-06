@@ -95,8 +95,8 @@ export async function runBookSideTrainingJob(job: IndeximageSideModel, shouldSto
       const updated = await owned().update({ processed: index + 1, lease_expires_at: leaseEnd() })
       if (!updated) throw new Error('A reserva do treinamento expirou')
     }
-    if (rows.length < 40 || !['F', 'V'].every((side) => rows.filter((row) => row.label === side).length >= 5)) {
-      throw new Error('Revise pelo menos 40 imagens diferentes, incluindo pelo menos cinco frentes e cinco versos. Adicione mais imagens à amostra')
+    if (rows.length < 20 || !['F', 'V'].every((side) => rows.filter((row) => row.label === side).length >= 5)) {
+      throw new Error('Revise pelo menos 20 imagens diferentes, incluindo pelo menos cinco frentes e cinco versos. Adicione mais imagens à amostra')
     }
     await owned().update({ phase: 'fitting', lease_expires_at: leaseEnd() })
     const trained = await fitInWorker(rows, () => shouldStop() || lostLease)

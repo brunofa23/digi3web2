@@ -61,6 +61,14 @@ export default class SideTrainingController {
     return book
   }
 
+  private requestedSampleSize(ctx: HttpContextContract) {
+    const value = ctx.request.input('sampleSize')
+    if (value === undefined || value === null || value === '') return 40
+    const size = Number(value)
+    if (![20, 25, 30, 35, 40].includes(size)) throw new BadRequestException('Escolha uma amostra de 20, 25, 30, 35 ou 40 imagens', 422)
+    return size
+  }
+
   private async access(ctx: HttpContextContract) {
     const user = await ctx.auth.use('api').authenticate()
     const permissions = ctx.auth.use('api').token?.meta.payload.permissions || []
@@ -233,6 +241,7 @@ export default class SideTrainingController {
     const { user, typebooksId } = await this.access(ctx)
     const book = this.requestedBook(ctx)
     if (!book) throw new BadRequestException('Selecione um livro para treinar', 422)
+    const sampleSize = this.requestedSampleSize(ctx)
     const { registry, model } = await this.modelContext(ctx, user.companies_id, typebooksId, book)
     if (!registry.available) throw new BadRequestException('O treinamento ainda não foi habilitado neste servidor. Contate o administrador', 503)
     const job = await Database.transaction(async (trx) => {
@@ -245,8 +254,8 @@ export default class SideTrainingController {
         .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
         .where('labels.companies_id', user.companies_id).andWhere('labels.typebooks_id', typebooksId).andWhere('records.book', book).whereIn('labels.label', ['F', 'V'])
         .orderBy('records.sheet').orderBy('records.cod').select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet')
-      if (labels.length < 40 || !['F', 'V'].every((side) => labels.filter((label) => label.label === side).length >= 5)) {
-        throw new BadRequestException('Revise pelo menos 40 imagens, incluindo cinco frentes e cinco versos. Use Adicionar imagens se necessário', 422)
+      if (labels.length < sampleSize || !['F', 'V'].every((side) => labels.filter((label) => label.label === side).length >= 5)) {
+        throw new BadRequestException(`Revise pelo menos ${sampleSize} imagens, incluindo cinco frentes e cinco versos. Use Adicionar imagens se necessário`, 422)
       }
       return IndeximageSideModel.create({ companies_id: user.companies_id, typebooks_id: typebooksId, book,
         version: `sv-${crypto.randomUUID()}`, status: 'queued', phase: 'queued', total: labels.length, processed: 0,
@@ -281,6 +290,7 @@ export default class SideTrainingController {
     const { user, typebooksId } = await this.access(ctx)
     const book = this.requestedBook(ctx)
     const stage = this.requestedStage(ctx)
+    const sampleSize = stage === 'development' ? this.requestedSampleSize(ctx) : 40
     const context = await this.modelContext(ctx, user.companies_id, typebooksId, book)
     if (book !== null && !context.registry.available) throw new BadRequestException('O treinamento ainda não foi habilitado neste servidor. Contate o administrador', 503)
     let model = context.model
@@ -315,7 +325,7 @@ export default class SideTrainingController {
       let existingForBook: number[] = []
       let excludedRecords: number[] = []
       let excludedSheets: number[] = []
-      let target = 40
+      let target = sampleSize
       if (book !== null) {
         const records = await Database.from('bookrecords')
           .useTransaction(trx)
@@ -344,7 +354,7 @@ export default class SideTrainingController {
         existingForBook = currentRows.map((row) => row.bookrecords_id)
         if (additional) target = stage === 'validation'
           ? currentRows.length + Math.max(0, 40 - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length, 5 - currentRows.filter((row) => row.label === 'F').length, 5 - currentRows.filter((row) => row.label === 'V').length)
-          : currentRows.length + 20
+          : sampleSize
         if (replaceLabelId) target = currentRows.length + 1
         if (existingForBook.length >= target) return
       }
