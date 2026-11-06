@@ -216,6 +216,8 @@ export default class SideTrainingController {
       training_job: registry.records[0] ? sideModelSummary(registry.records[0]) : null,
       visual_model: model ? {
         model_id: model.model_id || null,
+        source_model_id: model.source_model_id || null,
+        source_book: model.source_book || null,
         active: Boolean(model.active),
         version: model.version,
         training_count: model.training_samples.length,
@@ -235,6 +237,63 @@ export default class SideTrainingController {
     if (!book) throw new BadRequestException('Selecione um livro', 422)
     const registry = await bookSideModelRegistry(user.companies_id, typebooksId, book)
     return ctx.response.ok({ available: registry.available, models: registry.records.map(sideModelSummary), training_job: registry.records[0] ? sideModelSummary(registry.records[0]) : null })
+  }
+
+  public async baseModels(ctx: HttpContextContract) {
+    const { user, typebooksId } = await this.access(ctx)
+    try {
+      const models = await IndeximageSideModel.query()
+        .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
+        .andWhere('status', 'ready').andWhere('active_slot', 1).whereNull('source_model_id')
+        .orderBy('book', 'asc').orderBy('id', 'desc')
+      return ctx.response.ok({ available: true, models: models.filter((model) => model.model_data).map((model) => ({
+        id: model.id, book: model.book, version: model.version, training_count: model.training_samples.length,
+      })) })
+    } catch (error) {
+      if (error.code === 'ER_NO_SUCH_TABLE' || error.errno === 1146) return ctx.response.ok({ available: false, models: [] })
+      throw error
+    }
+  }
+
+  public async inheritModel(ctx: HttpContextContract) {
+    const { user, typebooksId } = await this.access(ctx)
+    const book = this.requestedBook(ctx)
+    const sourceModelId = this.requestedModelId(ctx)
+    if (!book || !sourceModelId) throw new BadRequestException('Selecione o livro de destino e o modelo-base', 422)
+
+    const model = await Database.transaction(async (trx) => {
+      await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
+      const source = await IndeximageSideModel.query({ client: trx })
+        .where('id', sourceModelId).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
+        .andWhere('status', 'ready').andWhere('active_slot', 1).whereNull('source_model_id').forUpdate().first()
+      if (!source?.model_data) throw new BadRequestException('O modelo-base não está validado ou disponível', 404)
+      if (Number(source.book) === book) throw new BadRequestException('Escolha um livro diferente do livro-base', 422)
+      const readiness = await bookSideVisualReadiness({ ...source.model_data, model_id: source.id, validation_label_ids: source.validation_label_ids || [] })
+      if (!readiness.ready) throw new BadRequestException('O modelo-base precisa continuar validado antes de ser reutilizado', 409)
+
+      const busy = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id)
+        .andWhere('typebooks_id', typebooksId).andWhere('book', book).whereIn('status', ['queued', 'training']).first()
+      if (busy) throw new BadRequestException('Aguarde o treinamento deste livro terminar antes de reutilizar um modelo', 409)
+
+      const version = `sv-${crypto.randomUUID()}`
+      const modelData: BookSideVisualModel = {
+        ...source.model_data,
+        typebook_id: typebooksId,
+        book,
+        version,
+        source_model_id: source.id,
+        source_book: source.book,
+        validation_hashes: {},
+      }
+      return IndeximageSideModel.create({
+        companies_id: user.companies_id, typebooks_id: typebooksId, book, source_model_id: source.id,
+        version, status: 'ready', phase: 'ready', total: source.total, processed: source.total,
+        training_samples: source.training_samples, validation_label_ids: [], model_data: modelData,
+        requested_by: user.id, active_slot: null, finished_at: DateTime.utc(),
+      }, { client: trx })
+    })
+
+    return ctx.response.created({ model_id: model.id, book, source_book: model.model_data?.source_book })
   }
 
   public async trainModel(ctx: HttpContextContract) {
@@ -391,7 +450,7 @@ export default class SideTrainingController {
           .limit(target - existingForBook.length)
           .select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
         if (excludedRecords.length) query.whereNotIn('bookrecords.id', excludedRecords)
-        if (stage === 'validation') query.whereNotIn('bookrecords.sheet', [...excludedSheets, ...model!.training_samples.map((sample) => sample.sheet)])
+        if (stage === 'validation') query.whereNotIn('bookrecords.sheet', [...excludedSheets, ...(model!.source_model_id ? [] : model!.training_samples.map((sample) => sample.sheet))])
         const rows = await query
         selected.push(...rows)
       } else {
@@ -444,10 +503,11 @@ export default class SideTrainingController {
     if (model.training_samples.some((sample) => sample.bookrecords_id === row.bookrecords_id)) {
       throw new BadRequestException('Esta imagem foi usada no desenvolvimento e não pode ser usada na validação independente', 422)
     }
+    const localTrainingSamples = model.source_model_id ? [] : model.training_samples
     const trainingRecords = await Database.from('bookrecords')
       .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', model.book)
-      .whereIn('id', model.training_samples.map((sample) => sample.bookrecords_id)).select('sheet')
-    if ([...trainingRecords, ...model.training_samples].some((sample) => Number(sample.sheet) === Number(record.sheet))) {
+      .whereIn('id', localTrainingSamples.map((sample) => sample.bookrecords_id)).select('sheet')
+    if ([...trainingRecords, ...localTrainingSamples].some((sample) => Number(sample.sheet) === Number(record.sheet))) {
       throw new BadRequestException('Esta folha já participou do desenvolvimento. Use uma folha diferente para validação independente', 422)
     }
     const trainingRows = await IndeximageSideLabel.query()

@@ -132,6 +132,8 @@ Route.group(() => {
   Route.patch('/typebooks/:typebooks_id/ocrconferences/sequence-diagnostic/apply-detected-sides', 'OcrConferencesController.applyDetectedSequenceSides').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training', 'SideTrainingController.index').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/models', 'SideTrainingController.modelStatus').middleware('auth')
+  Route.get('/typebooks/:typebooks_id/side-training/base-models', 'SideTrainingController.baseModels').middleware('auth')
+  Route.post('/typebooks/:typebooks_id/side-training/inherit', 'SideTrainingController.inheritModel').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/train', 'SideTrainingController.trainModel').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/activate', 'SideTrainingController.activateModel').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/sample', 'SideTrainingController.createSample').middleware('auth')
