@@ -309,8 +309,8 @@ export default class SideTrainingController {
     try {
       const models = await IndeximageSideModel.query()
         .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
-        .andWhere('status', 'ready').andWhere('active_slot', 1).whereNull('source_model_id')
-        .orderBy('book', 'asc').orderBy('id', 'desc')
+        .andWhere('status', 'ready').andWhere('active_slot', 1)
+        .orderBy('id', 'desc')
       return ctx.response.ok({ available: true, models: models.filter((model) => model.model_data).map((model) => ({
         id: model.id, book: model.book, version: model.version, training_count: model.training_samples.length,
       })) })
@@ -330,7 +330,7 @@ export default class SideTrainingController {
       await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
       const source = await IndeximageSideModel.query({ client: trx })
         .where('id', sourceModelId).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
-        .andWhere('status', 'ready').andWhere('active_slot', 1).whereNull('source_model_id').forUpdate().first()
+        .andWhere('status', 'ready').andWhere('active_slot', 1).forUpdate().first()
       if (!source?.model_data) throw new BadRequestException('O modelo-base não está validado ou disponível', 404)
       if (Number(source.book) === book) throw new BadRequestException('Escolha um livro diferente do livro-base', 422)
       const readiness = await bookSideVisualReadiness({ ...source.model_data, model_id: source.id, validation_label_ids: source.validation_label_ids || [] })
@@ -476,11 +476,15 @@ export default class SideTrainingController {
           currentRows = currentRows.filter((row) => row.id !== replaceLabelId)
         }
         existingForBook = currentRows.map((row) => row.bookrecords_id)
+        const pendingCount = currentRows.filter((row) => row.label === null).length
         if (additional) target = stage === 'validation'
           ? model?.source_model_id
             ? currentRows.length + 10
             : currentRows.length + Math.max(0, 40 - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length, 5 - currentRows.filter((row) => row.label === 'F').length, 5 - currentRows.filter((row) => row.label === 'V').length)
-          : sampleSize
+          : Math.max(sampleSize, currentRows.length + Math.max(0,
+            sampleSize - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length - pendingCount,
+            5 - currentRows.filter((row) => row.label === 'F').length - pendingCount,
+            5 - currentRows.filter((row) => row.label === 'V').length - pendingCount))
         if (replaceLabelId) target = currentRows.length + 1
         if (existingForBook.length >= target) return
       }

@@ -109,16 +109,20 @@ export function predictBookSideVisual(model: BookSideVisualModel, features: numb
   return { side: score >= 0 ? 'F' : 'V', score }
 }
 
-export async function bookSideVisualReadiness(model: BookSideVisualModel) {
+export async function bookSideVisualReadiness(model: BookSideVisualModel, lineage = new Set<number>()) {
   let training: any[] = []
   let trainingUnchanged = false
   if (model.source_model_id) {
+    const currentModelId = Number(model.model_id || 0)
+    if (currentModelId && lineage.has(currentModelId)) return { ready: false, trainingUnchanged: false, total: 0, required: 10, correct: 0, sides: { F: 0, V: 0 } }
+    const nextLineage = new Set(lineage)
+    if (currentModelId) nextLineage.add(currentModelId)
     const source = await IndeximageSideModel.query()
       .where('id', model.source_model_id).andWhere('companies_id', model.company_id)
       .andWhere('typebooks_id', model.typebook_id).andWhere('status', 'ready').first()
     const sourceData = source?.model_data
-    if (sourceData && source && !source.source_model_id) {
-      const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [] })
+    if (sourceData && source) {
+      const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [] }, nextLineage)
       trainingUnchanged = sourceReadiness.ready && sourceData.extractor_sha256 === model.extractor_sha256
         && sourceData.bias === model.bias && sourceData.weights.length === model.weights.length
         && sourceData.weights.every((weight, index) => weight === model.weights[index])
