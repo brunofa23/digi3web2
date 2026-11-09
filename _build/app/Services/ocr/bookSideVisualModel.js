@@ -105,21 +105,38 @@ function predictBookSideVisual(model, features) {
 }
 exports.predictBookSideVisual = predictBookSideVisual;
 async function bookSideVisualReadiness(model) {
-    const training = await Database_1.default.from('indeximage_side_labels as labels')
-        .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
-        .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
-        .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).andWhere('records.book', model.book)
-        .whereIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
-        .select('labels.bookrecords_id', 'labels.seq', 'labels.label', 'records.sheet');
-    const trainingUnchanged = model.training_samples.every((sample) => training.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && row.label === sample.label));
+    let training = [];
+    let trainingUnchanged = false;
+    if (model.source_model_id) {
+        const source = await IndeximageSideModel_1.default.query()
+            .where('id', model.source_model_id).andWhere('companies_id', model.company_id)
+            .andWhere('typebooks_id', model.typebook_id).andWhere('status', 'ready').first();
+        const sourceData = source?.model_data;
+        if (sourceData && source && !source.source_model_id) {
+            const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [] });
+            trainingUnchanged = sourceReadiness.ready && sourceData.extractor_sha256 === model.extractor_sha256
+                && sourceData.bias === model.bias && sourceData.weights.length === model.weights.length
+                && sourceData.weights.every((weight, index) => weight === model.weights[index]);
+        }
+    }
+    else {
+        training = await Database_1.default.from('indeximage_side_labels as labels')
+            .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
+            .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
+            .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).andWhere('records.book', model.book)
+            .whereIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
+            .select('labels.bookrecords_id', 'labels.seq', 'labels.label', 'records.sheet');
+        trainingUnchanged = model.training_samples.every((sample) => training.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && row.label === sample.label));
+    }
+    const localTrainingSamples = model.source_model_id ? [] : model.training_samples;
     const validationQuery = Database_1.default.from('indeximage_side_labels as labels')
         .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
         .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
         .leftJoin('indeximage_ocr_checks as checks', (join) => join.on('checks.bookrecords_id', 'labels.bookrecords_id').andOn('checks.companies_id', 'labels.companies_id').andOn('checks.typebooks_id', 'labels.typebooks_id').andOn('checks.seq', 'labels.seq').andOnVal('checks.layout_profile', model.version))
         .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).andWhere('records.book', model.book)
-        .whereNotIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
+        .whereNotIn('labels.bookrecords_id', localTrainingSamples.map((sample) => sample.bookrecords_id))
         .whereNotIn('records.sheet', training.map((row) => row.sheet))
-        .whereNotIn('records.sheet', model.training_samples.map((sample) => sample.sheet))
+        .whereNotIn('records.sheet', localTrainingSamples.map((sample) => sample.sheet))
         .whereIn('labels.label', ['F', 'V'])
         .select('labels.id', 'labels.label', 'checks.detected_side', 'checks.side_processed_at');
     if (model.validation_label_ids)
@@ -136,15 +153,16 @@ async function bookSideVisualReadiness(model) {
         return row.side_processed_at && row.detected_side === row.label;
     }).length;
     const sides = { F: validation.filter((row) => row.label === 'F').length, V: validation.filter((row) => row.label === 'V').length };
-    const complete = validation.length >= 40 && correct === validation.length && sides.F >= 5 && sides.V >= 5;
-    return { ready: trainingUnchanged && complete, trainingUnchanged, total: validation.length, correct, sides };
+    const required = model.source_model_id ? 10 : 40;
+    const complete = validation.length >= required && correct === validation.length && sides.F >= 5 && sides.V >= 5;
+    return { ready: trainingUnchanged && complete, trainingUnchanged, total: validation.length, required, correct, sides };
 }
 exports.bookSideVisualReadiness = bookSideVisualReadiness;
 async function bookSideModelRegistry(companyId, typebookId, book) {
     try {
         const records = await IndeximageSideModel_1.default.query().where('companies_id', companyId)
             .andWhere('typebooks_id', typebookId).andWhere('book', book).orderBy('id', 'desc')
-            .select('id', 'companies_id', 'typebooks_id', 'book', 'version', 'status', 'phase', 'processed', 'total', 'training_samples', 'validation_label_ids', 'requested_by', 'active_slot', 'error_message', 'started_at', 'finished_at', 'created_at', 'updated_at');
+            .select('id', 'companies_id', 'typebooks_id', 'book', 'source_model_id', 'version', 'status', 'phase', 'processed', 'total', 'training_samples', 'validation_label_ids', 'requested_by', 'active_slot', 'error_message', 'started_at', 'finished_at', 'created_at', 'updated_at');
         return { available: true, records };
     }
     catch (error) {
@@ -157,6 +175,7 @@ exports.bookSideModelRegistry = bookSideModelRegistry;
 function sideModelSummary(model) {
     return { id: model.id, version: model.version, status: model.status, phase: model.phase,
         processed: model.processed, total: model.total, active: model.active_slot === 1,
+        source_model_id: model.source_model_id || null,
         error_message: model.error_message, created_at: model.createdAt, finished_at: model.finished_at };
 }
 exports.sideModelSummary = sideModelSummary;

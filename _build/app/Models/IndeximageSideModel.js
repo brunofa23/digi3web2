@@ -36,6 +36,10 @@ __decorate([
 ], IndeximageSideModel.prototype, "book", void 0);
 __decorate([
     (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], IndeximageSideModel.prototype, "source_model_id", void 0);
+__decorate([
+    (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], IndeximageSideModel.prototype, "version", void 0);
 __decorate([

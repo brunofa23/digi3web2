@@ -892,9 +892,18 @@ class OcrConferencesController {
     async process({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
-        this.ensureOcrConferenceAccess(authenticate, permissions);
-        const typebooksId = Number(params.typebooks_id);
         const input = { ...request.qs(), ...request.body() };
+        if (this.booleanValue(input.sideOnly || input.sideonly)) {
+            if (!(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, this.ocrConferencePermissiongroupId)
+                && !(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, 53)
+                && !(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, 54)) {
+                throw new BadRequestException_1.default('Acesso ao treinamento de IA não permitido', 403, 'side_training_permission_required');
+            }
+        }
+        else {
+            this.ensureOcrConferenceAccess(authenticate, permissions);
+        }
+        const typebooksId = Number(params.typebooks_id);
         const body = {
             layoutProfile: input.layoutProfile,
             extractionRegion: input.extractionRegion || input.extractionregion,
@@ -1114,7 +1123,7 @@ class OcrConferencesController {
         const sendProgress = () => {
             if (!streamProgress || response.response.destroyed || response.response.writableEnded)
                 return;
-            response.response.write(`${JSON.stringify({ type: 'progress', total: result.selected,
+            response.response.write(`${JSON.stringify({ type: 'progress', total: result.selected, pending_total: result.debug.matching_after_pending,
                 completed: result.processed + result.errors.length, processed: result.processed, failed: result.errors.length })}\n`);
         };
         if (streamProgress) {
@@ -1301,7 +1310,16 @@ class OcrConferencesController {
     async cancelProcess({ auth, params, request, response }) {
         const authenticate = await auth.use('api').authenticate();
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
-        this.ensureOcrConferenceAccess(authenticate, permissions);
+        if (this.booleanValue(request.input('sideOnly') || request.input('sideonly'))) {
+            if (!(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, this.ocrConferencePermissiongroupId)
+                && !(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, 53)
+                && !(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, 54)) {
+                throw new BadRequestException_1.default('Acesso ao treinamento de IA não permitido', 403, 'side_training_permission_required');
+            }
+        }
+        else {
+            this.ensureOcrConferenceAccess(authenticate, permissions);
+        }
         const typebooksId = Number(params.typebooks_id);
         const processId = String(request.input('processId') || request.input('processid') || '').trim();
         if (!Number.isInteger(typebooksId) || typebooksId <= 0) {

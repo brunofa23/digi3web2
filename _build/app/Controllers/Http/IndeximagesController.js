@@ -791,11 +791,17 @@ class IndeximagesController {
         const fileName = params.id;
         const company = await Company_1.default.find(authenticate.companies_id);
         const indexImage = await Indeximage_1.default.query()
-            .preload('bookrecord')
             .where('file_name', fileName)
             .andWhere('typebooks_id', typebook_id)
             .andWhere('companies_id', authenticate.companies_id)
             .first();
+        const bookrecord = indexImage
+            ? await Bookrecord_1.default.query()
+                .where('id', indexImage.bookrecords_id)
+                .andWhere('typebooks_id', indexImage.typebooks_id)
+                .andWhere('companies_id', indexImage.companies_id)
+                .first()
+            : null;
         const fileDownload = await FileRename.downloadImage(fileName, typebook_id, authenticate.companies_id, company?.cloud, indexImage?.drive_file_id);
         await AuditLogger_1.default.imageView(ctx, {
             companiesId: authenticate.companies_id,
@@ -831,11 +837,11 @@ class IndeximagesController {
             bookrecords_id: indexImage?.bookrecords_id,
             typebooks_id: indexImage?.typebooks_id,
             seq: indexImage?.seq,
-            book: indexImage?.bookrecord?.book,
-            sheet: indexImage?.bookrecord?.sheet,
-            side: indexImage?.bookrecord?.side,
-            indexbook: indexImage?.bookrecord?.indexbook,
-            cod: indexImage?.bookrecord?.cod,
+            book: bookrecord?.book,
+            sheet: bookrecord?.sheet,
+            side: bookrecord?.side,
+            indexbook: bookrecord?.indexbook,
+            cod: bookrecord?.cod,
         };
     }
     async countProcessing({ auth, params, response }) {
