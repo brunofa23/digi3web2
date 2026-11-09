@@ -967,9 +967,17 @@ export default class OcrConferencesController {
   public async process({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const permissions = auth.use('api').token?.meta.payload.permissions || []
-    this.ensureOcrConferenceAccess(authenticate, permissions)
-    const typebooksId = Number(params.typebooks_id)
     const input = { ...request.qs(), ...request.body() }
+    if (this.booleanValue(input.sideOnly || input.sideonly)) {
+      if (!verifyPermission(Boolean(authenticate.superuser), permissions, this.ocrConferencePermissiongroupId)
+        && !verifyPermission(Boolean(authenticate.superuser), permissions, 53)
+        && !verifyPermission(Boolean(authenticate.superuser), permissions, 54)) {
+        throw new BadRequestException('Acesso ao treinamento de IA não permitido', 403, 'side_training_permission_required')
+      }
+    } else {
+      this.ensureOcrConferenceAccess(authenticate, permissions)
+    }
+    const typebooksId = Number(params.typebooks_id)
     const body = {
       layoutProfile: input.layoutProfile,
       extractionRegion: input.extractionRegion || input.extractionregion,
@@ -1208,7 +1216,7 @@ export default class OcrConferencesController {
     const streamProgress = this.booleanValue(input.streamProgress || input.streamprogress)
     const sendProgress = () => {
       if (!streamProgress || response.response.destroyed || response.response.writableEnded) return
-      response.response.write(`${JSON.stringify({ type: 'progress', total: result.selected,
+      response.response.write(`${JSON.stringify({ type: 'progress', total: result.selected, pending_total: result.debug.matching_after_pending,
         completed: result.processed + result.errors.length, processed: result.processed, failed: result.errors.length })}\n`)
     }
     if (streamProgress) {
@@ -1416,7 +1424,15 @@ export default class OcrConferencesController {
   public async cancelProcess({ auth, params, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const permissions = auth.use('api').token?.meta.payload.permissions || []
-    this.ensureOcrConferenceAccess(authenticate, permissions)
+    if (this.booleanValue(request.input('sideOnly') || request.input('sideonly'))) {
+      if (!verifyPermission(Boolean(authenticate.superuser), permissions, this.ocrConferencePermissiongroupId)
+        && !verifyPermission(Boolean(authenticate.superuser), permissions, 53)
+        && !verifyPermission(Boolean(authenticate.superuser), permissions, 54)) {
+        throw new BadRequestException('Acesso ao treinamento de IA não permitido', 403, 'side_training_permission_required')
+      }
+    } else {
+      this.ensureOcrConferenceAccess(authenticate, permissions)
+    }
     const typebooksId = Number(params.typebooks_id)
     const processId = String(request.input('processId') || request.input('processid') || '').trim()
 

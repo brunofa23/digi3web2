@@ -24,6 +24,7 @@ export default class IndeximageSideModel extends BaseModel {
   @column() public companies_id: number
   @column() public typebooks_id: number
   @column() public book: number
+  @column() public source_model_id: number | null
   @column() public version: string
   @column() public status: string
   @column() public phase: string
