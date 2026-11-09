@@ -977,11 +977,17 @@ export default class IndeximagesController {
     const fileName = params.id
     const company = await Company.find(authenticate.companies_id)
     const indexImage = await Indeximage.query()
-      .preload('bookrecord')
       .where('file_name', fileName)
       .andWhere('typebooks_id', typebook_id)
       .andWhere('companies_id', authenticate.companies_id)
       .first()
+    const bookrecord = indexImage
+      ? await Bookrecord.query()
+        .where('id', indexImage.bookrecords_id)
+        .andWhere('typebooks_id', indexImage.typebooks_id)
+        .andWhere('companies_id', indexImage.companies_id)
+        .first()
+      : null
     const fileDownload = await FileRename.downloadImage(
       fileName,
       typebook_id,
@@ -1024,11 +1030,11 @@ export default class IndeximagesController {
       bookrecords_id: indexImage?.bookrecords_id,
       typebooks_id: indexImage?.typebooks_id,
       seq: indexImage?.seq,
-      book: indexImage?.bookrecord?.book,
-      sheet: indexImage?.bookrecord?.sheet,
-      side: indexImage?.bookrecord?.side,
-      indexbook: indexImage?.bookrecord?.indexbook,
-      cod: indexImage?.bookrecord?.cod,
+      book: bookrecord?.book,
+      sheet: bookrecord?.sheet,
+      side: bookrecord?.side,
+      indexbook: bookrecord?.indexbook,
+      cod: bookrecord?.cod,
     }
 
   }

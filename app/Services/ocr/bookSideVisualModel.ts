@@ -156,8 +156,9 @@ export async function bookSideVisualReadiness(model: BookSideVisualModel) {
     return row.side_processed_at && row.detected_side === row.label
   }).length
   const sides = { F: validation.filter((row) => row.label === 'F').length, V: validation.filter((row) => row.label === 'V').length }
-  const complete = validation.length >= 40 && correct === validation.length && sides.F >= 5 && sides.V >= 5
-  return { ready: trainingUnchanged && complete, trainingUnchanged, total: validation.length, correct, sides }
+  const required = model.source_model_id ? 10 : 40
+  const complete = validation.length >= required && correct === validation.length && sides.F >= 5 && sides.V >= 5
+  return { ready: trainingUnchanged && complete, trainingUnchanged, total: validation.length, required, correct, sides }
 }
 
 export async function bookSideModelRegistry(companyId: number, typebookId: number, book: number) {

@@ -69,12 +69,12 @@ export default class SideTrainingController {
     return size
   }
 
-  private async access(ctx: HttpContextContract) {
+  private async access(ctx: HttpContextContract, permissionIds: number[] = [53]) {
     const user = await ctx.auth.use('api').authenticate()
     const permissions = ctx.auth.use('api').token?.meta.payload.permissions || []
 
-    if (!verifyPermission(Boolean(user.superuser), permissions, 44)) {
-      throw new BadRequestException('Acesso a conferência OCR não permitido', 403, 'ocr_conference_permission_required')
+    if (!permissionIds.some((permissionId) => verifyPermission(Boolean(user.superuser), permissions, permissionId))) {
+      throw new BadRequestException('Acesso ao treinamento de IA não permitido', 403, 'side_training_permission_required')
     }
 
     const typebooksId = Number(ctx.params.typebooks_id)
@@ -93,9 +93,14 @@ export default class SideTrainingController {
   }
 
   public async index(ctx: HttpContextContract) {
-    const { user, typebooksId } = await this.access(ctx)
+    const { user, typebooksId } = await this.access(ctx, [53, 54])
     const book = this.requestedBook(ctx)
     const stage = this.requestedStage(ctx)
+    const permissions = ctx.auth.use('api').token?.meta.payload.permissions || []
+    const canTrain = verifyPermission(Boolean(user.superuser), permissions, 53)
+    if (!canTrain && (book === null || stage !== 'development')) {
+      throw new BadRequestException('A verificação de divergências exige um livro específico', 403, 'side_divergences_permission_scope')
+    }
     const { registry, model } = await this.modelContext(ctx, user.companies_id, typebooksId, book)
     if (stage === 'validation' && !model) throw new BadRequestException('Este livro ainda não tem modelo visual para validar', 422)
     const trainingIds = new Set(model?.training_samples.map((sample) => sample.bookrecords_id) || [])
@@ -114,11 +119,24 @@ export default class SideTrainingController {
     if (model && !model.model_id) rows.filter((row) => Number(recordById.get(row.bookrecords_id)?.book) === book && !trainingIds.has(row.bookrecords_id)).forEach((row) => validationIds.add(row.id))
     const selectedJob = registry.records.find((record) => record.id === this.requestedModelId(ctx))
     const queuedTrainingIds = new Set(selectedJob?.training_samples.map((sample) => sample.label_id) || [])
-    const visibleRows = rows.filter((row) => {
+    const allVisibleRows = rows.filter((row) => {
       if (book !== null && Number(recordById.get(row.bookrecords_id)?.book) !== book) return false
       if (stage === 'validation') return model?.validation_label_ids ? model.validation_label_ids.includes(row.id) : !trainingIds.has(row.bookrecords_id)
       return trainingIds.has(row.bookrecords_id) || queuedTrainingIds.has(row.id) || !validationIds.has(row.id)
     })
+    let visibleRows = allVisibleRows
+    if (stage === 'validation' && model?.source_model_id) {
+      let visibleCount = Math.min(10, allVisibleRows.length)
+      while (visibleCount < allVisibleRows.length) {
+        const reviewedBatch = allVisibleRows.slice(0, visibleCount)
+        if (reviewedBatch.some((row) => row.label === null)) break
+        const fronts = reviewedBatch.filter((row) => row.label === 'F').length
+        const backs = reviewedBatch.filter((row) => row.label === 'V').length
+        if (fronts >= 5 && backs >= 5) break
+        visibleCount = Math.min(allVisibleRows.length, visibleCount + 10)
+      }
+      visibleRows = allVisibleRows.slice(0, visibleCount)
+    }
     const completed = visibleRows.length > 0 && visibleRows.every((row) => row.label !== null)
     const modelReadiness = model ? await bookSideVisualReadiness(model) : null
     const audit = completed ? { matches: 0, divergent: 0, missing: 0, inconclusive: 0, cases: [] as any[] } : null
@@ -225,6 +243,7 @@ export default class SideTrainingController {
         training_unchanged: modelReadiness!.trainingUnchanged,
         validation_ready: modelReadiness!.ready,
         validation_total: modelReadiness!.total,
+        validation_required: modelReadiness!.required,
         validation_correct: modelReadiness!.correct,
       } : null,
       items: evaluatedItems,
@@ -237,6 +256,52 @@ export default class SideTrainingController {
     if (!book) throw new BadRequestException('Selecione um livro', 422)
     const registry = await bookSideModelRegistry(user.companies_id, typebooksId, book)
     return ctx.response.ok({ available: registry.available, models: registry.records.map(sideModelSummary), training_job: registry.records[0] ? sideModelSummary(registry.records[0]) : null })
+  }
+
+  public async bookDivergences(ctx: HttpContextContract) {
+    const { user, typebooksId } = await this.access(ctx, [53, 54])
+    const book = this.requestedBook(ctx)
+    if (!book) throw new BadRequestException('Selecione um livro para conferir os lados', 422)
+    const sheetStartInput = ctx.request.input('sheetStart')
+    const sheetEndInput = ctx.request.input('sheetEnd')
+    const sheetStart = sheetStartInput === undefined || sheetStartInput === null || sheetStartInput === '' ? null : Number(sheetStartInput)
+    const sheetEnd = sheetEndInput === undefined || sheetEndInput === null || sheetEndInput === '' ? null : Number(sheetEndInput)
+    if ((sheetStart !== null && (!Number.isInteger(sheetStart) || sheetStart < 0))
+      || (sheetEnd !== null && (!Number.isInteger(sheetEnd) || sheetEnd < 0))
+      || (sheetStart !== null && sheetEnd !== null && sheetEnd < sheetStart)) {
+      throw new BadRequestException('Intervalo de folhas inválido', 422)
+    }
+
+    const model = await loadBookSideVisualModel(user.companies_id, typebooksId, book)
+    if (!model || model.active !== true) throw new BadRequestException(`O livro ${book} ainda não tem um modelo visual ativo`, 422)
+    const readiness = await bookSideVisualReadiness(model)
+    if (!readiness.ready) throw new BadRequestException(`O modelo visual do livro ${book} precisa estar aprovado e ativo para a conferência`, 422)
+
+    const buildQuery = () => {
+      const query = Database.from('indeximage_ocr_checks as checks')
+        .join('bookrecords as records', (join) => join
+        .on('records.id', 'checks.bookrecords_id')
+        .andOn('records.companies_id', 'checks.companies_id')
+        .andOn('records.typebooks_id', 'checks.typebooks_id'))
+        .where('checks.companies_id', user.companies_id)
+        .andWhere('checks.typebooks_id', typebooksId)
+        .andWhere('checks.layout_profile', model.version)
+        .andWhere('records.book', book)
+        .whereNotNull('checks.side_processed_at')
+      if (sheetStart !== null) query.andWhere('records.sheet', '>=', sheetStart)
+      if (sheetEnd !== null) query.andWhere('records.sheet', '<=', sheetEnd)
+      return query
+    }
+
+    const checkedResult = await buildQuery().count('* as total').first()
+    const divergences = await buildQuery()
+      .whereIn('checks.detected_side', ['F', 'V'])
+      .whereNotNull('records.side')
+      .whereRaw('records.side <> checks.detected_side')
+      .select('records.id as bookrecords_id', 'records.cod', 'records.book', 'records.sheet', 'records.side as saved_side', 'checks.detected_side', 'checks.side_evidence')
+      .orderBy('records.sheet', 'asc').orderBy('records.cod', 'asc')
+
+    return ctx.response.ok({ checked: Number(checkedResult?.total || 0), divergences })
   }
 
   public async baseModels(ctx: HttpContextContract) {
@@ -337,7 +402,7 @@ export default class SideTrainingController {
       await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
       const candidate = await this.storeLegacyModel(context.model!, user.id, trx)
       const readiness = await bookSideVisualReadiness(candidate)
-      if (!readiness.ready) throw new BadRequestException('Conclua a validação independente de pelo menos 40 imagens, incluindo cinco frentes e cinco versos, sem erros, antes de ativar', 422)
+      if (!readiness.ready) throw new BadRequestException(`Conclua a validação independente de pelo menos ${readiness.required} imagens conclusivas, incluindo cinco frentes e cinco versos, sem erros, antes de ativar`, 422)
       await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).andWhere('active_slot', 1).update({ active_slot: null })
       await IndeximageSideModel.query({ client: trx }).where('id', candidate.model_id!).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).andWhere('status', 'ready').update({ active_slot: 1 })
       return candidate
@@ -349,11 +414,11 @@ export default class SideTrainingController {
     const { user, typebooksId } = await this.access(ctx)
     const book = this.requestedBook(ctx)
     const stage = this.requestedStage(ctx)
-    const sampleSize = stage === 'development' ? this.requestedSampleSize(ctx) : 40
     const context = await this.modelContext(ctx, user.companies_id, typebooksId, book)
     if (book !== null && !context.registry.available) throw new BadRequestException('O treinamento ainda não foi habilitado neste servidor. Contate o administrador', 503)
     let model = context.model
     if (stage === 'validation' && !model) throw new BadRequestException('Este livro ainda não tem modelo visual para validar', 422)
+    const sampleSize = stage === 'development' ? this.requestedSampleSize(ctx) : model?.source_model_id ? 10 : 40
     const additional = ctx.request.input('additional') === true
     const replaceLabelId = Number(ctx.request.input('replaceLabelId')) || null
     if (replaceLabelId && (stage !== 'validation' || !Number.isInteger(replaceLabelId) || replaceLabelId <= 0)) throw new BadRequestException('Referência de substituição inválida', 422)
@@ -412,7 +477,9 @@ export default class SideTrainingController {
         }
         existingForBook = currentRows.map((row) => row.bookrecords_id)
         if (additional) target = stage === 'validation'
-          ? currentRows.length + Math.max(0, 40 - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length, 5 - currentRows.filter((row) => row.label === 'F').length, 5 - currentRows.filter((row) => row.label === 'V').length)
+          ? model?.source_model_id
+            ? currentRows.length + 10
+            : currentRows.length + Math.max(0, 40 - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length, 5 - currentRows.filter((row) => row.label === 'F').length, 5 - currentRows.filter((row) => row.label === 'V').length)
           : sampleSize
         if (replaceLabelId) target = currentRows.length + 1
         if (existingForBook.length >= target) return
@@ -444,15 +511,38 @@ export default class SideTrainingController {
           })
 
       if (book !== null) {
-        const query = sampleQuery()
-          .andWhere('bookrecords.book', book)
-          .orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-book-v1'))")
-          .limit(target - existingForBook.length)
-          .select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
-        if (excludedRecords.length) query.whereNotIn('bookrecords.id', excludedRecords)
-        if (stage === 'validation') query.whereNotIn('bookrecords.sheet', [...excludedSheets, ...(model!.source_model_id ? [] : model!.training_samples.map((sample) => sample.sheet))])
-        const rows = await query
-        selected.push(...rows)
+        const buildBookSampleQuery = () => {
+          const query = sampleQuery().andWhere('bookrecords.book', book)
+          if (excludedRecords.length) query.whereNotIn('bookrecords.id', excludedRecords)
+          if (stage === 'validation') query.whereNotIn('bookrecords.sheet', [...excludedSheets, ...(model!.source_model_id ? [] : model!.training_samples.map((sample) => sample.sheet))])
+          return query
+        }
+        const needed = target - existingForBook.length
+        if (stage === 'validation' && model?.source_model_id && !replaceLabelId) {
+          const perSide = Math.ceil(needed / 2)
+          for (const side of ['F', 'V']) {
+            const rows = await buildBookSampleQuery()
+              .andWhere('bookrecords.side', side)
+              .orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-book-v1'))")
+              .limit(perSide)
+              .select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
+            selected.push(...rows)
+          }
+          if (selected.length < needed) {
+            const selectedIds = selected.map((row) => Number(row.bookrecords_id))
+            const fallback = buildBookSampleQuery()
+              .orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-book-v1'))")
+              .limit(needed - selected.length)
+            if (selectedIds.length) fallback.whereNotIn('bookrecords.id', selectedIds)
+            selected.push(...await fallback.select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name'))
+          }
+        } else {
+          const rows = await buildBookSampleQuery()
+            .orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-book-v1'))")
+            .limit(needed)
+            .select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
+          selected.push(...rows)
+        }
       } else {
         for (const side of ['F', 'V']) {
           const rows = await sampleQuery()
