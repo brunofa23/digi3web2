@@ -9,6 +9,8 @@ export type BookSideVisualModel = {
   model_id?: number
   source_model_id?: number | null
   source_book?: number | null
+  source_books?: number[]
+  training_updated?: boolean
   active?: boolean
   validation_label_ids?: number[]
   validation_hashes?: Record<string, string>
@@ -20,7 +22,7 @@ export type BookSideVisualModel = {
   extractor_sha256: string
   weights: number[]
   bias: number
-  training_samples: { bookrecords_id: number; seq: number; sheet: number; label: string; sha256: string }[]
+  training_samples: { bookrecords_id: number; seq: number; sheet: number; book?: number; label: string; sha256: string }[]
   development: { correct: number; wrong: number; total: number; folds: any[] }
 }
 
@@ -29,12 +31,13 @@ let extractorPromise: Promise<any> | null = null
 export async function loadBookSideVisualModel(companyId: number, typebookId: number, book: number, options: { candidate?: boolean; modelId?: number | null } = {}) {
   try {
     const query = IndeximageSideModel.query()
-      .where('companies_id', companyId).andWhere('typebooks_id', typebookId).andWhere('book', book)
+      .where('companies_id', companyId).andWhere('typebooks_id', typebookId)
+      .andWhere((books) => books.where('book', book).orWhereRaw('JSON_CONTAINS(source_books, CAST(? AS JSON))', [String(book)]))
       .andWhere('status', 'ready')
     if (options.modelId) query.andWhere('id', options.modelId)
     else if (!options.candidate) query.andWhere('active_slot', 1)
-    const stored = await query.orderBy('id', 'desc').first()
-    if (stored?.model_data) return { ...stored.model_data, model_id: stored.id, active: stored.active_slot === 1, validation_label_ids: stored.validation_label_ids || [] }
+    const stored = await query.orderByRaw('CASE WHEN JSON_LENGTH(source_books) > 1 THEN 0 ELSE 1 END').orderBy('id', 'desc').first()
+    if (stored?.model_data) return { ...stored.model_data, model_id: stored.id, source_model_id: stored.source_model_id || stored.model_data.source_model_id || null, source_books: stored.source_books || stored.model_data.source_books || [stored.model_data.source_book || stored.book], active: stored.active_slot === 1, validation_label_ids: stored.validation_label_ids || [] }
     if (options.modelId) return null
   } catch (error) {
     if (error.code !== 'ER_NO_SUCH_TABLE' && error.errno !== 1146) throw error
@@ -123,33 +126,44 @@ export async function bookSideVisualReadiness(model: BookSideVisualModel, lineag
     const sourceData = source?.model_data
     if (sourceData && source) {
       const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [] }, nextLineage)
-      trainingUnchanged = sourceReadiness.ready && sourceData.extractor_sha256 === model.extractor_sha256
+      const sameWeights = sourceData.extractor_sha256 === model.extractor_sha256
         && sourceData.bias === model.bias && sourceData.weights.length === model.weights.length
         && sourceData.weights.every((weight, index) => weight === model.weights[index])
+      if (model.training_updated) {
+        const currentTraining = await Database.from('indeximage_side_labels as labels')
+          .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
+          .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id)
+          .whereIn('records.book', model.source_books?.length ? model.source_books : [model.book])
+          .whereIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
+          .select('labels.bookrecords_id', 'labels.seq', 'labels.label')
+        trainingUnchanged = sourceReadiness.ready && model.training_samples.every((sample) => currentTraining.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && row.label === sample.label))
+      } else trainingUnchanged = sourceReadiness.ready && sameWeights
+      if (trainingUnchanged && !model.training_updated) return { ready: true, trainingUnchanged: true, total: 0, required: 0, correct: 0, sides: { F: 0, V: 0 } }
     }
   } else {
     training = await Database.from('indeximage_side_labels as labels')
       .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
       .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
-      .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).andWhere('records.book', model.book)
+      .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id)
+      .whereIn('records.book', model.source_books?.length ? model.source_books : [model.book])
       .whereIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
-      .select('labels.bookrecords_id', 'labels.seq', 'labels.label', 'records.sheet')
+      .select('labels.bookrecords_id', 'labels.seq', 'labels.label', 'records.sheet', 'records.book')
     // A renumeração cadastral não muda a imagem nem o lado revisado.
     trainingUnchanged = model.training_samples.every((sample) => training.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && row.label === sample.label))
   }
-  const localTrainingSamples = model.source_model_id ? [] : model.training_samples
+  const localTrainingSamples = model.source_model_id && !model.training_updated ? [] : model.training_samples
+  const validationBooks = (!model.source_model_id || model.training_updated) && (model.source_books?.length || 0) > 1 ? model.source_books! : [model.book]
   const validationQuery = Database.from('indeximage_side_labels as labels')
     .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
     .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
     .leftJoin('indeximage_ocr_checks as checks', (join) => join.on('checks.bookrecords_id', 'labels.bookrecords_id').andOn('checks.companies_id', 'labels.companies_id').andOn('checks.typebooks_id', 'labels.typebooks_id').andOn('checks.seq', 'labels.seq').andOnVal('checks.layout_profile', model.version))
-    .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).andWhere('records.book', model.book)
+    .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id).whereIn('records.book', validationBooks)
     .whereNotIn('labels.bookrecords_id', localTrainingSamples.map((sample) => sample.bookrecords_id))
-    .whereNotIn('records.sheet', training.map((row) => row.sheet))
-    .whereNotIn('records.sheet', localTrainingSamples.map((sample) => sample.sheet))
     .whereIn('labels.label', ['F', 'V'])
-    .select('labels.id', 'labels.label', 'checks.detected_side', 'checks.side_processed_at')
+    .select('labels.id', 'labels.label', 'records.book', 'records.sheet', 'checks.detected_side', 'checks.side_processed_at')
   if (model.validation_label_ids) validationQuery.whereIn('labels.id', model.validation_label_ids)
-  const validation = await validationQuery
+  const trainingSheets = new Set([...training, ...localTrainingSamples].map((row) => `${row.book || model.book}:${row.sheet}`))
+  const validation = (await validationQuery).filter((row) => !trainingSheets.has(`${row.book}:${row.sheet}`))
   const seen = new Set<string>()
   const correct = validation.filter((row) => {
     if (model.validation_hashes) {
@@ -160,7 +174,7 @@ export async function bookSideVisualReadiness(model: BookSideVisualModel, lineag
     return row.side_processed_at && row.detected_side === row.label
   }).length
   const sides = { F: validation.filter((row) => row.label === 'F').length, V: validation.filter((row) => row.label === 'V').length }
-  const required = model.source_model_id ? 10 : 40
+  const required = model.source_model_id && !model.training_updated ? 10 : 40
   const complete = validation.length >= required && correct === validation.length && sides.F >= 5 && sides.V >= 5
   return { ready: trainingUnchanged && complete, trainingUnchanged, total: validation.length, required, correct, sides }
 }
@@ -168,8 +182,10 @@ export async function bookSideVisualReadiness(model: BookSideVisualModel, lineag
 export async function bookSideModelRegistry(companyId: number, typebookId: number, book: number) {
   try {
     const records = await IndeximageSideModel.query().where('companies_id', companyId)
-      .andWhere('typebooks_id', typebookId).andWhere('book', book).orderBy('id', 'desc')
-      .select('id', 'companies_id', 'typebooks_id', 'book', 'source_model_id', 'version', 'status', 'phase', 'processed', 'total', 'training_samples', 'validation_label_ids', 'requested_by', 'active_slot', 'error_message', 'started_at', 'finished_at', 'created_at', 'updated_at')
+      .andWhere('typebooks_id', typebookId)
+      .andWhere((books) => books.where('book', book).orWhereRaw('JSON_CONTAINS(source_books, CAST(? AS JSON))', [String(book)]))
+      .orderByRaw('CASE WHEN JSON_LENGTH(source_books) > 1 THEN 0 ELSE 1 END').orderBy('id', 'desc')
+      .select('id', 'companies_id', 'typebooks_id', 'book', 'source_books', 'source_model_id', 'version', 'status', 'phase', 'processed', 'total', 'training_samples', 'validation_label_ids', 'requested_by', 'active_slot', 'error_message', 'started_at', 'finished_at', 'created_at', 'updated_at')
     return { available: true, records }
   } catch (error) {
     if (error.code === 'ER_NO_SUCH_TABLE' || error.errno === 1146) return { available: false, records: [] as IndeximageSideModel[] }

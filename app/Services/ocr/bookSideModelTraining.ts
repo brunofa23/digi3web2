@@ -20,13 +20,14 @@ export async function verifySideTrainingSnapshot(job: IndeximageSideModel) {
   const rows = await Database.from('indeximage_side_labels as labels')
     .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
     .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
-    .where('labels.companies_id', job.companies_id).andWhere('labels.typebooks_id', job.typebooks_id).andWhere('records.book', job.book)
+    .where('labels.companies_id', job.companies_id).andWhere('labels.typebooks_id', job.typebooks_id)
+    .whereIn('records.book', job.source_books?.length ? job.source_books : [job.book])
     .whereIn('labels.id', job.training_samples.map((sample) => sample.label_id))
-    .select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet')
+    .select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet', 'records.book')
   const byId = new Map(rows.map((row) => [Number(row.id), row]))
   if (!job.training_samples.every((sample) => {
     const row = byId.get(sample.label_id)
-    return row && Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && Number(row.sheet) === sample.sheet && row.label === sample.label && row.drive_file_id === sample.drive_file_id && row.file_name === sample.file_name
+    return row && Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && Number(row.sheet) === sample.sheet && (!sample.book || Number(row.book) === sample.book) && row.label === sample.label && row.drive_file_id === sample.drive_file_id && row.file_name === sample.file_name
   })) throw new Error('As imagens ou revisões mudaram durante o treinamento. Confira a amostra e tente novamente')
 }
 
@@ -103,13 +104,13 @@ export async function runBookSideTrainingJob(job: IndeximageSideModel, shouldSto
     await verifySideTrainingSnapshot(job)
     if (shouldStop() || lostLease) throw new Error('Treinamento interrompido')
     const model = {
-      version: job.version, company_id: job.companies_id, typebook_id: job.typebooks_id, book: job.book,
+      version: job.version, company_id: job.companies_id, typebook_id: job.typebooks_id, book: job.book, source_books: job.source_books || [job.book], source_model_id: job.source_model_id || null, training_updated: Boolean(job.source_model_id),
       extractor: 'Xenova/dinov2-small', extractor_sha256: encoderHash,
       feature_encoding: 'cls-and-2x2-spatial-means-normalized', runtime_version: '4.3.1',
       preprocessing: { resize: [224, 224], center_crop: false }, classifier: 'balanced-logistic-l2', lambda: 0.01,
       validation_hashes: {},
       ...trained,
-      training_samples: rows.map((row) => ({ bookrecords_id: row.bookrecords_id, seq: row.seq, sheet: row.sheet, label: row.label, sha256: row.sha256 })),
+      training_samples: rows.map((row) => ({ bookrecords_id: row.bookrecords_id, seq: row.seq, sheet: row.sheet, book: row.book, label: row.label, sha256: row.sha256 })),
     }
     await owned().update({ model_data: JSON.stringify(model), status: 'ready', phase: 'ready', finished_at: sqlNow(), lease_token: null, lease_expires_at: null, error_message: null })
   } catch (error) {

@@ -7,6 +7,7 @@ export type SideTrainingSample = {
   bookrecords_id: number
   seq: number
   sheet: number
+  book?: number
   label: string
   drive_file_id: string
   file_name: string
@@ -24,6 +25,7 @@ export default class IndeximageSideModel extends BaseModel {
   @column() public companies_id: number
   @column() public typebooks_id: number
   @column() public book: number
+  @column(jsonColumn) public source_books: number[] | null
   @column() public source_model_id: number | null
   @column() public version: string
   @column() public status: string

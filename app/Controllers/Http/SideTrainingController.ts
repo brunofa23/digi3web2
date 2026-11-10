@@ -42,7 +42,7 @@ export default class SideTrainingController {
     const ready = await bookSideVisualReadiness({ ...model, validation_label_ids: validationIds })
     const stored = await IndeximageSideModel.create({ companies_id: model.company_id, typebooks_id: model.typebook_id, book: model.book,
       version: model.version, status: 'ready', phase: 'ready', total: model.training_samples.length, processed: model.training_samples.length,
-      training_samples: labels.filter((label) => trainingIds.has(Number(label.bookrecords_id))).map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
+      training_samples: labels.filter((label) => trainingIds.has(Number(label.bookrecords_id))).map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), book: Number(label.book), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
       validation_label_ids: validationIds, model_data: model, requested_by: userId, active_slot: ready.ready ? 1 : null, finished_at: DateTime.utc(),
     }, { client: trx })
     return { ...model, model_id: stored.id, active: stored.active_slot === 1, validation_label_ids: validationIds }
@@ -59,6 +59,17 @@ export default class SideTrainingController {
     const book = Number(value)
     if (!Number.isInteger(book) || book <= 0) throw new BadRequestException('Número do livro inválido', 422)
     return book
+  }
+
+  private requestedSourceBooks(ctx: HttpContextContract, fallback: number | null) {
+    const input = ctx.request.input('sourceBooks') ?? ctx.request.qs().sourceBooks
+    const values = Array.isArray(input) ? input : typeof input === 'string' ? input.split(',').filter(Boolean) : []
+    const books = [...new Set(values.map(Number))]
+    if (books.some((value) => !Number.isInteger(value) || value <= 0) || books.length > 20) {
+      throw new BadRequestException('Selecione até 20 livros válidos para compor a base', 422)
+    }
+    if (fallback && !books.includes(fallback)) books.unshift(fallback)
+    return books.length ? books : fallback ? [fallback] : []
   }
 
   private requestedSampleSize(ctx: HttpContextContract) {
@@ -101,7 +112,13 @@ export default class SideTrainingController {
     if (!canTrain && (book === null || stage !== 'development')) {
       throw new BadRequestException('A verificação de divergências exige um livro específico', 403, 'side_divergences_permission_scope')
     }
-    const { registry, model } = await this.modelContext(ctx, user.companies_id, typebooksId, book)
+    const { registry } = await this.modelContext(ctx, user.companies_id, typebooksId, book)
+    let model = book !== null ? await loadBookSideVisualModel(user.companies_id, typebooksId, book, { candidate: true, modelId: this.requestedModelId(ctx) }) : null
+    const sourceBooks = stage === 'development' ? this.requestedSourceBooks(ctx, book) : []
+    if (stage === 'development' && !this.requestedModelId(ctx) && ((ctx.request.input('createBase') ?? ctx.request.qs().createBase) === true || (ctx.request.input('createBase') ?? ctx.request.qs().createBase) === '1' || (ctx.request.input('sourceBooks') ?? ctx.request.qs().sourceBooks)) && model && sourceBooks.length > 1) {
+      const currentBooks = model.source_books || [model.source_book || model.book]
+      if (currentBooks.length !== sourceBooks.length || currentBooks.some((sourceBook) => !sourceBooks.includes(Number(sourceBook)))) model = null
+    }
     if (stage === 'validation' && !model) throw new BadRequestException('Este livro ainda não tem modelo visual para validar', 422)
     const trainingIds = new Set(model?.training_samples.map((sample) => sample.bookrecords_id) || [])
     const rows = await IndeximageSideLabel.query()
@@ -120,12 +137,15 @@ export default class SideTrainingController {
     const selectedJob = registry.records.find((record) => record.id === this.requestedModelId(ctx))
     const queuedTrainingIds = new Set(selectedJob?.training_samples.map((sample) => sample.label_id) || [])
     const allVisibleRows = rows.filter((row) => {
-      if (book !== null && Number(recordById.get(row.bookrecords_id)?.book) !== book) return false
+      if (book !== null && Number(recordById.get(row.bookrecords_id)?.book) !== book && !(stage === 'development' && (trainingIds.has(row.bookrecords_id) || sourceBooks.includes(Number(recordById.get(row.bookrecords_id)?.book)))) && !(stage === 'validation' && (!model?.source_model_id || model.training_updated) && model?.source_books?.includes(Number(recordById.get(row.bookrecords_id)?.book)))) return false
       if (stage === 'validation') return model?.validation_label_ids ? model.validation_label_ids.includes(row.id) : !trainingIds.has(row.bookrecords_id)
       return trainingIds.has(row.bookrecords_id) || queuedTrainingIds.has(row.id) || !validationIds.has(row.id)
     })
     let visibleRows = allVisibleRows
-    if (stage === 'validation' && model?.source_model_id) {
+    if (stage === 'validation' && (!model?.source_model_id || model.training_updated) && (model?.source_books?.length || 0) > 1 && allVisibleRows.length > 40 && allVisibleRows.filter((row) => ['F', 'V'].includes(row.label || '')).length < 40) {
+      visibleRows = allVisibleRows.filter((row) => row.label !== null)
+    }
+    if (stage === 'validation' && model?.source_model_id && !model.training_updated) {
       let visibleCount = Math.min(10, allVisibleRows.length)
       while (visibleCount < allVisibleRows.length) {
         const reviewedBatch = allVisibleRows.slice(0, visibleCount)
@@ -244,6 +264,8 @@ export default class SideTrainingController {
         validation_ready: modelReadiness!.ready,
         validation_total: modelReadiness!.total,
         validation_required: modelReadiness!.required,
+        source_books: model.source_books || [model.source_book || model.book],
+        training_updated: Boolean(model.training_updated),
         validation_correct: modelReadiness!.correct,
       } : null,
       items: evaluatedItems,
@@ -312,7 +334,7 @@ export default class SideTrainingController {
         .andWhere('status', 'ready').andWhere('active_slot', 1)
         .orderBy('id', 'desc')
       return ctx.response.ok({ available: true, models: models.filter((model) => model.model_data).map((model) => ({
-        id: model.id, book: model.book, version: model.version, training_count: model.training_samples.length,
+        id: model.id, book: model.book, source_books: model.source_books || model.model_data?.source_books || [model.book], version: model.version, training_count: model.training_samples.length,
       })) })
     } catch (error) {
       if (error.code === 'ER_NO_SUCH_TABLE' || error.errno === 1146) return ctx.response.ok({ available: false, models: [] })
@@ -341,6 +363,7 @@ export default class SideTrainingController {
       if (busy) throw new BadRequestException('Aguarde o treinamento deste livro terminar antes de reutilizar um modelo', 409)
 
       const version = `sv-${crypto.randomUUID()}`
+      await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).andWhere('active_slot', 1).update({ active_slot: null })
       const modelData: BookSideVisualModel = {
         ...source.model_data,
         typebook_id: typebooksId,
@@ -348,13 +371,14 @@ export default class SideTrainingController {
         version,
         source_model_id: source.id,
         source_book: source.book,
+        source_books: source.source_books || source.model_data.source_books || [source.book],
         validation_hashes: {},
       }
       return IndeximageSideModel.create({
         companies_id: user.companies_id, typebooks_id: typebooksId, book, source_model_id: source.id,
         version, status: 'ready', phase: 'ready', total: source.total, processed: source.total,
-        training_samples: source.training_samples, validation_label_ids: [], model_data: modelData,
-        requested_by: user.id, active_slot: null, finished_at: DateTime.utc(),
+        training_samples: source.training_samples, validation_label_ids: [], model_data: modelData, source_books: modelData.source_books,
+        requested_by: user.id, active_slot: 1, finished_at: DateTime.utc(),
       }, { client: trx })
     })
 
@@ -366,6 +390,7 @@ export default class SideTrainingController {
     const book = this.requestedBook(ctx)
     if (!book) throw new BadRequestException('Selecione um livro para treinar', 422)
     const sampleSize = this.requestedSampleSize(ctx)
+    const sourceBooks = this.requestedSourceBooks(ctx, book)
     const { registry, model } = await this.modelContext(ctx, user.companies_id, typebooksId, book)
     if (!registry.available) throw new BadRequestException('O treinamento ainda não foi habilitado neste servidor. Contate o administrador', 503)
     const job = await Database.transaction(async (trx) => {
@@ -376,14 +401,19 @@ export default class SideTrainingController {
       const labels = await Database.from('indeximage_side_labels as labels').useTransaction(trx)
         .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
         .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
-        .where('labels.companies_id', user.companies_id).andWhere('labels.typebooks_id', typebooksId).andWhere('records.book', book).whereIn('labels.label', ['F', 'V'])
-        .orderBy('records.sheet').orderBy('records.cod').select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet')
+        .where('labels.companies_id', user.companies_id).andWhere('labels.typebooks_id', typebooksId).whereIn('records.book', sourceBooks).whereIn('labels.label', ['F', 'V'])
+        .orderBy('records.sheet').orderBy('records.cod').select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet', 'records.book')
+      const missingSourceBook = sourceBooks.find((sourceBook, index) => {
+        const required = Math.floor(sampleSize / sourceBooks.length) + (index < sampleSize % sourceBooks.length ? 1 : 0)
+        return labels.filter((label) => Number(label.book) === sourceBook).length < required
+      })
+      if (missingSourceBook) throw new BadRequestException(`Classifique as imagens necessárias do livro ${missingSourceBook} para representar todos os livros desta base`, 422)
       if (labels.length < sampleSize || !['F', 'V'].every((side) => labels.filter((label) => label.label === side).length >= 5)) {
         throw new BadRequestException(`Revise pelo menos ${sampleSize} imagens, incluindo cinco frentes e cinco versos. Use Adicionar imagens se necessário`, 422)
       }
       return IndeximageSideModel.create({ companies_id: user.companies_id, typebooks_id: typebooksId, book,
-        version: `sv-${crypto.randomUUID()}`, status: 'queued', phase: 'queued', total: labels.length, processed: 0,
-        training_samples: labels.map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
+        version: `sv-${crypto.randomUUID()}`, status: 'queued', phase: 'queued', total: labels.length, processed: 0, source_books: sourceBooks, source_model_id: model?.model_id || null,
+        training_samples: labels.map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), book: Number(label.book), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
         validation_label_ids: [], requested_by: user.id,
       }, { client: trx })
     })
@@ -418,7 +448,9 @@ export default class SideTrainingController {
     if (book !== null && !context.registry.available) throw new BadRequestException('O treinamento ainda não foi habilitado neste servidor. Contate o administrador', 503)
     let model = context.model
     if (stage === 'validation' && !model) throw new BadRequestException('Este livro ainda não tem modelo visual para validar', 422)
-    const sampleSize = stage === 'development' ? this.requestedSampleSize(ctx) : model?.source_model_id ? 10 : 40
+    const sampleSize = stage === 'development' ? this.requestedSampleSize(ctx) : model?.source_model_id && !model.training_updated ? 10 : 40
+    const sourceBooks = stage === 'development' ? this.requestedSourceBooks(ctx, book) : []
+    const sharedValidationBooks = stage === 'validation' && (!model?.source_model_id || model.training_updated) && (model?.source_books?.length || 0) > 1 ? model!.source_books! : []
     const additional = ctx.request.input('additional') === true
     const replaceLabelId = Number(ctx.request.input('replaceLabelId')) || null
     if (replaceLabelId && (stage !== 'validation' || !Number.isInteger(replaceLabelId) || replaceLabelId <= 0)) throw new BadRequestException('Referência de substituição inválida', 422)
@@ -446,11 +478,12 @@ export default class SideTrainingController {
       if (book === null && existingRows.length) return
 
       const selected: any[] = []
+      let retainedValidationIds: number[] | null = null
       let existingForBook: number[] = []
       let excludedRecords: number[] = []
       let excludedSheets: number[] = []
       let target = sampleSize
-      if (book !== null) {
+      if (book !== null && !(stage === 'development' && sourceBooks.length > 1) && !sharedValidationBooks.length) {
         const records = await Database.from('bookrecords')
           .useTransaction(trx)
           .where('companies_id', user.companies_id)
@@ -478,7 +511,7 @@ export default class SideTrainingController {
         existingForBook = currentRows.map((row) => row.bookrecords_id)
         const pendingCount = currentRows.filter((row) => row.label === null).length
         if (additional) target = stage === 'validation'
-          ? model?.source_model_id
+          ? model?.source_model_id && !model.training_updated
             ? currentRows.length + 10
             : currentRows.length + Math.max(0, 40 - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length, 5 - currentRows.filter((row) => row.label === 'F').length, 5 - currentRows.filter((row) => row.label === 'V').length)
           : Math.max(sampleSize, currentRows.length + Math.max(0,
@@ -514,7 +547,73 @@ export default class SideTrainingController {
               .whereIn('earlier.ext', ['.jpg', '.jpeg', '.png', '.webp'])
           })
 
-      if (book !== null) {
+      if (stage === 'development' && sourceBooks.length > 1) {
+        const usedRecords = await Database.from('bookrecords').useTransaction(trx)
+          .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).whereIn('book', sourceBooks)
+          .whereIn('id', existingRows.map((row) => row.bookrecords_id)).select('id', 'book')
+        const selectedIds = usedRecords.map((row) => Number(row.id))
+        const totalTarget = sampleSize + (additional ? usedRecords.length : 0)
+        const quota = Math.floor(totalTarget / sourceBooks.length)
+        let added = 0
+        for (let index = 0; index < sourceBooks.length; index++) {
+          const target = quota + (index < totalTarget % sourceBooks.length ? 1 : 0)
+          const currentCount = usedRecords.filter((row) => Number(row.book) === sourceBooks[index]).length
+          const needed = Math.max(0, target - currentCount)
+          if (!needed) continue
+          const query = sampleQuery().andWhere('bookrecords.book', sourceBooks[index])
+          if (selectedIds.length) query.whereNotIn('bookrecords.id', selectedIds)
+          const rows = await query.orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-group-v1'))")
+            .limit(needed)
+            .select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
+          selected.push(...rows)
+          selectedIds.push(...rows.map((row) => Number(row.bookrecords_id)))
+          added += rows.length
+        }
+        const alreadyCovered = sourceBooks.every((sourceBook, index) => {
+          const target = quota + (index < totalTarget % sourceBooks.length ? 1 : 0)
+          return usedRecords.filter((row) => Number(row.book) === sourceBook).length >= target
+        })
+        if (!added && alreadyCovered) return
+      } else if (sharedValidationBooks.length) {
+        const validationIds = new Set(model!.validation_label_ids || [])
+        let currentRows = existingRows.filter((row) => validationIds.has(row.id))
+        if (currentRows.length > 40 && currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length < 40) {
+          currentRows = currentRows.filter((row) => row.label !== null)
+          retainedValidationIds = currentRows.map((row) => row.id)
+        }
+        const fronts = currentRows.filter((row) => row.label === 'F').length
+        const backs = currentRows.filter((row) => row.label === 'V').length
+        const target = additional ? currentRows.length + Math.max(0, 40 - fronts - backs, 5 - fronts, 5 - backs) : 40
+        const needed = target - currentRows.length
+        if (needed <= 0) return
+        const usedRecords = await Database.from('bookrecords').useTransaction(trx)
+          .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
+          .whereIn('book', sharedValidationBooks).whereIn('id', existingRows.map((row) => row.bookrecords_id))
+          .select('id', 'book', 'sheet')
+        const usedIds = usedRecords.map((row) => Number(row.id))
+        const countsByBook = new Map(sharedValidationBooks.map((sourceBook) => [sourceBook, 0]))
+        for (const row of currentRows) {
+          const record = usedRecords.find((entry) => Number(entry.id) === row.bookrecords_id)
+          if (record) countsByBook.set(Number(record.book), (countsByBook.get(Number(record.book)) || 0) + 1)
+        }
+        const queues: { book: number; count: number; rows: any[] }[] = []
+        for (const sourceBook of sharedValidationBooks) {
+          const query = sampleQuery().andWhere('bookrecords.book', sourceBook)
+          if (usedIds.length) query.whereNotIn('bookrecords.id', usedIds)
+          const usedSheets = usedRecords.filter((row) => Number(row.book) === sourceBook).map((row) => Number(row.sheet))
+          if (usedSheets.length) query.whereNotIn('bookrecords.sheet', usedSheets)
+          const rows = await query.orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-book-v1'))")
+            .limit(needed).select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
+          queues.push({ book: sourceBook, count: countsByBook.get(sourceBook) || 0, rows })
+        }
+        while (selected.length < needed) {
+          const available = queues.filter((queue) => queue.rows.length).sort((a, b) => a.count - b.count || a.book - b.book)
+          if (!available.length) break
+          const queue = available[0]
+          selected.push(queue.rows.shift()!)
+          queue.count++
+        }
+      } else if (book !== null) {
         const buildBookSampleQuery = () => {
           const query = sampleQuery().andWhere('bookrecords.book', book)
           if (excludedRecords.length) query.whereNotIn('bookrecords.id', excludedRecords)
@@ -571,8 +670,8 @@ export default class SideTrainingController {
         file_name: row.file_name,
       })), { client: trx })
       if (stage === 'validation' && model?.model_id) {
-        const stored = await IndeximageSideModel.query({ client: trx }).where('id', model.model_id).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book!).forUpdate().firstOrFail()
-        stored.validation_label_ids = [...stored.validation_label_ids.filter((id) => id !== replaceLabelId), ...created.map((row) => row.id)]
+        const stored = await IndeximageSideModel.query({ client: trx }).where('id', model.model_id).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', model.book).forUpdate().firstOrFail()
+        stored.validation_label_ids = [...(retainedValidationIds || stored.validation_label_ids).filter((id) => id !== replaceLabelId), ...created.map((row) => row.id)]
         await stored.save()
       }
     })
@@ -597,9 +696,9 @@ export default class SideTrainingController {
     if (model.training_samples.some((sample) => sample.bookrecords_id === row.bookrecords_id)) {
       throw new BadRequestException('Esta imagem foi usada no desenvolvimento e não pode ser usada na validação independente', 422)
     }
-    const localTrainingSamples = model.source_model_id ? [] : model.training_samples
+    const localTrainingSamples = model.source_model_id && !model.training_updated ? [] : model.training_samples.filter((sample) => Number(sample.book || model.book) === Number(record.book))
     const trainingRecords = await Database.from('bookrecords')
-      .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', model.book)
+      .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', Number(record.book))
       .whereIn('id', localTrainingSamples.map((sample) => sample.bookrecords_id)).select('sheet')
     if ([...trainingRecords, ...localTrainingSamples].some((sample) => Number(sample.sheet) === Number(record.sheet))) {
       throw new BadRequestException('Esta folha já participou do desenvolvimento. Use uma folha diferente para validação independente', 422)
@@ -624,7 +723,7 @@ export default class SideTrainingController {
     const prediction = predictBookSideVisual(model, extracted.features)
     await Database.transaction(async (trx) => {
       if (model.model_id) {
-        const stored = await IndeximageSideModel.query({ client: trx }).where('id', model.model_id).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', Number(record.book)).forUpdate().firstOrFail()
+        const stored = await IndeximageSideModel.query({ client: trx }).where('id', model.model_id).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', model.book).forUpdate().firstOrFail()
         const data = stored.model_data!
         if (data.validation_hashes) {
           const duplicates = Object.entries(data.validation_hashes).filter(([labelId, value]) => Number(labelId) !== row.id && value === hash && stored.validation_label_ids.includes(Number(labelId))).map(([labelId]) => Number(labelId))
