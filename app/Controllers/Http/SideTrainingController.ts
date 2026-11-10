@@ -73,7 +73,7 @@ export default class SideTrainingController {
   }
 
   private requestedSampleSize(ctx: HttpContextContract) {
-    const value = ctx.request.input('sampleSize')
+    const value = ctx.request.input('sampleSize') ?? ctx.request.qs().sampleSize
     if (value === undefined || value === null || value === '') return 40
     const size = Number(value)
     if (![20, 25, 30, 35, 40].includes(size)) throw new BadRequestException('Escolha uma amostra de 20, 25, 30, 35 ou 40 imagens', 422)
@@ -101,6 +101,36 @@ export default class SideTrainingController {
     if (!typebook) throw new BadRequestException('Livro não encontrado', 404)
 
     return { user, typebooksId, typebook }
+  }
+
+  public async bookAvailability(ctx: HttpContextContract) {
+    const { user, typebooksId } = await this.access(ctx)
+    const sourceBooks = this.requestedSourceBooks(ctx, null)
+    if (!sourceBooks.length) throw new BadRequestException('Informe os livros que formarão a base', 422)
+    const sampleSize = this.requestedSampleSize(ctx)
+    const records = await Database.from('bookrecords')
+      .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
+      .whereIn('book', sourceBooks).select('book').count('* as total').groupBy('book')
+    const images = await Database.from('bookrecords as records')
+      .where('records.companies_id', user.companies_id).andWhere('records.typebooks_id', typebooksId)
+      .whereIn('records.book', sourceBooks)
+      .whereExists((query) => {
+        query.from('indeximages as images')
+          .whereColumn('images.bookrecords_id', 'records.id')
+          .whereColumn('images.companies_id', 'records.companies_id')
+          .whereColumn('images.typebooks_id', 'records.typebooks_id')
+          .whereNotNull('images.drive_file_id').whereNot('images.drive_file_id', '')
+          .whereIn('images.ext', ['.jpg', '.jpeg', '.png', '.webp'])
+          .select('images.bookrecords_id')
+      })
+      .select('records.book').count('* as total').groupBy('records.book')
+    const books = sourceBooks.map((book, index) => {
+      const required = Math.floor(sampleSize / sourceBooks.length) + (index < sampleSize % sourceBooks.length ? 1 : 0)
+      const totalRecords = Number(records.find((row) => Number(row.book) === book)?.total || 0)
+      const imageRecords = Number(images.find((row) => Number(row.book) === book)?.total || 0)
+      return { book, records: totalRecords, image_records: imageRecords, required, enough: imageRecords >= required }
+    })
+    return ctx.response.ok({ sample_size: sampleSize, valid: books.every((item) => item.enough), books })
   }
 
   public async index(ctx: HttpContextContract) {
@@ -565,6 +595,12 @@ export default class SideTrainingController {
           const rows = await query.orderByRaw("CRC32(CONCAT(bookrecords.id, ':side-training-group-v1'))")
             .limit(needed)
             .select('bookrecords.id as bookrecords_id', 'indeximages.seq', 'indeximages.drive_file_id', 'indeximages.file_name')
+          if (currentCount + rows.length < target) {
+            const available = currentCount + rows.length
+            throw new BadRequestException(available === 0
+              ? `O livro ${sourceBooks[index]} não tem imagens disponíveis. Remova-o da lista de livros da base`
+              : `O livro ${sourceBooks[index]} tem apenas ${available} de ${target} imagens necessárias. Altere a lista de livros ou reduza a amostra`, 422)
+          }
           selected.push(...rows)
           selectedIds.push(...rows.map((row) => Number(row.bookrecords_id)))
           added += rows.length
