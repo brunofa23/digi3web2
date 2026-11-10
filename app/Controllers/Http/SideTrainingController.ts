@@ -124,13 +124,15 @@ export default class SideTrainingController {
           .select('images.bookrecords_id')
       })
       .select('records.book').count('* as total').groupBy('records.book')
-    const books = sourceBooks.map((book, index) => {
-      const required = Math.floor(sampleSize / sourceBooks.length) + (index < sampleSize % sourceBooks.length ? 1 : 0)
+    const availableBooks = sourceBooks.filter((book) => Number(images.find((row) => Number(row.book) === book)?.total || 0) > 0)
+    const books = sourceBooks.map((book) => {
       const totalRecords = Number(records.find((row) => Number(row.book) === book)?.total || 0)
       const imageRecords = Number(images.find((row) => Number(row.book) === book)?.total || 0)
-      return { book, records: totalRecords, image_records: imageRecords, required, enough: imageRecords >= required }
+      const index = availableBooks.indexOf(book)
+      const required = index < 0 ? 0 : Math.floor(sampleSize / availableBooks.length) + (index < sampleSize % availableBooks.length ? 1 : 0)
+      return { book, records: totalRecords, image_records: imageRecords, required, ignored: index < 0, enough: index < 0 || imageRecords >= required }
     })
-    return ctx.response.ok({ sample_size: sampleSize, valid: books.every((item) => item.enough), books })
+    return ctx.response.ok({ sample_size: sampleSize, valid: availableBooks.length > 0 && books.every((item) => item.enough), available_books: availableBooks, ignored_books: sourceBooks.filter((book) => !availableBooks.includes(book)), books })
   }
 
   public async index(ctx: HttpContextContract) {
