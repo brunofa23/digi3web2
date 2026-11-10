@@ -72,11 +72,13 @@ class SideTrainingController {
         const input = ctx.request.input('sourceBooks') ?? ctx.request.qs().sourceBooks;
         const values = Array.isArray(input) ? input : typeof input === 'string' ? input.split(',').filter(Boolean) : [];
         const books = [...new Set(values.map(Number))];
-        if (books.some((value) => !Number.isInteger(value) || value <= 0) || books.length > 20) {
-            throw new BadRequestException_1.default('Selecione até 20 livros válidos para compor a base', 422);
+        if (books.some((value) => !Number.isInteger(value) || value <= 0) || books.length > 100) {
+            throw new BadRequestException_1.default('Selecione até 100 números de livro válidos para compor a base', 422);
         }
         if (fallback && !books.includes(fallback))
             books.unshift(fallback);
+        if (books.length > 100)
+            throw new BadRequestException_1.default('Selecione até 100 números de livro válidos para compor a base', 422);
         return books.length ? books : fallback ? [fallback] : [];
     }
     requestedSampleSize(ctx) {
@@ -129,14 +131,15 @@ class SideTrainingController {
         })
             .select('records.book').count('* as total').groupBy('records.book');
         const availableBooks = sourceBooks.filter((book) => Number(images.find((row) => Number(row.book) === book)?.total || 0) > 0);
+        const tooManyBooks = availableBooks.length > sampleSize;
         const books = sourceBooks.map((book) => {
             const totalRecords = Number(records.find((row) => Number(row.book) === book)?.total || 0);
             const imageRecords = Number(images.find((row) => Number(row.book) === book)?.total || 0);
             const index = availableBooks.indexOf(book);
-            const required = index < 0 ? 0 : Math.floor(sampleSize / availableBooks.length) + (index < sampleSize % availableBooks.length ? 1 : 0);
+            const required = index < 0 ? 0 : tooManyBooks ? 1 : Math.floor(sampleSize / availableBooks.length) + (index < sampleSize % availableBooks.length ? 1 : 0);
             return { book, records: totalRecords, image_records: imageRecords, required, ignored: index < 0, enough: index < 0 || imageRecords >= required };
         });
-        return ctx.response.ok({ sample_size: sampleSize, valid: availableBooks.length > 0 && books.every((item) => item.enough), available_books: availableBooks, ignored_books: sourceBooks.filter((book) => !availableBooks.includes(book)), books });
+        return ctx.response.ok({ sample_size: sampleSize, valid: availableBooks.length > 0 && !tooManyBooks && books.every((item) => item.enough), too_many_books: tooManyBooks, available_books: availableBooks, ignored_books: sourceBooks.filter((book) => !availableBooks.includes(book)), books });
     }
     async index(ctx) {
         const { user, typebooksId } = await this.access(ctx, [53, 54]);
@@ -436,6 +439,8 @@ class SideTrainingController {
             throw new BadRequestException_1.default('Selecione um livro para treinar', 422);
         const sampleSize = this.requestedSampleSize(ctx);
         const sourceBooks = this.requestedSourceBooks(ctx, book);
+        if (sourceBooks.length > sampleSize)
+            throw new BadRequestException_1.default('Há mais livros do que imagens na amostra. Aumente a amostra ou divida os livros em bases', 422);
         const { registry, model } = await this.modelContext(ctx, user.companies_id, typebooksId, book);
         if (!registry.available)
             throw new BadRequestException_1.default('O treinamento ainda não foi habilitado neste servidor. Contate o administrador', 503);
@@ -503,6 +508,8 @@ class SideTrainingController {
             throw new BadRequestException_1.default('Este livro ainda não tem modelo visual para validar', 422);
         const sampleSize = stage === 'development' ? this.requestedSampleSize(ctx) : model?.source_model_id && !model.training_updated ? 10 : 40;
         const sourceBooks = stage === 'development' ? this.requestedSourceBooks(ctx, book) : [];
+        if (stage === 'development' && sourceBooks.length > sampleSize)
+            throw new BadRequestException_1.default('Há mais livros do que imagens na amostra. Aumente a amostra ou divida os livros em bases', 422);
         const sharedValidationBooks = stage === 'validation' && (!model?.source_model_id || model.training_updated) && (model?.source_books?.length || 0) > 1 ? model.source_books : [];
         const additional = ctx.request.input('additional') === true;
         const replaceLabelId = Number(ctx.request.input('replaceLabelId')) || null;
