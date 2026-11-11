@@ -365,13 +365,23 @@ export default class SideTrainingController {
     try {
       const models = await IndeximageSideModel.query()
         .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
-        .andWhere('status', 'ready').andWhere('active_slot', 1)
+        .andWhere('status', 'ready')
         .orderBy('id', 'desc')
-      return ctx.response.ok({ available: true, models: models.filter((model) => model.model_data).map((model) => ({
+      const trainedBases = new Map<string, IndeximageSideModel>()
+      for (const model of models) {
+        if (!model.model_data || (model.source_model_id && !model.model_data.training_updated)) continue
+        const books = model.source_books || model.model_data.source_books || [model.book]
+        const key = [...books].sort((a, b) => a - b).join(',')
+        if (!trainedBases.has(key) || (model.active_slot === 1 && trainedBases.get(key)!.active_slot !== 1)) trainedBases.set(key, model)
+      }
+      return ctx.response.ok({ available: true, trained_bases: [...trainedBases.values()].map((model) => ({
+        id: model.id, book: model.book, source_books: model.source_books || model.model_data?.source_books || [model.book],
+        training_count: model.training_samples.length, active: model.active_slot === 1,
+      })), models: models.filter((model) => model.active_slot === 1 && model.model_data).map((model) => ({
         id: model.id, book: model.book, source_books: model.source_books || model.model_data?.source_books || [model.book], version: model.version, training_count: model.training_samples.length,
       })) })
     } catch (error) {
-      if (error.code === 'ER_NO_SUCH_TABLE' || error.errno === 1146) return ctx.response.ok({ available: false, models: [] })
+      if (error.code === 'ER_NO_SUCH_TABLE' || error.errno === 1146) return ctx.response.ok({ available: false, models: [], trained_bases: [] })
       throw error
     }
   }
