@@ -135,6 +135,8 @@ Route.group(() => {
   Route.get('/typebooks/:typebooks_id/side-training/models', 'SideTrainingController.modelStatus').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/divergences', 'SideTrainingController.bookDivergences').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/base-models', 'SideTrainingController.baseModels').middleware('auth')
+  Route.patch('/typebooks/:typebooks_id/side-training/base-models/:model_id', 'SideTrainingController.archiveBase').middleware('auth')
+  Route.delete('/typebooks/:typebooks_id/side-training/base-models/:model_id', 'SideTrainingController.deleteBase').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/inherit', 'SideTrainingController.inheritModel').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/train', 'SideTrainingController.trainModel').middleware('auth')
   Route.post('/typebooks/:typebooks_id/side-training/activate', 'SideTrainingController.activateModel').middleware('auth')

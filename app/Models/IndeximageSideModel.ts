@@ -42,6 +42,7 @@ export default class IndeximageSideModel extends BaseModel {
   @column.dateTime({ serializeAs: null }) public lease_expires_at: DateTime | null
   @column.dateTime() public started_at: DateTime | null
   @column.dateTime() public finished_at: DateTime | null
+  @column.dateTime() public archived_at: DateTime | null
   @column.dateTime({ autoCreate: true }) public createdAt: DateTime
   @column.dateTime({ autoCreate: true, autoUpdate: true }) public updatedAt: DateTime
 }

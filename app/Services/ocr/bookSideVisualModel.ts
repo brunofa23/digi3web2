@@ -29,11 +29,13 @@ export type BookSideVisualModel = {
 let extractorPromise: Promise<any> | null = null
 
 export async function loadBookSideVisualModel(companyId: number, typebookId: number, book: number, options: { candidate?: boolean; modelId?: number | null } = {}) {
+  let registryAvailable = true
   try {
     const query = IndeximageSideModel.query()
       .where('companies_id', companyId).andWhere('typebooks_id', typebookId)
       .andWhere((books) => books.where('book', book).orWhereRaw('JSON_CONTAINS(source_books, CAST(? AS JSON))', [String(book)]))
       .andWhere('status', 'ready')
+      .whereNull('archived_at')
     if (options.modelId) query.andWhere('id', options.modelId)
     else if (!options.candidate) query.andWhere('active_slot', 1)
     const stored = await query.orderByRaw('CASE WHEN JSON_LENGTH(source_books) > 1 THEN 0 ELSE 1 END').orderBy('id', 'desc').first()
@@ -41,6 +43,7 @@ export async function loadBookSideVisualModel(companyId: number, typebookId: num
     if (options.modelId) return null
   } catch (error) {
     if (error.code !== 'ER_NO_SUCH_TABLE' && error.errno !== 1146) throw error
+    registryAvailable = false
   }
   const file = Application.resourcesPath(`side-models/${companyId}-${typebookId}-${book}.json`)
   try {
@@ -48,6 +51,9 @@ export async function loadBookSideVisualModel(companyId: number, typebookId: num
     if (model.company_id !== companyId || model.typebook_id !== typebookId || model.book !== book) {
       throw new Error('Escopo do modelo visual inválido')
     }
+    // Um arquivo legado já registrado não pode reativar uma versão arquivada ou inativa.
+    if (registryAvailable && await IndeximageSideModel.query().where('version', model.version)
+      .andWhere('companies_id', companyId).andWhere('typebooks_id', typebookId).first()) return null
     if (model.extractor !== 'Xenova/dinov2-small' || model.weights.length !== 1920) {
       throw new Error('Formato do modelo visual não suportado')
     }
@@ -185,6 +191,7 @@ export async function bookSideModelRegistry(companyId: number, typebookId: numbe
   try {
     const records = await IndeximageSideModel.query().where('companies_id', companyId)
       .andWhere('typebooks_id', typebookId)
+      .whereNull('archived_at')
       .andWhere((books) => books.where('book', book).orWhereRaw('JSON_CONTAINS(source_books, CAST(? AS JSON))', [String(book)]))
       .orderByRaw('CASE WHEN JSON_LENGTH(source_books) > 1 THEN 0 ELSE 1 END').orderBy('id', 'desc')
       .select('id', 'companies_id', 'typebooks_id', 'book', 'source_books', 'source_model_id', 'version', 'status', 'phase', 'processed', 'total', 'training_samples', 'validation_label_ids', 'requested_by', 'active_slot', 'error_message', 'started_at', 'finished_at', 'created_at', 'updated_at')
