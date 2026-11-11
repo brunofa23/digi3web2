@@ -115,28 +115,29 @@ async function bookSideVisualReadiness(model, lineage = new Set()) {
         const nextLineage = new Set(lineage);
         if (currentModelId)
             nextLineage.add(currentModelId);
-        const source = await IndeximageSideModel_1.default.query()
-            .where('id', model.source_model_id).andWhere('companies_id', model.company_id)
-            .andWhere('typebooks_id', model.typebook_id).andWhere('status', 'ready').first();
-        const sourceData = source?.model_data;
-        if (sourceData && source) {
-            const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [] }, nextLineage);
-            const sameWeights = sourceData.extractor_sha256 === model.extractor_sha256
-                && sourceData.bias === model.bias && sourceData.weights.length === model.weights.length
-                && sourceData.weights.every((weight, index) => weight === model.weights[index]);
-            if (model.training_updated) {
-                const currentTraining = await Database_1.default.from('indeximage_side_labels as labels')
-                    .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
-                    .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id)
-                    .whereIn('records.book', model.source_books?.length ? model.source_books : [model.book])
-                    .whereIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
-                    .select('labels.bookrecords_id', 'labels.seq', 'labels.label');
-                trainingUnchanged = sourceReadiness.ready && model.training_samples.every((sample) => currentTraining.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && row.label === sample.label));
-            }
-            else
+        if (model.training_updated) {
+            const currentTraining = await Database_1.default.from('indeximage_side_labels as labels')
+                .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
+                .where('labels.companies_id', model.company_id).andWhere('labels.typebooks_id', model.typebook_id)
+                .whereIn('records.book', model.source_books?.length ? model.source_books : [model.book])
+                .whereIn('labels.bookrecords_id', model.training_samples.map((sample) => sample.bookrecords_id))
+                .select('labels.bookrecords_id', 'labels.seq', 'labels.label');
+            trainingUnchanged = model.training_samples.every((sample) => currentTraining.some((row) => Number(row.bookrecords_id) === sample.bookrecords_id && Number(row.seq) === sample.seq && row.label === sample.label));
+        }
+        else {
+            const source = await IndeximageSideModel_1.default.query()
+                .where('id', model.source_model_id).andWhere('companies_id', model.company_id)
+                .andWhere('typebooks_id', model.typebook_id).andWhere('status', 'ready').first();
+            const sourceData = source?.model_data;
+            if (sourceData && source) {
+                const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [] }, nextLineage);
+                const sameWeights = sourceData.extractor_sha256 === model.extractor_sha256
+                    && sourceData.bias === model.bias && sourceData.weights.length === model.weights.length
+                    && sourceData.weights.every((weight, index) => weight === model.weights[index]);
                 trainingUnchanged = sourceReadiness.ready && sameWeights;
-            if (trainingUnchanged && !model.training_updated)
-                return { ready: true, trainingUnchanged: true, total: 0, required: 0, correct: 0, sides: { F: 0, V: 0 } };
+                if (trainingUnchanged)
+                    return { ready: true, trainingUnchanged: true, total: 0, required: 0, correct: 0, sides: { F: 0, V: 0 } };
+            }
         }
     }
     else {

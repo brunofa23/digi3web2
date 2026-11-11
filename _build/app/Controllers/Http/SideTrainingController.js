@@ -377,15 +377,27 @@ class SideTrainingController {
         try {
             const models = await IndeximageSideModel_1.default.query()
                 .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
-                .andWhere('status', 'ready').andWhere('active_slot', 1)
+                .andWhere('status', 'ready')
                 .orderBy('id', 'desc');
-            return ctx.response.ok({ available: true, models: models.filter((model) => model.model_data).map((model) => ({
+            const trainedBases = new Map();
+            for (const model of models) {
+                if (!model.model_data || (model.source_model_id && !model.model_data.training_updated))
+                    continue;
+                const books = model.source_books || model.model_data.source_books || [model.book];
+                const key = [...books].sort((a, b) => a - b).join(',');
+                if (!trainedBases.has(key) || (model.active_slot === 1 && trainedBases.get(key).active_slot !== 1))
+                    trainedBases.set(key, model);
+            }
+            return ctx.response.ok({ available: true, trained_bases: [...trainedBases.values()].map((model) => ({
+                    id: model.id, book: model.book, source_books: model.source_books || model.model_data?.source_books || [model.book],
+                    training_count: model.training_samples.length, active: model.active_slot === 1,
+                })), models: models.filter((model) => model.active_slot === 1 && model.model_data).map((model) => ({
                     id: model.id, book: model.book, source_books: model.source_books || model.model_data?.source_books || [model.book], version: model.version, training_count: model.training_samples.length,
                 })) });
         }
         catch (error) {
             if (error.code === 'ER_NO_SUCH_TABLE' || error.errno === 1146)
-                return ctx.response.ok({ available: false, models: [] });
+                return ctx.response.ok({ available: false, models: [], trained_bases: [] });
             throw error;
         }
     }
@@ -451,24 +463,36 @@ class SideTrainingController {
                 return busy;
             if (model && !model.model_id)
                 await this.storeLegacyModel(model, user.id, trx);
+            const modelBooks = model?.source_books || (model ? [model.book] : []);
+            const reuseValidation = Boolean(model?.model_id && model.validation_label_ids?.length && modelBooks.length === sourceBooks.length && modelBooks.every((sourceBook) => sourceBooks.includes(sourceBook)));
+            const retainedValidation = reuseValidation ? await Database_1.default.from('indeximage_side_labels as labels').useTransaction(trx)
+                .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
+                .join('indeximage_ocr_checks as checks', (join) => join.on('checks.bookrecords_id', 'labels.bookrecords_id').andOn('checks.companies_id', 'labels.companies_id').andOn('checks.typebooks_id', 'labels.typebooks_id').andOn('checks.seq', 'labels.seq').andOnVal('checks.layout_profile', model.version))
+                .where('labels.companies_id', user.companies_id).andWhere('labels.typebooks_id', typebooksId)
+                .whereIn('labels.id', model.validation_label_ids || []).whereIn('labels.label', ['F', 'V'])
+                .whereColumn('checks.detected_side', 'labels.label').whereNotNull('checks.side_processed_at')
+                .distinct('labels.id', 'labels.bookrecords_id', 'records.book', 'records.sheet') : [];
+            const heldoutRecords = new Set(retainedValidation.map((row) => Number(row.bookrecords_id)));
+            const heldoutSheets = new Set(retainedValidation.map((row) => `${row.book}:${row.sheet}`));
             const labels = await Database_1.default.from('indeximage_side_labels as labels').useTransaction(trx)
                 .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
                 .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
                 .where('labels.companies_id', user.companies_id).andWhere('labels.typebooks_id', typebooksId).whereIn('records.book', sourceBooks).whereIn('labels.label', ['F', 'V'])
                 .orderBy('records.sheet').orderBy('records.cod').select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet', 'records.book');
+            const trainingLabels = labels.filter((label) => !heldoutRecords.has(Number(label.bookrecords_id)) && !heldoutSheets.has(`${label.book}:${label.sheet}`));
             const missingSourceBook = sourceBooks.find((sourceBook, index) => {
                 const required = Math.floor(sampleSize / sourceBooks.length) + (index < sampleSize % sourceBooks.length ? 1 : 0);
-                return labels.filter((label) => Number(label.book) === sourceBook).length < required;
+                return trainingLabels.filter((label) => Number(label.book) === sourceBook).length < required;
             });
             if (missingSourceBook)
                 throw new BadRequestException_1.default(`Classifique as imagens necessárias do livro ${missingSourceBook} para representar todos os livros desta base`, 422);
-            if (labels.length < sampleSize || !['F', 'V'].every((side) => labels.filter((label) => label.label === side).length >= 5)) {
+            if (trainingLabels.length < sampleSize || !['F', 'V'].every((side) => trainingLabels.filter((label) => label.label === side).length >= 5)) {
                 throw new BadRequestException_1.default(`Revise pelo menos ${sampleSize} imagens, incluindo cinco frentes e cinco versos. Use Adicionar imagens se necessário`, 422);
             }
             return IndeximageSideModel_1.default.create({ companies_id: user.companies_id, typebooks_id: typebooksId, book,
-                version: `sv-${crypto_1.default.randomUUID()}`, status: 'queued', phase: 'queued', total: labels.length, processed: 0, source_books: sourceBooks, source_model_id: model?.model_id || null,
-                training_samples: labels.map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), book: Number(label.book), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
-                validation_label_ids: [], requested_by: user.id,
+                version: `sv-${crypto_1.default.randomUUID()}`, status: 'queued', phase: 'queued', total: trainingLabels.length, processed: 0, source_books: sourceBooks, source_model_id: model?.model_id || null,
+                training_samples: trainingLabels.map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), book: Number(label.book), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
+                validation_label_ids: retainedValidation.map((row) => Number(row.id)), requested_by: user.id,
             }, { client: trx });
         });
         (0, bookSideModelTraining_1.wakeBookSideTrainingWorker)();

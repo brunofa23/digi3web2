@@ -220,6 +220,8 @@ Route_1.default.group(() => {
     Route_1.default.post('/order-certificates/marriage/document-extract', 'MarriageDocumentExtractionsController.store').middleware('auth');
     Route_1.default.get('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.manageMarriageLink').middleware('auth');
     Route_1.default.patch('/order-certificates/public/marriage-link', 'PublicOrderCertificatesController.toggleMarriageLink').middleware('auth');
+    Route_1.default.get('/order-certificates/public/:type/link', 'PublicOrderCertificatesController.manageVitalLink').middleware('auth');
+    Route_1.default.patch('/order-certificates/public/:type/link', 'PublicOrderCertificatesController.toggleVitalLink').middleware('auth');
     Route_1.default.post('/order-certificates/birth-mobile-captures', 'BirthMobileCapturesController.create').middleware('auth');
     Route_1.default.get('/order-certificates/birth-mobile-captures/:id', 'BirthMobileCapturesController.index').middleware('auth');
     Route_1.default.get('/order-certificates/birth-mobile-captures/:id/files/:fileId', 'BirthMobileCapturesController.download').middleware('auth');
@@ -231,6 +233,9 @@ Route_1.default.group(() => {
     Route_1.default.get('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.showMarriage');
     Route_1.default.post('/public/order-certificates/marriage/:token/visionocr', 'PublicOrderCertificatesController.visionOcrMarriageDocument');
     Route_1.default.post('/public/order-certificates/marriage/:token', 'PublicOrderCertificatesController.storeMarriage');
+    Route_1.default.get('/public/order-certificates/:type/:token', 'PublicOrderCertificatesController.showVital');
+    Route_1.default.post('/public/order-certificates/:type/:token/visionocr', 'PublicOrderCertificatesController.visionOcrVitalDocument');
+    Route_1.default.post('/public/order-certificates/:type/:token', 'PublicOrderCertificatesController.storeVital');
     Route_1.default.get('/order-certificates/:id/document-images', 'OrderCertificatesController.documentImages');
     Route_1.default.post('/order-certificates/:id/inactivate', 'OrderCertificatesController.inactivate');
     Route_1.default.resource('/order-certificates', 'OrderCertificatesController').apiOnly();

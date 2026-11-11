@@ -39,6 +39,8 @@ const MarriedCertificate_1 = __importDefault(global[Symbol.for('ioc.use')]("App/
 const PublicOrderCertificateLink_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/PublicOrderCertificateLink"));
 const uploadImages_1 = global[Symbol.for('ioc.use')]("App/Services/uploads/uploadImages");
 const MarriageDocumentExtraction_1 = global[Symbol.for('ioc.use')]("App/Services/ai/MarriageDocumentExtraction");
+const BirthDocumentExtraction_1 = global[Symbol.for('ioc.use')]("App/Services/ai/BirthDocumentExtraction");
+const OrderCertificatesController_1 = __importDefault(require("./OrderCertificatesController"));
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 const MARRIAGE_LINK_TYPE = 'marriage';
 const PUBLIC_SUBMIT_RATE_LIMIT_MAX = 5;
@@ -336,7 +338,7 @@ class PublicOrderCertificatesController {
         const authenticate = await auth.use('api').authenticate();
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
         if (!(0, util_1.verifyPermission)(Boolean(authenticate.superuser), permissions, PUBLIC_MARRIAGE_LINK_PERMISSION_ID)) {
-            response.forbidden({ message: 'Acesso permitido apenas para usuários com permissão de link público de casamento' });
+            response.forbidden({ message: 'Acesso permitido apenas para usuários com permissão de links públicos de certidões' });
             return null;
         }
         return authenticate;
@@ -372,6 +374,24 @@ class PublicOrderCertificatesController {
             });
         }
         return link;
+    }
+    vitalType(value) {
+        return value === 'birth' || value === 'death' ? value : null;
+    }
+    async getOrCreateVitalLink(companiesId, type) {
+        let link = await PublicOrderCertificateLink_1.default.query()
+            .where('companies_id', companiesId).where('type', type).first();
+        if (!link) {
+            link = await PublicOrderCertificateLink_1.default.create({
+                companiesId, type, token: crypto_1.default.randomBytes(32).toString('hex'), active: true,
+            });
+        }
+        return link;
+    }
+    async getActiveVitalLink(type, token) {
+        return PublicOrderCertificateLink_1.default.query()
+            .where('type', type).where('token', token).where('active', true)
+            .preload('company').first();
     }
     toNumber(v) {
         if (v === null || v === undefined || v === '')
@@ -430,6 +450,82 @@ class PublicOrderCertificatesController {
         if (secondCheck === 10 || secondCheck === 11)
             secondCheck = 0;
         return secondCheck === Number(cpf[10]);
+    }
+    assertPublicBirthFields(data) {
+        const registered = data.registered || {};
+        const required = [
+            ['Registrado: nome', registered.name],
+            ['Registrado: sexo', registered.gender],
+            ['Registrado: data de nascimento', data.birthDate],
+            ['Registrado: nacionalidade', registered.nationality],
+            ['Registrado: DNV', data.dnvNumber],
+        ];
+        const people = [
+            ['Filiação 1', data.filiation1],
+            ['Filiação 2', data.filiation2],
+            ['Declarante', data.declarant],
+        ];
+        for (const [label, person] of people) {
+            required.push([`${label}: CPF`, person?.cpf], [`${label}: nome`, person?.name], [`${label}: sexo`, person?.gender], [`${label}: data de nascimento`, person?.dateBirth], [`${label}: nacionalidade`, person?.nationality]);
+        }
+        const missing = required.filter(([, value]) => !String(value ?? '').trim()).map(([label]) => label);
+        if (missing.length)
+            throw new BadRequestException_1.default(`Preencha os campos obrigatórios: ${missing.join(', ')}.`, 422);
+        if (this.isTruthy(data.dnvNotFound))
+            throw new BadRequestException_1.default('Registrado: informe o número da DNV.', 422);
+        for (const [label, person] of [['Registrado', registered], ...people]) {
+            if (!['F', 'I', 'M', 'B', 'D'].includes(person.gender)) {
+                throw new BadRequestException_1.default(`${label}: sexo inválido.`, 422);
+            }
+        }
+        for (const [label, value] of [['Registrado', data.birthDate], ...people.map(([name, person]) => [name, person.dateBirth])]) {
+            const date = String(value);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !luxon_1.DateTime.fromISO(date).isValid) {
+                throw new BadRequestException_1.default(`${label}: data de nascimento inválida.`, 422);
+            }
+        }
+        for (const [label, person] of people) {
+            if (!this.isValidCpf(person.cpf))
+                throw new BadRequestException_1.default(`${label}: CPF inválido.`, 422);
+        }
+    }
+    assertPublicDeathFields(data) {
+        const deceased = data.deceased || {};
+        const filiation1 = data.filiation1 || {};
+        const filiation2 = data.filiation2 || {};
+        const declarant = data.declarant || {};
+        const required = [
+            ['Falecido: CPF', deceased.cpf], ['Falecido: nome', deceased.name],
+            ['Falecido: sexo', deceased.gender], ['Falecido: data de nascimento', data.birthDate],
+            ['Falecido: UF de naturalidade', data.naturalnessState],
+            ['Falecido: município de naturalidade', data.naturalnessCity],
+            ['Falecido: estado civil', data.maritalStatus], ['Falecido: data do óbito', data.deathDate],
+            ['Filiação 1: nome', filiation1.name], ['Filiação 1: sexo', filiation1.gender],
+            ['Filiação 2: nome', filiation2.name], ['Filiação 2: sexo', filiation2.gender],
+            ['Declarante: CPF', declarant.cpf], ['Declarante: nome', declarant.name],
+            ['Declarante: sexo', declarant.gender],
+        ];
+        const missing = required.filter(([, value]) => !String(value ?? '').trim()).map(([label]) => label);
+        if (missing.length)
+            throw new BadRequestException_1.default(`Preencha os campos obrigatórios: ${missing.join(', ')}.`, 422);
+        if (this.isTruthy(data.deceasedUnknown) || this.isTruthy(data.deathDateUnknown)) {
+            throw new BadRequestException_1.default('Informe o nome do falecido e a data do óbito.', 422);
+        }
+        for (const [label, person] of [['Falecido', deceased], ['Filiação 1', filiation1], ['Filiação 2', filiation2], ['Declarante', declarant]]) {
+            if (!['F', 'I', 'M', 'B', 'D'].includes(person.gender)) {
+                throw new BadRequestException_1.default(`${label}: sexo inválido.`, 422);
+            }
+        }
+        for (const [label, value] of [['Falecido: data de nascimento', data.birthDate], ['Falecido: data do óbito', data.deathDate]]) {
+            const date = String(value);
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !luxon_1.DateTime.fromISO(date).isValid) {
+                throw new BadRequestException_1.default(`${label} inválida.`, 422);
+            }
+        }
+        if (!this.isValidCpf(deceased.cpf))
+            throw new BadRequestException_1.default('Falecido: CPF inválido.', 422);
+        if (!this.isValidCpf(declarant.cpf))
+            throw new BadRequestException_1.default('Declarante: CPF inválido.', 422);
     }
     buildPublicMarriageConfirmationBody() {
         return 'Seus dados foram enviados para Habilitação de casamento com sucesso.';
@@ -814,6 +910,136 @@ class PublicOrderCertificatesController {
         }
         await link.save();
         return response.status(200).send(this.serializeManageLink(link));
+    }
+    async manageVitalLink({ auth, params, response }) {
+        const type = this.vitalType(params.type);
+        if (!type)
+            return response.notFound();
+        const authenticate = await this.assertPublicMarriageLinkPermission(auth, response);
+        if (!authenticate)
+            return;
+        return response.ok(this.serializeManageLink(await this.getOrCreateVitalLink(authenticate.companies_id, type)));
+    }
+    async toggleVitalLink({ auth, params, request, response }) {
+        const type = this.vitalType(params.type);
+        if (!type)
+            return response.notFound();
+        const authenticate = await this.assertPublicMarriageLinkPermission(auth, response);
+        if (!authenticate)
+            return;
+        const payload = await request.validate({ schema: Validator_1.schema.create({
+                active: Validator_1.schema.boolean.optional(),
+                formSettings: Validator_1.schema.object.optional().members({
+                    finalObservation: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(5000)]),
+                }),
+            }) });
+        const link = await this.getOrCreateVitalLink(authenticate.companies_id, type);
+        if (payload.active !== undefined)
+            link.active = payload.active;
+        if (payload.formSettings !== undefined)
+            link.formSettings = this.normalizePublicFormSettings(payload.formSettings);
+        await link.save();
+        return response.ok(this.serializeManageLink(link));
+    }
+    async showVital({ params, request, response }) {
+        const type = this.vitalType(params.type);
+        if (!type)
+            return response.notFound();
+        const link = await this.getActiveVitalLink(type, params.token);
+        if (!link?.company)
+            return response.notFound({ message: 'Formulário público não encontrado ou inativo' });
+        return {
+            type, active: true,
+            company: { name: link.company.name, shortname: link.company.shortname, city: link.company.city, state: link.company.state },
+            formSettings: this.normalizePublicFormSettings(link.formSettings),
+            humanChallenge: this.createPublicHumanChallenge(params.token, this.getPublicRequestIp(request)),
+        };
+    }
+    async visionOcrVitalDocument({ params, request, response }) {
+        const type = this.vitalType(params.type);
+        if (!type)
+            return response.notFound();
+        const link = await this.getActiveVitalLink(type, params.token);
+        if (!link?.company)
+            return response.notFound({ message: 'Formulário público não encontrado ou inativo' });
+        try {
+            this.assertPublicOcrRateLimit(params.token, this.getPublicRequestIp(request));
+            const documentType = String(request.input('documentType') || '');
+            const allowed = type === 'birth'
+                ? ['DocumentRegistered', 'DnvDocument', 'DocumentFiliation1', 'ProofResidenceFiliation1', 'DocumentFiliation2', 'ProofResidenceFiliation2', 'DocumentDeclarant', 'ProofResidenceDeclarant']
+                : ['DocumentDeceased', 'DocumentDeclarant'];
+            if (!allowed.includes(documentType))
+                return response.badRequest({ message: 'Tipo de anexo inválido.' });
+            const file = request.file('file', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] });
+            if (!file?.isValid || !file.tmpPath)
+                return response.badRequest({ message: 'Envie uma imagem JPG/PNG ou PDF de até 8 MB.' });
+            const fs = await Promise.resolve().then(() => __importStar(require('fs/promises')));
+            return response.ok(await (0, BirthDocumentExtraction_1.extractBirthDocument)({
+                fileBuffer: await fs.readFile(file.tmpPath), fileName: file.clientName || '',
+                documentType, companiesId: link.companiesId, userId: null,
+            }));
+        }
+        catch (error) {
+            if (error instanceof BadRequestException_1.default)
+                return response.status(error.status).send({ message: error.message });
+            if (error instanceof Error && error.message === 'AI_NOT_CONFIGURED')
+                return response.serviceUnavailable({ message: 'Leitura automática indisponível no momento.' });
+            console.error('ERRO PUBLIC VITAL OCR:', error);
+            return response.internalServerError({ message: 'Não foi possível ler o documento. Preencha manualmente.' });
+        }
+    }
+    async storeVital({ params, request, response }) {
+        const type = this.vitalType(params.type);
+        if (!type)
+            return response.notFound();
+        const link = await this.getActiveVitalLink(type, params.token);
+        if (!link?.company)
+            return response.notFound({ message: 'Formulário público não encontrado ou inativo' });
+        try {
+            const requestIp = this.getPublicRequestIp(request);
+            this.assertPublicSubmitRateLimit(params.token, requestIp);
+            const body = request.body();
+            this.assertPublicHumanChallenge(params.token, requestIp, body);
+            if (!this.isTruthy(body.lgpdConsentAccepted))
+                throw new BadRequestException_1.default('É necessário aceitar o uso dos dados pessoais e documentos.', 422);
+            const field = type === 'birth' ? 'bornCertificate' : 'deathCertificate';
+            const data = this.parseJsonFieldOrFail(response, body[field], field);
+            if (!data || typeof data !== 'object' || Array.isArray(data))
+                return response.badRequest({ message: 'Dados do formulário inválidos.' });
+            if (type === 'birth')
+                this.assertPublicBirthFields(data);
+            if (type === 'death')
+                this.assertPublicDeathFields(data);
+            const bookId = type === 'birth' ? 3 : 4;
+            const orderCertificate = await Database_1.default.transaction(async (trx) => {
+                const certificateId = await new OrderCertificatesController_1.default().savePublicVitalCertificate(type, data, link.companiesId, trx);
+                const order = new OrderCertificate_1.default();
+                order.useTransaction(trx);
+                order.merge({ certificateId, bookId, companiesId: link.companiesId, typeCertificate: bookId,
+                    origin: 'public', publicOrderCertificateLinkId: link.id, lgpdConsentAccepted: true,
+                    lgpdConsentAcceptedAt: luxon_1.DateTime.now(), publicRequestIp: requestIp,
+                    publicRequestUserAgent: String(request.header('user-agent') ?? '').slice(0, 500) || null });
+                await order.save();
+                return order;
+            });
+            const fileFields = type === 'birth'
+                ? [{ field: 'DocumentRegistered', description: 'DocRegistrado' }, { field: 'DnvDocument', description: 'DNV' }, { field: 'DocumentFiliation1', description: 'DocFiliacao1' }, { field: 'ProofResidenceFiliation1', description: 'ResidenciaFiliacao1' }, { field: 'DocumentFiliation2', description: 'DocFiliacao2' }, { field: 'ProofResidenceFiliation2', description: 'ResidenciaFiliacao2' }, { field: 'DocumentDeclarant', description: 'DocDeclarante' }, { field: 'ProofResidenceDeclarant', description: 'ResidenciaDeclarante' }]
+                : [{ field: 'DocumentDeceased', description: 'DocFalecido' }, { field: 'DocumentDeclarant', description: 'DocDeclarante' }, { field: 'DeathDeclaration', description: 'DeclaracaoObito' }];
+            for (const cfg of fileFields) {
+                const file = request.file(cfg.field, { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] });
+                if (file)
+                    await (0, uploadImages_1.uploadImage)({ companiesId: link.companiesId,
+                        ...(type === 'birth' ? { bornCertificateId: orderCertificate.certificateId } : { deathCertificateId: orderCertificate.certificateId }),
+                        file, description: cfg.description });
+            }
+            return response.created({ id: orderCertificate.id, message: 'Solicitação enviada com sucesso' });
+        }
+        catch (error) {
+            if (error instanceof BadRequestException_1.default)
+                return response.status(error.status).send({ message: error.message });
+            console.error('ERRO PUBLIC VITAL STORE:', error);
+            return response.internalServerError({ message: 'Erro ao enviar solicitação pública.' });
+        }
     }
     async visionOcrMarriageDocument({ params, request, response }) {
         const link = await this.getActiveMarriageLink(params.token);

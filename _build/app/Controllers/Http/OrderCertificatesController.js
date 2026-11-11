@@ -237,7 +237,7 @@ class OrderCertificatesController {
             : date.endOf('day');
         return normalized.toFormat('yyyy-LL-dd HH:mm:ss');
     }
-    async upsertPerson(personData, companiesId, trx) {
+    async upsertPerson(personData, companiesId, trx, publicSubmission = false) {
         if (!personData)
             return null;
         const hasAny = String(personData?.name ?? '').trim() !== '' ||
@@ -248,10 +248,10 @@ class OrderCertificatesController {
             String(personData?.address ?? '').trim() !== '' ||
             String(personData?.dateDeath ?? '').trim() !== '' ||
             personData?.deceased === true ||
-            this.toNumber(personData?.id) !== null;
+            (!publicSubmission && this.toNumber(personData?.id) !== null);
         if (!hasAny)
             return null;
-        const personId = this.toNumber(personData?.id);
+        const personId = publicSubmission ? null : this.toNumber(personData?.id);
         const cpf = this.normalizeCpfValue(personData?.cpf);
         let person;
         if (personId) {
@@ -264,6 +264,8 @@ class OrderCertificatesController {
                     .where('cpf', cpf)
                     .first()
                 : null;
+            if (publicSubmission && existingByCpf)
+                return existingByCpf;
             person = existingByCpf ?? new Person_1.default();
         }
         person.useTransaction(trx);
@@ -441,23 +443,23 @@ class OrderCertificatesController {
             throw error;
         }
     }
-    async saveBorn(bornData, companiesId, usrId, trx) {
+    async saveBorn(bornData, companiesId, usrId, trx, publicSubmission = false) {
         try {
-            const registered = await this.upsertPerson(bornData.registered, companiesId, trx);
+            const registered = await this.upsertPerson(bornData.registered, companiesId, trx, publicSubmission);
             if (!registered)
                 throw new Error('Registered (registrado) é obrigatório');
-            const filiation1 = await this.upsertPerson(bornData.filiation1, companiesId, trx);
-            const filiation2 = await this.upsertPerson(bornData.filiation2, companiesId, trx);
+            const filiation1 = await this.upsertPerson(bornData.filiation1, companiesId, trx, publicSubmission);
+            const filiation2 = await this.upsertPerson(bornData.filiation2, companiesId, trx, publicSubmission);
             const supposedFatherEnabled = this.toBoolean(bornData.supposedFatherEnabled);
             const supposedFatherHasResidence = supposedFatherEnabled && this.toBoolean(bornData.supposedFatherHasResidence);
             const supposedFatherData = bornData.supposedFather && !supposedFatherHasResidence
                 ? { ...bornData.supposedFather, zipCode: '', address: '', streetNumber: '', district: '', city: '', state: '' }
                 : bornData.supposedFather;
             const supposedFather = supposedFatherEnabled
-                ? await this.upsertPerson(supposedFatherData, companiesId, trx)
+                ? await this.upsertPerson(supposedFatherData, companiesId, trx, publicSubmission)
                 : null;
-            const declarant = await this.upsertPerson(bornData.declarant, companiesId, trx);
-            const bornCertificateId = this.toNumber(bornData.id);
+            const declarant = await this.upsertPerson(bornData.declarant, companiesId, trx, publicSubmission);
+            const bornCertificateId = publicSubmission ? null : this.toNumber(bornData.id);
             let bornCertificate;
             if (bornCertificateId) {
                 bornCertificate = await BornCertificate_1.default.findOrFail(bornCertificateId, { client: trx });
@@ -544,7 +546,7 @@ class OrderCertificatesController {
             throw error;
         }
     }
-    async saveDeath(deathData, companiesId, usrId, trx) {
+    async saveDeath(deathData, companiesId, usrId, trx, publicSubmission = false) {
         try {
             const deceasedUnknown = this.toBoolean(deathData.deceasedUnknown);
             const deceasedData = deathData.deceased
@@ -556,14 +558,14 @@ class OrderCertificatesController {
                     maritalStatus: deathData.deceased.maritalStatus ?? deathData.maritalStatus ?? null,
                 }
                 : null;
-            const deceased = await this.upsertPerson(deceasedData, companiesId, trx);
+            const deceased = await this.upsertPerson(deceasedData, companiesId, trx, publicSubmission);
             if (!deceased && !deceasedUnknown) {
                 throw new Error('Deceased (falecido) é obrigatório');
             }
-            const filiation1 = await this.upsertPerson(deathData.filiation1, companiesId, trx);
-            const filiation2 = await this.upsertPerson(deathData.filiation2, companiesId, trx);
-            const declarant = await this.upsertPerson(deathData.declarant, companiesId, trx);
-            const deathCertificateId = this.toNumber(deathData.id);
+            const filiation1 = await this.upsertPerson(deathData.filiation1, companiesId, trx, publicSubmission);
+            const filiation2 = await this.upsertPerson(deathData.filiation2, companiesId, trx, publicSubmission);
+            const declarant = await this.upsertPerson(deathData.declarant, companiesId, trx, publicSubmission);
+            const deathCertificateId = publicSubmission ? null : this.toNumber(deathData.id);
             let deathCertificate;
             if (deathCertificateId) {
                 deathCertificate = await DeathCertificate_1.default.findOrFail(deathCertificateId, { client: trx });
@@ -666,6 +668,16 @@ class OrderCertificatesController {
             console.error('ERRO AO SALVAR DEATH:', error);
             throw error;
         }
+    }
+    async savePublicVitalCertificate(type, data, companiesId, trx) {
+        const clean = { ...data, id: null, inactive: false, statusId: null, statusForm: 'draft' };
+        for (const key of ['registered', 'deceased', 'filiation1', 'filiation2', 'supposedFather', 'declarant']) {
+            if (clean[key] && typeof clean[key] === 'object')
+                clean[key] = { ...clean[key], id: null };
+        }
+        return type === 'birth'
+            ? this.saveBorn(clean, companiesId, null, trx, true)
+            : this.saveDeath(clean, companiesId, null, trx, true);
     }
     async index({ auth, request }) {
         const authenticate = await auth.use('api').authenticate();
