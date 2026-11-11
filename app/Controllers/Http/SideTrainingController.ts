@@ -447,8 +447,34 @@ export default class SideTrainingController {
     return this.changeBase(ctx, 'delete')
   }
 
+  public async resetBases(ctx: HttpContextContract) {
+    const { user, typebooksId } = await this.access(ctx)
+    if (!user.superuser) throw new BadRequestException('Somente superusuários podem limpar as bases de treinamento', 403, 'side_training_reset_superuser_required')
+    if (ctx.request.input('confirm') !== true) throw new BadRequestException('Confirme a exclusão das bases deste conjunto', 422)
+    const deleted = await Database.transaction(async (trx) => {
+      await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
+      const models = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id)
+        .andWhere('typebooks_id', typebooksId).forUpdate()
+      if (models.some((row) => ['queued', 'training'].includes(row.status))) throw new BadRequestException('Aguarde os treinamentos em andamento antes de limpar as bases', 409)
+      if (!models.length) return 0
+
+      for (const book of new Set(models.map((row) => row.book))) {
+        const file = Application.resourcesPath(`side-models/${user.companies_id}-${typebooksId}-${book}.json`)
+        try {
+          const legacy = JSON.parse(await fs.readFile(file, 'utf8'))
+          if (legacy.company_id === user.companies_id && legacy.typebook_id === typebooksId && legacy.book === book) await fs.unlink(file)
+        } catch (error) { if (error.code !== 'ENOENT') throw error }
+      }
+
+      await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).delete()
+      return models.length
+    })
+    return ctx.response.ok({ deleted, message: `${deleted} versão(ões) de base removida(s). Registros, imagens e marcações foram preservados.` })
+  }
+
   private async changeBase(ctx: HttpContextContract, action: 'archive' | 'restore' | 'delete') {
     const { user, typebooksId } = await this.access(ctx)
+    if (action === 'delete' && !user.superuser) throw new BadRequestException('Somente superusuários podem excluir bases de treinamento', 403, 'side_training_delete_superuser_required')
     const modelId = Number(ctx.params.model_id)
     if (!Number.isInteger(modelId) || modelId <= 0) throw new BadRequestException('Base inválida', 422)
     await Database.transaction(async (trx) => {
