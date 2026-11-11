@@ -26,6 +26,7 @@ export default class IndeximageSideModel extends BaseModel {
   @column() public typebooks_id: number
   @column() public book: number
   @column(jsonColumn) public source_books: number[] | null
+  @column() public validation_accuracy_threshold: number | null
   @column() public source_model_id: number | null
   @column() public version: string
   @column() public status: string

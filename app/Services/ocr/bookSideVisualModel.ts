@@ -10,6 +10,7 @@ export type BookSideVisualModel = {
   source_model_id?: number | null
   source_book?: number | null
   source_books?: number[]
+  validation_accuracy_threshold?: number | null
   training_updated?: boolean
   active?: boolean
   validation_label_ids?: number[]
@@ -39,7 +40,7 @@ export async function loadBookSideVisualModel(companyId: number, typebookId: num
     if (options.modelId) query.andWhere('id', options.modelId)
     else if (!options.candidate) query.andWhere('active_slot', 1)
     const stored = await query.orderByRaw('CASE WHEN JSON_LENGTH(source_books) > 1 THEN 0 ELSE 1 END').orderBy('id', 'desc').first()
-    if (stored?.model_data) return { ...stored.model_data, model_id: stored.id, source_model_id: stored.source_model_id || stored.model_data.source_model_id || null, source_books: stored.source_books || stored.model_data.source_books || [stored.model_data.source_book || stored.book], active: stored.active_slot === 1, validation_label_ids: stored.validation_label_ids || [] }
+    if (stored?.model_data) return { ...stored.model_data, model_id: stored.id, source_model_id: stored.source_model_id || stored.model_data.source_model_id || null, source_books: stored.source_books || stored.model_data.source_books || [stored.model_data.source_book || stored.book], active: stored.active_slot === 1, validation_label_ids: stored.validation_label_ids || [], validation_accuracy_threshold: stored.validation_accuracy_threshold ?? stored.model_data.validation_accuracy_threshold ?? null }
     if (options.modelId) return null
   } catch (error) {
     if (error.code !== 'ER_NO_SUCH_TABLE' && error.errno !== 1146) throw error
@@ -140,7 +141,7 @@ export async function bookSideVisualReadiness(model: BookSideVisualModel, lineag
         .andWhere('typebooks_id', model.typebook_id).andWhere('status', 'ready').first()
       const sourceData = source?.model_data
       if (sourceData && source) {
-        const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [] }, nextLineage)
+        const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [], validation_accuracy_threshold: source.validation_accuracy_threshold }, nextLineage)
         const sameWeights = sourceData.extractor_sha256 === model.extractor_sha256
           && sourceData.bias === model.bias && sourceData.weights.length === model.weights.length
           && sourceData.weights.every((weight, index) => weight === model.weights[index])
@@ -183,8 +184,13 @@ export async function bookSideVisualReadiness(model: BookSideVisualModel, lineag
   }).length
   const sides = { F: validation.filter((row) => row.label === 'F').length, V: validation.filter((row) => row.label === 'V').length }
   const required = model.source_model_id && !model.training_updated ? 10 : 40
-  const complete = validation.length >= required && correct === validation.length && sides.F >= 5 && sides.V >= 5
-  return { ready: trainingUnchanged && complete, trainingUnchanged, total: validation.length, required, correct, sides }
+  const defaultThreshold = validationBooks.length > 1 ? 80 : 100
+  const configuredThreshold = Number(model.validation_accuracy_threshold)
+  const accuracyThreshold = [80, 85, 90, 95, 100].includes(configuredThreshold) ? configuredThreshold : defaultThreshold
+  const requiredAccuracy = Math.ceil(required * accuracyThreshold / 100)
+  const processed = validation.filter((row) => row.side_processed_at).length
+  const complete = validation.length >= required && processed >= required && correct >= requiredAccuracy && sides.F >= 5 && sides.V >= 5
+  return { ready: complete && (validationBooks.length > 1 || trainingUnchanged), trainingUnchanged, total: validation.length, required, correct, sides }
 }
 
 export async function bookSideModelRegistry(companyId: number, typebookId: number, book: number) {

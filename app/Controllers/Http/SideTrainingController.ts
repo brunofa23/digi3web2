@@ -201,6 +201,8 @@ export default class SideTrainingController {
     }
     const completed = visibleRows.length > 0 && visibleRows.every((row) => row.label !== null)
     const modelReadiness = model ? await bookSideVisualReadiness(model) : null
+    const sharedValidation = Boolean(model && (!model.source_model_id || model.training_updated) && (model.source_books?.length || 0) > 1)
+    const validationAccuracyThreshold = model?.validation_accuracy_threshold ?? (sharedValidation ? 80 : 100)
     const audit = completed ? { matches: 0, divergent: 0, missing: 0, inconclusive: 0, cases: [] as any[] } : null
     const evaluation = book !== null && visibleRows.length
       ? { method: stage === 'validation' ? `Modelo visual ${model!.version}` : 'Regra atual de bordas', correct: 0, wrong: 0, not_found: 0, not_processed: 0, pending: 0, excluded: 0 }
@@ -306,6 +308,8 @@ export default class SideTrainingController {
         validation_ready: modelReadiness!.ready,
         validation_total: modelReadiness!.total,
         validation_required: modelReadiness!.required,
+        validation_accuracy_threshold: validationAccuracyThreshold,
+        validation_required_accuracy: Math.ceil(modelReadiness!.required * validationAccuracyThreshold / 100),
         source_books: model.source_books || [model.source_book || model.book],
         training_updated: Boolean(model.training_updated),
         validation_correct: modelReadiness!.correct,
@@ -320,6 +324,30 @@ export default class SideTrainingController {
     if (!book) throw new BadRequestException('Selecione um livro', 422)
     const registry = await bookSideModelRegistry(user.companies_id, typebooksId, book)
     return ctx.response.ok({ available: registry.available, models: registry.records.map(sideModelSummary), training_job: registry.records[0] ? sideModelSummary(registry.records[0]) : null })
+  }
+
+  public async updateValidationAccuracyThreshold(ctx: HttpContextContract) {
+    const { user, typebooksId } = await this.access(ctx)
+    const modelId = Number(ctx.params.model_id)
+    const book = this.requestedBook(ctx)
+    const threshold = Number(ctx.request.input('threshold'))
+    if (!Number.isInteger(modelId) || modelId <= 0 || !book) throw new BadRequestException('Modelo ou livro inválido', 422)
+    if (![80, 85, 90, 95, 100].includes(threshold)) throw new BadRequestException('Escolha um mínimo de acertos entre 80% e 100%', 422)
+
+    const stored = await IndeximageSideModel.query().where('id', modelId)
+      .andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
+      .andWhere('book', book).andWhere('status', 'ready').whereNull('archived_at').first()
+    if (!stored?.model_data) throw new BadRequestException('Modelo não encontrado ou ainda não treinado', 404)
+    if (stored.active_slot === 1) throw new BadRequestException('O critério de aprovação não pode ser alterado após ativar a base', 409)
+    const sourceBooks = stored.source_books || stored.model_data.source_books || [stored.book]
+    const sharedValidation = sourceBooks.length > 1 && (!stored.source_model_id || stored.model_data.training_updated)
+    if (!sharedValidation) throw new BadRequestException('O percentual configurável está disponível somente para bases compartilhadas', 422)
+
+    stored.validation_accuracy_threshold = threshold
+    await stored.save()
+    const model = await loadBookSideVisualModel(user.companies_id, typebooksId, book, { candidate: true, modelId })
+    const readiness = model ? await bookSideVisualReadiness(model) : null
+    return ctx.response.ok({ threshold, ready: Boolean(readiness?.ready), correct: readiness?.correct || 0, total: readiness?.total || 0, required: readiness?.required || 40 })
   }
 
   public async bookDivergences(ctx: HttpContextContract) {
@@ -469,7 +497,7 @@ export default class SideTrainingController {
         .andWhere('status', 'ready').andWhere('active_slot', 1).whereNull('archived_at').forUpdate().first()
       if (!source?.model_data) throw new BadRequestException('O modelo-base não está validado ou disponível', 404)
       if (Number(source.book) === book) throw new BadRequestException('Escolha um livro diferente do livro-base', 422)
-      const readiness = await bookSideVisualReadiness({ ...source.model_data, model_id: source.id, validation_label_ids: source.validation_label_ids || [] })
+      const readiness = await bookSideVisualReadiness({ ...source.model_data, model_id: source.id, validation_label_ids: source.validation_label_ids || [], validation_accuracy_threshold: source.validation_accuracy_threshold })
       if (!readiness.ready) throw new BadRequestException('O modelo-base precisa continuar validado antes de ser reutilizado', 409)
 
       const busy = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id)
@@ -492,6 +520,7 @@ export default class SideTrainingController {
         companies_id: user.companies_id, typebooks_id: typebooksId, book, source_model_id: source.id,
         version, status: 'ready', phase: 'ready', total: source.total, processed: source.total,
         training_samples: source.training_samples, validation_label_ids: [], model_data: modelData, source_books: modelData.source_books,
+        validation_accuracy_threshold: source.validation_accuracy_threshold,
         requested_by: user.id, active_slot: 1, finished_at: DateTime.utc(),
       }, { client: trx })
     })
@@ -505,8 +534,11 @@ export default class SideTrainingController {
     if (!book) throw new BadRequestException('Selecione um livro para treinar', 422)
     const sampleSize = this.requestedSampleSize(ctx)
     const sourceBooks = this.requestedSourceBooks(ctx, book)
-    if (sourceBooks.length > sampleSize) throw new BadRequestException('Há mais livros do que imagens na amostra. Aumente a amostra ou divida os livros em bases', 422)
     const { registry, model } = await this.modelContext(ctx, user.companies_id, typebooksId, book)
+    const existingBooks = model?.source_books || (model ? [model.book] : [])
+    const reusingSameBase = Boolean(model?.model_id && existingBooks.length === sourceBooks.length
+      && existingBooks.every((sourceBook) => sourceBooks.includes(sourceBook)))
+    if (sourceBooks.length > sampleSize && !reusingSameBase) throw new BadRequestException('Há mais livros do que imagens na amostra. Aumente a amostra ou divida os livros em bases', 422)
     if (!registry.available) throw new BadRequestException('O treinamento ainda não foi habilitado neste servidor. Contate o administrador', 503)
     const job = await Database.transaction(async (trx) => {
       await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
@@ -541,7 +573,7 @@ export default class SideTrainingController {
       return IndeximageSideModel.create({ companies_id: user.companies_id, typebooks_id: typebooksId, book,
         version: `sv-${crypto.randomUUID()}`, status: 'queued', phase: 'queued', total: trainingLabels.length, processed: 0, source_books: sourceBooks, source_model_id: model?.model_id || null,
         training_samples: trainingLabels.map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), book: Number(label.book), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
-        validation_label_ids: retainedValidation.map((row) => Number(row.id)), requested_by: user.id,
+        validation_label_ids: retainedValidation.map((row) => Number(row.id)), validation_accuracy_threshold: model?.validation_accuracy_threshold ?? null, requested_by: user.id,
       }, { client: trx })
     })
     wakeBookSideTrainingWorker()
@@ -559,7 +591,12 @@ export default class SideTrainingController {
       await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
       const candidate = await this.storeLegacyModel(context.model!, user.id, trx)
       const readiness = await bookSideVisualReadiness(candidate)
-      if (!readiness.ready) throw new BadRequestException(`Conclua a validação independente de pelo menos ${readiness.required} imagens conclusivas, incluindo cinco frentes e cinco versos, sem erros, antes de ativar`, 422)
+      if (!readiness.ready) {
+        const sourceBooks = candidate.source_books || [candidate.book]
+        const threshold = sourceBooks.length > 1 ? candidate.validation_accuracy_threshold ?? 80 : 100
+        const requiredCorrect = Math.ceil(readiness.required * threshold / 100)
+        throw new BadRequestException(`Para ativar, avalie ${readiness.required} imagens e alcance ${requiredCorrect} acertos (${threshold}%), com ao menos cinco frentes e cinco versos`, 422)
+      }
       await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).andWhere('active_slot', 1).update({ active_slot: null })
       await IndeximageSideModel.query({ client: trx }).where('id', candidate.model_id!).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).andWhere('status', 'ready').update({ active_slot: 1 })
       return candidate
