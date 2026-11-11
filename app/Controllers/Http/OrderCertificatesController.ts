@@ -270,7 +270,8 @@ export default class OrderCertificatesController {
   private async upsertPerson(
     personData: any | null | undefined,
     companiesId: number,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    publicSubmission = false
   ): Promise<Person | null> {
     // Se não tem nada relevante, não faz nada
     if (!personData) return null
@@ -284,11 +285,11 @@ export default class OrderCertificatesController {
       String(personData?.address ?? '').trim() !== '' ||
       String(personData?.dateDeath ?? '').trim() !== '' ||
       personData?.deceased === true ||
-      this.toNumber(personData?.id) !== null
+      (!publicSubmission && this.toNumber(personData?.id) !== null)
 
     if (!hasAny) return null
 
-    const personId = this.toNumber(personData?.id)
+    const personId = publicSubmission ? null : this.toNumber(personData?.id)
     const cpf = this.normalizeCpfValue(personData?.cpf)
 
     let person: Person
@@ -302,6 +303,7 @@ export default class OrderCertificatesController {
           .where('cpf', cpf)
           .first()
         : null
+      if (publicSubmission && existingByCpf) return existingByCpf
       person = existingByCpf ?? new Person()
     }
 
@@ -554,25 +556,26 @@ export default class OrderCertificatesController {
     bornData: any,
     companiesId: number,
     usrId: number | null,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    publicSubmission = false
   ): Promise<number> {
     try {
-      const registered = await this.upsertPerson(bornData.registered, companiesId, trx)
+      const registered = await this.upsertPerson(bornData.registered, companiesId, trx, publicSubmission)
       if (!registered) throw new Error('Registered (registrado) é obrigatório')
 
-      const filiation1 = await this.upsertPerson(bornData.filiation1, companiesId, trx)
-      const filiation2 = await this.upsertPerson(bornData.filiation2, companiesId, trx)
+      const filiation1 = await this.upsertPerson(bornData.filiation1, companiesId, trx, publicSubmission)
+      const filiation2 = await this.upsertPerson(bornData.filiation2, companiesId, trx, publicSubmission)
       const supposedFatherEnabled = this.toBoolean(bornData.supposedFatherEnabled)
       const supposedFatherHasResidence = supposedFatherEnabled && this.toBoolean(bornData.supposedFatherHasResidence)
       const supposedFatherData = bornData.supposedFather && !supposedFatherHasResidence
         ? { ...bornData.supposedFather, zipCode: '', address: '', streetNumber: '', district: '', city: '', state: '' }
         : bornData.supposedFather
       const supposedFather = supposedFatherEnabled
-        ? await this.upsertPerson(supposedFatherData, companiesId, trx)
+        ? await this.upsertPerson(supposedFatherData, companiesId, trx, publicSubmission)
         : null
-      const declarant = await this.upsertPerson(bornData.declarant, companiesId, trx)
+      const declarant = await this.upsertPerson(bornData.declarant, companiesId, trx, publicSubmission)
 
-      const bornCertificateId = this.toNumber(bornData.id)
+      const bornCertificateId = publicSubmission ? null : this.toNumber(bornData.id)
 
       let bornCertificate: BornCertificate
       if (bornCertificateId) {
@@ -675,7 +678,8 @@ export default class OrderCertificatesController {
     deathData: any,
     companiesId: number,
     usrId: number | null,
-    trx: TransactionClientContract
+    trx: TransactionClientContract,
+    publicSubmission = false
   ): Promise<number> {
     try {
       const deceasedUnknown = this.toBoolean(deathData.deceasedUnknown)
@@ -689,16 +693,16 @@ export default class OrderCertificatesController {
           }
         : null
 
-      const deceased = await this.upsertPerson(deceasedData, companiesId, trx)
+      const deceased = await this.upsertPerson(deceasedData, companiesId, trx, publicSubmission)
       if (!deceased && !deceasedUnknown) {
         throw new Error('Deceased (falecido) é obrigatório')
       }
 
-      const filiation1 = await this.upsertPerson(deathData.filiation1, companiesId, trx)
-      const filiation2 = await this.upsertPerson(deathData.filiation2, companiesId, trx)
-      const declarant = await this.upsertPerson(deathData.declarant, companiesId, trx)
+      const filiation1 = await this.upsertPerson(deathData.filiation1, companiesId, trx, publicSubmission)
+      const filiation2 = await this.upsertPerson(deathData.filiation2, companiesId, trx, publicSubmission)
+      const declarant = await this.upsertPerson(deathData.declarant, companiesId, trx, publicSubmission)
 
-      const deathCertificateId = this.toNumber(deathData.id)
+      const deathCertificateId = publicSubmission ? null : this.toNumber(deathData.id)
       let deathCertificate: DeathCertificate
 
       if (deathCertificateId) {
@@ -809,6 +813,21 @@ export default class OrderCertificatesController {
       console.error('ERRO AO SALVAR DEATH:', error)
       throw error
     }
+  }
+
+  public async savePublicVitalCertificate(
+    type: 'birth' | 'death',
+    data: any,
+    companiesId: number,
+    trx: TransactionClientContract
+  ): Promise<number> {
+    const clean = { ...data, id: null, inactive: false, statusId: null, statusForm: 'draft' }
+    for (const key of ['registered', 'deceased', 'filiation1', 'filiation2', 'supposedFather', 'declarant']) {
+      if (clean[key] && typeof clean[key] === 'object') clean[key] = { ...clean[key], id: null }
+    }
+    return type === 'birth'
+      ? this.saveBorn(clean, companiesId, null, trx, true)
+      : this.saveDeath(clean, companiesId, null, trx, true)
   }
 
   // =====================================================
