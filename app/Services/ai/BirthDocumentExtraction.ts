@@ -79,7 +79,7 @@ export async function extractBirthDocument(input: {
   fileName: string
   documentType: string
   companiesId: number
-  userId: number
+  userId: number | null
 }) {
   const fields = documentFields[input.documentType]
   if (!fields) throw new Error('INVALID_DOCUMENT_TYPE')

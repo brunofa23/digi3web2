@@ -14,9 +14,12 @@ import MarriedCertificate from 'App/Models/MarriedCertificate'
 import PublicOrderCertificateLink from 'App/Models/PublicOrderCertificateLink'
 import { uploadImage } from 'App/Services/uploads/uploadImages'
 import { extractMarriageDocument } from 'App/Services/ai/MarriageDocumentExtraction'
+import { extractBirthDocument } from 'App/Services/ai/BirthDocumentExtraction'
+import OrderCertificatesController from './OrderCertificatesController'
 import { verifyPermission } from 'App/Services/util'
 
 const MARRIAGE_LINK_TYPE = 'marriage'
+type VitalLinkType = 'birth' | 'death'
 const PUBLIC_SUBMIT_RATE_LIMIT_MAX = 5
 const PUBLIC_SUBMIT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000
 const PUBLIC_OCR_RATE_LIMIT_MAX = 20
@@ -343,7 +346,7 @@ export default class PublicOrderCertificatesController {
     const permissions = auth.use('api').token?.meta.payload.permissions || []
 
     if (!verifyPermission(Boolean(authenticate.superuser), permissions, PUBLIC_MARRIAGE_LINK_PERMISSION_ID)) {
-      response.forbidden({ message: 'Acesso permitido apenas para usuários com permissão de link público de casamento' })
+      response.forbidden({ message: 'Acesso permitido apenas para usuários com permissão de links públicos de certidões' })
       return null
     }
 
@@ -385,6 +388,27 @@ export default class PublicOrderCertificatesController {
     }
 
     return link
+  }
+
+  private vitalType(value: string): VitalLinkType | null {
+    return value === 'birth' || value === 'death' ? value : null
+  }
+
+  private async getOrCreateVitalLink(companiesId: number, type: VitalLinkType) {
+    let link = await PublicOrderCertificateLink.query()
+      .where('companies_id', companiesId).where('type', type).first()
+    if (!link) {
+      link = await PublicOrderCertificateLink.create({
+        companiesId, type, token: crypto.randomBytes(32).toString('hex'), active: true,
+      })
+    }
+    return link
+  }
+
+  private async getActiveVitalLink(type: VitalLinkType, token: string) {
+    return PublicOrderCertificateLink.query()
+      .where('type', type).where('token', token).where('active', true)
+      .preload('company').first()
   }
 
   private toNumber(v: any): number | null {
@@ -451,6 +475,84 @@ export default class PublicOrderCertificatesController {
     if (secondCheck === 10 || secondCheck === 11) secondCheck = 0
 
     return secondCheck === Number(cpf[10])
+  }
+
+  private assertPublicBirthFields(data: any) {
+    const registered = data.registered || {}
+    const required = [
+      ['Registrado: nome', registered.name],
+      ['Registrado: sexo', registered.gender],
+      ['Registrado: data de nascimento', data.birthDate],
+      ['Registrado: nacionalidade', registered.nationality],
+      ['Registrado: DNV', data.dnvNumber],
+    ]
+    const people: [string, any][] = [
+      ['Filiação 1', data.filiation1],
+      ['Filiação 2', data.filiation2],
+      ['Declarante', data.declarant],
+    ]
+    for (const [label, person] of people) {
+      required.push(
+        [`${label}: CPF`, person?.cpf],
+        [`${label}: nome`, person?.name],
+        [`${label}: sexo`, person?.gender],
+        [`${label}: data de nascimento`, person?.dateBirth],
+        [`${label}: nacionalidade`, person?.nationality]
+      )
+    }
+    const missing = required.filter(([, value]) => !String(value ?? '').trim()).map(([label]) => label)
+    if (missing.length) throw new BadRequestException(`Preencha os campos obrigatórios: ${missing.join(', ')}.`, 422)
+    if (this.isTruthy(data.dnvNotFound)) throw new BadRequestException('Registrado: informe o número da DNV.', 422)
+    for (const [label, person] of [['Registrado', registered], ...people] as [string, any][]) {
+      if (!['F', 'I', 'M', 'B', 'D'].includes(person.gender)) {
+        throw new BadRequestException(`${label}: sexo inválido.`, 422)
+      }
+    }
+    for (const [label, value] of [['Registrado', data.birthDate], ...people.map(([name, person]) => [name, person.dateBirth])] as [string, any][]) {
+      const date = String(value)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !DateTime.fromISO(date).isValid) {
+        throw new BadRequestException(`${label}: data de nascimento inválida.`, 422)
+      }
+    }
+    for (const [label, person] of people) {
+      if (!this.isValidCpf(person.cpf)) throw new BadRequestException(`${label}: CPF inválido.`, 422)
+    }
+  }
+
+  private assertPublicDeathFields(data: any) {
+    const deceased = data.deceased || {}
+    const filiation1 = data.filiation1 || {}
+    const filiation2 = data.filiation2 || {}
+    const declarant = data.declarant || {}
+    const required = [
+      ['Falecido: CPF', deceased.cpf], ['Falecido: nome', deceased.name],
+      ['Falecido: sexo', deceased.gender], ['Falecido: data de nascimento', data.birthDate],
+      ['Falecido: UF de naturalidade', data.naturalnessState],
+      ['Falecido: município de naturalidade', data.naturalnessCity],
+      ['Falecido: estado civil', data.maritalStatus], ['Falecido: data do óbito', data.deathDate],
+      ['Filiação 1: nome', filiation1.name], ['Filiação 1: sexo', filiation1.gender],
+      ['Filiação 2: nome', filiation2.name], ['Filiação 2: sexo', filiation2.gender],
+      ['Declarante: CPF', declarant.cpf], ['Declarante: nome', declarant.name],
+      ['Declarante: sexo', declarant.gender],
+    ]
+    const missing = required.filter(([, value]) => !String(value ?? '').trim()).map(([label]) => label)
+    if (missing.length) throw new BadRequestException(`Preencha os campos obrigatórios: ${missing.join(', ')}.`, 422)
+    if (this.isTruthy(data.deceasedUnknown) || this.isTruthy(data.deathDateUnknown)) {
+      throw new BadRequestException('Informe o nome do falecido e a data do óbito.', 422)
+    }
+    for (const [label, person] of [['Falecido', deceased], ['Filiação 1', filiation1], ['Filiação 2', filiation2], ['Declarante', declarant]] as [string, any][]) {
+      if (!['F', 'I', 'M', 'B', 'D'].includes(person.gender)) {
+        throw new BadRequestException(`${label}: sexo inválido.`, 422)
+      }
+    }
+    for (const [label, value] of [['Falecido: data de nascimento', data.birthDate], ['Falecido: data do óbito', data.deathDate]] as [string, any][]) {
+      const date = String(value)
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !DateTime.fromISO(date).isValid) {
+        throw new BadRequestException(`${label} inválida.`, 422)
+      }
+    }
+    if (!this.isValidCpf(deceased.cpf)) throw new BadRequestException('Falecido: CPF inválido.', 422)
+    if (!this.isValidCpf(declarant.cpf)) throw new BadRequestException('Declarante: CPF inválido.', 422)
   }
 
   private buildPublicMarriageConfirmationBody() {
@@ -915,6 +1017,117 @@ export default class PublicOrderCertificatesController {
     await link.save()
 
     return response.status(200).send(this.serializeManageLink(link))
+  }
+
+  public async manageVitalLink({ auth, params, response }: HttpContextContract) {
+    const type = this.vitalType(params.type)
+    if (!type) return response.notFound()
+    const authenticate = await this.assertPublicMarriageLinkPermission(auth, response)
+    if (!authenticate) return
+    return response.ok(this.serializeManageLink(await this.getOrCreateVitalLink(authenticate.companies_id, type)))
+  }
+
+  public async toggleVitalLink({ auth, params, request, response }: HttpContextContract) {
+    const type = this.vitalType(params.type)
+    if (!type) return response.notFound()
+    const authenticate = await this.assertPublicMarriageLinkPermission(auth, response)
+    if (!authenticate) return
+    const payload = await request.validate({ schema: schema.create({
+      active: schema.boolean.optional(),
+      formSettings: schema.object.optional().members({
+        finalObservation: schema.string.optional({ trim: true }, [rules.maxLength(5000)]),
+      }),
+    }) })
+    const link = await this.getOrCreateVitalLink(authenticate.companies_id, type)
+    if (payload.active !== undefined) link.active = payload.active
+    if (payload.formSettings !== undefined) link.formSettings = this.normalizePublicFormSettings(payload.formSettings)
+    await link.save()
+    return response.ok(this.serializeManageLink(link))
+  }
+
+  public async showVital({ params, request, response }: HttpContextContract) {
+    const type = this.vitalType(params.type)
+    if (!type) return response.notFound()
+    const link = await this.getActiveVitalLink(type, params.token)
+    if (!link?.company) return response.notFound({ message: 'Formulário público não encontrado ou inativo' })
+    return {
+      type, active: true,
+      company: { name: link.company.name, shortname: link.company.shortname, city: link.company.city, state: link.company.state },
+      formSettings: this.normalizePublicFormSettings(link.formSettings),
+      humanChallenge: this.createPublicHumanChallenge(params.token, this.getPublicRequestIp(request)),
+    }
+  }
+
+  public async visionOcrVitalDocument({ params, request, response }: HttpContextContract) {
+    const type = this.vitalType(params.type)
+    if (!type) return response.notFound()
+    const link = await this.getActiveVitalLink(type, params.token)
+    if (!link?.company) return response.notFound({ message: 'Formulário público não encontrado ou inativo' })
+    try {
+      this.assertPublicOcrRateLimit(params.token, this.getPublicRequestIp(request))
+      const documentType = String(request.input('documentType') || '')
+      const allowed = type === 'birth'
+        ? ['DocumentRegistered', 'DnvDocument', 'DocumentFiliation1', 'ProofResidenceFiliation1', 'DocumentFiliation2', 'ProofResidenceFiliation2', 'DocumentDeclarant', 'ProofResidenceDeclarant']
+        : ['DocumentDeceased', 'DocumentDeclarant']
+      if (!allowed.includes(documentType)) return response.badRequest({ message: 'Tipo de anexo inválido.' })
+      const file = request.file('file', { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] })
+      if (!file?.isValid || !file.tmpPath) return response.badRequest({ message: 'Envie uma imagem JPG/PNG ou PDF de até 8 MB.' })
+      const fs = await import('fs/promises')
+      return response.ok(await extractBirthDocument({
+        fileBuffer: await fs.readFile(file.tmpPath), fileName: file.clientName || '',
+        documentType, companiesId: link.companiesId, userId: null,
+      }))
+    } catch (error: any) {
+      if (error instanceof BadRequestException) return response.status(error.status).send({ message: error.message })
+      if (error instanceof Error && error.message === 'AI_NOT_CONFIGURED') return response.serviceUnavailable({ message: 'Leitura automática indisponível no momento.' })
+      console.error('ERRO PUBLIC VITAL OCR:', error)
+      return response.internalServerError({ message: 'Não foi possível ler o documento. Preencha manualmente.' })
+    }
+  }
+
+  public async storeVital({ params, request, response }: HttpContextContract) {
+    const type = this.vitalType(params.type)
+    if (!type) return response.notFound()
+    const link = await this.getActiveVitalLink(type, params.token)
+    if (!link?.company) return response.notFound({ message: 'Formulário público não encontrado ou inativo' })
+    try {
+      const requestIp = this.getPublicRequestIp(request)
+      this.assertPublicSubmitRateLimit(params.token, requestIp)
+      const body = request.body()
+      this.assertPublicHumanChallenge(params.token, requestIp, body)
+      if (!this.isTruthy(body.lgpdConsentAccepted)) throw new BadRequestException('É necessário aceitar o uso dos dados pessoais e documentos.', 422)
+      const field = type === 'birth' ? 'bornCertificate' : 'deathCertificate'
+      const data = this.parseJsonFieldOrFail(response, body[field], field)
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return response.badRequest({ message: 'Dados do formulário inválidos.' })
+      if (type === 'birth') this.assertPublicBirthFields(data)
+      if (type === 'death') this.assertPublicDeathFields(data)
+      const bookId = type === 'birth' ? 3 : 4
+      const orderCertificate = await Database.transaction(async (trx) => {
+        const certificateId = await new OrderCertificatesController().savePublicVitalCertificate(type, data, link.companiesId, trx)
+        const order = new OrderCertificate()
+        order.useTransaction(trx)
+        order.merge({ certificateId, bookId, companiesId: link.companiesId, typeCertificate: bookId,
+          origin: 'public', publicOrderCertificateLinkId: link.id, lgpdConsentAccepted: true,
+          lgpdConsentAcceptedAt: DateTime.now(), publicRequestIp: requestIp,
+          publicRequestUserAgent: String(request.header('user-agent') ?? '').slice(0, 500) || null })
+        await order.save()
+        return order
+      })
+      const fileFields = type === 'birth'
+        ? [{ field: 'DocumentRegistered', description: 'DocRegistrado' }, { field: 'DnvDocument', description: 'DNV' }, { field: 'DocumentFiliation1', description: 'DocFiliacao1' }, { field: 'ProofResidenceFiliation1', description: 'ResidenciaFiliacao1' }, { field: 'DocumentFiliation2', description: 'DocFiliacao2' }, { field: 'ProofResidenceFiliation2', description: 'ResidenciaFiliacao2' }, { field: 'DocumentDeclarant', description: 'DocDeclarante' }, { field: 'ProofResidenceDeclarant', description: 'ResidenciaDeclarante' }]
+        : [{ field: 'DocumentDeceased', description: 'DocFalecido' }, { field: 'DocumentDeclarant', description: 'DocDeclarante' }, { field: 'DeathDeclaration', description: 'DeclaracaoObito' }]
+      for (const cfg of fileFields) {
+        const file = request.file(cfg.field, { size: '8mb', extnames: ['jpg', 'jpeg', 'png', 'pdf'] })
+        if (file) await uploadImage({ companiesId: link.companiesId,
+          ...(type === 'birth' ? { bornCertificateId: orderCertificate.certificateId } : { deathCertificateId: orderCertificate.certificateId }),
+          file, description: cfg.description })
+      }
+      return response.created({ id: orderCertificate.id, message: 'Solicitação enviada com sucesso' })
+    } catch (error: any) {
+      if (error instanceof BadRequestException) return response.status(error.status).send({ message: error.message })
+      console.error('ERRO PUBLIC VITAL STORE:', error)
+      return response.internalServerError({ message: 'Erro ao enviar solicitação pública.' })
+    }
   }
 
   public async visionOcrMarriageDocument({ params, request, response }: HttpContextContract) {
