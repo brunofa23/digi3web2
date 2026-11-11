@@ -433,23 +433,35 @@ export default class SideTrainingController {
       const busy = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).whereIn('status', ['queued', 'training']).first()
       if (busy) return busy
       if (model && !model.model_id) await this.storeLegacyModel(model, user.id, trx)
+      const modelBooks = model?.source_books || (model ? [model.book] : [])
+      const reuseValidation = Boolean(model?.model_id && model.validation_label_ids?.length && modelBooks.length === sourceBooks.length && modelBooks.every((sourceBook) => sourceBooks.includes(sourceBook)))
+      const retainedValidation = reuseValidation ? await Database.from('indeximage_side_labels as labels').useTransaction(trx)
+        .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
+        .join('indeximage_ocr_checks as checks', (join) => join.on('checks.bookrecords_id', 'labels.bookrecords_id').andOn('checks.companies_id', 'labels.companies_id').andOn('checks.typebooks_id', 'labels.typebooks_id').andOn('checks.seq', 'labels.seq').andOnVal('checks.layout_profile', model!.version))
+        .where('labels.companies_id', user.companies_id).andWhere('labels.typebooks_id', typebooksId)
+        .whereIn('labels.id', model!.validation_label_ids || []).whereIn('labels.label', ['F', 'V'])
+        .whereColumn('checks.detected_side', 'labels.label').whereNotNull('checks.side_processed_at')
+        .distinct('labels.id', 'labels.bookrecords_id', 'records.book', 'records.sheet') : []
+      const heldoutRecords = new Set(retainedValidation.map((row) => Number(row.bookrecords_id)))
+      const heldoutSheets = new Set(retainedValidation.map((row) => `${row.book}:${row.sheet}`))
       const labels = await Database.from('indeximage_side_labels as labels').useTransaction(trx)
         .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
         .join('indeximages as images', (join) => join.on('images.bookrecords_id', 'labels.bookrecords_id').andOn('images.companies_id', 'labels.companies_id').andOn('images.typebooks_id', 'labels.typebooks_id').andOn('images.seq', 'labels.seq').andOn('images.drive_file_id', 'labels.drive_file_id'))
         .where('labels.companies_id', user.companies_id).andWhere('labels.typebooks_id', typebooksId).whereIn('records.book', sourceBooks).whereIn('labels.label', ['F', 'V'])
         .orderBy('records.sheet').orderBy('records.cod').select('labels.id', 'labels.bookrecords_id', 'labels.seq', 'labels.label', 'labels.drive_file_id', 'labels.file_name', 'records.sheet', 'records.book')
+      const trainingLabels = labels.filter((label) => !heldoutRecords.has(Number(label.bookrecords_id)) && !heldoutSheets.has(`${label.book}:${label.sheet}`))
       const missingSourceBook = sourceBooks.find((sourceBook, index) => {
         const required = Math.floor(sampleSize / sourceBooks.length) + (index < sampleSize % sourceBooks.length ? 1 : 0)
-        return labels.filter((label) => Number(label.book) === sourceBook).length < required
+        return trainingLabels.filter((label) => Number(label.book) === sourceBook).length < required
       })
       if (missingSourceBook) throw new BadRequestException(`Classifique as imagens necessárias do livro ${missingSourceBook} para representar todos os livros desta base`, 422)
-      if (labels.length < sampleSize || !['F', 'V'].every((side) => labels.filter((label) => label.label === side).length >= 5)) {
+      if (trainingLabels.length < sampleSize || !['F', 'V'].every((side) => trainingLabels.filter((label) => label.label === side).length >= 5)) {
         throw new BadRequestException(`Revise pelo menos ${sampleSize} imagens, incluindo cinco frentes e cinco versos. Use Adicionar imagens se necessário`, 422)
       }
       return IndeximageSideModel.create({ companies_id: user.companies_id, typebooks_id: typebooksId, book,
-        version: `sv-${crypto.randomUUID()}`, status: 'queued', phase: 'queued', total: labels.length, processed: 0, source_books: sourceBooks, source_model_id: model?.model_id || null,
-        training_samples: labels.map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), book: Number(label.book), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
-        validation_label_ids: [], requested_by: user.id,
+        version: `sv-${crypto.randomUUID()}`, status: 'queued', phase: 'queued', total: trainingLabels.length, processed: 0, source_books: sourceBooks, source_model_id: model?.model_id || null,
+        training_samples: trainingLabels.map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), book: Number(label.book), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
+        validation_label_ids: retainedValidation.map((row) => Number(row.id)), requested_by: user.id,
       }, { client: trx })
     })
     wakeBookSideTrainingWorker()
