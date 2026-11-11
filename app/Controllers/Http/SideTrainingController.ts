@@ -39,6 +39,7 @@ export default class SideTrainingController {
       return model
     }
     const existing = await IndeximageSideModel.query({ client: trx }).where('version', model.version).andWhere('companies_id', model.company_id).andWhere('typebooks_id', model.typebook_id).andWhere('book', model.book).first()
+    if (existing?.archived_at) throw new BadRequestException('Restaure esta base antes de utilizá-la novamente', 409)
     if (existing) return { ...model, model_id: existing.id, active: existing.active_slot === 1, validation_label_ids: existing.validation_label_ids }
     const labels = await Database.from('indeximage_side_labels as labels').useTransaction(trx)
       .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
@@ -679,12 +680,16 @@ export default class SideTrainingController {
           .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).whereIn('book', sourceBooks)
           .whereIn('id', existingRows.map((row) => row.bookrecords_id)).select('id', 'book')
         const selectedIds = usedRecords.map((row) => Number(row.id))
-        const totalTarget = sampleSize + (additional ? usedRecords.length : 0)
+        const reviewedIds = new Set(existingRows.filter((row) => ['F', 'V'].includes(row.label || '')).map((row) => Number(row.bookrecords_id)))
+        const missingCoverage = sourceBooks.some((sourceBook, index) =>
+          usedRecords.filter((row) => Number(row.book) === sourceBook && reviewedIds.has(Number(row.id))).length
+            < Math.floor(sampleSize / sourceBooks.length) + (index < sampleSize % sourceBooks.length ? 1 : 0))
+        const totalTarget = sampleSize + (additional && !missingCoverage ? usedRecords.length : 0)
         const quota = Math.floor(totalTarget / sourceBooks.length)
         let added = 0
         for (let index = 0; index < sourceBooks.length; index++) {
           const target = quota + (index < totalTarget % sourceBooks.length ? 1 : 0)
-          const currentCount = usedRecords.filter((row) => Number(row.book) === sourceBooks[index]).length
+          const currentCount = usedRecords.filter((row) => Number(row.book) === sourceBooks[index] && reviewedIds.has(Number(row.id))).length
           const needed = Math.max(0, target - currentCount)
           if (!needed) continue
           const query = sampleQuery().andWhere('bookrecords.book', sourceBooks[index])
@@ -704,12 +709,19 @@ export default class SideTrainingController {
         }
         const alreadyCovered = sourceBooks.every((sourceBook, index) => {
           const target = quota + (index < totalTarget % sourceBooks.length ? 1 : 0)
-          return usedRecords.filter((row) => Number(row.book) === sourceBook).length >= target
+          return usedRecords.filter((row) => Number(row.book) === sourceBook && reviewedIds.has(Number(row.id))).length >= target
         })
         if (!added && alreadyCovered) return
       } else if (sharedValidationBooks.length) {
         const validationIds = new Set(model!.validation_label_ids || [])
         let currentRows = existingRows.filter((row) => validationIds.has(row.id))
+        const currentEvidenceCount = currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length
+        if (additional && currentEvidenceCount < 40 && currentRows.some((row) => row.label === 'U')) {
+          // Imagens inconclusivas não contam para completar o teste. Ao pedir outras,
+          // retire-as da amostra ativa para que as substitutas fiquem visíveis como pendentes.
+          currentRows = currentRows.filter((row) => row.label !== 'U')
+          retainedValidationIds = currentRows.map((row) => row.id)
+        }
         if (currentRows.length > 40 && currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length < 40) {
           currentRows = currentRows.filter((row) => row.label !== null)
           retainedValidationIds = currentRows.map((row) => row.id)
