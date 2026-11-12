@@ -41,6 +41,10 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
+], IndeximageSideModel.prototype, "validation_accuracy_threshold", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
 ], IndeximageSideModel.prototype, "source_model_id", void 0);
 __decorate([
     (0, Orm_1.column)(),
@@ -102,6 +106,10 @@ __decorate([
     Orm_1.column.dateTime(),
     __metadata("design:type", Object)
 ], IndeximageSideModel.prototype, "finished_at", void 0);
+__decorate([
+    Orm_1.column.dateTime(),
+    __metadata("design:type", Object)
+], IndeximageSideModel.prototype, "archived_at", void 0);
 __decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
