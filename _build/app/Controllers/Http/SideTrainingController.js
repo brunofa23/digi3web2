@@ -771,6 +771,9 @@ class SideTrainingController {
             const existingRows = await IndeximageSideLabel_1.default.query({ client: trx })
                 .where('companies_id', user.companies_id)
                 .andWhere('typebooks_id', typebooksId);
+            const validationShortfall = stage === 'validation' && additional && model
+                ? Math.max(0, sampleSize - (await (0, bookSideVisualModel_1.bookSideVisualReadiness)(model)).total)
+                : 0;
             if (book === null && existingRows.length)
                 return;
             const selected = [];
@@ -812,7 +815,7 @@ class SideTrainingController {
                     target = stage === 'validation'
                         ? model?.source_model_id && !model.training_updated
                             ? currentRows.length + 10
-                            : currentRows.length + Math.max(0, 40 - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length, 5 - currentRows.filter((row) => row.label === 'F').length, 5 - currentRows.filter((row) => row.label === 'V').length)
+                            : currentRows.length + Math.max(validationShortfall, 40 - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length, 5 - currentRows.filter((row) => row.label === 'F').length, 5 - currentRows.filter((row) => row.label === 'V').length)
                         : Math.max(sampleSize, currentRows.length + Math.max(0, sampleSize - currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length - pendingCount, 5 - currentRows.filter((row) => row.label === 'F').length - pendingCount, 5 - currentRows.filter((row) => row.label === 'V').length - pendingCount));
                 if (replaceLabelId)
                     target = currentRows.length + 1;
@@ -895,7 +898,7 @@ class SideTrainingController {
                 }
                 const fronts = currentRows.filter((row) => row.label === 'F').length;
                 const backs = currentRows.filter((row) => row.label === 'V').length;
-                const target = additional ? currentRows.length + Math.max(0, 40 - fronts - backs, 5 - fronts, 5 - backs) : 40;
+                const target = additional ? currentRows.length + Math.max(validationShortfall, 40 - fronts - backs, 5 - fronts, 5 - backs) : 40;
                 const needed = target - currentRows.length;
                 if (needed <= 0)
                     return;
