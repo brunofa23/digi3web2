@@ -401,6 +401,61 @@ export default class SideTrainingController {
     return [...(model.source_books || model.model_data?.source_books || [model.book])].sort((a, b) => a - b).join(',')
   }
 
+  public async adminBaseModels(ctx: HttpContextContract) {
+    const user = await ctx.auth.use('api').authenticate()
+    if (!user.superuser || Number(user.companies_id) !== 1) throw new BadRequestException('Acesso restrito à administração da empresa 1', 403)
+    const companyId = Number(ctx.request.qs().companyId)
+    if (!Number.isInteger(companyId) || companyId <= 0) throw new BadRequestException('Selecione uma empresa', 422)
+    const models = await IndeximageSideModel.query().where('companies_id', companyId).orderBy('id', 'desc')
+    const typebookIds = [...new Set(models.map((model) => model.typebooks_id))]
+    const typebooks = typebookIds.length ? await Typebook.query().where('companies_id', companyId).whereIn('id', typebookIds) : []
+    const names = new Map(typebooks.map((typebook) => [typebook.id, typebook.name]))
+    const groups = new Map<string, IndeximageSideModel[]>()
+    for (const model of models) {
+      const books = this.baseGroupKey(model)
+      const key = books ? `${model.typebooks_id}:${books}:${Boolean(model.archived_at)}` : `${model.typebooks_id}:herdado:${model.id}`
+      groups.set(key, [...(groups.get(key) || []), model])
+    }
+    return ctx.response.ok({ models: [...groups.values()].map((group) => {
+      const model = group.find((row) => row.active_slot === 1) || group.find((row) => row.status === 'ready') || group[0]
+      const ids = new Set(group.map((row) => row.id))
+      return { id: model.id, typebooks_id: model.typebooks_id, typebook_name: names.get(model.typebooks_id) || `Tipo ${model.typebooks_id}`,
+        source_books: model.source_books || model.model_data?.source_books || [model.book], book: model.book,
+        inherited: !this.baseGroupKey(model), version_count: group.length,
+        active: group.some((row) => row.active_slot === 1), archived: Boolean(model.archived_at),
+        busy: group.some((row) => ['queued', 'training'].includes(row.status)),
+        has_dependents: models.some((row) => !ids.has(row.id) && ids.has(row.source_model_id || row.model_data?.source_model_id || 0)) }
+    }) })
+  }
+
+  public async adminDeleteBase(ctx: HttpContextContract) {
+    const user = await ctx.auth.use('api').authenticate()
+    if (!user.superuser || Number(user.companies_id) !== 1) throw new BadRequestException('Acesso restrito à administração da empresa 1', 403)
+    const companyId = Number(ctx.request.input('companyId'))
+    const modelId = Number(ctx.params.model_id)
+    if (!Number.isInteger(companyId) || companyId <= 0 || !Number.isInteger(modelId) || modelId <= 0 || ctx.request.input('confirm') !== true) throw new BadRequestException('Empresa, modelo ou confirmação inválidos', 422)
+    const deleted = await Database.transaction(async (trx) => {
+      const models = await IndeximageSideModel.query({ client: trx }).where('companies_id', companyId).forUpdate()
+      const selected = models.find((row) => row.id === modelId)
+      if (!selected) throw new BadRequestException('Base não encontrada nesta empresa', 404)
+      const selectedKey = this.baseGroupKey(selected)
+      const group = selectedKey ? models.filter((row) => row.typebooks_id === selected.typebooks_id && this.baseGroupKey(row) === selectedKey && Boolean(row.archived_at) === Boolean(selected.archived_at)) : [selected]
+      const ids = group.map((row) => row.id)
+      if (group.some((row) => ['queued', 'training'].includes(row.status))) throw new BadRequestException('Aguarde o treinamento terminar', 409)
+      if (models.some((row) => !ids.includes(row.id) && ids.includes(row.source_model_id || row.model_data?.source_model_id || 0))) throw new BadRequestException('Exclua primeiro as bases que usam esta base como referência', 409)
+      for (const book of new Set(group.map((row) => row.book))) {
+        const file = Application.resourcesPath(`side-models/${companyId}-${selected.typebooks_id}-${book}.json`)
+        try {
+          const legacy = JSON.parse(await fs.readFile(file, 'utf8'))
+          if (legacy.company_id === companyId && legacy.typebook_id === selected.typebooks_id && legacy.book === book && group.some((row) => row.version === legacy.version)) await fs.unlink(file)
+        } catch (error) { if (error.code !== 'ENOENT') throw error }
+      }
+      await IndeximageSideModel.query({ client: trx }).where('companies_id', companyId).andWhere('typebooks_id', selected.typebooks_id).whereIn('id', ids).delete()
+      return ids.length
+    })
+    return ctx.response.ok({ message: `${deleted} versão(ões) excluída(s).` })
+  }
+
   public async baseModels(ctx: HttpContextContract) {
     const { user, typebooksId } = await this.access(ctx)
     try {
@@ -449,7 +504,7 @@ export default class SideTrainingController {
 
   public async resetBases(ctx: HttpContextContract) {
     const { user, typebooksId } = await this.access(ctx)
-    if (!user.superuser) throw new BadRequestException('Somente superusuários podem limpar as bases de treinamento', 403, 'side_training_reset_superuser_required')
+    if (!user.superuser || Number(user.companies_id) !== 1) throw new BadRequestException('Somente superusuários da empresa 1 podem limpar as bases de treinamento', 403, 'side_training_reset_superuser_required')
     if (ctx.request.input('confirm') !== true) throw new BadRequestException('Confirme a exclusão das bases deste conjunto', 422)
     const deleted = await Database.transaction(async (trx) => {
       await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
@@ -474,7 +529,7 @@ export default class SideTrainingController {
 
   private async changeBase(ctx: HttpContextContract, action: 'archive' | 'restore' | 'delete') {
     const { user, typebooksId } = await this.access(ctx)
-    if (action === 'delete' && !user.superuser) throw new BadRequestException('Somente superusuários podem excluir bases de treinamento', 403, 'side_training_delete_superuser_required')
+    if (action === 'delete' && (!user.superuser || Number(user.companies_id) !== 1)) throw new BadRequestException('Somente superusuários da empresa 1 podem excluir bases de treinamento', 403, 'side_training_delete_superuser_required')
     const modelId = Number(ctx.params.model_id)
     if (!Number.isInteger(modelId) || modelId <= 0) throw new BadRequestException('Base inválida', 422)
     await Database.transaction(async (trx) => {

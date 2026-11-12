@@ -136,6 +136,8 @@ Route.group(() => {
   Route.patch('/typebooks/:typebooks_id/side-training/models/:model_id/validation-accuracy', 'SideTrainingController.updateValidationAccuracyThreshold').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/divergences', 'SideTrainingController.bookDivergences').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/base-models', 'SideTrainingController.baseModels').middleware('auth')
+  Route.get('/side-training/admin/base-models', 'SideTrainingController.adminBaseModels').middleware('auth')
+  Route.delete('/side-training/admin/base-models/:model_id', 'SideTrainingController.adminDeleteBase').middleware('auth')
   Route.delete('/typebooks/:typebooks_id/side-training/base-models', 'SideTrainingController.resetBases').middleware('auth')
   Route.patch('/typebooks/:typebooks_id/side-training/base-models/:model_id', 'SideTrainingController.archiveBase').middleware('auth')
   Route.delete('/typebooks/:typebooks_id/side-training/base-models/:model_id', 'SideTrainingController.deleteBase').middleware('auth')
