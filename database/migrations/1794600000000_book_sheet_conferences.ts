@@ -2,7 +2,7 @@ import BaseSchema from '@ioc:Adonis/Lucid/Schema'
 
 export default class extends BaseSchema {
   public async up() {
-    await this.schema.createTable('book_sheet_conferences', (table) => {
+    if (!(await this.schema.hasTable('book_sheet_conferences'))) await this.schema.createTable('book_sheet_conferences', (table) => {
       table.increments('id')
       table.integer('companies_id').unsigned().notNullable()
       table.integer('typebooks_id').unsigned().notNullable()
@@ -17,7 +17,7 @@ export default class extends BaseSchema {
       table.unique(['companies_id', 'typebooks_id', 'book'], 'idx_book_sheet_conference_book')
     })
 
-    await this.schema.createTable('book_sheet_conference_items', (table) => {
+    if (!(await this.schema.hasTable('book_sheet_conference_items'))) await this.schema.createTable('book_sheet_conference_items', (table) => {
       table.increments('id')
       table.integer('companies_id').unsigned().notNullable()
       table.integer('typebooks_id').unsigned().notNullable()
@@ -37,15 +37,9 @@ export default class extends BaseSchema {
       table.unique(['companies_id', 'typebooks_id', 'bookrecords_id'], 'idx_book_sheet_item_record')
       table.index(['companies_id', 'typebooks_id', 'book', 'status'], 'idx_book_sheet_item_status')
     })
-    await this.schema.alterTable('bookrecords', (table) => {
-      table.index(['companies_id', 'typebooks_id', 'book', 'side', 'cod', 'id'], 'idx_book_sheet_scan')
-    })
   }
 
   public async down() {
-    await this.schema.alterTable('bookrecords', (table) => {
-      table.dropIndex(['companies_id', 'typebooks_id', 'book', 'side', 'cod', 'id'], 'idx_book_sheet_scan')
-    })
     await this.schema.dropTable('book_sheet_conference_items')
     await this.schema.dropTable('book_sheet_conferences')
   }
