@@ -10,6 +10,7 @@ export type BookSideVisualModel = {
   source_model_id?: number | null
   source_book?: number | null
   source_books?: number[]
+  validation_accuracy_threshold?: number | null
   training_updated?: boolean
   active?: boolean
   validation_label_ids?: number[]
@@ -29,18 +30,21 @@ export type BookSideVisualModel = {
 let extractorPromise: Promise<any> | null = null
 
 export async function loadBookSideVisualModel(companyId: number, typebookId: number, book: number, options: { candidate?: boolean; modelId?: number | null } = {}) {
+  let registryAvailable = true
   try {
     const query = IndeximageSideModel.query()
       .where('companies_id', companyId).andWhere('typebooks_id', typebookId)
       .andWhere((books) => books.where('book', book).orWhereRaw('JSON_CONTAINS(source_books, CAST(? AS JSON))', [String(book)]))
       .andWhere('status', 'ready')
+      .whereNull('archived_at')
     if (options.modelId) query.andWhere('id', options.modelId)
     else if (!options.candidate) query.andWhere('active_slot', 1)
     const stored = await query.orderByRaw('CASE WHEN JSON_LENGTH(source_books) > 1 THEN 0 ELSE 1 END').orderBy('id', 'desc').first()
-    if (stored?.model_data) return { ...stored.model_data, model_id: stored.id, source_model_id: stored.source_model_id || stored.model_data.source_model_id || null, source_books: stored.source_books || stored.model_data.source_books || [stored.model_data.source_book || stored.book], active: stored.active_slot === 1, validation_label_ids: stored.validation_label_ids || [] }
+    if (stored?.model_data) return { ...stored.model_data, model_id: stored.id, source_model_id: stored.source_model_id || stored.model_data.source_model_id || null, source_books: stored.source_books || stored.model_data.source_books || [stored.model_data.source_book || stored.book], active: stored.active_slot === 1, validation_label_ids: stored.validation_label_ids || [], validation_accuracy_threshold: stored.validation_accuracy_threshold ?? stored.model_data.validation_accuracy_threshold ?? null }
     if (options.modelId) return null
   } catch (error) {
     if (error.code !== 'ER_NO_SUCH_TABLE' && error.errno !== 1146) throw error
+    registryAvailable = false
   }
   const file = Application.resourcesPath(`side-models/${companyId}-${typebookId}-${book}.json`)
   try {
@@ -48,6 +52,9 @@ export async function loadBookSideVisualModel(companyId: number, typebookId: num
     if (model.company_id !== companyId || model.typebook_id !== typebookId || model.book !== book) {
       throw new Error('Escopo do modelo visual inválido')
     }
+    // Um arquivo legado já registrado não pode reativar uma versão arquivada ou inativa.
+    if (registryAvailable && await IndeximageSideModel.query().where('version', model.version)
+      .andWhere('companies_id', companyId).andWhere('typebooks_id', typebookId).first()) return null
     if (model.extractor !== 'Xenova/dinov2-small' || model.weights.length !== 1920) {
       throw new Error('Formato do modelo visual não suportado')
     }
@@ -134,7 +141,7 @@ export async function bookSideVisualReadiness(model: BookSideVisualModel, lineag
         .andWhere('typebooks_id', model.typebook_id).andWhere('status', 'ready').first()
       const sourceData = source?.model_data
       if (sourceData && source) {
-        const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [] }, nextLineage)
+        const sourceReadiness = await bookSideVisualReadiness({ ...sourceData, model_id: source.id, validation_label_ids: source.validation_label_ids || [], validation_accuracy_threshold: source.validation_accuracy_threshold }, nextLineage)
         const sameWeights = sourceData.extractor_sha256 === model.extractor_sha256
           && sourceData.bias === model.bias && sourceData.weights.length === model.weights.length
           && sourceData.weights.every((weight, index) => weight === model.weights[index])
@@ -177,14 +184,20 @@ export async function bookSideVisualReadiness(model: BookSideVisualModel, lineag
   }).length
   const sides = { F: validation.filter((row) => row.label === 'F').length, V: validation.filter((row) => row.label === 'V').length }
   const required = model.source_model_id && !model.training_updated ? 10 : 40
-  const complete = validation.length >= required && correct === validation.length && sides.F >= 5 && sides.V >= 5
-  return { ready: trainingUnchanged && complete, trainingUnchanged, total: validation.length, required, correct, sides }
+  const defaultThreshold = validationBooks.length > 1 ? 80 : 100
+  const configuredThreshold = Number(model.validation_accuracy_threshold)
+  const accuracyThreshold = [80, 85, 90, 95, 100].includes(configuredThreshold) ? configuredThreshold : defaultThreshold
+  const requiredAccuracy = Math.ceil(required * accuracyThreshold / 100)
+  const processed = validation.filter((row) => row.side_processed_at).length
+  const complete = validation.length >= required && processed >= required && correct >= requiredAccuracy && sides.F >= 5 && sides.V >= 5
+  return { ready: complete && (validationBooks.length > 1 || trainingUnchanged), trainingUnchanged, total: validation.length, required, correct, sides }
 }
 
 export async function bookSideModelRegistry(companyId: number, typebookId: number, book: number) {
   try {
     const records = await IndeximageSideModel.query().where('companies_id', companyId)
       .andWhere('typebooks_id', typebookId)
+      .whereNull('archived_at')
       .andWhere((books) => books.where('book', book).orWhereRaw('JSON_CONTAINS(source_books, CAST(? AS JSON))', [String(book)]))
       .orderByRaw('CASE WHEN JSON_LENGTH(source_books) > 1 THEN 0 ELSE 1 END').orderBy('id', 'desc')
       .select('id', 'companies_id', 'typebooks_id', 'book', 'source_books', 'source_model_id', 'version', 'status', 'phase', 'processed', 'total', 'training_samples', 'validation_label_ids', 'requested_by', 'active_slot', 'error_message', 'started_at', 'finished_at', 'created_at', 'updated_at')

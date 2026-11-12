@@ -9,6 +9,8 @@ import { sendDownloadFileBuffer } from 'App/Services/googleDrive/googledrive'
 import { loadBookSideVisualModel, extractBookSideVisualFeatures, predictBookSideVisual, bookSideModelRegistry, bookSideVisualReadiness, sideModelSummary, BookSideVisualModel } from 'App/Services/ocr/bookSideVisualModel'
 import { wakeBookSideTrainingWorker } from 'App/Services/ocr/bookSideModelTraining'
 import crypto from 'crypto'
+import fs from 'fs/promises'
+import Application from '@ioc:Adonis/Core/Application'
 import { verifyPermission } from 'App/Services/util'
 import BadRequestException from 'App/Exceptions/BadRequestException'
 
@@ -30,8 +32,14 @@ export default class SideTrainingController {
   }
 
   private async storeLegacyModel(model: BookSideVisualModel, userId: number, trx: any) {
-    if (model.model_id) return model
+    if (model.model_id) {
+      const stored = await IndeximageSideModel.query({ client: trx }).where('id', model.model_id)
+        .andWhere('companies_id', model.company_id).andWhere('typebooks_id', model.typebook_id).whereNull('archived_at').first()
+      if (!stored) throw new BadRequestException('Esta base foi arquivada ou excluída. Atualize a lista de bases', 409)
+      return model
+    }
     const existing = await IndeximageSideModel.query({ client: trx }).where('version', model.version).andWhere('companies_id', model.company_id).andWhere('typebooks_id', model.typebook_id).andWhere('book', model.book).first()
+    if (existing?.archived_at) throw new BadRequestException('Restaure esta base antes de utilizá-la novamente', 409)
     if (existing) return { ...model, model_id: existing.id, active: existing.active_slot === 1, validation_label_ids: existing.validation_label_ids }
     const labels = await Database.from('indeximage_side_labels as labels').useTransaction(trx)
       .join('bookrecords as records', (join) => join.on('records.id', 'labels.bookrecords_id').andOn('records.companies_id', 'labels.companies_id').andOn('records.typebooks_id', 'labels.typebooks_id'))
@@ -193,6 +201,8 @@ export default class SideTrainingController {
     }
     const completed = visibleRows.length > 0 && visibleRows.every((row) => row.label !== null)
     const modelReadiness = model ? await bookSideVisualReadiness(model) : null
+    const sharedValidation = Boolean(model && (!model.source_model_id || model.training_updated) && (model.source_books?.length || 0) > 1)
+    const validationAccuracyThreshold = model?.validation_accuracy_threshold ?? (sharedValidation ? 80 : 100)
     const audit = completed ? { matches: 0, divergent: 0, missing: 0, inconclusive: 0, cases: [] as any[] } : null
     const evaluation = book !== null && visibleRows.length
       ? { method: stage === 'validation' ? `Modelo visual ${model!.version}` : 'Regra atual de bordas', correct: 0, wrong: 0, not_found: 0, not_processed: 0, pending: 0, excluded: 0 }
@@ -298,6 +308,8 @@ export default class SideTrainingController {
         validation_ready: modelReadiness!.ready,
         validation_total: modelReadiness!.total,
         validation_required: modelReadiness!.required,
+        validation_accuracy_threshold: validationAccuracyThreshold,
+        validation_required_accuracy: Math.ceil(modelReadiness!.required * validationAccuracyThreshold / 100),
         source_books: model.source_books || [model.source_book || model.book],
         training_updated: Boolean(model.training_updated),
         validation_correct: modelReadiness!.correct,
@@ -312,6 +324,30 @@ export default class SideTrainingController {
     if (!book) throw new BadRequestException('Selecione um livro', 422)
     const registry = await bookSideModelRegistry(user.companies_id, typebooksId, book)
     return ctx.response.ok({ available: registry.available, models: registry.records.map(sideModelSummary), training_job: registry.records[0] ? sideModelSummary(registry.records[0]) : null })
+  }
+
+  public async updateValidationAccuracyThreshold(ctx: HttpContextContract) {
+    const { user, typebooksId } = await this.access(ctx)
+    const modelId = Number(ctx.params.model_id)
+    const book = this.requestedBook(ctx)
+    const threshold = Number(ctx.request.input('threshold'))
+    if (!Number.isInteger(modelId) || modelId <= 0 || !book) throw new BadRequestException('Modelo ou livro inválido', 422)
+    if (![80, 85, 90, 95, 100].includes(threshold)) throw new BadRequestException('Escolha um mínimo de acertos entre 80% e 100%', 422)
+
+    const stored = await IndeximageSideModel.query().where('id', modelId)
+      .andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
+      .andWhere('book', book).andWhere('status', 'ready').whereNull('archived_at').first()
+    if (!stored?.model_data) throw new BadRequestException('Modelo não encontrado ou ainda não treinado', 404)
+    if (stored.active_slot === 1) throw new BadRequestException('O critério de aprovação não pode ser alterado após ativar a base', 409)
+    const sourceBooks = stored.source_books || stored.model_data.source_books || [stored.book]
+    const sharedValidation = sourceBooks.length > 1 && (!stored.source_model_id || stored.model_data.training_updated)
+    if (!sharedValidation) throw new BadRequestException('O percentual configurável está disponível somente para bases compartilhadas', 422)
+
+    stored.validation_accuracy_threshold = threshold
+    await stored.save()
+    const model = await loadBookSideVisualModel(user.companies_id, typebooksId, book, { candidate: true, modelId })
+    const readiness = model ? await bookSideVisualReadiness(model) : null
+    return ctx.response.ok({ threshold, ready: Boolean(readiness?.ready), correct: readiness?.correct || 0, total: readiness?.total || 0, required: readiness?.required || 40 })
   }
 
   public async bookDivergences(ctx: HttpContextContract) {
@@ -360,30 +396,173 @@ export default class SideTrainingController {
     return ctx.response.ok({ checked: Number(checkedResult?.total || 0), divergences })
   }
 
+  private baseGroupKey(model: IndeximageSideModel) {
+    if (model.model_data?.source_book || (model.source_model_id && model.model_data && !model.model_data.training_updated)) return null
+    return [...(model.source_books || model.model_data?.source_books || [model.book])].sort((a, b) => a - b).join(',')
+  }
+
+  public async adminBaseModels(ctx: HttpContextContract) {
+    const user = await ctx.auth.use('api').authenticate()
+    if (!user.superuser || Number(user.companies_id) !== 1) throw new BadRequestException('Acesso restrito à administração da empresa 1', 403)
+    const companyId = Number(ctx.request.qs().companyId)
+    if (!Number.isInteger(companyId) || companyId <= 0) throw new BadRequestException('Selecione uma empresa', 422)
+    const models = await IndeximageSideModel.query().where('companies_id', companyId).orderBy('id', 'desc')
+    const typebookIds = [...new Set(models.map((model) => model.typebooks_id))]
+    const typebooks = typebookIds.length ? await Typebook.query().where('companies_id', companyId).whereIn('id', typebookIds) : []
+    const names = new Map(typebooks.map((typebook) => [typebook.id, typebook.name]))
+    const groups = new Map<string, IndeximageSideModel[]>()
+    for (const model of models) {
+      const books = this.baseGroupKey(model)
+      const key = books ? `${model.typebooks_id}:${books}:${Boolean(model.archived_at)}` : `${model.typebooks_id}:herdado:${model.id}`
+      groups.set(key, [...(groups.get(key) || []), model])
+    }
+    return ctx.response.ok({ models: [...groups.values()].map((group) => {
+      const model = group.find((row) => row.active_slot === 1) || group.find((row) => row.status === 'ready') || group[0]
+      const ids = new Set(group.map((row) => row.id))
+      return { id: model.id, typebooks_id: model.typebooks_id, typebook_name: names.get(model.typebooks_id) || `Tipo ${model.typebooks_id}`,
+        source_books: model.source_books || model.model_data?.source_books || [model.book], book: model.book,
+        inherited: !this.baseGroupKey(model), version_count: group.length,
+        active: group.some((row) => row.active_slot === 1), archived: Boolean(model.archived_at),
+        busy: group.some((row) => ['queued', 'training'].includes(row.status)),
+        has_dependents: models.some((row) => !ids.has(row.id) && ids.has(row.source_model_id || row.model_data?.source_model_id || 0)) }
+    }) })
+  }
+
+  public async adminDeleteBase(ctx: HttpContextContract) {
+    const user = await ctx.auth.use('api').authenticate()
+    if (!user.superuser || Number(user.companies_id) !== 1) throw new BadRequestException('Acesso restrito à administração da empresa 1', 403)
+    const companyId = Number(ctx.request.input('companyId'))
+    const modelId = Number(ctx.params.model_id)
+    if (!Number.isInteger(companyId) || companyId <= 0 || !Number.isInteger(modelId) || modelId <= 0 || ctx.request.input('confirm') !== true) throw new BadRequestException('Empresa, modelo ou confirmação inválidos', 422)
+    const deleted = await Database.transaction(async (trx) => {
+      const models = await IndeximageSideModel.query({ client: trx }).where('companies_id', companyId).forUpdate()
+      const selected = models.find((row) => row.id === modelId)
+      if (!selected) throw new BadRequestException('Base não encontrada nesta empresa', 404)
+      const selectedKey = this.baseGroupKey(selected)
+      const group = selectedKey ? models.filter((row) => row.typebooks_id === selected.typebooks_id && this.baseGroupKey(row) === selectedKey && Boolean(row.archived_at) === Boolean(selected.archived_at)) : [selected]
+      const ids = group.map((row) => row.id)
+      if (group.some((row) => ['queued', 'training'].includes(row.status))) throw new BadRequestException('Aguarde o treinamento terminar', 409)
+      if (models.some((row) => !ids.includes(row.id) && ids.includes(row.source_model_id || row.model_data?.source_model_id || 0))) throw new BadRequestException('Exclua primeiro as bases que usam esta base como referência', 409)
+      for (const book of new Set(group.map((row) => row.book))) {
+        const file = Application.resourcesPath(`side-models/${companyId}-${selected.typebooks_id}-${book}.json`)
+        try {
+          const legacy = JSON.parse(await fs.readFile(file, 'utf8'))
+          if (legacy.company_id === companyId && legacy.typebook_id === selected.typebooks_id && legacy.book === book && group.some((row) => row.version === legacy.version)) await fs.unlink(file)
+        } catch (error) { if (error.code !== 'ENOENT') throw error }
+      }
+      await IndeximageSideModel.query({ client: trx }).where('companies_id', companyId).andWhere('typebooks_id', selected.typebooks_id).whereIn('id', ids).delete()
+      return ids.length
+    })
+    return ctx.response.ok({ message: `${deleted} versão(ões) excluída(s).` })
+  }
+
   public async baseModels(ctx: HttpContextContract) {
     const { user, typebooksId } = await this.access(ctx)
     try {
       const models = await IndeximageSideModel.query()
         .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
-        .andWhere('status', 'ready')
         .orderBy('id', 'desc')
-      const trainedBases = new Map<string, IndeximageSideModel>()
+      const groups = new Map<string, IndeximageSideModel[]>()
       for (const model of models) {
-        if (!model.model_data || (model.source_model_id && !model.model_data.training_updated)) continue
-        const books = model.source_books || model.model_data.source_books || [model.book]
-        const key = [...books].sort((a, b) => a - b).join(',')
-        if (!trainedBases.has(key) || (model.active_slot === 1 && trainedBases.get(key)!.active_slot !== 1)) trainedBases.set(key, model)
+        const booksKey = this.baseGroupKey(model)
+        if (!booksKey) continue
+        const key = `${booksKey}:${Boolean(model.archived_at)}`
+        groups.set(key, [...(groups.get(key) || []), model])
       }
-      return ctx.response.ok({ available: true, trained_bases: [...trainedBases.values()].map((model) => ({
-        id: model.id, book: model.book, source_books: model.source_books || model.model_data?.source_books || [model.book],
-        training_count: model.training_samples.length, active: model.active_slot === 1,
-      })), models: models.filter((model) => model.active_slot === 1 && model.model_data).map((model) => ({
+      const trainedBases = [...groups.values()].filter((group) => group.some((model) => model.status === 'ready' && model.model_data))
+      return ctx.response.ok({ available: true, trained_bases: trainedBases.map((group) => {
+        const model = group.find((row) => row.active_slot === 1) || group.find((row) => row.status === 'ready' && row.model_data)!
+        const ids = new Set(group.map((row) => row.id))
+        const dependents = models.filter((row) => !ids.has(row.id) && ids.has(row.source_model_id || row.model_data?.source_model_id || 0)).length
+        const busy = group.some((row) => ['queued', 'training'].includes(row.status))
+        const active = group.some((row) => row.active_slot === 1)
+        const replacement = models.find((row) => row.book === model.book && row.active_slot === 1 && !row.archived_at && row.id > model.id)
+        return { id: model.id, book: model.book, source_books: model.source_books || model.model_data?.source_books || [model.book],
+          training_count: model.training_samples.length, active, archived: Boolean(model.archived_at), version_count: group.length,
+          can_archive: !active && !busy, can_delete: Boolean(model.archived_at) && !active && !busy && !dependents,
+          management_block_reason: active ? 'Substitua a base ativa antes de arquivar.' : busy ? 'Aguarde o treinamento deste grupo terminar.' : null,
+          delete_block_reason: dependents ? 'Esta base é referência de outros modelos e não pode ser excluída.' : null,
+          superseded_by: replacement ? replacement.source_books || replacement.model_data?.source_books || [replacement.book] : null }
+      }), models: models.filter((model) => model.status === 'ready' && model.active_slot === 1 && !model.archived_at && model.model_data).map((model) => ({
         id: model.id, book: model.book, source_books: model.source_books || model.model_data?.source_books || [model.book], version: model.version, training_count: model.training_samples.length,
       })) })
     } catch (error) {
       if (error.code === 'ER_NO_SUCH_TABLE' || error.errno === 1146) return ctx.response.ok({ available: false, models: [], trained_bases: [] })
       throw error
     }
+  }
+
+  public async archiveBase(ctx: HttpContextContract) {
+    const archived = ctx.request.input('archived')
+    if (typeof archived !== 'boolean') throw new BadRequestException('Informe se deseja arquivar ou restaurar a base', 422)
+    return this.changeBase(ctx, archived ? 'archive' : 'restore')
+  }
+
+  public async deleteBase(ctx: HttpContextContract) {
+    return this.changeBase(ctx, 'delete')
+  }
+
+  public async resetBases(ctx: HttpContextContract) {
+    const { user, typebooksId } = await this.access(ctx)
+    if (!user.superuser || Number(user.companies_id) !== 1) throw new BadRequestException('Somente superusuários da empresa 1 podem limpar as bases de treinamento', 403, 'side_training_reset_superuser_required')
+    if (ctx.request.input('confirm') !== true) throw new BadRequestException('Confirme a exclusão das bases deste conjunto', 422)
+    const deleted = await Database.transaction(async (trx) => {
+      await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
+      const models = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id)
+        .andWhere('typebooks_id', typebooksId).forUpdate()
+      if (models.some((row) => ['queued', 'training'].includes(row.status))) throw new BadRequestException('Aguarde os treinamentos em andamento antes de limpar as bases', 409)
+      if (!models.length) return 0
+
+      for (const book of new Set(models.map((row) => row.book))) {
+        const file = Application.resourcesPath(`side-models/${user.companies_id}-${typebooksId}-${book}.json`)
+        try {
+          const legacy = JSON.parse(await fs.readFile(file, 'utf8'))
+          if (legacy.company_id === user.companies_id && legacy.typebook_id === typebooksId && legacy.book === book) await fs.unlink(file)
+        } catch (error) { if (error.code !== 'ENOENT') throw error }
+      }
+
+      await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).delete()
+      return models.length
+    })
+    return ctx.response.ok({ deleted, message: `${deleted} versão(ões) de base removida(s). Registros, imagens e marcações foram preservados.` })
+  }
+
+  private async changeBase(ctx: HttpContextContract, action: 'archive' | 'restore' | 'delete') {
+    const { user, typebooksId } = await this.access(ctx)
+    if (action === 'delete' && (!user.superuser || Number(user.companies_id) !== 1)) throw new BadRequestException('Somente superusuários da empresa 1 podem excluir bases de treinamento', 403, 'side_training_delete_superuser_required')
+    const modelId = Number(ctx.params.model_id)
+    if (!Number.isInteger(modelId) || modelId <= 0) throw new BadRequestException('Base inválida', 422)
+    await Database.transaction(async (trx) => {
+      await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
+      const models = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id)
+        .andWhere('typebooks_id', typebooksId).forUpdate()
+      const model = models.find((row) => row.id === modelId)
+      if (!model || !this.baseGroupKey(model)) throw new BadRequestException('Base não encontrada', 404)
+      const group = models.filter((row) => this.baseGroupKey(row) === this.baseGroupKey(model) && Boolean(row.archived_at) === Boolean(model.archived_at))
+      if (group.some((row) => row.active_slot === 1)) throw new BadRequestException('Substitua a base ativa antes de arquivar ou excluir', 409)
+      if (group.some((row) => ['queued', 'training'].includes(row.status))) throw new BadRequestException('Aguarde o treinamento deste grupo terminar', 409)
+      const ids = group.map((row) => row.id)
+      const query = IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).whereIn('id', ids)
+      if (action !== 'delete') {
+        await query.update({ archived_at: action === 'archive' ? DateTime.utc().toSQL({ includeOffset: false }) : null })
+        return
+      }
+      if (!model.archived_at) throw new BadRequestException('Arquive a base antes de excluí-la definitivamente', 409)
+      const dependent = await IndeximageSideModel.query({ client: trx }).whereIn('source_model_id', ids).whereNotIn('id', ids).first()
+      if (dependent || models.some((row) => !ids.includes(row.id) && ids.includes(row.model_data?.source_model_id || 0))) {
+        throw new BadRequestException('Esta base é referência de outros modelos e não pode ser excluída. Mantenha-a arquivada', 409)
+      }
+      // Remove apenas o modelo legado correspondente, evitando que ele reapareça pelo fallback.
+      for (const book of new Set(group.map((row) => row.book))) {
+        const file = Application.resourcesPath(`side-models/${user.companies_id}-${typebooksId}-${book}.json`)
+        try {
+          const legacy = JSON.parse(await fs.readFile(file, 'utf8'))
+          if (legacy.company_id === user.companies_id && legacy.typebook_id === typebooksId && legacy.book === book && group.some((row) => row.version === legacy.version)) await fs.unlink(file)
+        } catch (error) { if (error.code !== 'ENOENT') throw error }
+      }
+      await query.delete()
+    })
+    return ctx.response.ok({ message: action === 'archive' ? 'Base arquivada' : action === 'restore' ? 'Base restaurada. A ativação continua sendo feita separadamente' : 'Base excluída definitivamente' })
   }
 
   public async inheritModel(ctx: HttpContextContract) {
@@ -396,10 +575,10 @@ export default class SideTrainingController {
       await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
       const source = await IndeximageSideModel.query({ client: trx })
         .where('id', sourceModelId).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId)
-        .andWhere('status', 'ready').andWhere('active_slot', 1).forUpdate().first()
+        .andWhere('status', 'ready').andWhere('active_slot', 1).whereNull('archived_at').forUpdate().first()
       if (!source?.model_data) throw new BadRequestException('O modelo-base não está validado ou disponível', 404)
       if (Number(source.book) === book) throw new BadRequestException('Escolha um livro diferente do livro-base', 422)
-      const readiness = await bookSideVisualReadiness({ ...source.model_data, model_id: source.id, validation_label_ids: source.validation_label_ids || [] })
+      const readiness = await bookSideVisualReadiness({ ...source.model_data, model_id: source.id, validation_label_ids: source.validation_label_ids || [], validation_accuracy_threshold: source.validation_accuracy_threshold })
       if (!readiness.ready) throw new BadRequestException('O modelo-base precisa continuar validado antes de ser reutilizado', 409)
 
       const busy = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id)
@@ -422,6 +601,7 @@ export default class SideTrainingController {
         companies_id: user.companies_id, typebooks_id: typebooksId, book, source_model_id: source.id,
         version, status: 'ready', phase: 'ready', total: source.total, processed: source.total,
         training_samples: source.training_samples, validation_label_ids: [], model_data: modelData, source_books: modelData.source_books,
+        validation_accuracy_threshold: source.validation_accuracy_threshold,
         requested_by: user.id, active_slot: 1, finished_at: DateTime.utc(),
       }, { client: trx })
     })
@@ -435,14 +615,17 @@ export default class SideTrainingController {
     if (!book) throw new BadRequestException('Selecione um livro para treinar', 422)
     const sampleSize = this.requestedSampleSize(ctx)
     const sourceBooks = this.requestedSourceBooks(ctx, book)
-    if (sourceBooks.length > sampleSize) throw new BadRequestException('Há mais livros do que imagens na amostra. Aumente a amostra ou divida os livros em bases', 422)
     const { registry, model } = await this.modelContext(ctx, user.companies_id, typebooksId, book)
+    const existingBooks = model?.source_books || (model ? [model.book] : [])
+    const reusingSameBase = Boolean(model?.model_id && existingBooks.length === sourceBooks.length
+      && existingBooks.every((sourceBook) => sourceBooks.includes(sourceBook)))
+    if (sourceBooks.length > sampleSize && !reusingSameBase) throw new BadRequestException('Há mais livros do que imagens na amostra. Aumente a amostra ou divida os livros em bases', 422)
     if (!registry.available) throw new BadRequestException('O treinamento ainda não foi habilitado neste servidor. Contate o administrador', 503)
     const job = await Database.transaction(async (trx) => {
       await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
       const busy = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).whereIn('status', ['queued', 'training']).first()
       if (busy) return busy
-      if (model && !model.model_id) await this.storeLegacyModel(model, user.id, trx)
+      if (model) await this.storeLegacyModel(model, user.id, trx)
       const modelBooks = model?.source_books || (model ? [model.book] : [])
       const reuseValidation = Boolean(model?.model_id && model.validation_label_ids?.length && modelBooks.length === sourceBooks.length && modelBooks.every((sourceBook) => sourceBooks.includes(sourceBook)))
       const retainedValidation = reuseValidation ? await Database.from('indeximage_side_labels as labels').useTransaction(trx)
@@ -471,7 +654,7 @@ export default class SideTrainingController {
       return IndeximageSideModel.create({ companies_id: user.companies_id, typebooks_id: typebooksId, book,
         version: `sv-${crypto.randomUUID()}`, status: 'queued', phase: 'queued', total: trainingLabels.length, processed: 0, source_books: sourceBooks, source_model_id: model?.model_id || null,
         training_samples: trainingLabels.map((label) => ({ label_id: Number(label.id), bookrecords_id: Number(label.bookrecords_id), seq: Number(label.seq), sheet: Number(label.sheet), book: Number(label.book), label: label.label, drive_file_id: label.drive_file_id, file_name: label.file_name })),
-        validation_label_ids: retainedValidation.map((row) => Number(row.id)), requested_by: user.id,
+        validation_label_ids: retainedValidation.map((row) => Number(row.id)), validation_accuracy_threshold: model?.validation_accuracy_threshold ?? null, requested_by: user.id,
       }, { client: trx })
     })
     wakeBookSideTrainingWorker()
@@ -489,7 +672,12 @@ export default class SideTrainingController {
       await Typebook.query({ client: trx }).where('id', typebooksId).andWhere('companies_id', user.companies_id).forUpdate().firstOrFail()
       const candidate = await this.storeLegacyModel(context.model!, user.id, trx)
       const readiness = await bookSideVisualReadiness(candidate)
-      if (!readiness.ready) throw new BadRequestException(`Conclua a validação independente de pelo menos ${readiness.required} imagens conclusivas, incluindo cinco frentes e cinco versos, sem erros, antes de ativar`, 422)
+      if (!readiness.ready) {
+        const sourceBooks = candidate.source_books || [candidate.book]
+        const threshold = sourceBooks.length > 1 ? candidate.validation_accuracy_threshold ?? 80 : 100
+        const requiredCorrect = Math.ceil(readiness.required * threshold / 100)
+        throw new BadRequestException(`Para ativar, avalie ${readiness.required} imagens e alcance ${requiredCorrect} acertos (${threshold}%), com ao menos cinco frentes e cinco versos`, 422)
+      }
       await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).andWhere('active_slot', 1).update({ active_slot: null })
       await IndeximageSideModel.query({ client: trx }).where('id', candidate.model_id!).andWhere('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).andWhere('status', 'ready').update({ active_slot: 1 })
       return candidate
@@ -525,7 +713,7 @@ export default class SideTrainingController {
         if (registry.available) {
           const busy = await IndeximageSideModel.query({ client: trx }).where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).andWhere('book', book).whereIn('status', ['queued', 'training']).first()
           if (busy) throw new BadRequestException('Aguarde o treinamento deste livro terminar antes de alterar a amostra', 409)
-          if (model && !model.model_id) model = await this.storeLegacyModel(model, user.id, trx)
+          if (model) model = await this.storeLegacyModel(model, user.id, trx)
         }
       }
 
@@ -610,12 +798,16 @@ export default class SideTrainingController {
           .where('companies_id', user.companies_id).andWhere('typebooks_id', typebooksId).whereIn('book', sourceBooks)
           .whereIn('id', existingRows.map((row) => row.bookrecords_id)).select('id', 'book')
         const selectedIds = usedRecords.map((row) => Number(row.id))
-        const totalTarget = sampleSize + (additional ? usedRecords.length : 0)
+        const reviewedIds = new Set(existingRows.filter((row) => ['F', 'V'].includes(row.label || '')).map((row) => Number(row.bookrecords_id)))
+        const missingCoverage = sourceBooks.some((sourceBook, index) =>
+          usedRecords.filter((row) => Number(row.book) === sourceBook && reviewedIds.has(Number(row.id))).length
+            < Math.floor(sampleSize / sourceBooks.length) + (index < sampleSize % sourceBooks.length ? 1 : 0))
+        const totalTarget = sampleSize + (additional && !missingCoverage ? usedRecords.length : 0)
         const quota = Math.floor(totalTarget / sourceBooks.length)
         let added = 0
         for (let index = 0; index < sourceBooks.length; index++) {
           const target = quota + (index < totalTarget % sourceBooks.length ? 1 : 0)
-          const currentCount = usedRecords.filter((row) => Number(row.book) === sourceBooks[index]).length
+          const currentCount = usedRecords.filter((row) => Number(row.book) === sourceBooks[index] && reviewedIds.has(Number(row.id))).length
           const needed = Math.max(0, target - currentCount)
           if (!needed) continue
           const query = sampleQuery().andWhere('bookrecords.book', sourceBooks[index])
@@ -635,12 +827,19 @@ export default class SideTrainingController {
         }
         const alreadyCovered = sourceBooks.every((sourceBook, index) => {
           const target = quota + (index < totalTarget % sourceBooks.length ? 1 : 0)
-          return usedRecords.filter((row) => Number(row.book) === sourceBook).length >= target
+          return usedRecords.filter((row) => Number(row.book) === sourceBook && reviewedIds.has(Number(row.id))).length >= target
         })
         if (!added && alreadyCovered) return
       } else if (sharedValidationBooks.length) {
         const validationIds = new Set(model!.validation_label_ids || [])
         let currentRows = existingRows.filter((row) => validationIds.has(row.id))
+        const currentEvidenceCount = currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length
+        if (additional && currentEvidenceCount < 40 && currentRows.some((row) => row.label === 'U')) {
+          // Imagens inconclusivas não contam para completar o teste. Ao pedir outras,
+          // retire-as da amostra ativa para que as substitutas fiquem visíveis como pendentes.
+          currentRows = currentRows.filter((row) => row.label !== 'U')
+          retainedValidationIds = currentRows.map((row) => row.id)
+        }
         if (currentRows.length > 40 && currentRows.filter((row) => ['F', 'V'].includes(row.label || '')).length < 40) {
           currentRows = currentRows.filter((row) => row.label !== null)
           retainedValidationIds = currentRows.map((row) => row.id)
