@@ -4,6 +4,7 @@ import Database from '@ioc:Adonis/Lucid/Database'
 import Receipt from 'App/Models/Receipt'
 import ReceiptItem from 'App/Models/ReceiptItem'
 import Stamp from 'App/Models/Stamp'
+import Company from 'App/Models/Company'
 import Service from 'App/Models/Service'
 import ReceiptValidator from 'App/Validators/ReceiptValidator'
 import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
@@ -191,6 +192,77 @@ export default class ReceiptsController {
           .filter(Boolean))].join(','),
         total: receipt.items.reduce((sum, item) => sum + Number(item.qtde) * Number(item.amount), 0),
       })),
+    })
+  }
+
+  public async stampsUsageReport({ auth, request, response }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
+    const filters = await request.validate({ schema: schema.create({
+      dateStart: schema.date({ format: 'yyyy-MM-dd' }),
+      dateEnd: schema.date({ format: 'yyyy-MM-dd' }),
+    }) })
+
+    if (filters.dateEnd < filters.dateStart) {
+      throw new BadRequestException('A data final deve ser igual ou posterior à data inicial.', 422, 'invalid_report_period')
+    }
+
+    const start = filters.dateStart.toISODate()!
+    const end = filters.dateEnd.toISODate()!
+    const page = Math.max(1, Number(request.input('page', 1)) || 1)
+    const company = await Company.query().where('id', user.companies_id).firstOrFail()
+
+    const result = await Receipt.query()
+      .where('companies_id', user.companies_id)
+      .whereBetween('date_stamp', [start, end])
+      .whereNotNull('stamps')
+      .whereRaw("TRIM(stamps) <> ''")
+      .preload('user')
+      .preload('service')
+      .preload('tributation')
+      .preload('orderCertificate', (query) => query.preload('book'))
+      .orderBy('date_stamp', 'asc')
+      .orderBy('id', 'asc')
+      .paginate(page, 100)
+
+    const data = result.all().flatMap((receipt) => String(receipt.stamps || '')
+      .split(';')
+      .map((stamp) => stamp.trim())
+      .filter(Boolean)
+      .map((stamp) => {
+        const rawNames = [receipt.registered1, receipt.registered2].filter(Boolean).join(' e ')
+        const bookId = Number(receipt.orderCertificate?.bookId)
+        const formPrefixByBookId: Record<number, string> = {
+          2: 'Casamento de:',
+          3: 'Nascimento de:',
+          4: 'Óbito de:',
+          21: '2a.V.Cas.:',
+          24: 'Mandados / Livro E:',
+          25: 'Comunicação:',
+        }
+        const formPrefix = formPrefixByBookId[bookId] ||
+          receipt.orderCertificate?.book?.description || receipt.orderCertificate?.book?.name || ''
+        const prefix = formPrefix && !formPrefix.endsWith(':') ? `${formPrefix}:` : formPrefix
+        const alreadyPrefixed = prefix && rawNames.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase())
+
+        return {
+          stamp,
+          receiptId: receipt.id,
+          book: receipt.book,
+          sheet: receipt.sheet,
+          registeredNames: rawNames && prefix && !alreadyPrefixed ? `${prefix} ${rawNames}` : rawNames,
+          user: receipt.user?.name ?? null,
+          dateStamp: receipt.dateStamp?.toISODate() ?? null,
+          dateProtocol: receipt.dateProtocol?.toISODate() ?? null,
+          service: receipt.service?.name ?? null,
+          tributation: receipt.tributation?.description ?? null,
+          status: receipt.status ?? null,
+        }
+      }))
+
+    return response.ok({
+      ...result.serialize(),
+      company: { id: company.id, name: company.name },
+      data,
     })
   }
 

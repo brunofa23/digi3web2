@@ -367,6 +367,7 @@ Route.group(() => {
   Route.post('/receipts/:id/seal', 'ReceiptsController.seal')
   Route.get('/receipts/reports/emoluments-analytic', 'ReceiptsController.emolumentsAnalyticReport')
   Route.get('/receipts/reports/emoluments-synthetic', 'ReceiptsController.emolumentsSyntheticReport')
+  Route.get('/receipts/reports/stamps-usage', 'ReceiptsController.stampsUsageReport')
   Route.resource('/receipts', 'ReceiptsController').apiOnly()
 
 
