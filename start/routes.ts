@@ -135,6 +135,9 @@ Route.group(() => {
   Route.get('/typebooks/:typebooks_id/side-training/models', 'SideTrainingController.modelStatus').middleware('auth')
   Route.patch('/typebooks/:typebooks_id/side-training/models/:model_id/validation-accuracy', 'SideTrainingController.updateValidationAccuracyThreshold').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/divergences', 'SideTrainingController.bookDivergences').middleware('auth')
+  Route.get('/typebooks/:typebooks_id/book-sheet-conferences', 'BookSheetConferencesController.index').middleware('auth')
+  Route.post('/typebooks/:typebooks_id/book-sheet-conferences/advance', 'BookSheetConferencesController.advance').middleware('auth')
+  Route.patch('/typebooks/:typebooks_id/book-sheet-conferences/ignore', 'BookSheetConferencesController.ignore').middleware('auth')
   Route.get('/typebooks/:typebooks_id/side-training/base-models', 'SideTrainingController.baseModels').middleware('auth')
   Route.get('/side-training/admin/base-models', 'SideTrainingController.adminBaseModels').middleware('auth')
   Route.delete('/side-training/admin/base-models/:model_id', 'SideTrainingController.adminDeleteBase').middleware('auth')
@@ -361,8 +364,10 @@ Route.group(() => {
   Route.post('/receipts/:id/finalize-free', 'ReceiptPaymentsController.finalizeFree')
   Route.post('/receipts/:id/payments', 'ReceiptPaymentsController.store')
   Route.post('/receipts/:id/cancel-payments', 'ReceiptsController.cancelPayments')
+  Route.post('/receipts/:id/seal', 'ReceiptsController.seal')
   Route.get('/receipts/reports/emoluments-analytic', 'ReceiptsController.emolumentsAnalyticReport')
   Route.get('/receipts/reports/emoluments-synthetic', 'ReceiptsController.emolumentsSyntheticReport')
+  Route.get('/receipts/reports/stamps-usage', 'ReceiptsController.stampsUsageReport')
   Route.resource('/receipts', 'ReceiptsController').apiOnly()
 
 

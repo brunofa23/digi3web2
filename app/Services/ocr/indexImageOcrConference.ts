@@ -856,6 +856,52 @@ export async function extractTopIsolatedNumberConference(
   return buildCheckResult(fullText, sheetSelection.candidate, null, 'google_vision_top_number', sheetSelection.ambiguity)
 }
 
+// Uma única chamada ao Vision lê os quatro cantos ampliados da fotografia.
+export async function extractBookSheetCornerNumber(fileBuffer: Buffer, fileName: string) {
+  const metadata = await sharpInput(fileBuffer, fileName).metadata()
+  const width = metadata.width || 0
+  const height = metadata.height || 0
+  if (!width || !height) return { detectedSheet: null, confidence: 0, evidence: 'Imagem sem dimensões', source: null }
+
+  const corners = [
+    { name: 'superior esquerdo', left: 0, top: 0 },
+    { name: 'superior direito', left: 0.7, top: 0 },
+    { name: 'inferior esquerdo', left: 0, top: 0.8 },
+    { name: 'inferior direito', left: 0.7, top: 0.8 },
+  ]
+  const tiles = await Promise.all(corners.map((corner) => sharpInput(fileBuffer, fileName)
+    .extract({
+      left: Math.floor(width * corner.left),
+      top: Math.floor(height * corner.top),
+      width: Math.min(width - Math.floor(width * corner.left), Math.max(1, Math.floor(width * 0.3))),
+      height: Math.min(height - Math.floor(height * corner.top), Math.max(1, Math.floor(height * 0.2))),
+    })
+    .grayscale().normalize().sharpen().resize(720, 360, { fit: 'fill' }).jpeg({ quality: 90 }).toBuffer()))
+  const mosaic = await sharp({ create: { width: 1440, height: 720, channels: 3, background: '#ffffff' } })
+    .composite(tiles.map((input, index) => ({ input, left: (index % 2) * 720, top: Math.floor(index / 2) * 360 })))
+    .jpeg({ quality: 92 }).toBuffer()
+  const page = await extractOcrPageFromBuffer(mosaic, '.jpg')
+  const candidates = page.words.flatMap((word) => {
+    const value = word.text.trim().replace(/[.,;:]$/, '')
+    if (!/^\d{1,4}$/.test(value) || Number(value) < 1 || word.confidence < 0.35) return []
+    const column = (word.left + word.right) / 2 >= 720 ? 1 : 0
+    const row = (word.top + word.bottom) / 2 >= 360 ? 1 : 0
+    return [{ number: Number(value), confidence: word.confidence, corner: corners[row * 2 + column].name }]
+  })
+  const values = [...new Set(candidates.map((candidate) => candidate.number))]
+  if (values.length !== 1) return {
+    detectedSheet: null,
+    confidence: 0,
+    evidence: values.length ? `Números conflitantes nos cantos: ${values.join(', ')}` : 'Número não encontrado nos quatro cantos',
+    source: null,
+  }
+  const selected = candidates.sort((a, b) => b.confidence - a.confidence)[0]
+  if (selected.confidence < 0.65) return { detectedSheet: null, confidence: selected.confidence,
+    evidence: `Leitura incerta de ${selected.number} no canto ${selected.corner}`, source: selected.corner }
+  return { detectedSheet: selected.number, confidence: selected.confidence,
+    evidence: `Número ${selected.number} no canto ${selected.corner}`, source: selected.corner }
+}
+
 export function compareNumberStatus(expected: number | null | undefined, detected: number | null) {
   if (detected === null || detected === undefined) return 'not_found'
   if (expected === null || expected === undefined || Number.isNaN(Number(expected))) return 'detected'
