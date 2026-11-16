@@ -3,6 +3,7 @@ import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import Database from '@ioc:Adonis/Lucid/Database'
 import Receipt from 'App/Models/Receipt'
 import ReceiptItem from 'App/Models/ReceiptItem'
+import Stamp from 'App/Models/Stamp'
 import Service from 'App/Models/Service'
 import ReceiptValidator from 'App/Validators/ReceiptValidator'
 import EmployeeVerificationXReceipt from 'App/Models/EmployeeVerificationXReceipt'
@@ -27,6 +28,96 @@ type ReceiptItemPayload = {
 const CANCEL_RECEIPT_PERMISSION_ID = 48
 
 export default class ReceiptsController {
+  public async seal({ auth, params, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    const trx = await Database.transaction()
+
+    try {
+      const receipt = await Receipt.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('id', params.id)
+        .forUpdate()
+        .firstOrFail()
+
+      if (receipt.status === 'CANCELADO' || receipt.status === 'EXCLUIDO') {
+        throw new BadRequestException('Recibo cancelado não pode ser selado.', 409, 'receipt_cancelled')
+      }
+
+      // Repetir a chamada não deve consumir uma nova sequência.
+      if (receipt.dateStamp && receipt.stamps) {
+        await trx.commit()
+        return response.ok(receipt)
+      }
+      if (receipt.dateStamp || receipt.stamps) {
+        throw new BadRequestException('O recibo possui dados de selo incompletos.', 409, 'receipt_stamp_incomplete')
+      }
+
+      const items = await ReceiptItem.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('receipt_id', receipt.id)
+        .preload('emolument')
+      const quantity = items
+        .filter((item) => item.emolument?.type === 'EMOLUMENTOS' && Number(item.qtde) > 0)
+        .reduce((sum, item) => sum + Number(item.qtde || 0), 0)
+
+      if (!quantity) {
+        throw new BadRequestException('O recibo não possui emolumentos para gerar selos.', 422, 'receipt_without_emoluments')
+      }
+
+      const stamps = await Stamp.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('finished', false)
+        .where('inactive', false)
+        .orderBy('id', 'asc')
+        .forUpdate()
+
+      const sequence: string[] = []
+      let remaining = quantity
+
+      for (const stamp of stamps) {
+        if (remaining <= 0) break
+
+        let current = stamp.current ?? stamp.start - 1
+        while (remaining > 0) {
+          current += 1
+          if (stamp.end && current > stamp.end) {
+            stamp.finished = true
+            stamp.current = stamp.end
+            break
+          }
+
+          sequence.push(`${stamp.serial}${current}`)
+          stamp.current = current
+          remaining--
+
+          if (stamp.end && current === stamp.end) {
+            stamp.finished = true
+            break
+          }
+        }
+      }
+
+      if (remaining > 0) {
+        throw new BadRequestException('Não há selos disponíveis em quantidade suficiente.', 409, 'stamp_sequence_insufficient')
+      }
+
+      for (const stamp of stamps.filter((item) => item.$isDirty)) {
+        await stamp.save()
+      }
+
+      receipt.stamps = sequence.map((code) => `${code};`).join('')
+      receipt.dateStamp = DateTime.local().startOf('day')
+      receipt.status = 'SELADO'
+      await receipt.save()
+
+      await trx.commit()
+      return response.ok(receipt)
+    } catch (error) {
+      await trx.rollback()
+      throw error
+    }
+  }
+
   public async emolumentsAnalyticReport({ auth, request, response }: HttpContextContract) {
     const user = await auth.use('api').authenticate()
     const filters = await request.validate({ schema: schema.create({

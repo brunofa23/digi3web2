@@ -1,5 +1,7 @@
 // app/Controllers/Http/StampsController.ts
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
+import Database from '@ioc:Adonis/Lucid/Database'
+import BadRequestException from 'App/Exceptions/BadRequestException'
 import Stamp from 'App/Models/Stamp'
 import StampValidator from 'App/Validators/StampValidator'
 
@@ -142,74 +144,61 @@ export default class StampsController {
       return response.badRequest({ message: 'Quantidade inválida' })
     }
     const quantity = quantityParam
+    const trx = await Database.transaction()
 
-    // Busca todos os stamps ativos da empresa
-    const stamps = await Stamp.query()
-      .where('companies_id', authenticate.companies_id)
-      .where('finished', false)
-      .where('inactive', false)
-      .orderBy('id', 'asc')
+    try {
+      // Mantém o endpoint legado serializado com o novo fluxo de selamento.
+      const stamps = await Stamp.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('finished', false)
+        .where('inactive', false)
+        .orderBy('id', 'asc')
+        .forUpdate()
 
-    if (!stamps.length) {
-      return response.notFound({
-        message: 'Nenhum stamp disponível (finished = 0 e inactive = 0)',
-      })
-    }
+      const sequence: string[] = []
+      let remaining = quantity
 
-    const sequence: string[] = []
-    let remaining = quantity
+      for (const stamp of stamps) {
+        if (remaining <= 0) break
 
-    for (const stamp of stamps) {
-      if (remaining <= 0) break
+        let current = stamp.current ?? stamp.start - 1
+        while (remaining > 0) {
+          current += 1
+          if (stamp.end && current > stamp.end) {
+            stamp.finished = true
+            stamp.current = stamp.end
+            break
+          }
 
-      // ponto de partida
-      let current = stamp.current ?? stamp.start - 1
+          sequence.push(`${stamp.serial}${current}`)
+          stamp.current = current
+          remaining--
 
-      while (remaining > 0) {
-        current += 1
-
-        // passou do fim
-        if (stamp.end && current > stamp.end) {
-          stamp.finished = true
-          stamp.current = stamp.end
-          break
-        }
-
-        const code = `${stamp.serial}${current}` // serial + current
-        sequence.push(code)
-
-        stamp.current = current
-        remaining--
-
-        if (stamp.end && current === stamp.end) {
-          stamp.finished = true
-          break
+          if (stamp.end && current === stamp.end) {
+            stamp.finished = true
+            break
+          }
         }
       }
-    }
 
-    // salva só os alterados
-    await Promise.all(
-      stamps
-        .filter((s) => s.$isDirty)
-        .map((s) => s.save())
-    )
+      if (remaining > 0) {
+        throw new BadRequestException('Não há selos disponíveis em quantidade suficiente.', 409, 'stamp_sequence_insufficient')
+      }
 
-    if (!sequence.length) {
-      return response.notFound({
-        message:
-          'Não foi possível gerar a sequência com os stamps disponíveis',
-      })
-    }
+      for (const stamp of stamps.filter((item) => item.$isDirty)) {
+        await stamp.save()
+      }
 
-    // aqui entra o ; depois de CADA serial+current
-    const sequenceJoinedWithSemicolon = sequence.map((code) => `${code};`).join('')
-
-    return {
-      quantityRequested: quantity,
-      quantityGenerated: sequence.length,
-      sequence, // ["ABC1000", "ABC1001", ...]
-      sequence_joined: sequenceJoinedWithSemicolon, // "ABC1000;ABC1001;ABC1002;"
+      await trx.commit()
+      return {
+        quantityRequested: quantity,
+        quantityGenerated: sequence.length,
+        sequence,
+        sequence_joined: sequence.map((code) => `${code};`).join(''),
+      }
+    } catch (error) {
+      await trx.rollback()
+      throw error
     }
   }
 

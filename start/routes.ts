@@ -364,6 +364,7 @@ Route.group(() => {
   Route.post('/receipts/:id/finalize-free', 'ReceiptPaymentsController.finalizeFree')
   Route.post('/receipts/:id/payments', 'ReceiptPaymentsController.store')
   Route.post('/receipts/:id/cancel-payments', 'ReceiptsController.cancelPayments')
+  Route.post('/receipts/:id/seal', 'ReceiptsController.seal')
   Route.get('/receipts/reports/emoluments-analytic', 'ReceiptsController.emolumentsAnalyticReport')
   Route.get('/receipts/reports/emoluments-synthetic', 'ReceiptsController.emolumentsSyntheticReport')
   Route.resource('/receipts', 'ReceiptsController').apiOnly()
