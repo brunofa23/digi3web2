@@ -115,6 +115,9 @@ Route_1.default.group(() => {
     Route_1.default.get('/typebooks/:typebooks_id/side-training/models', 'SideTrainingController.modelStatus').middleware('auth');
     Route_1.default.patch('/typebooks/:typebooks_id/side-training/models/:model_id/validation-accuracy', 'SideTrainingController.updateValidationAccuracyThreshold').middleware('auth');
     Route_1.default.get('/typebooks/:typebooks_id/side-training/divergences', 'SideTrainingController.bookDivergences').middleware('auth');
+    Route_1.default.get('/typebooks/:typebooks_id/book-sheet-conferences', 'BookSheetConferencesController.index').middleware('auth');
+    Route_1.default.post('/typebooks/:typebooks_id/book-sheet-conferences/advance', 'BookSheetConferencesController.advance').middleware('auth');
+    Route_1.default.patch('/typebooks/:typebooks_id/book-sheet-conferences/ignore', 'BookSheetConferencesController.ignore').middleware('auth');
     Route_1.default.get('/typebooks/:typebooks_id/side-training/base-models', 'SideTrainingController.baseModels').middleware('auth');
     Route_1.default.get('/side-training/admin/base-models', 'SideTrainingController.adminBaseModels').middleware('auth');
     Route_1.default.delete('/side-training/admin/base-models/:model_id', 'SideTrainingController.adminDeleteBase').middleware('auth');
@@ -267,8 +270,10 @@ Route_1.default.group(() => {
     Route_1.default.post('/receipts/:id/finalize-free', 'ReceiptPaymentsController.finalizeFree');
     Route_1.default.post('/receipts/:id/payments', 'ReceiptPaymentsController.store');
     Route_1.default.post('/receipts/:id/cancel-payments', 'ReceiptsController.cancelPayments');
+    Route_1.default.post('/receipts/:id/seal', 'ReceiptsController.seal');
     Route_1.default.get('/receipts/reports/emoluments-analytic', 'ReceiptsController.emolumentsAnalyticReport');
     Route_1.default.get('/receipts/reports/emoluments-synthetic', 'ReceiptsController.emolumentsSyntheticReport');
+    Route_1.default.get('/receipts/reports/stamps-usage', 'ReceiptsController.stampsUsageReport');
     Route_1.default.resource('/receipts', 'ReceiptsController').apiOnly();
     Route_1.default.get('/tributations', 'TributationsController.index').middleware('tributationPermission:index');
     Route_1.default.get('/tributations/:id', 'TributationsController.show').middleware('tributationPermission:show');

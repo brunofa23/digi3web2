@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const Receipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Receipt"));
 const ReceiptItem_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/ReceiptItem"));
+const Stamp_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Stamp"));
+const Company_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Company"));
 const Service_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Service"));
 const ReceiptValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/ReceiptValidator"));
 const EmployeeVerificationXReceipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerificationXReceipt"));
@@ -22,6 +24,81 @@ const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash")
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const CANCEL_RECEIPT_PERMISSION_ID = 48;
 class ReceiptsController {
+    async seal({ auth, params, response }) {
+        const authenticate = await auth.use('api').authenticate();
+        const trx = await Database_1.default.transaction();
+        try {
+            const receipt = await Receipt_1.default.query({ client: trx })
+                .where('companies_id', authenticate.companies_id)
+                .where('id', params.id)
+                .forUpdate()
+                .firstOrFail();
+            if (receipt.status === 'CANCELADO' || receipt.status === 'EXCLUIDO') {
+                throw new BadRequestException_1.default('Recibo cancelado não pode ser selado.', 409, 'receipt_cancelled');
+            }
+            if (receipt.dateStamp && receipt.stamps) {
+                await trx.commit();
+                return response.ok(receipt);
+            }
+            if (receipt.dateStamp || receipt.stamps) {
+                throw new BadRequestException_1.default('O recibo possui dados de selo incompletos.', 409, 'receipt_stamp_incomplete');
+            }
+            const items = await ReceiptItem_1.default.query({ client: trx })
+                .where('companies_id', authenticate.companies_id)
+                .where('receipt_id', receipt.id)
+                .preload('emolument');
+            const quantity = items
+                .filter((item) => item.emolument?.type === 'EMOLUMENTOS' && Number(item.qtde) > 0)
+                .reduce((sum, item) => sum + Number(item.qtde || 0), 0);
+            if (!quantity) {
+                throw new BadRequestException_1.default('O recibo não possui emolumentos para gerar selos.', 422, 'receipt_without_emoluments');
+            }
+            const stamps = await Stamp_1.default.query({ client: trx })
+                .where('companies_id', authenticate.companies_id)
+                .where('finished', false)
+                .where('inactive', false)
+                .orderBy('id', 'asc')
+                .forUpdate();
+            const sequence = [];
+            let remaining = quantity;
+            for (const stamp of stamps) {
+                if (remaining <= 0)
+                    break;
+                let current = stamp.current ?? stamp.start - 1;
+                while (remaining > 0) {
+                    current += 1;
+                    if (stamp.end && current > stamp.end) {
+                        stamp.finished = true;
+                        stamp.current = stamp.end;
+                        break;
+                    }
+                    sequence.push(`${stamp.serial}${current}`);
+                    stamp.current = current;
+                    remaining--;
+                    if (stamp.end && current === stamp.end) {
+                        stamp.finished = true;
+                        break;
+                    }
+                }
+            }
+            if (remaining > 0) {
+                throw new BadRequestException_1.default('Não há selos disponíveis em quantidade suficiente.', 409, 'stamp_sequence_insufficient');
+            }
+            for (const stamp of stamps.filter((item) => item.$isDirty)) {
+                await stamp.save();
+            }
+            receipt.stamps = sequence.map((code) => `${code};`).join('');
+            receipt.dateStamp = luxon_1.DateTime.local().startOf('day');
+            receipt.status = 'SELADO';
+            await receipt.save();
+            await trx.commit();
+            return response.ok(receipt);
+        }
+        catch (error) {
+            await trx.rollback();
+            throw error;
+        }
+    }
     async emolumentsAnalyticReport({ auth, request, response }) {
         const user = await auth.use('api').authenticate();
         const filters = await request.validate({ schema: Validator_1.schema.create({
@@ -92,6 +169,70 @@ class ReceiptsController {
                         .filter(Boolean))].join(','),
                 total: receipt.items.reduce((sum, item) => sum + Number(item.qtde) * Number(item.amount), 0),
             })),
+        });
+    }
+    async stampsUsageReport({ auth, request, response }) {
+        const user = await auth.use('api').authenticate();
+        const filters = await request.validate({ schema: Validator_1.schema.create({
+                dateStart: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
+                dateEnd: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
+            }) });
+        if (filters.dateEnd < filters.dateStart) {
+            throw new BadRequestException_1.default('A data final deve ser igual ou posterior à data inicial.', 422, 'invalid_report_period');
+        }
+        const start = filters.dateStart.toISODate();
+        const end = filters.dateEnd.toISODate();
+        const page = Math.max(1, Number(request.input('page', 1)) || 1);
+        const company = await Company_1.default.query().where('id', user.companies_id).firstOrFail();
+        const result = await Receipt_1.default.query()
+            .where('companies_id', user.companies_id)
+            .whereBetween('date_stamp', [start, end])
+            .whereNotNull('stamps')
+            .whereRaw("TRIM(stamps) <> ''")
+            .preload('user')
+            .preload('service')
+            .preload('tributation')
+            .preload('orderCertificate', (query) => query.preload('book'))
+            .orderBy('date_stamp', 'asc')
+            .orderBy('id', 'asc')
+            .paginate(page, 100);
+        const data = result.all().flatMap((receipt) => String(receipt.stamps || '')
+            .split(';')
+            .map((stamp) => stamp.trim())
+            .filter(Boolean)
+            .map((stamp) => {
+            const rawNames = [receipt.registered1, receipt.registered2].filter(Boolean).join(' e ');
+            const bookId = Number(receipt.orderCertificate?.bookId);
+            const formPrefixByBookId = {
+                2: 'Casamento de:',
+                3: 'Nascimento de:',
+                4: 'Óbito de:',
+                21: '2a.V.Cas.:',
+                24: 'Mandados / Livro E:',
+                25: 'Comunicação:',
+            };
+            const formPrefix = formPrefixByBookId[bookId] ||
+                receipt.orderCertificate?.book?.description || receipt.orderCertificate?.book?.name || '';
+            const prefix = formPrefix && !formPrefix.endsWith(':') ? `${formPrefix}:` : formPrefix;
+            const alreadyPrefixed = prefix && rawNames.toLocaleLowerCase().startsWith(prefix.toLocaleLowerCase());
+            return {
+                stamp,
+                receiptId: receipt.id,
+                book: receipt.book,
+                sheet: receipt.sheet,
+                registeredNames: rawNames && prefix && !alreadyPrefixed ? `${prefix} ${rawNames}` : rawNames,
+                user: receipt.user?.name ?? null,
+                dateStamp: receipt.dateStamp?.toISODate() ?? null,
+                dateProtocol: receipt.dateProtocol?.toISODate() ?? null,
+                service: receipt.service?.name ?? null,
+                tributation: receipt.tributation?.description ?? null,
+                status: receipt.status ?? null,
+            };
+        }));
+        return response.ok({
+            ...result.serialize(),
+            company: { id: company.id, name: company.name },
+            data,
         });
     }
     async emolumentsSyntheticReport({ auth, request, response }) {

@@ -3,6 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
+const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const Stamp_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Stamp"));
 const StampValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/StampValidator"));
 class StampsController {
@@ -68,54 +70,54 @@ class StampsController {
             return response.badRequest({ message: 'Quantidade inválida' });
         }
         const quantity = quantityParam;
-        const stamps = await Stamp_1.default.query()
-            .where('companies_id', authenticate.companies_id)
-            .where('finished', false)
-            .where('inactive', false)
-            .orderBy('id', 'asc');
-        if (!stamps.length) {
-            return response.notFound({
-                message: 'Nenhum stamp disponível (finished = 0 e inactive = 0)',
-            });
-        }
-        const sequence = [];
-        let remaining = quantity;
-        for (const stamp of stamps) {
-            if (remaining <= 0)
-                break;
-            let current = stamp.current ?? stamp.start - 1;
-            while (remaining > 0) {
-                current += 1;
-                if (stamp.end && current > stamp.end) {
-                    stamp.finished = true;
-                    stamp.current = stamp.end;
+        const trx = await Database_1.default.transaction();
+        try {
+            const stamps = await Stamp_1.default.query({ client: trx })
+                .where('companies_id', authenticate.companies_id)
+                .where('finished', false)
+                .where('inactive', false)
+                .orderBy('id', 'asc')
+                .forUpdate();
+            const sequence = [];
+            let remaining = quantity;
+            for (const stamp of stamps) {
+                if (remaining <= 0)
                     break;
-                }
-                const code = `${stamp.serial}${current}`;
-                sequence.push(code);
-                stamp.current = current;
-                remaining--;
-                if (stamp.end && current === stamp.end) {
-                    stamp.finished = true;
-                    break;
+                let current = stamp.current ?? stamp.start - 1;
+                while (remaining > 0) {
+                    current += 1;
+                    if (stamp.end && current > stamp.end) {
+                        stamp.finished = true;
+                        stamp.current = stamp.end;
+                        break;
+                    }
+                    sequence.push(`${stamp.serial}${current}`);
+                    stamp.current = current;
+                    remaining--;
+                    if (stamp.end && current === stamp.end) {
+                        stamp.finished = true;
+                        break;
+                    }
                 }
             }
+            if (remaining > 0) {
+                throw new BadRequestException_1.default('Não há selos disponíveis em quantidade suficiente.', 409, 'stamp_sequence_insufficient');
+            }
+            for (const stamp of stamps.filter((item) => item.$isDirty)) {
+                await stamp.save();
+            }
+            await trx.commit();
+            return {
+                quantityRequested: quantity,
+                quantityGenerated: sequence.length,
+                sequence,
+                sequence_joined: sequence.map((code) => `${code};`).join(''),
+            };
         }
-        await Promise.all(stamps
-            .filter((s) => s.$isDirty)
-            .map((s) => s.save()));
-        if (!sequence.length) {
-            return response.notFound({
-                message: 'Não foi possível gerar a sequência com os stamps disponíveis',
-            });
+        catch (error) {
+            await trx.rollback();
+            throw error;
         }
-        const sequenceJoinedWithSemicolon = sequence.map((code) => `${code};`).join('');
-        return {
-            quantityRequested: quantity,
-            quantityGenerated: sequence.length,
-            sequence,
-            sequence_joined: sequenceJoinedWithSemicolon,
-        };
     }
 }
 exports.default = StampsController;
