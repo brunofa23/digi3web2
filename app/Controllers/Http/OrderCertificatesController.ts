@@ -26,7 +26,7 @@ import Groupxpermission from 'App/Models/Groupxpermission'
 import Hash from '@ioc:Adonis/Core/Hash'
 
 export default class OrderCertificatesController {
-  private async saveAverbations(raw: any, orderCertificateId: number, companiesId: number, trx: TransactionClientContract) {
+  private async saveAverbations(raw: any, orderCertificateId: number, companiesId: number, bookId: number, trx: TransactionClientContract) {
     let rows: any
     try {
       rows = typeof raw === 'string' ? JSON.parse(raw) : raw
@@ -45,10 +45,11 @@ export default class OrderCertificatesController {
     const descriptionIds = [...new Set(rows.map((row) => Number(row.averbationDescriptionId)))]
     const bookTypeIds = [...new Set(rows.map((row) => Number(row.documentTypeBookId)))]
     if (descriptionIds.length) {
-      const descriptions = await AverbationDescription.query({ client: trx }).where('companiesId', companiesId).whereIn('id', descriptionIds)
+      const descriptions = await AverbationDescription.query({ client: trx })
+        .where('companiesId', companiesId).where('bookId', bookId).whereIn('id', descriptionIds)
       const bookTypes = await DocumentTypeBook.query({ client: trx }).where('companies_id', companiesId).whereIn('id', bookTypeIds)
       if (descriptions.length !== descriptionIds.length || bookTypes.length !== bookTypeIds.length) {
-        throw new Error('Averbações: descrição ou tipo de livro indisponível para esta empresa')
+        throw new Error('Averbações: descrição, tipo de Pré atendimento ou tipo de livro indisponível para esta empresa')
       }
     }
 
@@ -1861,7 +1862,7 @@ export default class OrderCertificatesController {
 
     if (book_id == 24) query.preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id))
     if (book_id == 25) query.preload('communicationCertificate', (q) => q.where('companiesId', authenticate.companies_id))
-    if ([21, 24].includes(Number(book_id))) query.preload('averbations', (q) => q.orderBy('id', 'asc'))
+    if ([2, 3, 4, 21, 24].includes(Number(book_id))) query.preload('averbations', (q) => q.orderBy('id', 'asc'))
 
     const orderCertificate = await query.first()
     if (!orderCertificate) {
@@ -2121,8 +2122,8 @@ export default class OrderCertificatesController {
             date: DateTime.local(),
           }, { client: trx })
         }
-        if ([21, 24].includes(bookId) && body.averbations !== undefined) {
-          await this.saveAverbations(body.averbations, oc.id, user.companies_id, trx)
+        if ([2, 3, 4, 21, 24].includes(bookId) && body.averbations !== undefined) {
+          await this.saveAverbations(body.averbations, oc.id, user.companies_id, bookId, trx)
         }
         return oc
       })
@@ -2232,7 +2233,7 @@ export default class OrderCertificatesController {
       if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
       if (orderCertificate.bookId === 24) await orderCertificate.load('mandateCertificate')
-      if ([21, 24].includes(orderCertificate.bookId)) await orderCertificate.load('averbations')
+      if ([2, 3, 4, 21, 24].includes(orderCertificate.bookId)) await orderCertificate.load('averbations')
       if (orderCertificate.bookId === 25) await orderCertificate.load('communicationCertificate')
 
       return response.created(orderCertificate)
@@ -2461,8 +2462,8 @@ export default class OrderCertificatesController {
           communication.id = orderCertificate.certificateId
           await this.saveCommunication(communication, user.companies_id, user.id, trx)
         }
-        if ([21, 24].includes(bookId) && body.averbations !== undefined) {
-          await this.saveAverbations(body.averbations, orderCertificate.id, user.companies_id, trx)
+        if ([2, 3, 4, 21, 24].includes(bookId) && body.averbations !== undefined) {
+          await this.saveAverbations(body.averbations, orderCertificate.id, user.companies_id, bookId, trx)
         }
       })
 
@@ -2565,7 +2566,7 @@ export default class OrderCertificatesController {
       if (orderCertificate.bookId === 4) await orderCertificate.load('deathCertificate')
       if (orderCertificate.bookId === 21) await orderCertificate.load('secondcopyCertificate')
       if (orderCertificate.bookId === 24) await orderCertificate.load('mandateCertificate')
-      if ([21, 24].includes(orderCertificate.bookId)) await orderCertificate.load('averbations')
+      if ([2, 3, 4, 21, 24].includes(orderCertificate.bookId)) await orderCertificate.load('averbations')
       if (orderCertificate.bookId === 25) await orderCertificate.load('communicationCertificate')
 
       const check = await SecondcopyCertificate.find(orderCertificate.certificateId)

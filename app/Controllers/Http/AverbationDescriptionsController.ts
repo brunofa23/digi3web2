@@ -1,6 +1,7 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import AverbationDescription from 'App/Models/AverbationDescription'
+import Book from 'App/Models/Book'
 import { verifyPermission } from 'App/Services/util'
 
 export default class AverbationDescriptionsController {
@@ -26,7 +27,12 @@ export default class AverbationDescriptionsController {
       name: schema.string({ trim: true }, [rules.maxLength(255)]),
       description: schema.string.optional(),
       inactive: schema.boolean.optional(),
+      bookId: schema.number(),
     }) })
+
+    if (!await Book.query().where('id', payload.bookId).where('ordercertificate', true).first()) {
+      return response.badRequest({ message: 'Tipo de Pré atendimento inválido' })
+    }
 
     const item = await AverbationDescription.create({ ...payload, description: payload.description ?? '', companiesId: user.companies_id })
     return response.created(item)
@@ -46,7 +52,11 @@ export default class AverbationDescriptionsController {
       name: schema.string({ trim: true }, [rules.maxLength(255)]),
       description: schema.string.optional(),
       inactive: schema.boolean(),
+      bookId: schema.number(),
     }) })
+    if (!await Book.query().where('id', payload.bookId).where('ordercertificate', true).first()) {
+      return response.badRequest({ message: 'Tipo de Pré atendimento inválido' })
+    }
     item.merge({ ...payload, description: payload.description ?? '' })
     await item.save()
     return item

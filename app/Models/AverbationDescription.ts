@@ -17,6 +17,9 @@ export default class AverbationDescription extends BaseModel {
   @column()
   public inactive: boolean
 
+  @column({ columnName: 'book_id' })
+  public bookId: number | null
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
