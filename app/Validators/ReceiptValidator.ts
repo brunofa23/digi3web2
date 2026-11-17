@@ -50,6 +50,7 @@ export default class ReceiptValidator {
     side: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
 
     datePrevision: schema.date.optional(),
+    timePrevision: schema.string.optional({ trim: true }, [rules.regex(/^([01]\d|2[0-3]):[0-5]\d$/)]),
     dateProtocol: schema.date.optional(),
     dateStamp: schema.date.optional(),
     dateMarriage: schema.date.optional(),
