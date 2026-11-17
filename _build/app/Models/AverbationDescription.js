@@ -34,6 +34,10 @@ __decorate([
     __metadata("design:type", Boolean)
 ], AverbationDescription.prototype, "inactive", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'book_id', serializeAs: 'bookId' }),
+    __metadata("design:type", Object)
+], AverbationDescription.prototype, "bookId", void 0);
+__decorate([
     Orm_1.column.dateTime({ autoCreate: true }),
     __metadata("design:type", luxon_1.DateTime)
 ], AverbationDescription.prototype, "createdAt", void 0);

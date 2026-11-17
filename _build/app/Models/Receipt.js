@@ -99,6 +99,10 @@ __decorate([
     __metadata("design:type", Object)
 ], Receipt.prototype, "datePrevision", void 0);
 __decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], Receipt.prototype, "timePrevision", void 0);
+__decorate([
     Orm_1.column.date(),
     __metadata("design:type", Object)
 ], Receipt.prototype, "dateProtocol", void 0);

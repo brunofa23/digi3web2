@@ -8,7 +8,7 @@ class FinAccountUpdateValidator {
             companies_id: Validator_1.schema.number.optional(),
             fin_emp_id: Validator_1.schema.number.optional(),
             fin_class_id: Validator_1.schema.number.optional(),
-            fin_paymentmethod_id: Validator_1.schema.number.optional(),
+            fin_paymentmethod_id: Validator_1.schema.number.nullableAndOptional(),
             id_replication: Validator_1.schema.number.optional(),
             entity_id: Validator_1.schema.number.nullableAndOptional(),
             description: Validator_1.schema.string.optional(),

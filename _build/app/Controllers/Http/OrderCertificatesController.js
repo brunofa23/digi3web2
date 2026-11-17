@@ -27,7 +27,7 @@ const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"))
 const Groupxpermission_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Groupxpermission"));
 const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash"));
 class OrderCertificatesController {
-    async saveAverbations(raw, orderCertificateId, companiesId, trx) {
+    async saveAverbations(raw, orderCertificateId, companiesId, bookId, trx) {
         let rows;
         try {
             rows = typeof raw === 'string' ? JSON.parse(raw) : raw;
@@ -46,10 +46,11 @@ class OrderCertificatesController {
         const descriptionIds = [...new Set(rows.map((row) => Number(row.averbationDescriptionId)))];
         const bookTypeIds = [...new Set(rows.map((row) => Number(row.documentTypeBookId)))];
         if (descriptionIds.length) {
-            const descriptions = await AverbationDescription_1.default.query({ client: trx }).where('companiesId', companiesId).whereIn('id', descriptionIds);
+            const descriptions = await AverbationDescription_1.default.query({ client: trx })
+                .where('companiesId', companiesId).where('bookId', bookId).whereIn('id', descriptionIds);
             const bookTypes = await DocumentTypeBook_1.default.query({ client: trx }).where('companies_id', companiesId).whereIn('id', bookTypeIds);
             if (descriptions.length !== descriptionIds.length || bookTypes.length !== bookTypeIds.length) {
-                throw new Error('Averbações: descrição ou tipo de livro indisponível para esta empresa');
+                throw new Error('Averbações: descrição, tipo de Pré atendimento ou tipo de livro indisponível para esta empresa');
             }
         }
         await OrderCertificateAverbation_1.default.query({ client: trx }).where('orderCertificateId', orderCertificateId).where('companiesId', companiesId).delete();
@@ -1532,7 +1533,7 @@ class OrderCertificatesController {
             query.preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id));
         if (book_id == 25)
             query.preload('communicationCertificate', (q) => q.where('companiesId', authenticate.companies_id));
-        if ([21, 24].includes(Number(book_id)))
+        if ([2, 3, 4, 21, 24].includes(Number(book_id)))
             query.preload('averbations', (q) => q.orderBy('id', 'asc'));
         const orderCertificate = await query.first();
         if (!orderCertificate) {
@@ -1752,8 +1753,8 @@ class OrderCertificatesController {
                         date: luxon_1.DateTime.local(),
                     }, { client: trx });
                 }
-                if ([21, 24].includes(bookId) && body.averbations !== undefined) {
-                    await this.saveAverbations(body.averbations, oc.id, user.companies_id, trx);
+                if ([2, 3, 4, 21, 24].includes(bookId) && body.averbations !== undefined) {
+                    await this.saveAverbations(body.averbations, oc.id, user.companies_id, bookId, trx);
                 }
                 return oc;
             });
@@ -1857,7 +1858,7 @@ class OrderCertificatesController {
                 await orderCertificate.load('secondcopyCertificate');
             if (orderCertificate.bookId === 24)
                 await orderCertificate.load('mandateCertificate');
-            if ([21, 24].includes(orderCertificate.bookId))
+            if ([2, 3, 4, 21, 24].includes(orderCertificate.bookId))
                 await orderCertificate.load('averbations');
             if (orderCertificate.bookId === 25)
                 await orderCertificate.load('communicationCertificate');
@@ -2050,8 +2051,8 @@ class OrderCertificatesController {
                     communication.id = orderCertificate.certificateId;
                     await this.saveCommunication(communication, user.companies_id, user.id, trx);
                 }
-                if ([21, 24].includes(bookId) && body.averbations !== undefined) {
-                    await this.saveAverbations(body.averbations, orderCertificate.id, user.companies_id, trx);
+                if ([2, 3, 4, 21, 24].includes(bookId) && body.averbations !== undefined) {
+                    await this.saveAverbations(body.averbations, orderCertificate.id, user.companies_id, bookId, trx);
                 }
             });
             if (orderCertificate.bookId === 2 && orderCertificate.certificateId) {
@@ -2149,7 +2150,7 @@ class OrderCertificatesController {
                 await orderCertificate.load('secondcopyCertificate');
             if (orderCertificate.bookId === 24)
                 await orderCertificate.load('mandateCertificate');
-            if ([21, 24].includes(orderCertificate.bookId))
+            if ([2, 3, 4, 21, 24].includes(orderCertificate.bookId))
                 await orderCertificate.load('averbations');
             if (orderCertificate.bookId === 25)
                 await orderCertificate.load('communicationCertificate');

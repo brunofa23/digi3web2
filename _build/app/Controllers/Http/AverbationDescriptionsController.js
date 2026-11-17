@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const AverbationDescription_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/AverbationDescription"));
+const Book_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Book"));
 const util_1 = global[Symbol.for('ioc.use')]("App/Services/util");
 class AverbationDescriptionsController {
     async allowed(auth) {
@@ -26,7 +27,11 @@ class AverbationDescriptionsController {
                 name: Validator_1.schema.string({ trim: true }, [Validator_1.rules.maxLength(255)]),
                 description: Validator_1.schema.string.optional(),
                 inactive: Validator_1.schema.boolean.optional(),
+                bookId: Validator_1.schema.number(),
             }) });
+        if (!await Book_1.default.query().where('id', payload.bookId).where('ordercertificate', true).first()) {
+            return response.badRequest({ message: 'Tipo de Pré atendimento inválido' });
+        }
         const item = await AverbationDescription_1.default.create({ ...payload, description: payload.description ?? '', companiesId: user.companies_id });
         return response.created(item);
     }
@@ -44,7 +49,11 @@ class AverbationDescriptionsController {
                 name: Validator_1.schema.string({ trim: true }, [Validator_1.rules.maxLength(255)]),
                 description: Validator_1.schema.string.optional(),
                 inactive: Validator_1.schema.boolean(),
+                bookId: Validator_1.schema.number(),
             }) });
+        if (!await Book_1.default.query().where('id', payload.bookId).where('ordercertificate', true).first()) {
+            return response.badRequest({ message: 'Tipo de Pré atendimento inválido' });
+        }
         item.merge({ ...payload, description: payload.description ?? '' });
         await item.save();
         return item;

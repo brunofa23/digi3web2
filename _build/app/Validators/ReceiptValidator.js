@@ -40,6 +40,7 @@ class ReceiptValidator {
             sheet: Validator_1.schema.number.optional([Validator_1.rules.unsigned()]),
             side: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.maxLength(50)]),
             datePrevision: Validator_1.schema.date.optional(),
+            timePrevision: Validator_1.schema.string.optional({ trim: true }, [Validator_1.rules.regex(/^([01]\d|2[0-3]):[0-5]\d$/)]),
             dateProtocol: Validator_1.schema.date.optional(),
             dateStamp: Validator_1.schema.date.optional(),
             dateMarriage: Validator_1.schema.date.optional(),
