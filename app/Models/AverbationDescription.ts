@@ -17,7 +17,7 @@ export default class AverbationDescription extends BaseModel {
   @column()
   public inactive: boolean
 
-  @column({ columnName: 'book_id' })
+  @column({ columnName: 'book_id', serializeAs: 'bookId' })
   public bookId: number | null
 
   @column.dateTime({ autoCreate: true })
