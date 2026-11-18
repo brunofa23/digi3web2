@@ -10,17 +10,22 @@ export default class StampsController {
   /**
    * GET /stamps
    * Lista os stamps da empresa autenticada, com paginação
-   * Query params opcionais: page, perPage
+   * Query params opcionais: page, perPage, finished
    */
   public async index({ auth, request }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
-    const { page = 1, perPage = 20 } = request.qs()
+    const { page = 1, perPage = 20, finished } = request.qs()
 
-    const stamps = await Stamp.query()
+    const query = Stamp.query()
       .where('companies_id', authenticate.companies_id)
       .orderBy('id', 'asc')
-      .paginate(page, perPage)
+
+    if (finished === 'true' || finished === 'false') {
+      query.where('finished', finished === 'true')
+    }
+
+    const stamps = await query.paginate(page, perPage)
 
     return stamps
   }

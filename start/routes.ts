@@ -334,6 +334,7 @@ Route.group(() => {
   Route.post('/public/order-certificates/:type/:token', 'PublicOrderCertificatesController.storeVital')
   Route.get('/order-certificates/:id/document-images', 'OrderCertificatesController.documentImages')
   Route.post('/order-certificates/:id/inactivate', 'OrderCertificatesController.inactivate')
+  Route.get('/order-certificates/reports/averbation-labels', 'OrderCertificatesController.averbationLabelsReport')
   Route.resource('/order-certificates', 'OrderCertificatesController').apiOnly()
 
 

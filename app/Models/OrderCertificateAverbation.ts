@@ -9,11 +9,11 @@ export default class OrderCertificateAverbation extends BaseModel {
   @column({ isPrimary: true }) public id: number
   @column() public companiesId: number
   @column() public orderCertificateId: number
-  @column() public bookNumber: number
-  @column() public sheetNumber: number
-  @column() public termNumber: number
-  @column() public averbationDescriptionId: number
-  @column() public documentTypeBookId: number
+  @column() public bookNumber: number | null
+  @column() public sheetNumber: number | null
+  @column() public termNumber: number | null
+  @column() public averbationDescriptionId: number | null
+  @column() public documentTypeBookId: number | null
   @column({ columnName: 'label_text' }) public labelText: string | null
 
   @belongsTo(() => AverbationDescription, { foreignKey: 'averbationDescriptionId' })
