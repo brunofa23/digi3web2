@@ -58,7 +58,7 @@ export default class OrderCertificatesController {
         `${filters.dateEnd.toISODate()} 23:59:59`,
       ])
       .distinct('oca.id')
-      .select(Database.raw("COALESCE(oca.label_text, CASE WHEN ad.description IS NULL OR ad.description = '' THEN CONCAT('Livro:', oca.book_number, ' Folha:', oca.sheet_number, ' T:', oca.term_number) ELSE CONCAT('Livro:', oca.book_number, ' Folha:', oca.sheet_number, ' T:', oca.term_number, '\\n', ad.description) END) as labelText"))
+      .select(Database.raw("COALESCE(oca.label_text, CASE WHEN ad.description IS NULL OR ad.description = '' THEN CONCAT('Livro:', COALESCE(oca.book_number, ''), ' Folha:', COALESCE(oca.sheet_number, ''), ' T:', COALESCE(oca.term_number, '')) ELSE CONCAT('Livro:', COALESCE(oca.book_number, ''), ' Folha:', COALESCE(oca.sheet_number, ''), ' T:', COALESCE(oca.term_number, ''), '\\n', ad.description) END) as labelText"))
       .orderBy('oca.id', 'asc')
 
     return response.ok(labels)
@@ -73,20 +73,24 @@ export default class OrderCertificatesController {
     }
     if (!Array.isArray(rows)) throw new Error('Averbações: lista inválida')
 
-    const integer = (value: any) => /^(0|[1-9]\d*)$/.test(String(value ?? '')) && Number(value) <= 4294967295
-    if (rows.some((row) => !row || !integer(row.bookNumber) || !integer(row.sheetNumber) || !integer(row.termNumber) ||
-      !integer(row.averbationDescriptionId) || Number(row.averbationDescriptionId) === 0 ||
-      !integer(row.documentTypeBookId) || Number(row.documentTypeBookId) === 0)) {
-      throw new Error('Averbações: preencha todos os campos com valores válidos')
+    const isOptionalInteger = (value: any) => value === null || value === undefined || value === '' ||
+      (/^(0|[1-9]\d*)$/.test(String(value)) && Number(value) <= 4294967295)
+    if (rows.some((row) => !row || !isOptionalInteger(row.bookNumber) || !isOptionalInteger(row.sheetNumber) ||
+      !isOptionalInteger(row.termNumber) || !isOptionalInteger(row.averbationDescriptionId) ||
+      !isOptionalInteger(row.documentTypeBookId))) {
+      throw new Error('Averbações: os campos devem conter valores inteiros válidos')
     }
 
-    const descriptionIds = [...new Set(rows.map((row) => Number(row.averbationDescriptionId)))]
-    const bookTypeIds = [...new Set(rows.map((row) => Number(row.documentTypeBookId)))]
-    if (descriptionIds.length) {
+    const descriptionIds = [...new Set(rows.map((row) => row.averbationDescriptionId).filter((value) => value != null && value !== '').map(Number))]
+    const bookTypeIds = [...new Set(rows.map((row) => row.documentTypeBookId).filter((value) => value != null && value !== '').map(Number))]
+    if (descriptionIds.length || bookTypeIds.length) {
       const descriptions = await AverbationDescription.query({ client: trx })
         .where('companiesId', companiesId).where('bookId', bookId).whereIn('id', descriptionIds)
-      const bookTypes = await DocumentTypeBook.query({ client: trx }).where('companies_id', companiesId).whereIn('id', bookTypeIds)
-      if (descriptions.length !== descriptionIds.length || bookTypes.length !== bookTypeIds.length) {
+      const bookTypes = bookTypeIds.length
+        ? await DocumentTypeBook.query({ client: trx }).where('companies_id', companiesId).whereIn('id', bookTypeIds)
+        : []
+      if ((descriptionIds.length && descriptions.length !== descriptionIds.length) ||
+        (bookTypeIds.length && bookTypes.length !== bookTypeIds.length)) {
         throw new Error('Averbações: descrição, tipo de Pré atendimento ou tipo de livro indisponível para esta empresa')
       }
     }
@@ -96,11 +100,11 @@ export default class OrderCertificatesController {
       await OrderCertificateAverbation.create({
         companiesId,
         orderCertificateId,
-        bookNumber: Number(row.bookNumber),
-        sheetNumber: Number(row.sheetNumber),
-        termNumber: Number(row.termNumber),
-        averbationDescriptionId: Number(row.averbationDescriptionId),
-        documentTypeBookId: Number(row.documentTypeBookId),
+        bookNumber: row.bookNumber == null || row.bookNumber === '' ? null : Number(row.bookNumber),
+        sheetNumber: row.sheetNumber == null || row.sheetNumber === '' ? null : Number(row.sheetNumber),
+        termNumber: row.termNumber == null || row.termNumber === '' ? null : Number(row.termNumber),
+        averbationDescriptionId: row.averbationDescriptionId == null || row.averbationDescriptionId === '' ? null : Number(row.averbationDescriptionId),
+        documentTypeBookId: row.documentTypeBookId == null || row.documentTypeBookId === '' ? null : Number(row.documentTypeBookId),
         labelText: row.labelText == null ? null : String(row.labelText),
       }, { client: trx })
     }
