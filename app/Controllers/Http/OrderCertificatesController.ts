@@ -993,6 +993,7 @@ export default class OrderCertificatesController {
           'id',
           'order_certificate_id',
           'date_prevision',
+          'time_prevision',
           'date_protocol',
           'date_stamp',
           'service_id',
