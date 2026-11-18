@@ -26,6 +26,44 @@ import Groupxpermission from 'App/Models/Groupxpermission'
 import Hash from '@ioc:Adonis/Core/Hash'
 
 export default class OrderCertificatesController {
+  public async averbationLabelsReport({ auth, request, response }: HttpContextContract) {
+    const user = await auth.use('api').authenticate()
+    const filters = await request.validate({ schema: schema.create({
+      employeeVerificationId: schema.number(),
+      dateStart: schema.date({ format: 'yyyy-MM-dd' }),
+      dateEnd: schema.date({ format: 'yyyy-MM-dd' }),
+    }) })
+
+    if (filters.dateEnd < filters.dateStart) {
+      throw new BadRequestException('A data final deve ser igual ou posterior à data inicial.', 422, 'invalid_report_period')
+    }
+
+    const labels = await Database
+      .from('employee_verification_x_receipts as evxr')
+      .join('employee_verifications as ev', 'ev.id', 'evxr.employee_verification_id')
+      .join('receipts as r', 'r.id', 'evxr.receipt_id')
+      .join('order_certificates as oc', 'oc.id', 'r.order_certificate_id')
+      .join('order_certificate_averbations as oca', 'oca.order_certificate_id', 'oc.id')
+      .leftJoin('averbation_descriptions as ad', 'ad.id', 'oca.averbation_description_id')
+      .where('evxr.companies_id', user.companies_id)
+      .where('ev.companies_id', user.companies_id)
+      .where('r.companies_id', user.companies_id)
+      .where('oc.companies_id', user.companies_id)
+      .where('oca.companies_id', user.companies_id)
+      .where('evxr.employee_verification_id', filters.employeeVerificationId)
+      .where('ev.local', 'receipt')
+      .where('oc.book_id', 21)
+      .whereBetween('evxr.date', [
+        `${filters.dateStart.toISODate()} 00:00:00`,
+        `${filters.dateEnd.toISODate()} 23:59:59`,
+      ])
+      .distinct('oca.id')
+      .select(Database.raw("COALESCE(oca.label_text, CASE WHEN ad.description IS NULL OR ad.description = '' THEN CONCAT('Livro:', oca.book_number, ' Folha:', oca.sheet_number, ' T:', oca.term_number) ELSE CONCAT('Livro:', oca.book_number, ' Folha:', oca.sheet_number, ' T:', oca.term_number, '\\n', ad.description) END) as labelText"))
+      .orderBy('oca.id', 'asc')
+
+    return response.ok(labels)
+  }
+
   private async saveAverbations(raw: any, orderCertificateId: number, companiesId: number, bookId: number, trx: TransactionClientContract) {
     let rows: any
     try {
