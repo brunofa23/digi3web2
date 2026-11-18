@@ -33,23 +33,23 @@ __decorate([
 ], OrderCertificateAverbation.prototype, "orderCertificateId", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], OrderCertificateAverbation.prototype, "bookNumber", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], OrderCertificateAverbation.prototype, "sheetNumber", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], OrderCertificateAverbation.prototype, "termNumber", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], OrderCertificateAverbation.prototype, "averbationDescriptionId", void 0);
 __decorate([
     (0, Orm_1.column)(),
-    __metadata("design:type", Number)
+    __metadata("design:type", Object)
 ], OrderCertificateAverbation.prototype, "documentTypeBookId", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'label_text' }),

@@ -10,11 +10,14 @@ const StampValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Vali
 class StampsController {
     async index({ auth, request }) {
         const authenticate = await auth.use('api').authenticate();
-        const { page = 1, perPage = 20 } = request.qs();
-        const stamps = await Stamp_1.default.query()
+        const { page = 1, perPage = 20, finished } = request.qs();
+        const query = Stamp_1.default.query()
             .where('companies_id', authenticate.companies_id)
-            .orderBy('id', 'asc')
-            .paginate(page, perPage);
+            .orderBy('id', 'asc');
+        if (finished === 'true' || finished === 'false') {
+            query.where('finished', finished === 'true');
+        }
+        const stamps = await query.paginate(page, perPage);
         return stamps;
     }
     async show({ auth, params, response }) {

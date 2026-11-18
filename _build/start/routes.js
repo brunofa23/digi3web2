@@ -247,6 +247,7 @@ Route_1.default.group(() => {
     Route_1.default.post('/public/order-certificates/:type/:token', 'PublicOrderCertificatesController.storeVital');
     Route_1.default.get('/order-certificates/:id/document-images', 'OrderCertificatesController.documentImages');
     Route_1.default.post('/order-certificates/:id/inactivate', 'OrderCertificatesController.inactivate');
+    Route_1.default.get('/order-certificates/reports/averbation-labels', 'OrderCertificatesController.averbationLabelsReport');
     Route_1.default.resource('/order-certificates', 'OrderCertificatesController').apiOnly();
     Route_1.default.get('/imagecertificates/married/:marriedCertificateId', 'ImageCertificatesController.index').middleware('auth');
     Route_1.default.get('/imagecertificates/born/:bornCertificateId', 'ImageCertificatesController.index').middleware('auth');
