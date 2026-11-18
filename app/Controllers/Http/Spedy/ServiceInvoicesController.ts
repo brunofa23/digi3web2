@@ -187,7 +187,9 @@ export default class ServiceInvoicesController {
       description: payload.description,
       cnaeCode: payload.cnaeCode || null,
       federalServiceCode: payload.federalServiceCode || null,
-      cityServiceCode: payload.cityServiceCode || null,
+      ...(this.hasValue(payload.cityServiceCode)
+        ? { cityServiceCode: String(payload.cityServiceCode).trim() }
+        : {}),
       nbsCode: payload.nbsCode || null,
       taxationType: payload.taxationType || 'taxationInMunicipality',
       taxLocation: payload.taxLocation || 'companyMunicipality',
