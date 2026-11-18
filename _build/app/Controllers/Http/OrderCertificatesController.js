@@ -790,6 +790,7 @@ class OrderCertificatesController {
                 'id',
                 'order_certificate_id',
                 'date_prevision',
+                'time_prevision',
                 'date_protocol',
                 'date_stamp',
                 'service_id',
@@ -817,10 +818,18 @@ class OrderCertificatesController {
         })
             .where('companies_id', authenticate.companies_id)
             .where('order_certificates.inactive', inactive);
-        if (Number.isSafeInteger(codeStart) && codeStart > 0)
+        const hasCodeStart = Number.isSafeInteger(codeStart) && codeStart > 0;
+        const hasCodeEnd = Number.isSafeInteger(codeEnd) && codeEnd > 0;
+        if (hasCodeStart && hasCodeEnd) {
             query.andWhere('order_certificates.id', '>=', codeStart);
-        if (Number.isSafeInteger(codeEnd) && codeEnd > 0)
             query.andWhere('order_certificates.id', '<=', codeEnd);
+        }
+        else if (hasCodeStart) {
+            query.andWhere('order_certificates.id', codeStart);
+        }
+        else if (hasCodeEnd) {
+            query.andWhere('order_certificates.id', '<=', codeEnd);
+        }
         if (dateStartOrderCertificate)
             query.andWhere('created_at', '>=', dateStartOrderCertificate);
         if (dateEndOrderCertificate) {
@@ -1533,7 +1542,7 @@ class OrderCertificatesController {
             query.preload('mandateCertificate', (q) => q.where('companiesId', authenticate.companies_id));
         if (book_id == 25)
             query.preload('communicationCertificate', (q) => q.where('companiesId', authenticate.companies_id));
-        if ([2, 3, 4, 21, 24].includes(Number(book_id)))
+        if ([2, 3, 4, 21, 24, 25].includes(Number(book_id)))
             query.preload('averbations', (q) => q.orderBy('id', 'asc'));
         const orderCertificate = await query.first();
         if (!orderCertificate) {
@@ -1753,7 +1762,7 @@ class OrderCertificatesController {
                         date: luxon_1.DateTime.local(),
                     }, { client: trx });
                 }
-                if ([2, 3, 4, 21, 24].includes(bookId) && body.averbations !== undefined) {
+                if ([2, 3, 4, 21, 24, 25].includes(bookId) && body.averbations !== undefined) {
                     await this.saveAverbations(body.averbations, oc.id, user.companies_id, bookId, trx);
                 }
                 return oc;
@@ -1858,7 +1867,7 @@ class OrderCertificatesController {
                 await orderCertificate.load('secondcopyCertificate');
             if (orderCertificate.bookId === 24)
                 await orderCertificate.load('mandateCertificate');
-            if ([2, 3, 4, 21, 24].includes(orderCertificate.bookId))
+            if ([2, 3, 4, 21, 24, 25].includes(orderCertificate.bookId))
                 await orderCertificate.load('averbations');
             if (orderCertificate.bookId === 25)
                 await orderCertificate.load('communicationCertificate');
@@ -2051,7 +2060,7 @@ class OrderCertificatesController {
                     communication.id = orderCertificate.certificateId;
                     await this.saveCommunication(communication, user.companies_id, user.id, trx);
                 }
-                if ([2, 3, 4, 21, 24].includes(bookId) && body.averbations !== undefined) {
+                if ([2, 3, 4, 21, 24, 25].includes(bookId) && body.averbations !== undefined) {
                     await this.saveAverbations(body.averbations, orderCertificate.id, user.companies_id, bookId, trx);
                 }
             });
@@ -2150,7 +2159,7 @@ class OrderCertificatesController {
                 await orderCertificate.load('secondcopyCertificate');
             if (orderCertificate.bookId === 24)
                 await orderCertificate.load('mandateCertificate');
-            if ([2, 3, 4, 21, 24].includes(orderCertificate.bookId))
+            if ([2, 3, 4, 21, 24, 25].includes(orderCertificate.bookId))
                 await orderCertificate.load('averbations');
             if (orderCertificate.bookId === 25)
                 await orderCertificate.load('communicationCertificate');

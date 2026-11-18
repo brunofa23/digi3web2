@@ -68,7 +68,7 @@ class EmployeeVerificationXReceiptsController {
                 .first();
             if (last && last.employeeVerification?.ordem == null)
                 return false;
-            if (verification.ordem !== (last?.employeeVerification?.ordem ?? 0) + 1)
+            if (verification.ordem == null || verification.ordem <= (last?.employeeVerification?.ordem ?? 0))
                 return false;
             return EmployeeVerificationXReceipt_1.default.create({
                 receiptId: payload.receiptId,
@@ -80,7 +80,7 @@ class EmployeeVerificationXReceiptsController {
             }, { client: trx });
         });
         if (item === false) {
-            return response.status(422).json({ message: 'Selecione a próxima conferência na ordem do recibo' });
+            return response.status(422).json({ message: 'Selecione uma conferência posterior à última registrada no recibo' });
         }
         if (!item) {
             return response.status(409).json({
