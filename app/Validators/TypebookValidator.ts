@@ -10,6 +10,7 @@ export default class TypebookValidator {
     status: schema.boolean(),
     path: schema.string(),
     books_id: schema.number(),
+    disable_portrait: schema.boolean.optional(),
     companies_id: schema.number()
   })
 
