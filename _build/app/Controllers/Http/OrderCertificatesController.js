@@ -771,6 +771,10 @@ class OrderCertificatesController {
             .map((id) => Number(id))
             .filter((id) => !Number.isNaN(id));
         const receiptId = request.input('receiptId') || null;
+        const receiptIdStart = Number(request.input('receiptIdStart'));
+        const receiptIdEnd = Number(request.input('receiptIdEnd'));
+        const hasReceiptIdStart = Number.isSafeInteger(receiptIdStart) && receiptIdStart > 0;
+        const hasReceiptIdEnd = Number.isSafeInteger(receiptIdEnd) && receiptIdEnd > 0;
         const employeeVerificationIds = (request.input('employeeVerificationIds', []) || [])
             .map((id) => Number(id))
             .filter((id) => Number.isInteger(id) && id > 0);
@@ -890,7 +894,22 @@ class OrderCertificatesController {
         if (origin && ['internal', 'public'].includes(origin)) {
             query.andWhere('origin', origin);
         }
-        if (receiptId) {
+        if (hasReceiptIdStart && hasReceiptIdEnd) {
+            query.whereHas('receipt', (r) => {
+                r.whereBetween('id', [receiptIdStart, receiptIdEnd]);
+            });
+        }
+        else if (hasReceiptIdStart) {
+            query.whereHas('receipt', (r) => {
+                r.where('id', receiptIdStart);
+            });
+        }
+        else if (hasReceiptIdEnd) {
+            query.whereHas('receipt', (r) => {
+                r.where('id', '<=', receiptIdEnd);
+            });
+        }
+        else if (receiptId) {
             query.whereHas('receipt', (r) => {
                 r.where('id', receiptId);
             });

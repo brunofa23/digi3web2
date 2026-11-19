@@ -10,6 +10,7 @@ const TypebookValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/V
 const validations_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Services/Validations/validations"));
 const Book_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/Book"));
 const DocumentConfig_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/DocumentConfig"));
+const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const googledrive_1 = global[Symbol.for('ioc.use')]("App/Services/googleDrive/googledrive");
 const fileRename = global[Symbol.for('ioc.use')]('App/Services/fileRename/fileRename');
 class TypebooksController {
@@ -17,10 +18,14 @@ class TypebooksController {
         const authenticate = await auth.use('api').authenticate();
         const typebookPayload = await request.validate(TypebookValidator_1.default);
         const book = await Book_1.default.find(typebookPayload.books_id);
-        typebookPayload.companies_id = authenticate.companies_id;
+        const { disable_portrait, ...typebookData } = typebookPayload;
+        typebookData.companies_id = authenticate.companies_id;
         try {
             const company = await Company_1.default.findByOrFail('id', authenticate.companies_id);
-            const data = await Typebook_1.default.create(typebookPayload);
+            const data = await Typebook_1.default.create(typebookData);
+            if (disable_portrait) {
+                await Database_1.default.table('typebook_settings').insert({ typebooks_id: data.id, disable_portrait: true });
+            }
             if (data.$attributes.books_id == 13) {
                 await DocumentConfig_1.default
                     .create({
@@ -36,16 +41,16 @@ class TypebooksController {
                     sheet_number: "Folha"
                 });
             }
-            const path = `Client_${typebookPayload.companies_id}.Book_${data.id}.${book?.namefolder}`;
+            const path = `Client_${typebookData.companies_id}.Book_${data.id}.${book?.namefolder}`;
             await Typebook_1.default.query().where('id', '=', data.id)
-                .andWhere('companies_id', '=', typebookPayload.companies_id)
+                .andWhere('companies_id', '=', typebookData.companies_id)
                 .update({ path: path });
             const idFolderCompany = await (0, googledrive_1.sendSearchFile)(company.foldername, company.cloud);
             if (!idFolderCompany[0]?.id)
                 throw new Error('Pasta da empresa não encontrada no Google Drive');
             await (0, googledrive_1.sendCreateFolder)(path, company.cloud, idFolderCompany[0].id);
             let successValidation = await new validations_1.default('typebook_success_100');
-            return response.status(201).send(typebookPayload, successValidation.code);
+            return response.status(201).send({ ...typebookData, disable_portrait: Boolean(disable_portrait) }, successValidation.code);
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request - Create Typebook', 401, error);
@@ -108,19 +113,24 @@ class TypebooksController {
             .preload('company')
             .where("companies_id", "=", authenticate.companies_id)
             .andWhere('id', "=", params.id).firstOrFail();
-        return response.status(200).send(data);
+        const settings = await Database_1.default.from('typebook_settings').where('typebooks_id', params.id).first();
+        return response.status(200).send({ ...data.serialize(), disable_portrait: Number(settings?.disable_portrait) === 1 });
     }
     async update({ auth, request, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const typebookPayload = await request.validate(TypebookValidator_1.default);
-        typebookPayload.id = params.id;
-        typebookPayload.companies_id = authenticate.companies_id;
+        const { disable_portrait, ...typebookData } = typebookPayload;
+        typebookData.id = params.id;
+        typebookData.companies_id = authenticate.companies_id;
         try {
             await Typebook_1.default.query()
                 .where("companies_id", "=", authenticate.companies_id)
-                .andWhere('id', "=", params.id).update(typebookPayload);
+                .andWhere('id', "=", params.id).update(typebookData);
+            if (disable_portrait !== undefined) {
+                await Database_1.default.rawQuery('INSERT INTO typebook_settings (typebooks_id, disable_portrait) VALUES (?, ?) ON DUPLICATE KEY UPDATE disable_portrait = VALUES(disable_portrait)', [params.id, disable_portrait ? 1 : 0]);
+            }
             let successValidation = await new validations_1.default('typebook_success_101');
-            return response.status(201).send(typebookPayload, successValidation.code);
+            return response.status(201).send({ ...typebookData, disable_portrait }, successValidation.code);
         }
         catch (error) {
             throw new BadRequestException_1.default('Bad Request - update', 401);
@@ -132,6 +142,7 @@ class TypebooksController {
             const data = await Typebook_1.default.query()
                 .where("companies_id", "=", authenticate.companies_id)
                 .andWhere('id', "=", params.id).delete();
+            await Database_1.default.from('typebook_settings').where('typebooks_id', params.id).delete();
             let successValidation = await new validations_1.default('typebook_success_102');
             return response.status(200).send(data, successValidation.code);
         }

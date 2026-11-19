@@ -10,6 +10,7 @@ class TypebookValidator {
             status: Validator_1.schema.boolean(),
             path: Validator_1.schema.string(),
             books_id: Validator_1.schema.number(),
+            disable_portrait: Validator_1.schema.boolean.optional(),
             companies_id: Validator_1.schema.number()
         });
     }
