@@ -6,6 +6,7 @@ import TypebookValidator from 'App/Validators/TypebookValidator'
 import validations from 'App/Services/Validations/validations'
 import Book from 'App/Models/Book'
 import DocumentConfig from 'App/Models/DocumentConfig'
+import Database from '@ioc:Adonis/Lucid/Database'
 import { sendSearchFile, sendCreateFolder } from "App/Services/googleDrive/googledrive"
 //const authorize = require('App/Services/googleDrive/googledrive')
 const fileRename = require('App/Services/fileRename/fileRename')
@@ -17,11 +18,16 @@ export default class TypebooksController {
     const authenticate = await auth.use('api').authenticate()
     const typebookPayload = await request.validate(TypebookValidator)
     const book = await Book.find(typebookPayload.books_id)
-    typebookPayload.companies_id = authenticate.companies_id
+    const { disable_portrait, ...typebookData } = typebookPayload
+    typebookData.companies_id = authenticate.companies_id
 
     try {
       const company = await Company.findByOrFail('id', authenticate.companies_id)
-      const data = await Typebook.create(typebookPayload)
+      const data = await Typebook.create(typebookData)
+
+      if (disable_portrait) {
+        await Database.table('typebook_settings').insert({ typebooks_id: data.id, disable_portrait: true })
+      }
 
 
       if (data.$attributes.books_id == 13) {
@@ -40,17 +46,17 @@ export default class TypebooksController {
           })
       }
 
-      const path = `Client_${typebookPayload.companies_id}.Book_${data.id}.${book?.namefolder}`
+      const path = `Client_${typebookData.companies_id}.Book_${data.id}.${book?.namefolder}`
 
       await Typebook.query().where('id', '=', data.id)
-        .andWhere('companies_id', '=', typebookPayload.companies_id)
+        .andWhere('companies_id', '=', typebookData.companies_id)
         .update({ path: path })
 
       const idFolderCompany = await sendSearchFile(company.foldername, company.cloud)
       if (!idFolderCompany[0]?.id) throw new Error('Pasta da empresa não encontrada no Google Drive')
       await sendCreateFolder(path, company.cloud, idFolderCompany[0].id)
       let successValidation = await new validations('typebook_success_100')
-      return response.status(201).send(typebookPayload, successValidation.code)
+      return response.status(201).send({ ...typebookData, disable_portrait: Boolean(disable_portrait) }, successValidation.code)
 
     } catch (error) {
       throw new BadRequest('Bad Request - Create Typebook', 401, error)
@@ -122,23 +128,32 @@ export default class TypebooksController {
       .preload('company')
       .where("companies_id", "=", authenticate.companies_id)
       .andWhere('id', "=", params.id).firstOrFail()
-    return response.status(200).send(data)
+    const settings = await Database.from('typebook_settings').where('typebooks_id', params.id).first()
+    return response.status(200).send({ ...data.serialize(), disable_portrait: Number(settings?.disable_portrait) === 1 })
   }
 
   //patch ou put
   public async update({ auth, request, params, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
     const typebookPayload = await request.validate(TypebookValidator)
-    typebookPayload.id = params.id
-    typebookPayload.companies_id = authenticate.companies_id
+    const { disable_portrait, ...typebookData } = typebookPayload
+    typebookData.id = params.id
+    typebookData.companies_id = authenticate.companies_id
 
     try {
       await Typebook.query()
         .where("companies_id", "=", authenticate.companies_id)
-        .andWhere('id', "=", params.id).update(typebookPayload)
+        .andWhere('id', "=", params.id).update(typebookData)
+
+      if (disable_portrait !== undefined) {
+        await Database.rawQuery(
+          'INSERT INTO typebook_settings (typebooks_id, disable_portrait) VALUES (?, ?) ON DUPLICATE KEY UPDATE disable_portrait = VALUES(disable_portrait)',
+          [params.id, disable_portrait ? 1 : 0]
+        )
+      }
 
       let successValidation = await new validations('typebook_success_101')
-      return response.status(201).send(typebookPayload, successValidation.code)
+      return response.status(201).send({ ...typebookData, disable_portrait }, successValidation.code)
     } catch (error) {
       throw new BadRequest('Bad Request - update', 401)
     }
@@ -154,6 +169,7 @@ export default class TypebooksController {
       const data = await Typebook.query()
         .where("companies_id", "=", authenticate.companies_id)
         .andWhere('id', "=", params.id).delete()
+      await Database.from('typebook_settings').where('typebooks_id', params.id).delete()
       let successValidation = await new validations('typebook_success_102')
       return response.status(200).send(data, successValidation.code)
     } catch (error) {
