@@ -973,6 +973,10 @@ export default class OrderCertificatesController {
 
     // filter for receipt_id
     const receiptId = request.input('receiptId') || null
+    const receiptIdStart = Number(request.input('receiptIdStart'))
+    const receiptIdEnd = Number(request.input('receiptIdEnd'))
+    const hasReceiptIdStart = Number.isSafeInteger(receiptIdStart) && receiptIdStart > 0
+    const hasReceiptIdEnd = Number.isSafeInteger(receiptIdEnd) && receiptIdEnd > 0
 
     // employee_verification
     const employeeVerificationIds = (request.input('employeeVerificationIds', []) || [])
@@ -1109,7 +1113,19 @@ export default class OrderCertificatesController {
 
     // RECEIPT***************************************************
     // RECEIPT ID
-    if (receiptId) {
+    if (hasReceiptIdStart && hasReceiptIdEnd) {
+      query.whereHas('receipt', (r) => {
+        r.whereBetween('id', [receiptIdStart, receiptIdEnd])
+      })
+    } else if (hasReceiptIdStart) {
+      query.whereHas('receipt', (r) => {
+        r.where('id', receiptIdStart)
+      })
+    } else if (hasReceiptIdEnd) {
+      query.whereHas('receipt', (r) => {
+        r.where('id', '<=', receiptIdEnd)
+      })
+    } else if (receiptId) {
       query.whereHas('receipt', (r) => {
         r.where('id', receiptId)
       })
