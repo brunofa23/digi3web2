@@ -37,5 +37,12 @@ export default Env.rules({
   SMTP_PORT: Env.schema.number.optional(),
   SMTP_USERNAME: Env.schema.string.optional(),
   SMTP_PASSWORD: Env.schema.string.optional(),
+  CRM_SMTP_HOST: Env.schema.string.optional(),
+  CRM_SMTP_PORT: Env.schema.number.optional(),
+  CRM_SMTP_USERNAME: Env.schema.string.optional(),
+  CRM_SMTP_PASSWORD: Env.schema.string.optional(),
+  CRM_EMAIL_FROM: Env.schema.string.optional(),
+  CRM_EMAIL_FROM_NAME: Env.schema.string.optional(),
+  CRM_EMAIL_REPLY_TO: Env.schema.string.optional(),
 	NODE_ENV: Env.schema.enum(['development', 'production', 'test'] as const),
 })

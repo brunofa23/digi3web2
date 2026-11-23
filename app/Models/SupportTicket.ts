@@ -30,6 +30,9 @@ export default class SupportTicket extends BaseModel {
   public contact: string | null
 
   @column()
+  public clientEmail: string | null
+
+  @column()
   public status: string
 
   @column()

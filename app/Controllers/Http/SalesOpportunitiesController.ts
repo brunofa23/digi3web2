@@ -1,5 +1,8 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { DateTime } from 'luxon'
+import Env from '@ioc:Adonis/Core/Env'
+import Application from '@ioc:Adonis/Core/Application'
+import Mail from '@ioc:Adonis/Addons/Mail'
 import BadRequest from 'App/Exceptions/BadRequestException'
 import SalesOpportunity from 'App/Models/SalesOpportunity'
 import SalesOpportunityActivity from 'App/Models/SalesOpportunityActivity'
@@ -7,6 +10,7 @@ import SalesStage from 'App/Models/SalesStage'
 import User from 'App/Models/User'
 import SalesOpportunityValidator from 'App/Validators/SalesOpportunityValidator'
 import SalesOpportunityActivityValidator from 'App/Validators/SalesOpportunityActivityValidator'
+import SalesOpportunityEmailValidator from 'App/Validators/SalesOpportunityEmailValidator'
 
 export default class SalesOpportunitiesController {
   private async authenticateUser(auth: any) {
@@ -110,6 +114,48 @@ export default class SalesOpportunitiesController {
     if (next_action !== undefined) opportunity.next_action = next_action
     if (next_contact_date !== undefined) opportunity.next_contact_date = next_contact_date
     await opportunity.save()
+    return response.created(await SalesOpportunityActivity.query().where('id', activity.id).preload('user', query => query.select(['id', 'name'])).firstOrFail())
+  }
+
+  public async sendEmail({ auth, request, params, response }: HttpContextContract) {
+    const user = await this.authenticateUser(auth)
+    const opportunity = await SalesOpportunity.query().where('id', params.id).if(!user.superuser, q => q.where('companies_id', user.companies_id)).firstOrFail()
+    if (!opportunity.email) throw new BadRequest('Oportunidade não possui e-mail cadastrado', 422, 'sales_email_missing')
+
+    const body = await request.validate(SalesOpportunityEmailValidator)
+    const stage = await opportunity.related('stage').query().firstOrFail()
+    const assignedUserId = body.assigned_user_id ?? opportunity.assigned_user_id
+    await this.validateAssignedUser(user, assignedUserId)
+    this.validateFollowUp({ ...opportunity.serialize(), ...body, assigned_user_id: assignedUserId }, stage)
+
+    const from = Env.get('CRM_EMAIL_FROM', Env.get('CRM_SMTP_USERNAME', ''))
+    const fromName = Env.get('CRM_EMAIL_FROM_NAME', 'Digi3 Comercial')
+    const replyTo = Env.get('CRM_EMAIL_REPLY_TO', '')
+    await Mail.use('crm').send(message => {
+      message
+        .from(from, fromName)
+        .to(opportunity.email)
+        .subject(body.subject)
+        .text(body.description)
+        .htmlView('emails/crm-introduction', { subject: body.subject, description: body.description })
+        .embed(Application.resourcesPath('images/digi3-logo.png'), 'digi3-logo')
+      if (replyTo) message.replyTo(replyTo)
+    })
+
+    const { subject, description, activity_date, assigned_user_id, next_action, next_contact_date } = body
+    const activity = await SalesOpportunityActivity.create({
+      sales_opportunity_id: opportunity.id,
+      type: 'E-mail',
+      description: `Assunto: ${subject}\n${description}`,
+      activity_date,
+      user_id: user.id,
+    })
+    opportunity.last_contact_date = activity_date
+    if (assigned_user_id !== undefined) opportunity.assigned_user_id = assigned_user_id
+    if (next_action !== undefined) opportunity.next_action = next_action
+    if (next_contact_date !== undefined) opportunity.next_contact_date = next_contact_date
+    await opportunity.save()
+
     return response.created(await SalesOpportunityActivity.query().where('id', activity.id).preload('user', query => query.select(['id', 'name'])).firstOrFail())
   }
 

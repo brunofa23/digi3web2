@@ -12,12 +12,14 @@ import { verifyPermission } from 'App/Services/util'
 export default class CompaniesController {
   private spedy = new SpedyCompaniesService()
   private companyNfseSettingsPermissiongroupId = 43
+  private spedyCompaniesPermissiongroupId = 56
 
-  private async requireSuperuser(auth: HttpContextContract['auth']) {
+  private async requireSpedyCompaniesAccess(auth: HttpContextContract['auth']) {
     const user = await auth.use('api').authenticate()
+    const permissions = auth.use('api').token?.meta.payload.permissions || []
 
-    if (!user.superuser) {
-      throw new BadRequestException('Acesso permitido somente para super usuário', 403, 'spedy_superuser_required')
+    if (!verifyPermission(Boolean(user.superuser), permissions, this.spedyCompaniesPermissiongroupId)) {
+      throw new BadRequestException('Usuário sem permissão para acessar empresas da integração NFS-e.', 403, 'spedy_companies_forbidden')
     }
 
     return user
@@ -38,31 +40,6 @@ export default class CompaniesController {
     }
 
     return user
-  }
-
-  private async getAllowedCompanyIntegration(auth: HttpContextContract['auth'], environment: string, spedyCompanyId: string) {
-    const user = await this.requireCompanyNfseSettingsAccess(auth)
-
-    if (user.superuser) {
-      return CompanySpedyIntegration
-        .query()
-        .where('environment', environment)
-        .where('spedy_company_id', spedyCompanyId)
-        .first()
-    }
-
-    const integration = await CompanySpedyIntegration
-      .query()
-      .where('companies_id', user.companies_id)
-      .where('environment', environment)
-      .where('spedy_company_id', spedyCompanyId)
-      .first()
-
-    if (!integration) {
-      throw new BadRequestException('Empresa NFS-e não vinculada a empresa logada.', 403, 'spedy_company_nfse_settings_link_forbidden')
-    }
-
-    return integration
   }
 
   private async getOwnerIntegration(environment: string = 'sandbox') {
@@ -97,7 +74,7 @@ export default class CompaniesController {
   }
 
   public async list({ auth, request }: HttpContextContract) {
-    await this.requireSuperuser(auth)
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
     const owner = await this.getOwnerIntegration(environment)
 
@@ -105,7 +82,7 @@ export default class CompaniesController {
   }
 
   public async create({ auth, request }: HttpContextContract) {
-    await this.requireSuperuser(auth)
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
     const owner = await this.getOwnerIntegration(environment)
     const payload = await request.validate(SpedyCompanyValidator)
@@ -114,16 +91,16 @@ export default class CompaniesController {
   }
 
   public async show({ auth, params, request }: HttpContextContract) {
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
-    await this.getAllowedCompanyIntegration(auth, environment, params.id)
     const owner = await this.getOwnerIntegration(environment)
 
     return this.spedy.getCompany(owner, params.id)
   }
 
   public async update({ auth, params, request }: HttpContextContract) {
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
-    await this.getAllowedCompanyIntegration(auth, environment, params.id)
     const owner = await this.getOwnerIntegration(environment)
     const payload = await request.validate(SpedyCompanyValidator)
 
@@ -131,7 +108,7 @@ export default class CompaniesController {
   }
 
   public async destroy({ auth, params, request }: HttpContextContract) {
-    await this.requireSuperuser(auth)
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
     const owner = await this.getOwnerIntegration(environment)
 
@@ -139,16 +116,16 @@ export default class CompaniesController {
   }
 
   public async settings({ auth, params, request }: HttpContextContract) {
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
-    await this.getAllowedCompanyIntegration(auth, environment, params.id)
     const owner = await this.getOwnerIntegration(environment)
 
     return this.spedy.getSettings(owner, params.id)
   }
 
   public async updateSettings({ auth, params, request }: HttpContextContract) {
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
-    await this.getAllowedCompanyIntegration(auth, environment, params.id)
     const owner = await this.getOwnerIntegration(environment)
     const payload = await request.validate(SpedyCompanySettingsValidator)
 
@@ -164,16 +141,16 @@ export default class CompaniesController {
   }
 
   public async certificates({ auth, params, request }: HttpContextContract) {
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
-    await this.getAllowedCompanyIntegration(auth, environment, params.id)
     const owner = await this.getOwnerIntegration(environment)
 
     return this.spedy.getCertificates(owner, params.id)
   }
 
   public async uploadCertificate({ auth, params, request }: HttpContextContract) {
+    await this.requireSpedyCompaniesAccess(auth)
     const environment = request.input('environment', 'sandbox')
-    await this.getAllowedCompanyIntegration(auth, environment, params.id)
     const owner = await this.getOwnerIntegration(environment)
     const password = request.input('password')
     const file = request.file('file', {

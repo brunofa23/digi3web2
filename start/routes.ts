@@ -40,6 +40,7 @@ Route.group(() => {
   Route.get('/sales-opportunities/:id', 'SalesOpportunitiesController.show').middleware('crm_permission')
   Route.get('/sales-opportunities/:id/activities', 'SalesOpportunitiesController.activities').middleware('crm_permission')
   Route.post('/sales-opportunities/:id/activities', 'SalesOpportunitiesController.storeActivity').middleware('crm_permission')
+  Route.post('/sales-opportunities/:id/email', 'SalesOpportunitiesController.sendEmail').middleware('crm_permission')
   Route.post('/sales-opportunities', 'SalesOpportunitiesController.store').middleware('crm_permission')
   Route.patch('/sales-opportunities/:id', 'SalesOpportunitiesController.update').middleware('crm_permission')
   Route.delete('/sales-opportunities/:id', 'SalesOpportunitiesController.destroy').middleware('crm_permission')
@@ -85,6 +86,8 @@ Route.group(() => {
 
   //SUPPORT TICKETS
   Route.get("/support-tickets", "SupportTicketsController.index")
+  Route.get("/support-tickets/settings", "SupportTicketsController.settings")
+  Route.patch("/support-tickets/settings", "SupportTicketsController.settings")
   Route.post("/support-tickets", "SupportTicketsController.store")
   Route.patch("/support-tickets/:id", "SupportTicketsController.update")
 
