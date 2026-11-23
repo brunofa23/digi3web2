@@ -35,6 +35,7 @@ Route_1.default.group(() => {
     Route_1.default.get('/sales-opportunities/:id', 'SalesOpportunitiesController.show').middleware('crm_permission');
     Route_1.default.get('/sales-opportunities/:id/activities', 'SalesOpportunitiesController.activities').middleware('crm_permission');
     Route_1.default.post('/sales-opportunities/:id/activities', 'SalesOpportunitiesController.storeActivity').middleware('crm_permission');
+    Route_1.default.post('/sales-opportunities/:id/email', 'SalesOpportunitiesController.sendEmail').middleware('crm_permission');
     Route_1.default.post('/sales-opportunities', 'SalesOpportunitiesController.store').middleware('crm_permission');
     Route_1.default.patch('/sales-opportunities/:id', 'SalesOpportunitiesController.update').middleware('crm_permission');
     Route_1.default.delete('/sales-opportunities/:id', 'SalesOpportunitiesController.destroy').middleware('crm_permission');
@@ -72,6 +73,8 @@ Route_1.default.group(() => {
     Route_1.default.patch("/users/:id", "UsersController.update").middleware('user_permission:patch');
     Route_1.default.post("/closeaccesimage/:id", "UsersController.closeAccesImage");
     Route_1.default.get("/support-tickets", "SupportTicketsController.index");
+    Route_1.default.get("/support-tickets/settings", "SupportTicketsController.settings");
+    Route_1.default.patch("/support-tickets/settings", "SupportTicketsController.settings");
     Route_1.default.post("/support-tickets", "SupportTicketsController.store");
     Route_1.default.patch("/support-tickets/:id", "SupportTicketsController.update");
     Route_1.default.resource('/usergroups', "UsergroupsController").apiOnly();

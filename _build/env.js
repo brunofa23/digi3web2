@@ -27,6 +27,13 @@ exports.default = Env_1.default.rules({
     SMTP_PORT: Env_1.default.schema.number.optional(),
     SMTP_USERNAME: Env_1.default.schema.string.optional(),
     SMTP_PASSWORD: Env_1.default.schema.string.optional(),
+    CRM_SMTP_HOST: Env_1.default.schema.string.optional(),
+    CRM_SMTP_PORT: Env_1.default.schema.number.optional(),
+    CRM_SMTP_USERNAME: Env_1.default.schema.string.optional(),
+    CRM_SMTP_PASSWORD: Env_1.default.schema.string.optional(),
+    CRM_EMAIL_FROM: Env_1.default.schema.string.optional(),
+    CRM_EMAIL_FROM_NAME: Env_1.default.schema.string.optional(),
+    CRM_EMAIL_REPLY_TO: Env_1.default.schema.string.optional(),
     NODE_ENV: Env_1.default.schema.enum(['development', 'production', 'test']),
 });
 //# sourceMappingURL=env.js.map

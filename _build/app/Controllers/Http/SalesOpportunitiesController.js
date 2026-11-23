@@ -4,6 +4,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const luxon_1 = require("luxon");
+const Env_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Env"));
+const Application_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Application"));
+const Mail_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Addons/Mail"));
 const BadRequestException_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Exceptions/BadRequestException"));
 const SalesOpportunity_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SalesOpportunity"));
 const SalesOpportunityActivity_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/SalesOpportunityActivity"));
@@ -11,6 +14,7 @@ const SalesStage_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/S
 const User_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/User"));
 const SalesOpportunityValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/SalesOpportunityValidator"));
 const SalesOpportunityActivityValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/SalesOpportunityActivityValidator"));
+const SalesOpportunityEmailValidator_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Validators/SalesOpportunityEmailValidator"));
 class SalesOpportunitiesController {
     async authenticateUser(auth) {
         return auth.use('api').authenticate();
@@ -101,6 +105,48 @@ class SalesOpportunitiesController {
         const { next_action, next_contact_date, assigned_user_id, ...activityBody } = body;
         const activity = await SalesOpportunityActivity_1.default.create({ ...activityBody, sales_opportunity_id: opportunity.id, user_id: user.id });
         opportunity.last_contact_date = body.activity_date;
+        if (assigned_user_id !== undefined)
+            opportunity.assigned_user_id = assigned_user_id;
+        if (next_action !== undefined)
+            opportunity.next_action = next_action;
+        if (next_contact_date !== undefined)
+            opportunity.next_contact_date = next_contact_date;
+        await opportunity.save();
+        return response.created(await SalesOpportunityActivity_1.default.query().where('id', activity.id).preload('user', query => query.select(['id', 'name'])).firstOrFail());
+    }
+    async sendEmail({ auth, request, params, response }) {
+        const user = await this.authenticateUser(auth);
+        const opportunity = await SalesOpportunity_1.default.query().where('id', params.id).if(!user.superuser, q => q.where('companies_id', user.companies_id)).firstOrFail();
+        if (!opportunity.email)
+            throw new BadRequestException_1.default('Oportunidade não possui e-mail cadastrado', 422, 'sales_email_missing');
+        const body = await request.validate(SalesOpportunityEmailValidator_1.default);
+        const stage = await opportunity.related('stage').query().firstOrFail();
+        const assignedUserId = body.assigned_user_id ?? opportunity.assigned_user_id;
+        await this.validateAssignedUser(user, assignedUserId);
+        this.validateFollowUp({ ...opportunity.serialize(), ...body, assigned_user_id: assignedUserId }, stage);
+        const from = Env_1.default.get('CRM_EMAIL_FROM', Env_1.default.get('CRM_SMTP_USERNAME', ''));
+        const fromName = Env_1.default.get('CRM_EMAIL_FROM_NAME', 'Digi3 Comercial');
+        const replyTo = Env_1.default.get('CRM_EMAIL_REPLY_TO', '');
+        await Mail_1.default.use('crm').send(message => {
+            message
+                .from(from, fromName)
+                .to(opportunity.email)
+                .subject(body.subject)
+                .text(body.description)
+                .htmlView('emails/crm-introduction', { subject: body.subject, description: body.description })
+                .embed(Application_1.default.resourcesPath('images/digi3-logo.png'), 'digi3-logo');
+            if (replyTo)
+                message.replyTo(replyTo);
+        });
+        const { subject, description, activity_date, assigned_user_id, next_action, next_contact_date } = body;
+        const activity = await SalesOpportunityActivity_1.default.create({
+            sales_opportunity_id: opportunity.id,
+            type: 'E-mail',
+            description: `Assunto: ${subject}\n${description}`,
+            activity_date,
+            user_id: user.id,
+        });
+        opportunity.last_contact_date = activity_date;
         if (assigned_user_id !== undefined)
             opportunity.assigned_user_id = assigned_user_id;
         if (next_action !== undefined)

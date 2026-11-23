@@ -33,11 +33,19 @@ class OrderCertificatesController {
                 employeeVerificationId: Validator_1.schema.number(),
                 dateStart: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
                 dateEnd: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
+                receiptIdStart: Validator_1.schema.number.optional([Validator_1.rules.unsigned()]),
+                receiptIdEnd: Validator_1.schema.number.optional([Validator_1.rules.unsigned()]),
             }) });
         if (filters.dateEnd < filters.dateStart) {
             throw new BadRequestException_1.default('A data final deve ser igual ou posterior à data inicial.', 422, 'invalid_report_period');
         }
-        const labels = await Database_1.default
+        if ([filters.receiptIdStart, filters.receiptIdEnd].some((id) => id !== undefined && (!Number.isSafeInteger(id) || id < 1))) {
+            throw new BadRequestException_1.default('Informe números de recibo válidos.', 422, 'invalid_receipt_number');
+        }
+        if (filters.receiptIdStart && filters.receiptIdEnd && filters.receiptIdEnd < filters.receiptIdStart) {
+            throw new BadRequestException_1.default('O recibo final deve ser igual ou superior ao recibo inicial.', 422, 'invalid_receipt_range');
+        }
+        const labelsQuery = Database_1.default
             .from('employee_verification_x_receipts as evxr')
             .join('employee_verifications as ev', 'ev.id', 'evxr.employee_verification_id')
             .join('receipts as r', 'r.id', 'evxr.receipt_id')
@@ -59,7 +67,11 @@ class OrderCertificatesController {
             .distinct('oca.id')
             .select(Database_1.default.raw("COALESCE(oca.label_text, CASE WHEN ad.description IS NULL OR ad.description = '' THEN CONCAT('Livro:', COALESCE(oca.book_number, ''), ' Folha:', COALESCE(oca.sheet_number, ''), ' T:', COALESCE(oca.term_number, '')) ELSE CONCAT('Livro:', COALESCE(oca.book_number, ''), ' Folha:', COALESCE(oca.sheet_number, ''), ' T:', COALESCE(oca.term_number, ''), '\\n', ad.description) END) as labelText"))
             .orderBy('oca.id', 'asc');
-        return response.ok(labels);
+        if (filters.receiptIdStart)
+            labelsQuery.where('r.id', '>=', filters.receiptIdStart);
+        if (filters.receiptIdEnd)
+            labelsQuery.where('r.id', '<=', filters.receiptIdEnd);
+        return response.ok(await labelsQuery);
     }
     async saveAverbations(raw, orderCertificateId, companiesId, bookId, trx) {
         let rows;
@@ -795,6 +807,7 @@ class OrderCertificatesController {
         const codeStart = Number(request.input('codeStart'));
         const codeEnd = Number(request.input('codeEnd'));
         const inactive = this.toBoolean(request.input('inactive'));
+        const withAverbations = this.toBoolean(request.input('withAverbations'));
         const query = OrderCertificate_1.default.query()
             .if(orderCertificateId, (orderQuery) => orderQuery.where('order_certificates.id', orderCertificateId))
             .preload('book', (query) => query.select('id', 'name'))
@@ -860,6 +873,9 @@ class OrderCertificatesController {
         })
             .where('companies_id', authenticate.companies_id)
             .where('order_certificates.inactive', inactive);
+        if (withAverbations) {
+            query.whereHas('averbations');
+        }
         const hasCodeStart = Number.isSafeInteger(codeStart) && codeStart > 0;
         const hasCodeEnd = Number.isSafeInteger(codeEnd) && codeEnd > 0;
         if (hasCodeStart && hasCodeEnd) {

@@ -105,7 +105,7 @@ class ReceiptsController {
                 dateType: Validator_1.schema.enum(['stamp', 'protocol']),
                 dateStart: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
                 dateEnd: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
-                valueType: Validator_1.schema.enum(['value', 'withoutValue']),
+                valueType: Validator_1.schema.enum(['all', 'value', 'withoutValue']),
                 unsealedOnly: Validator_1.schema.boolean.optional(),
                 transferOfFunds: Validator_1.schema.enum.optional(['all', 'transfer', 'exclude']),
             }) });
@@ -125,9 +125,11 @@ class ReceiptsController {
             .where('companies_id', user.companies_id)
             .where((q) => q.whereNull('status').orWhereNotIn('status', ['CANCELADO', 'EXCLUIDO']))
             .whereNotNull(dateColumn)
-            .whereRaw(`${totalExpression} ${filters.valueType === 'value' ? '>' : '='} ?`, [0])
             .orderBy(dateColumn, 'asc')
             .orderBy('id', 'asc');
+        if (filters.valueType !== 'all') {
+            query.whereRaw(`${totalExpression} ${filters.valueType === 'value' ? '>' : '='} ?`, [0]);
+        }
         if (filterItems) {
             query.whereHas('items', (itemsQuery) => itemsQuery
                 .where('companies_id', user.companies_id)
@@ -163,6 +165,7 @@ class ReceiptsController {
                 book: receipt.book ?? null,
                 sheet: receipt.sheet ?? null,
                 dateProtocol: receipt.dateProtocol ?? null,
+                stamps: receipt.stamps ?? null,
                 actCodes: [...new Set((filterItems ? receipt.items.map((item) => item.emolument) : (receipt.service?.emoluments ?? []))
                         .filter((emolument) => emolument.type === 'EMOLUMENTOS')
                         .map((emolument) => String(emolument.code ?? '').trim())
@@ -241,7 +244,7 @@ class ReceiptsController {
                 dateType: Validator_1.schema.enum(['stamp', 'protocol']),
                 dateStart: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
                 dateEnd: Validator_1.schema.date({ format: 'yyyy-MM-dd' }),
-                valueType: Validator_1.schema.enum(['value', 'withoutValue']),
+                valueType: Validator_1.schema.enum(['all', 'value', 'withoutValue']),
                 unsealedOnly: Validator_1.schema.boolean.optional(),
                 transferOfFunds: Validator_1.schema.enum.optional(['all', 'transfer', 'exclude']),
             }) });
@@ -264,12 +267,14 @@ class ReceiptsController {
             .where('e.companies_id', user.companies_id)
             .where((q) => q.whereNull('r.status').orWhereNotIn('r.status', ['CANCELADO', 'EXCLUIDO']))
             .whereNotNull(dateColumn)
-            .whereRaw(`${totalExpression} ${filters.valueType === 'value' ? '>' : '='} ?`, [0])
             .select('e.id as code', 'e.name as name', 'e.code as actCode', 'e.type as type', 'e.transfer_of_found as transferOfFunds')
             .select(Database_1.default.raw('SUM(ri.qtde) AS quantity'), Database_1.default.raw('SUM(ri.qtde * ri.amount) AS total'))
             .groupBy('e.id', 'e.name', 'e.code', 'e.type', 'e.transfer_of_found')
             .orderBy('e.type', 'asc')
             .orderBy('e.id', 'asc');
+        if (filters.valueType !== 'all') {
+            query.whereRaw(`${totalExpression} ${filters.valueType === 'value' ? '>' : '='} ?`, [0]);
+        }
         if (filters.dateType === 'stamp') {
             query.whereBetween('r.date_stamp', [start, end]);
         }

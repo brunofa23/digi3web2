@@ -19,6 +19,17 @@ exports.default = (0, config_1.mailConfig)({
                 type: 'login',
             }
         },
+        crm: {
+            driver: 'smtp',
+            host: Env_1.default.get('CRM_SMTP_HOST', ''),
+            port: Env_1.default.get('CRM_SMTP_PORT', 587),
+            secure: Env_1.default.get('CRM_SMTP_PORT') === 465,
+            auth: {
+                user: Env_1.default.get('CRM_SMTP_USERNAME', ''),
+                pass: Env_1.default.get('CRM_SMTP_PASSWORD', ''),
+                type: 'login',
+            }
+        },
     },
 });
 //# sourceMappingURL=mail.js.map

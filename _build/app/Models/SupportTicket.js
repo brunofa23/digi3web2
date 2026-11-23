@@ -45,6 +45,10 @@ __decorate([
 ], SupportTicket.prototype, "contact", void 0);
 __decorate([
     (0, Orm_1.column)(),
+    __metadata("design:type", Object)
+], SupportTicket.prototype, "clientEmail", void 0);
+__decorate([
+    (0, Orm_1.column)(),
     __metadata("design:type", String)
 ], SupportTicket.prototype, "status", void 0);
 __decorate([

@@ -28,9 +28,12 @@ class ServiceInvoicesController {
         }
         return user;
     }
+    canSelectCompany(user) {
+        return Boolean(user.superuser) && Number(user.companies_id) === 1;
+    }
     getIssuerCompanyId(user, request) {
         const companyId = Number(request.input('companyId') || user.companies_id);
-        if (!user.superuser || !companyId) {
+        if (!this.canSelectCompany(user) || !companyId) {
             return user.companies_id;
         }
         return companyId;
@@ -83,7 +86,7 @@ class ServiceInvoicesController {
     }
     async getLocalInvoice(user, id) {
         const query = SpedyServiceInvoice_1.default.query().where('id', id);
-        if (!user.superuser)
+        if (!this.canSelectCompany(user))
             query.where('companies_id', user.companies_id);
         return query.firstOrFail();
     }
@@ -322,7 +325,7 @@ class ServiceInvoicesController {
     }
     async getExportJob(user, jobId) {
         const job = await SpedyNfseExportJob_1.default.query().where('id', jobId).where('user_id', user.id).firstOrFail();
-        if (!user.superuser && job.companiesId !== user.companies_id) {
+        if (!this.canSelectCompany(user) && Number(job.companiesId) !== Number(user.companies_id)) {
             throw new BadRequestException_1.default('Lote indisponível para esta empresa.', 403, 'spedy_export_forbidden');
         }
         if (['queued', 'processing'].includes(job.status)
