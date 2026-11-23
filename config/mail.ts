@@ -24,5 +24,16 @@ export default mailConfig({
         type: 'login',
       }
     },
+    crm: {
+      driver: 'smtp',
+      host: Env.get('CRM_SMTP_HOST', ''),
+      port: Env.get('CRM_SMTP_PORT', 587),
+      secure: Env.get('CRM_SMTP_PORT') === 465,
+      auth: {
+        user: Env.get('CRM_SMTP_USERNAME', ''),
+        pass: Env.get('CRM_SMTP_PASSWORD', ''),
+        type: 'login',
+      }
+    },
   },
 })
