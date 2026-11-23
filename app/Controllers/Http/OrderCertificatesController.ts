@@ -1001,6 +1001,7 @@ export default class OrderCertificatesController {
     const codeStart = Number(request.input('codeStart'))
     const codeEnd = Number(request.input('codeEnd'))
     const inactive = this.toBoolean(request.input('inactive'))
+    const withAverbations = this.toBoolean(request.input('withAverbations'))
 
     const query = OrderCertificate.query()
       .if(orderCertificateId, (orderQuery) => orderQuery.where('order_certificates.id', orderCertificateId))
@@ -1070,6 +1071,10 @@ export default class OrderCertificatesController {
       })
       .where('companies_id', authenticate.companies_id)
       .where('order_certificates.inactive', inactive)
+
+    if (withAverbations) {
+      query.whereHas('averbations')
+    }
 
     const hasCodeStart = Number.isSafeInteger(codeStart) && codeStart > 0
     const hasCodeEnd = Number.isSafeInteger(codeEnd) && codeEnd > 0
