@@ -1,7 +1,10 @@
 import type { HttpContextContract } from '@ioc:Adonis/Core/HttpContext'
 import { schema, rules } from '@ioc:Adonis/Core/Validator'
 import { DateTime } from 'luxon'
+import Mail from '@ioc:Adonis/Addons/Mail'
+import Env from '@ioc:Adonis/Core/Env'
 import SupportTicket from 'App/Models/SupportTicket'
+import SupportTicketSetting from 'App/Models/SupportTicketSetting'
 
 const requestTypes = ['duvida', 'erro', 'solicitacao'] as const
 const ticketStatuses = ['aberto', 'em_atendimento', 'resolvido'] as const
@@ -12,6 +15,64 @@ const requestTypeLabels = {
 }
 
 export default class SupportTicketsController {
+  private getSupportEmails(value: string | null) {
+    return Array.from(new Set((value || '').split(/[\n,;]+/).map((email) => email.trim()).filter(Boolean)))
+  }
+
+  private async sendNotifications(ticket: SupportTicket, event: string, sendToClient = false) {
+    let supportEmails: string[] = []
+    try {
+      const settings = await SupportTicketSetting.find(1)
+      supportEmails = this.getSupportEmails(settings?.supportEmails || null)
+    } catch (error) {
+      console.error('Erro ao carregar os e-mails do suporte:', error)
+    }
+    const companyName = ticket.company?.name || `Empresa ${ticket.companiesId}`
+    const requesterName = ticket.user?.name || ticket.user?.username || `Usuário ${ticket.usersId}`
+    const subject = `Chamado #${ticket.id} ${event}`
+    const details = [
+      `Chamado: #${ticket.id}`,
+      `Evento: ${event}`,
+      `Cliente: ${companyName}`,
+      `Solicitante: ${requesterName}`,
+      `Tipo: ${(requestTypeLabels as Record<string, string>)[ticket.requestType] || ticket.requestType}`,
+      `Status: ${ticket.status}`,
+      `Contato: ${ticket.contact || '-'}`,
+      `E-mail do cliente: ${ticket.clientEmail || '-'}`,
+      `Abertura: ${ticket.openedAt.toFormat('dd/MM/yyyy HH:mm')}`,
+      '',
+      'Descrição:',
+      ticket.description,
+      '',
+      'Histórico:',
+      ticket.history || '-',
+      '',
+      'Anotações internas:',
+      ticket.privateNotes || '-',
+    ].join('\n')
+
+    for (const email of supportEmails) {
+      try {
+        await Mail.send((message) => {
+          message.from(Env.get('SMTP_USERNAME', ''), 'Digi3').to(email).subject(subject).text(details)
+        })
+      } catch (error) {
+        console.error(`Erro ao notificar suporte (${email}) sobre chamado:`, error)
+      }
+    }
+
+    if (sendToClient && ticket.clientEmail) {
+      try {
+        const clientDetails = details.split('\n\nAnotações internas:')[0]
+        await Mail.send((message) => {
+          message.from(Env.get('SMTP_USERNAME', ''), 'Digi3').to(ticket.clientEmail!).subject(subject).text(clientDetails)
+        })
+      } catch (error) {
+        console.error('Erro ao notificar cliente sobre chamado:', error)
+      }
+    }
+  }
+
   private serialize(ticket: SupportTicket, showPrivateNotes: boolean) {
     const data = ticket.serialize() as any
 
@@ -69,6 +130,28 @@ export default class SupportTicketsController {
     return response.status(200).send(tickets.map((ticket) => this.serialize(ticket, Boolean(authenticate.superuser))))
   }
 
+  public async settings({ auth, request, response }: HttpContextContract) {
+    const authenticate = await auth.use('api').authenticate()
+    if (!authenticate.superuser) return response.status(403).send({ message: 'Apenas super usuário pode configurar os e-mails' })
+
+    if (request.method() === 'GET') {
+      const settings = await SupportTicketSetting.find(1)
+      return response.status(200).send({ support_emails: this.getSupportEmails(settings?.supportEmails || null) })
+    }
+
+    const emails = request.input('support_emails')
+    if (!Array.isArray(emails) || emails.length > 30 || emails.some((email) => typeof email !== 'string' || email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))) {
+      return response.status(422).send({ message: 'Informe uma lista válida de e-mails do suporte.' })
+    }
+
+    const normalizedEmails = Array.from(new Set(emails.map((email: string) => email.trim().toLowerCase())))
+    const settings = await SupportTicketSetting.find(1) || new SupportTicketSetting()
+    settings.id = 1
+    settings.supportEmails = normalizedEmails.join('\n')
+    await settings.save()
+    return response.status(200).send({ support_emails: normalizedEmails })
+  }
+
   public async store({ auth, request, response }: HttpContextContract) {
     const authenticate = await auth.use('api').authenticate()
 
@@ -77,6 +160,8 @@ export default class SupportTicketsController {
       contact: schema.string({ trim: true }, [
         rules.maxLength(120),
       ]),
+      client_email: schema.string.nullableAndOptional({ trim: true }, [rules.email(), rules.maxLength(255)]),
+      notify_client: schema.boolean.optional(),
       description: schema.string({ trim: true }, [
         rules.maxLength(5000),
       ]),
@@ -90,6 +175,7 @@ export default class SupportTicketsController {
       assignedUsersId: null,
       requestType: payload.request_type,
       contact: payload.contact,
+      clientEmail: payload.client_email || null,
       status: 'aberto',
       pendingResponseFrom: 'support',
       lastInteractionBy: 'client',
@@ -116,6 +202,8 @@ export default class SupportTicketsController {
     await ticket.load('user')
     await ticket.load('assignedUser')
 
+    await this.sendNotifications(ticket, 'aberto', payload.notify_client === true)
+
     return response.status(201).send(this.serialize(ticket, Boolean(authenticate.superuser)))
   }
 
@@ -139,9 +227,11 @@ export default class SupportTicketsController {
       private_notes: schema.string.optional({ trim: true }, [
         rules.maxLength(5000),
       ]),
+      notify_client: schema.boolean.optional(),
     })
 
     const payload = await request.validate({ schema: validationSchema })
+    const publicEvents: string[] = []
 
     if (!authenticate.superuser && (payload.status || payload.private_notes !== undefined)) {
       return response.status(403).send({ message: 'Apenas super usuário pode tratar o chamado' })
@@ -156,6 +246,7 @@ export default class SupportTicketsController {
       }
 
       if (statusChanged) {
+        publicEvents.push(`Status alterado para ${payload.status}.`)
         this.appendHistory(
           ticket,
           this.historyItem(authenticate.name || authenticate.username, 'Atendimento', `Status alterado para ${payload.status}.`)
@@ -164,6 +255,7 @@ export default class SupportTicketsController {
     }
 
     if (payload.message) {
+      publicEvents.push(payload.message)
       if (!authenticate.superuser && ticket.status === 'resolvido') {
         ticket.status = 'aberto'
         ticket.resolvedAt = null
@@ -195,6 +287,9 @@ export default class SupportTicketsController {
     await ticket.load('company')
     await ticket.load('user')
     await ticket.load('assignedUser')
+
+    const event = publicEvents.join('\n') || (payload.private_notes !== undefined ? 'anotações internas atualizadas' : 'atualizado')
+    await this.sendNotifications(ticket, event, payload.notify_client === true && publicEvents.length > 0)
 
     return response.status(200).send(this.serialize(ticket, Boolean(authenticate.superuser)))
   }

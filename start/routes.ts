@@ -85,6 +85,8 @@ Route.group(() => {
 
   //SUPPORT TICKETS
   Route.get("/support-tickets", "SupportTicketsController.index")
+  Route.get("/support-tickets/settings", "SupportTicketsController.settings")
+  Route.patch("/support-tickets/settings", "SupportTicketsController.settings")
   Route.post("/support-tickets", "SupportTicketsController.store")
   Route.patch("/support-tickets/:id", "SupportTicketsController.update")
 
