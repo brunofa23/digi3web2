@@ -15,8 +15,8 @@ export default class MandateCertificate extends BaseModel {
   @column({ columnName: 'transcription_type', serializeAs: 'transcriptionType' }) public transcriptionType: number | null
   @column({ columnName: 'has_power_of_attorney', serializeAs: 'hasPowerOfAttorney' }) public hasPowerOfAttorney: boolean | null
   @column({ columnName: 'applicant_name', serializeAs: 'applicantName' }) public applicantName: string
-  @column({ columnName: 'applicant_cpf', serializeAs: 'applicantCpf' }) public applicantCpf: string
-  @column({ columnName: 'applicant_whatsapp', serializeAs: 'applicantWhatsapp' }) public applicantWhatsapp: string
+  @column({ columnName: 'applicant_cpf', serializeAs: 'applicantCpf' }) public applicantCpf: string | null
+  @column({ columnName: 'applicant_whatsapp', serializeAs: 'applicantWhatsapp' }) public applicantWhatsapp: string | null
   @column({ columnName: 'applicant_phone', serializeAs: 'applicantPhone' }) public applicantPhone: string | null
   @column({ columnName: 'applicant_email', serializeAs: 'applicantEmail' }) public applicantEmail: string | null
   @column({ columnName: 'registered_data', serializeAs: 'registeredData' }) public registeredData: string | null

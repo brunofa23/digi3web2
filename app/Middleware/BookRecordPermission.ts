@@ -14,7 +14,7 @@ export default class BookRecordPermission {
     const isReadOnlyRequest = customGuards.every(guard => ['get', 'maxbookrecord'].includes(guard))
 
     if (!isReadOnlyRequest && !user.superuser && verifyPermission(false, permissions, 37)) {
-      return response.unauthorized({
+      return response.forbidden({
         error: 'Você não tem permissão para acessar os livros.',
       })
     }
@@ -55,7 +55,7 @@ export default class BookRecordPermission {
       if (guard === 'destroyManyBookRecords' && verifyPermission(user.superuser, permissions, 20)) {
         const deleteImages = Number(request.input('deleteImages'))
         if ([2, 3].includes(deleteImages) && !verifyPermission(user.superuser, permissions, 46)) {
-          return response.unauthorized({
+          return response.forbidden({
             error: 'Você não tem permissão para excluir imagens do Google Drive.',
           })
         }
@@ -76,10 +76,9 @@ export default class BookRecordPermission {
 
     if (!allowed) {
       // aqui você BARRA a requisição
-      return response.unauthorized({
+      return response.forbidden({
         error: 'Você não tem permissão para executar esta ação.',
       })
-      // ou: return response.forbidden({ ... }) se fizer mais sentido (403)
     }
 
     // se passou nas permissões, segue o fluxo

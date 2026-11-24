@@ -41,7 +41,7 @@ export default class StampPermission {
     )
 
     if (!hasPermission) {
-      return response.unauthorized({
+      return response.forbidden({
         message: 'Você não possui permissão para executar esta ação em Stamps',
       })
     }
