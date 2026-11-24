@@ -189,7 +189,7 @@ export default class ReceiptPaymentsController {
             installmentNumber: installment,
             installmentCount: line.installments,
             amount,
-            dueDate: method.receipt_immediate ? now.startOf('day') : line.firstDueDate.plus({ months: installment - 1 }),
+            dueDate: line.firstDueDate.plus({ months: installment - 1 }),
             receivedAt: method.receipt_immediate ? now : null,
             receivedBy: method.receipt_immediate ? user.id : null,
           }, { client: trx })
