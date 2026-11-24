@@ -60,11 +60,11 @@ __decorate([
 ], MandateCertificate.prototype, "applicantName", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'applicant_cpf', serializeAs: 'applicantCpf' }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], MandateCertificate.prototype, "applicantCpf", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'applicant_whatsapp', serializeAs: 'applicantWhatsapp' }),
-    __metadata("design:type", String)
+    __metadata("design:type", Object)
 ], MandateCertificate.prototype, "applicantWhatsapp", void 0);
 __decorate([
     (0, Orm_1.column)({ columnName: 'applicant_phone', serializeAs: 'applicantPhone' }),

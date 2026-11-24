@@ -131,21 +131,22 @@ class OrderCertificatesController {
         return true;
     }
     async saveMandate(data, companiesId, usrId, trx) {
-        const required = ['requestDate', 'mandateType', 'applicantName', 'applicantCpf', 'applicantWhatsapp'];
+        const required = ['requestDate', 'mandateType', 'applicantName'];
         if (required.some((field) => !String(data[field] ?? '').trim()))
             throw new Error('Mandado: preencha os campos obrigatórios');
         const mandateType = Number(data.mandateType);
         const rectificationType = this.toNumber(data.rectificationType);
         const cpf = this.normalizeCpfValue(data.applicantCpf);
-        const whatsappRaw = String(data.applicantWhatsapp).trim();
+        const cpfRaw = String(data.applicantCpf ?? '').trim();
+        const whatsappRaw = String(data.applicantWhatsapp ?? '').trim();
         const whatsappWithCountryCode = whatsappRaw.replace(/\D/g, '');
         const whatsapp = whatsappWithCountryCode.length === 13 && whatsappWithCountryCode.startsWith('55')
             ? whatsappWithCountryCode.slice(2)
             : whatsappWithCountryCode;
-        if (!cpf || !/^[\d.\-\s]+$/.test(String(data.applicantCpf).trim()) || !this.isValidMandateCpf(cpf)) {
+        if (cpfRaw && (!cpf || !/^[\d.\-\s]+$/.test(cpfRaw) || !this.isValidMandateCpf(cpf))) {
             throw new Error('Mandado: informe um CPF válido');
         }
-        if (!/^[+\d().\s-]+$/.test(whatsappRaw) || !/^[1-9]\d9\d{8}$/.test(whatsapp)) {
+        if (whatsappRaw && (!/^[+\d().\s-]+$/.test(whatsappRaw) || !/^[1-9]\d9\d{8}$/.test(whatsapp))) {
             throw new Error('Mandado: informe um WhatsApp válido com DDD');
         }
         const requestDate = luxon_1.DateTime.fromISO(String(data.requestDate), { zone: 'America/Sao_Paulo' });
@@ -173,7 +174,7 @@ class OrderCertificatesController {
             transcriptionType: null,
             hasPowerOfAttorney: null,
             applicantName: String(data.applicantName).trim(), applicantCpf: cpf,
-            applicantWhatsapp: whatsapp,
+            applicantWhatsapp: whatsapp || null,
             applicantPhone: data.applicantPhone || null, applicantEmail: data.applicantEmail || null,
             registeredData: data.registeredData || null, registeredCity: data.registeredCity || null,
             bookNumber: this.toNumber(data.bookNumber), sheetNumber: this.toNumber(data.sheetNumber),

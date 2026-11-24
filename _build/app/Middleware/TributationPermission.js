@@ -17,7 +17,7 @@ class TributationPermission {
         }
         const hasPermission = (0, util_1.verifyPermission)(authenticate.superuser, permissions, TRIBUTATION_MAINTENANCE_PERMISSION_ID);
         if (!hasPermission) {
-            return response.unauthorized({
+            return response.forbidden({
                 message: 'Você não possui permissão para executar esta ação em Tributações',
             });
         }

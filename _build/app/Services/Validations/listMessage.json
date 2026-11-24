@@ -2,7 +2,7 @@
     {
         "code": "error_10",
         "messages": "not superuser",
-        "status": 402
+        "status": 403
     },
     {
         "code": "company_error_100",

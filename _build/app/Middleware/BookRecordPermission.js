@@ -7,7 +7,7 @@ class BookRecordPermission {
         const permissions = auth.use('api').token?.meta.payload.permissions || [];
         const isReadOnlyRequest = customGuards.every(guard => ['get', 'maxbookrecord'].includes(guard));
         if (!isReadOnlyRequest && !user.superuser && (0, util_1.verifyPermission)(false, permissions, 37)) {
-            return response.unauthorized({
+            return response.forbidden({
                 error: 'Você não tem permissão para acessar os livros.',
             });
         }
@@ -40,7 +40,7 @@ class BookRecordPermission {
             if (guard === 'destroyManyBookRecords' && (0, util_1.verifyPermission)(user.superuser, permissions, 20)) {
                 const deleteImages = Number(request.input('deleteImages'));
                 if ([2, 3].includes(deleteImages) && !(0, util_1.verifyPermission)(user.superuser, permissions, 46)) {
-                    return response.unauthorized({
+                    return response.forbidden({
                         error: 'Você não tem permissão para excluir imagens do Google Drive.',
                     });
                 }
@@ -56,7 +56,7 @@ class BookRecordPermission {
             }
         }
         if (!allowed) {
-            return response.unauthorized({
+            return response.forbidden({
                 error: 'Você não tem permissão para executar esta ação.',
             });
         }
