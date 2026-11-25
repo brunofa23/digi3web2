@@ -32,19 +32,24 @@ export default class OrderCertificatesController {
       employeeVerificationId: schema.number(),
       dateStart: schema.date({ format: 'yyyy-MM-dd' }),
       dateEnd: schema.date({ format: 'yyyy-MM-dd' }),
-      receiptIdStart: schema.number.optional([rules.unsigned()]),
-      receiptIdEnd: schema.number.optional([rules.unsigned()]),
+      receiptIds: schema.string.optional(),
     }) })
 
     if (filters.dateEnd < filters.dateStart) {
       throw new BadRequestException('A data final deve ser igual ou posterior à data inicial.', 422, 'invalid_report_period')
     }
-    if ([filters.receiptIdStart, filters.receiptIdEnd].some((id) => id !== undefined && (!Number.isSafeInteger(id) || id < 1))) {
-      throw new BadRequestException('Informe números de recibo válidos.', 422, 'invalid_receipt_number')
-    }
-    if (filters.receiptIdStart && filters.receiptIdEnd && filters.receiptIdEnd < filters.receiptIdStart) {
-      throw new BadRequestException('O recibo final deve ser igual ou superior ao recibo inicial.', 422, 'invalid_receipt_range')
-    }
+    const receiptFilters = filters.receiptIds?.split(',').map((value) => value.trim()).filter(Boolean) ?? []
+    const receiptRanges = receiptFilters.map((value) => {
+      const match = value.match(/^(\d+)(?:-(\d+))?$/)
+      if (!match) throw new BadRequestException('Informe números de recibo separados por vírgula ou intervalos válidos.', 422, 'invalid_receipt_filter')
+
+      const start = Number(match[1])
+      const end = Number(match[2] ?? match[1])
+      if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 1 || end < start) {
+        throw new BadRequestException('Informe números de recibo válidos e intervalos em ordem crescente.', 422, 'invalid_receipt_filter')
+      }
+      return { start, end }
+    })
 
     const labelsQuery = Database
       .from('employee_verification_x_receipts as evxr')
@@ -69,8 +74,17 @@ export default class OrderCertificatesController {
       .select(Database.raw("COALESCE(oca.label_text, CASE WHEN ad.description IS NULL OR ad.description = '' THEN CONCAT('Livro:', COALESCE(oca.book_number, ''), ' Folha:', COALESCE(oca.sheet_number, ''), ' T:', COALESCE(oca.term_number, '')) ELSE CONCAT('Livro:', COALESCE(oca.book_number, ''), ' Folha:', COALESCE(oca.sheet_number, ''), ' T:', COALESCE(oca.term_number, ''), '\\n', ad.description) END) as labelText"))
       .orderBy('oca.id', 'asc')
 
-    if (filters.receiptIdStart) labelsQuery.where('r.id', '>=', filters.receiptIdStart)
-    if (filters.receiptIdEnd) labelsQuery.where('r.id', '<=', filters.receiptIdEnd)
+    if (receiptRanges.length) {
+      labelsQuery.where((query) => {
+        receiptRanges.forEach(({ start, end }, index) => {
+          if (start === end) {
+            if (index === 0) query.where('r.id', start)
+            else query.orWhere('r.id', start)
+          } else if (index === 0) query.whereBetween('r.id', [start, end])
+          else query.orWhereBetween('r.id', [start, end])
+        })
+      })
+    }
 
     return response.ok(await labelsQuery)
   }
@@ -1460,81 +1474,54 @@ export default class OrderCertificatesController {
     }
 
     // ***********************************************************
-    // 🔍 Filtro por NAME em marriedCertificate, bornCertificate ou secondcopyCertificate
-    if (name && Number(onlyBookId) === 24) {
+    // 🔍 Filtro por nome nos campos próprios de cada tipo de certidão
+    if (name) {
       const likeName = `%${name}%`
-      query.whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName))
-    }
-    if (name && Number(onlyBookId) === 25) {
-      query.whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', `%${name}%`))
-    }
-    if (name && Number(onlyBookId) !== 24 && Number(onlyBookId) !== 25) {
-      const likeName = `%${name}%`
+      const searchableBookIds = (bookIds.length ? bookIds : [2, 3, 4, 21, 24, 25])
+        .filter((id) => [2, 3, 4, 21, 24, 25].includes(id))
 
-      query.where((q) => q.whereNot('book_id', 25).orWhere((communication) =>
-        communication.where('book_id', 25).whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', likeName))
-      ))
+      if (!searchableBookIds.length) {
+        query.where('id', -1)
+      } else query.where((q) => {
+        if (searchableBookIds.includes(2)) {
+          q.orWhere((marriage) => marriage.where('book_id', 2).whereHas('marriedCertificate', (mc) => {
+            mc
+              .whereHas('groom', (g) => g.where('name', 'like', likeName))
+              .orWhereHas('bride', (b) => b.where('name', 'like', likeName))
+          }))
+        }
 
-      query.where((q) => {
-        // --- marriedCertificate: groom ou bride ---
-        q.whereHas('marriedCertificate', (mc) => {
-          mc
-            .whereHas('groom', (g) => {
-              g.where('name', 'like', likeName)
-            })
-            .orWhereHas('bride', (b) => {
-              b.where('name', 'like', likeName)
-            })
-        })
+        if (searchableBookIds.includes(3)) {
+          q.orWhere((birth) => birth.where('book_id', 3).whereHas('bornCertificate', (bc) => {
+            bc.whereHas('registered', (p) => p.where('name', 'like', likeName))
+          }))
+        }
 
-        // --- bornCertificate: registered / filiações / declarante ---
-        q.orWhereHas('bornCertificate', (bc) => {
-          bc
-            .whereHas('registered', (p) => {
-              p.where('name', 'like', likeName)
-            })
-            .orWhereHas('filiation1', (p) => {
-              p.where('name', 'like', likeName)
-            })
-            .orWhereHas('filiation2', (p) => {
-              p.where('name', 'like', likeName)
-            })
-            .orWhereHas('declarant', (p) => {
-              p.where('name', 'like', likeName)
-            })
-        })
+        if (searchableBookIds.includes(4)) {
+          q.orWhere((death) => death.where('book_id', 4).whereHas('deathCertificate', (dc) => {
+            dc.whereHas('deceased', (p) => p.where('name', 'like', likeName))
+          }))
+        }
 
-        q.orWhereHas('deathCertificate', (dc) => {
-          dc
-            .whereHas('deceased', (p) => {
-              p.where('name', 'like', likeName)
-            })
-            .orWhereHas('filiation1', (p) => {
-              p.where('name', 'like', likeName)
-            })
-            .orWhereHas('filiation2', (p) => {
-              p.where('name', 'like', likeName)
-            })
-            .orWhereHas('declarant', (p) => {
-              p.where('name', 'like', likeName)
-            })
-        })
+        if (searchableBookIds.includes(21)) {
+          q.orWhere((secondcopy) => secondcopy.where('book_id', 21).whereHas('secondcopyCertificate', (sc) => {
+            sc
+              .whereHas('registered1Person', (p) => p.where('name', 'like', likeName))
+              .orWhereHas('registered2Person', (p) => p.where('name', 'like', likeName))
+          }))
+        }
 
-        // --- secondcopyCertificate: applicant / registered1 / registered2 ---
-        q.orWhereHas('secondcopyCertificate', (sc) => {
-          sc
-            .whereHas('applicantPerson', (p) => {
-              p.where('name', 'like', likeName)
-            })
-            .orWhereHas('registered1Person', (p) => {
-              p.where('name', 'like', likeName)
-            })
-            .orWhereHas('registered2Person', (p) => {
-              p.where('name', 'like', likeName)
-            })
-        })
-        q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => mc.where('applicant_name', 'like', likeName).orWhere('registered_data', 'like', likeName)))
-        q.orWhere((communication) => communication.where('book_id', 25).whereHas('communicationCertificate', (cc) => cc.where('registered_name', 'like', likeName)))
+        if (searchableBookIds.includes(24)) {
+          q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (mc) => {
+            mc.where('registered_data', 'like', likeName)
+          }))
+        }
+
+        if (searchableBookIds.includes(25)) {
+          q.orWhere((communication) => communication.where('book_id', 25).whereHas('communicationCertificate', (cc) => {
+            cc.where('registered_name', 'like', likeName)
+          }))
+        }
       })
     }
 
