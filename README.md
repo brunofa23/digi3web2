@@ -253,3 +253,32 @@ git merge development
 git push origin main
 git checkout development
 
+## VOLTAR BACKUP E RETIRAR O @@
+NO POWERSHELL RODE:
+$entrada = 'D:\backupClientes\backup Digi3\backup_25-11-2026.sql'
+$saida = 'D:\backupClientes\backup Digi3\backup_25-11-2026_sem_gtid.sql'
+
+$reader = [System.IO.StreamReader]::new($entrada)
+$writer = [System.IO.StreamWriter]::new($saida, $false, [System.Text.UTF8Encoding]::new($false))
+
+$pular = $false
+
+try {
+    while (($linha = $reader.ReadLine()) -ne $null) {
+        if ($pular) {
+            if ($linha.Contains(';')) { $pular = $false }
+            continue
+        }
+
+        if ($linha -match 'GTID_PURGED') {
+            if (-not $linha.Contains(';')) { $pular = $true }
+            continue
+        }
+
+        $writer.WriteLine($linha)
+    }
+}
+finally {
+    $reader.Dispose()
+    $writer.Dispose()
+}
