@@ -48,6 +48,9 @@ export default class Emolument extends BaseModel {
   @column()
   public price_released: boolean
 
+  @column()
+  public arquivamento: boolean
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime
 
