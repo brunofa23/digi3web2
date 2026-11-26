@@ -49,7 +49,8 @@ export default class ReceiptsController {
         await trx.commit()
         return response.ok(receipt)
       }
-      if (receipt.dateStamp || receipt.stamps) {
+      const reopeningWithPreviousStamps = receipt.status === 'REABERTO' && !receipt.dateStamp
+      if ((receipt.dateStamp || receipt.stamps) && !reopeningWithPreviousStamps) {
         throw new BadRequestException('O recibo possui dados de selo incompletos.', 409, 'receipt_stamp_incomplete')
       }
 
@@ -723,14 +724,23 @@ export default class ReceiptsController {
       const receipt = await Receipt.query({ client: trx })
         .where('companies_id', authenticate.companies_id)
         .where('id', params.id).forUpdate().firstOrFail()
-      if (receipt.status === 'EXCLUIDO') {
-        throw new BadRequestException('Recibo já excluído.', 409, 'receipt_already_excluded')
-      }
       await this.checkInvoice(receipt, trx)
       const previousStatus = receipt.status
       const previousFinalizedAt = receipt.financialFinalizedAt
+      const previousDateStamp = receipt.dateStamp
+      const previousStamps = receipt.stamps
+      const previousItems = await ReceiptItem.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('receipt_id', receipt.id)
+
       await this.cancelActivePayments(receipt, trx)
-      receipt.status = 'EXCLUIDO'
+      await ReceiptItem.query({ client: trx })
+        .where('companies_id', authenticate.companies_id)
+        .where('receipt_id', receipt.id)
+        .delete()
+
+      receipt.status = 'REABERTO'
+      receipt.dateStamp = null
       await receipt.save()
       const now = DateTime.local()
       await AuditLog.create({
@@ -746,10 +756,34 @@ export default class ReceiptsController {
           requestedByUserId: authenticate.id,
           requestedByUsername: authenticate.username,
           orderCertificateId: receipt.orderCertificateId,
+          removedItems: previousItems.map((item) => ({
+            id: item.id,
+            emolumentId: item.emolumentId,
+            qtde: item.qtde,
+            amount: item.amount,
+          })),
+          previousStamps,
         },
-        changedFields: ['status', 'financialFinalizedAt'],
-        beforeData: { status: previousStatus, financialFinalizedAt: previousFinalizedAt?.toISO() ?? null },
-        afterData: { status: receipt.status, financialFinalizedAt: null },
+        changedFields: ['status', 'financialFinalizedAt', 'dateStamp', 'items'],
+        beforeData: {
+          status: previousStatus,
+          financialFinalizedAt: previousFinalizedAt?.toISO() ?? null,
+          dateStamp: previousDateStamp?.toISODate() ?? null,
+          stamps: previousStamps,
+          items: previousItems.map((item) => ({
+            id: item.id,
+            emolumentId: item.emolumentId,
+            qtde: item.qtde,
+            amount: item.amount,
+          })),
+        },
+        afterData: {
+          status: receipt.status,
+          financialFinalizedAt: null,
+          dateStamp: null,
+          stamps: receipt.stamps,
+          items: [],
+        },
         occurrenceCount: 1,
         firstAt: now,
         lastAt: now,
