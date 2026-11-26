@@ -56,7 +56,8 @@ class EmolumentsController {
             type: payload.type,
             inactive: payload.inactive,
             transfer_of_found: payload.transfer_of_found ?? false,
-            price_released: payload.price_released ?? false
+            price_released: payload.price_released ?? false,
+            arquivamento: payload.arquivamento ?? false
         });
         return response.created(item);
     }

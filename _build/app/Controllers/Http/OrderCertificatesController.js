@@ -762,6 +762,8 @@ class OrderCertificatesController {
         const documenttypeIds = (request.input('documenttypeIds', []) || [])
             .map((id) => Number(id))
             .filter((id) => Number.isInteger(id) && id > 0);
+        const typebookIdInput = Number(request.input('typebookId'));
+        const typebookId = Number.isInteger(typebookIdInput) && typebookIdInput > 0 ? typebookIdInput : null;
         const onlyBookId = bookIds.length ? (bookIds.length === 1 ? bookIds[0] : null) : bookId;
         const cpf = request.input('cpf')
             ? String(request.input('cpf')).replace(/\D/g, '')
@@ -883,9 +885,9 @@ class OrderCertificatesController {
                 q.select(['id', 'description']);
             });
             q.preload('items', (q) => {
-                q.select(['emolument_id']);
+                q.select(['emolument_id', 'qtde']);
                 q.preload('emolument', (q) => {
-                    q.select(['code']);
+                    q.select(['code', 'arquivamento']);
                 });
             });
         })
@@ -923,6 +925,11 @@ class OrderCertificatesController {
         if (documenttypeIds.length) {
             query.where('book_id', 21).whereHas('secondcopyCertificate', (secondCopy) => {
                 secondCopy.whereIn('documenttype_id', documenttypeIds);
+            });
+        }
+        if (typebookId) {
+            query.where('book_id', 21).whereHas('secondcopyCertificate', (secondCopy) => {
+                secondCopy.where('typebook_id', typebookId);
             });
         }
         if (origin && ['internal', 'public'].includes(origin)) {
@@ -1519,7 +1526,11 @@ class OrderCertificatesController {
                     .map((item) => item.emolument?.code)
                     .filter((code) => !!code)
                     .join(',');
+                const arquivamentoQuantity = (json.receipt.items || [])
+                    .filter((item) => item.emolument?.arquivamento)
+                    .reduce((total, item) => total + Number(item.qtde || 0), 0);
                 json.receipt.emolumentCode = codeList;
+                json.receipt.arquivamentoQuantity = arquivamentoQuantity;
                 delete json.receipt.items;
             }
             json.imageCertificatesCount = imageCertificatesCount;
