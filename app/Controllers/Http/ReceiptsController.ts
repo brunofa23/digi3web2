@@ -339,6 +339,7 @@ export default class ReceiptsController {
         .preload('service')
         .preload('orderCertificate')
         .preload('user')
+        .preload('deliveryUser')
         .preload('typebook')
         .preload('items', (itemsQuery) => {
           itemsQuery.preload('emolument').orderBy('id', 'asc')
@@ -375,6 +376,7 @@ export default class ReceiptsController {
         .preload('service')
         .preload('orderCertificate')
         .preload('user')
+        .preload('deliveryUser')
         .preload('typebook')
         .preload('items', (itemsQuery) => {
           itemsQuery.preload('emolument').orderBy('id', 'asc')
@@ -565,6 +567,13 @@ export default class ReceiptsController {
       if (receiptData.status === 'CANCELADO' || receiptData.status === 'EXCLUIDO') {
         throw new BadRequestException('Use a ação de cancelamento do recibo.', 409, 'receipt_cancel_action_required')
       }
+
+      const deliveryRecipientChanged =
+        (receiptData.deliveryName && receiptData.deliveryName !== receipt.deliveryName) ||
+        (receiptData.deliveryCpf && receiptData.deliveryCpf !== receipt.deliveryCpf)
+      if (!receipt.deliveryUserId && deliveryRecipientChanged) {
+        receipt.deliveryUserId = authenticate.id
+      }
       const service = await Service.query({ client: trx })
         .where('companies_id', authenticate.companies_id).where('id', receiptData.serviceId).firstOrFail()
       receiptData.free = receipt.financialFinalizedAt ? receipt.free : !!service.free
@@ -604,7 +613,6 @@ export default class ReceiptsController {
       receipt.merge({
         ...receiptData,
         companiesId: authenticate.companies_id,
-        userId: authenticate.id,
       })
 
       await receipt.save()
@@ -648,6 +656,7 @@ export default class ReceiptsController {
       await receipt.load('service')
       await receipt.load('orderCertificate')
       await receipt.load('user')
+      await receipt.load('deliveryUser')
       await receipt.load('typebook')
       await receipt.load('items', (q) => q.preload('emolument').orderBy('id', 'asc'))
 

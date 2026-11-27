@@ -110,6 +110,9 @@ export default class Receipt extends BaseModel {
   public trackingCod?: string | null
 
   @column()
+  public deliveryUserId?: number | null
+
+  @column()
   public status?: string | null
 
   @column.dateTime()
@@ -132,6 +135,9 @@ export default class Receipt extends BaseModel {
 
   @belongsTo(() => User, { foreignKey: 'userId' })
   public user: BelongsTo<typeof User>
+
+  @belongsTo(() => User, { foreignKey: 'deliveryUserId' })
+  public deliveryUser: BelongsTo<typeof User>
 
   @belongsTo(() => Typebook, { foreignKey: 'typebookId' })
   public typebook: BelongsTo<typeof Typebook>
