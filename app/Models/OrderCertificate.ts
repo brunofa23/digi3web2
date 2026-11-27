@@ -76,6 +76,24 @@ export default class OrderCertificate extends BaseModel {
   @column()
   public inactive: boolean
 
+  @column({ columnName: 'image_typebook_id' })
+  public imageTypebookId: number | null
+
+  @column({ columnName: 'image_book' })
+  public imageBook: number | null
+
+  @column({ columnName: 'image_sheet' })
+  public imageSheet: number | null
+
+  @column({ columnName: 'image_side' })
+  public imageSide: string | null
+
+  @column({ columnName: 'image_indexbook' })
+  public imageIndexbook: number | null
+
+  @column({ columnName: 'image_term' })
+  public imageTerm: string | null
+
   @belongsTo(() => Company, { foreignKey: 'companiesId' })
   public company: BelongsTo<typeof Company>
 

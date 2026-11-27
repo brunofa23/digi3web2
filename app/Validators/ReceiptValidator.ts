@@ -49,6 +49,16 @@ export default class ReceiptValidator {
 
     side: schema.string.optional({ trim: true }, [rules.maxLength(50)]),
 
+    imageTypebookId: schema.number.nullableAndOptional([
+      rules.unsigned(),
+      rules.exists({ table: 'typebooks', column: 'id' }),
+    ]),
+    imageBook: schema.number.nullableAndOptional([rules.unsigned()]),
+    imageSheet: schema.number.nullableAndOptional([rules.unsigned()]),
+    imageSide: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(50)]),
+    imageIndexbook: schema.number.nullableAndOptional([rules.unsigned()]),
+    imageTerm: schema.string.nullableAndOptional({ trim: true }, [rules.maxLength(255)]),
+
     datePrevision: schema.date.optional(),
     timePrevision: schema.string.optional({ trim: true }, [rules.regex(/^([01]\d|2[0-3]):[0-5]\d$/)]),
     dateProtocol: schema.date.optional(),
