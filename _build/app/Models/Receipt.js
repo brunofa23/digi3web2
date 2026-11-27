@@ -145,6 +145,10 @@ __decorate([
 __decorate([
     (0, Orm_1.column)(),
     __metadata("design:type", Object)
+], Receipt.prototype, "deliveryUserId", void 0);
+__decorate([
+    (0, Orm_1.column)(),
+    __metadata("design:type", Object)
 ], Receipt.prototype, "status", void 0);
 __decorate([
     Orm_1.column.dateTime(),
@@ -174,6 +178,10 @@ __decorate([
     (0, Orm_1.belongsTo)(() => User_1.default, { foreignKey: 'userId' }),
     __metadata("design:type", Object)
 ], Receipt.prototype, "user", void 0);
+__decorate([
+    (0, Orm_1.belongsTo)(() => User_1.default, { foreignKey: 'deliveryUserId' }),
+    __metadata("design:type", Object)
+], Receipt.prototype, "deliveryUser", void 0);
 __decorate([
     (0, Orm_1.belongsTo)(() => Typebook_1.default, { foreignKey: 'typebookId' }),
     __metadata("design:type", Object)

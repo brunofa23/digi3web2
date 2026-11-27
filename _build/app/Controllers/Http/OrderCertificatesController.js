@@ -771,6 +771,9 @@ class OrderCertificatesController {
         const name = request.input('name')
             ? String(request.input('name')).trim()
             : null;
+        const term = request.input('term') !== undefined && request.input('term') !== null && String(request.input('term')).trim() !== ''
+            ? String(request.input('term')).trim()
+            : null;
         const securitySheet = request.input('securitySheet')
             ? String(request.input('securitySheet')).trim()
             : null;
@@ -917,6 +920,28 @@ class OrderCertificatesController {
             query.whereIn('book_id', bookIds);
         else if (bookId)
             query.andWhere('book_id', bookId);
+        if (term) {
+            const searchableBookIds = (bookIds.length ? bookIds : [2, 21, 24]).filter((id) => [2, 21, 24].includes(id));
+            query.where((q) => {
+                if (searchableBookIds.includes(2)) {
+                    q.orWhere((marriage) => marriage.where('book_id', 2).whereHas('marriedCertificate', (certificate) => {
+                        certificate.where('term1', term);
+                    }));
+                }
+                if (searchableBookIds.includes(21)) {
+                    q.orWhere((secondcopy) => secondcopy.where('book_id', 21).whereHas('secondcopyCertificate', (certificate) => {
+                        certificate.where('term1', term);
+                    }));
+                }
+                if (searchableBookIds.includes(24)) {
+                    q.orWhere((mandate) => mandate.where('book_id', 24).whereHas('mandateCertificate', (certificate) => {
+                        certificate.where('term_number', term);
+                    }));
+                }
+                if (!searchableBookIds.length)
+                    q.where('order_certificates.id', -1);
+            });
+        }
         if (mandateTypeIds.length) {
             query.where('book_id', 24).whereHas('mandateCertificate', (mandate) => {
                 mandate.whereIn('mandate_type', mandateTypeIds);
@@ -1140,15 +1165,17 @@ class OrderCertificatesController {
                         .where((activeReceipt) => activeReceipt.whereNull('later_receipts.status').orWhereNot('later_receipts.status', 'EXCLUIDO'));
                 });
                 r.whereHas('employeeVerificationXReceipts', (evxr) => {
-                    evxr.where('companiesId', authenticate.companies_id);
+                    evxr.where('companiesId', authenticate.companies_id)
+                        .where('item', employeeVerificationReceiptItem)
+                        .whereHas('employeeVerification', (ev) => ev.where('local', 'receipt'));
                     if (employeeVerificationReceiptIds.length) {
-                        evxr.whereIn('employeeVerificationId', employeeVerificationReceiptIds)
-                            .whereHas('employeeVerification', (ev) => ev.where('local', 'receipt'));
+                        evxr.whereIn('employeeVerificationId', employeeVerificationReceiptIds);
                     }
                 });
                 r.whereDoesntHave('employeeVerificationXReceipts', (evxr) => {
                     evxr.where('item', '>', employeeVerificationReceiptItem)
-                        .where('companiesId', authenticate.companies_id);
+                        .where('companiesId', authenticate.companies_id)
+                        .whereHas('employeeVerification', (ev) => ev.where('local', 'receipt'));
                 });
             });
         }
