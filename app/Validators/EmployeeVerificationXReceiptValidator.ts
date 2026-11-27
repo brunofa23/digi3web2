@@ -18,10 +18,6 @@ export default class EmployeeVerificationXReceiptValidator {
       rules.unsigned(),
       rules.exists({ table: 'employee_verifications', column: 'id' }),
     ]),
-    // formato ex: "2026-01-26 14:30:00"
-    date: schema.date({
-      format: 'yyyy-MM-dd HH:mm:ss',
-    }),
   })
 
   /**
@@ -48,8 +44,6 @@ export default class EmployeeVerificationXReceiptValidator {
   public static messages = {
     'receiptId.required': 'O campo receiptId é obrigatório',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
-    'date.required': 'O campo date é obrigatório',
-
     'receiptId.exists': 'O recibo informado não foi encontrado',
     'employeeVerificationId.exists': 'A conferência de funcionário informada não foi encontrada',
   }
