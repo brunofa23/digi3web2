@@ -2216,6 +2216,12 @@ export default class OrderCertificatesController {
           bookId,
           companiesId: user.companies_id,
           typeCertificate: typeCertificate ?? undefined,
+          imageTypebookId: this.toNumber(body.imageTypebookId ?? body.image_typebook_id),
+          imageBook: this.toNumber(body.imageBook ?? body.image_book),
+          imageSheet: this.toNumber(body.imageSheet ?? body.image_sheet),
+          imageSide: (body.imageSide ?? body.image_side) || null,
+          imageIndexbook: this.toNumber(body.imageIndexbook ?? body.image_indexbook),
+          imageTerm: (body.imageTerm ?? body.image_term) || null,
         })
 
         await oc.save()
@@ -2425,9 +2431,33 @@ export default class OrderCertificatesController {
           typeCertificate: typeCertificate ?? undefined,
         }
         if (certificateIdFromBody !== null) patch.certificateId = certificateIdFromBody
+        for (const [camel, snake, column] of [
+          ['imageTypebookId', 'image_typebook_id', 'imageTypebookId'],
+          ['imageBook', 'image_book', 'imageBook'],
+          ['imageSheet', 'image_sheet', 'imageSheet'],
+          ['imageIndexbook', 'image_indexbook', 'imageIndexbook'],
+        ]) {
+          if (body[camel] !== undefined || body[snake] !== undefined) {
+            patch[column] = this.toNumber(body[camel] ?? body[snake])
+          }
+        }
+        if (body.imageSide !== undefined || body.image_side !== undefined) patch.imageSide = (body.imageSide ?? body.image_side) || null
+        if (body.imageTerm !== undefined || body.image_term !== undefined) patch.imageTerm = (body.imageTerm ?? body.image_term) || null
 
         orderCertificate.merge(patch)
         await orderCertificate.save()
+        if (Object.keys(patch).some((field) => field.startsWith('image'))) {
+          await Database.from('receipts')
+            .useTransaction(trx)
+            .where('companies_id', user.companies_id)
+            .where('order_certificate_id', orderCertificate.id)
+            .update({
+              typebook_id: orderCertificate.imageTypebookId,
+              book: orderCertificate.imageBook,
+              sheet: orderCertificate.imageSheet,
+              side: orderCertificate.imageSide,
+            })
+        }
 
         // ✅ Atualiza CASAMENTO
         if (bookId === 2 && body.marriedCertificate) {
