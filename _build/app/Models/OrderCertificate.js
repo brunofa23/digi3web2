@@ -92,6 +92,30 @@ __decorate([
     __metadata("design:type", Boolean)
 ], OrderCertificate.prototype, "inactive", void 0);
 __decorate([
+    (0, Orm_1.column)({ columnName: 'image_typebook_id' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "imageTypebookId", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'image_book' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "imageBook", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'image_sheet' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "imageSheet", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'image_side' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "imageSide", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'image_indexbook' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "imageIndexbook", void 0);
+__decorate([
+    (0, Orm_1.column)({ columnName: 'image_term' }),
+    __metadata("design:type", Object)
+], OrderCertificate.prototype, "imageTerm", void 0);
+__decorate([
     (0, Orm_1.belongsTo)(() => Company_1.default, { foreignKey: 'companiesId' }),
     __metadata("design:type", Object)
 ], OrderCertificate.prototype, "company", void 0);

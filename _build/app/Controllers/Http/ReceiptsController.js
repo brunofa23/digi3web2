@@ -24,6 +24,42 @@ const Hash_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Core/Hash")
 const Validator_1 = global[Symbol.for('ioc.use')]("Adonis/Core/Validator");
 const CANCEL_RECEIPT_PERMISSION_ID = 48;
 class ReceiptsController {
+    async syncOrderImageSearch(orderCertificateId, companiesId, imageSearch, trx) {
+        const columns = {
+            imageTypebookId: 'imageTypebookId',
+            imageBook: 'imageBook',
+            imageSheet: 'imageSheet',
+            imageSide: 'imageSide',
+            imageIndexbook: 'imageIndexbook',
+            imageTerm: 'imageTerm',
+        };
+        const patch = {};
+        for (const [field, column] of Object.entries(columns)) {
+            if (imageSearch[field] !== undefined) {
+                const value = imageSearch[field];
+                patch[column] = value === '' ? null : value;
+            }
+        }
+        if (!Object.keys(patch).length)
+            return;
+        const orderCertificate = await OrderCertificate_1.default.query({ client: trx })
+            .where('companies_id', companiesId)
+            .where('id', orderCertificateId)
+            .forUpdate()
+            .firstOrFail();
+        orderCertificate.merge(patch);
+        await orderCertificate.save();
+        await Database_1.default.from('receipts')
+            .useTransaction(trx)
+            .where('companies_id', companiesId)
+            .where('order_certificate_id', orderCertificateId)
+            .update({
+            typebook_id: orderCertificate.imageTypebookId,
+            book: orderCertificate.imageBook,
+            sheet: orderCertificate.imageSheet,
+            side: orderCertificate.imageSide,
+        });
+    }
     async seal({ auth, params, response }) {
         const authenticate = await auth.use('api').authenticate();
         const trx = await Database_1.default.transaction();
@@ -368,7 +404,7 @@ class ReceiptsController {
         const trx = await Database_1.default.transaction();
         try {
             const payload = await request.validate(ReceiptValidator_1.default);
-            const { items = [], ...receiptData } = payload;
+            const { items = [], imageTypebookId, imageBook, imageSheet, imageSide, imageIndexbook, imageTerm, ...receiptData } = payload;
             const service = await Service_1.default.query({ client: trx })
                 .where('companies_id', authenticate.companies_id).where('id', receiptData.serviceId).firstOrFail();
             receiptData.free = !!service.free;
@@ -381,6 +417,9 @@ class ReceiptsController {
             if (orderCertificate.inactive) {
                 throw new BadRequestException_1.default('Formulário inativo não permite novo recibo.', 409, 'order_certificate_inactive');
             }
+            await this.syncOrderImageSearch(receiptData.orderCertificateId, authenticate.companies_id, {
+                imageTypebookId, imageBook, imageSheet, imageSide, imageIndexbook, imageTerm,
+            }, trx);
             const activeReceiptsQuery = Receipt_1.default.query({ client: trx })
                 .where('companies_id', authenticate.companies_id)
                 .where('order_certificate_id', receiptData.orderCertificateId)
@@ -463,10 +502,13 @@ class ReceiptsController {
             }
             const payload = await request.validate(ReceiptValidator_1.default);
             console.log(payload);
-            const { items, ...receiptData } = payload;
+            const { items, imageTypebookId, imageBook, imageSheet, imageSide, imageIndexbook, imageTerm, ...receiptData } = payload;
             if (receiptData.orderCertificateId !== receipt.orderCertificateId) {
                 throw new BadRequestException_1.default('A certidão do recibo não pode ser alterada.', 409, 'receipt_order_change');
             }
+            await this.syncOrderImageSearch(receipt.orderCertificateId, authenticate.companies_id, {
+                imageTypebookId, imageBook, imageSheet, imageSide, imageIndexbook, imageTerm,
+            }, trx);
             if (receiptData.status === 'CANCELADO' || receiptData.status === 'EXCLUIDO') {
                 throw new BadRequestException_1.default('Use a ação de cancelamento do recibo.', 409, 'receipt_cancel_action_required');
             }
