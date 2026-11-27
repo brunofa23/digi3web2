@@ -6,18 +6,33 @@ export default class extends BaseSchema {
   protected tableName = 'order_certificates'
 
   public async up() {
-    await Database.rawQuery(`
-      ALTER TABLE ${this.tableName}
-        ADD COLUMN image_typebook_id INT UNSIGNED NULL,
-        ADD COLUMN image_book INT NULL,
-        ADD COLUMN image_sheet INT NULL,
-        ADD COLUMN image_side VARCHAR(50) NULL,
-        ADD COLUMN image_indexbook INT NULL,
-        ADD COLUMN image_term VARCHAR(255) NULL,
-        ADD CONSTRAINT fk_order_cert_image_typebook
-          FOREIGN KEY (image_typebook_id) REFERENCES typebooks(id)
+    const columns = [
+      ['image_typebook_id', 'INT UNSIGNED NULL'],
+      ['image_book', 'INT NULL'],
+      ['image_sheet', 'INT NULL'],
+      ['image_side', 'VARCHAR(50) NULL'],
+      ['image_indexbook', 'INT NULL'],
+      ['image_term', 'VARCHAR(255) NULL'],
+    ] as const
+
+    for (const [name, definition] of columns) {
+      if (!(await this.schema.hasColumn(this.tableName, name))) {
+        await Database.rawQuery(`ALTER TABLE ${this.tableName} ADD COLUMN ${name} ${definition}`)
+      }
+    }
+
+    const foreignKey = await Database.rawQuery(
+      "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_certificates' AND CONSTRAINT_NAME = 'fk_order_cert_image_typebook_company' LIMIT 1"
+    )
+    if (!foreignKey[0].length) {
+      await Database.rawQuery(`
+        ALTER TABLE ${this.tableName}
+          ADD CONSTRAINT fk_order_cert_image_typebook_company
+          FOREIGN KEY (image_typebook_id, companies_id)
+          REFERENCES typebooks(id, companies_id)
           ON UPDATE RESTRICT ON DELETE RESTRICT
-    `)
+      `)
+    }
 
     await Database.rawQuery(`
       UPDATE order_certificates oc
@@ -48,15 +63,19 @@ export default class extends BaseSchema {
   }
 
   public async down() {
-    await Database.rawQuery(`
-      ALTER TABLE ${this.tableName}
-        DROP FOREIGN KEY fk_order_cert_image_typebook,
-        DROP COLUMN image_typebook_id,
-        DROP COLUMN image_book,
-        DROP COLUMN image_sheet,
-        DROP COLUMN image_side,
-        DROP COLUMN image_indexbook,
-        DROP COLUMN image_term
-    `)
+    const foreignKey = await Database.rawQuery(
+      "SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'order_certificates' AND CONSTRAINT_NAME = 'fk_order_cert_image_typebook_company' LIMIT 1"
+    )
+    if (foreignKey[0].length) {
+      await Database.rawQuery(`ALTER TABLE ${this.tableName} DROP FOREIGN KEY fk_order_cert_image_typebook_company`)
+    }
+
+    for (const name of [
+      'image_typebook_id', 'image_book', 'image_sheet', 'image_side', 'image_indexbook', 'image_term',
+    ]) {
+      if (await this.schema.hasColumn(this.tableName, name)) {
+        await Database.rawQuery(`ALTER TABLE ${this.tableName} DROP COLUMN ${name}`)
+      }
+    }
   }
 }
