@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+const luxon_1 = require("luxon");
 const Database_1 = __importDefault(global[Symbol.for('ioc.use')]("Adonis/Lucid/Database"));
 const EmployeeVerification_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerification"));
 const EmployeeVerificationXReceipt_1 = __importDefault(global[Symbol.for('ioc.use')]("App/Models/EmployeeVerificationXReceipt"));
@@ -75,7 +76,7 @@ class EmployeeVerificationXReceiptsController {
                 companiesId,
                 employeeVerificationId: payload.employeeVerificationId,
                 userId,
-                date: payload.date,
+                date: luxon_1.DateTime.now().setZone('America/Sao_Paulo'),
                 item: (last?.item || 0) + 1,
             }, { client: trx });
         });
@@ -168,7 +169,7 @@ class EmployeeVerificationXReceiptsController {
                 current.employeeVerificationId = payload.employeeVerificationId;
             }
             if (payload.date !== undefined) {
-                current.date = payload.date;
+                current.date = payload.date.setZone('America/Sao_Paulo', { keepLocalTime: true });
             }
             await current.save();
             if (destinationReceiptId !== oldReceiptId) {

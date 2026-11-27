@@ -1127,26 +1127,36 @@ class OrderCertificatesController {
                 }));
             });
         }
-        if (employeeVerificationReceiptIds.length) {
+        const hasEmployeeVerificationReceiptItem = Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0;
+        if (hasEmployeeVerificationReceiptItem) {
+            query.whereHas('receipt', (r) => {
+                r.where((activeReceipt) => activeReceipt.whereNull('status').orWhereNot('status', 'EXCLUIDO'));
+                r.whereNotExists((latestReceipt) => {
+                    latestReceipt
+                        .from('receipts as later_receipts')
+                        .whereColumn('later_receipts.order_certificate_id', 'receipts.order_certificate_id')
+                        .whereColumn('later_receipts.companies_id', 'receipts.companies_id')
+                        .whereColumn('later_receipts.id', '>', 'receipts.id')
+                        .where((activeReceipt) => activeReceipt.whereNull('later_receipts.status').orWhereNot('later_receipts.status', 'EXCLUIDO'));
+                });
+                r.whereHas('employeeVerificationXReceipts', (evxr) => {
+                    evxr.where('companiesId', authenticate.companies_id);
+                    if (employeeVerificationReceiptIds.length) {
+                        evxr.whereIn('employeeVerificationId', employeeVerificationReceiptIds)
+                            .whereHas('employeeVerification', (ev) => ev.where('local', 'receipt'));
+                    }
+                });
+                r.whereDoesntHave('employeeVerificationXReceipts', (evxr) => {
+                    evxr.where('item', '>', employeeVerificationReceiptItem)
+                        .where('companiesId', authenticate.companies_id);
+                });
+            });
+        }
+        else if (employeeVerificationReceiptIds.length) {
             query.whereHas('receipt', (r) => r.whereHas('employeeVerificationXReceipts', (evxr) => {
                 evxr.whereIn('employeeVerificationId', employeeVerificationReceiptIds)
                     .where('companiesId', authenticate.companies_id)
                     .whereHas('employeeVerification', (ev) => ev.where('local', 'receipt'));
-                if (Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
-                    evxr.where('item', employeeVerificationReceiptItem);
-                }
-            }));
-        }
-        if (!employeeVerificationReceiptIds.length && Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
-            query.whereHas('receipt', (r) => r.whereHas('employeeVerificationXReceipts', (evxr) => {
-                evxr.where('item', employeeVerificationReceiptItem)
-                    .where('companiesId', authenticate.companies_id);
-            }));
-        }
-        if (Number.isInteger(employeeVerificationReceiptItem) && employeeVerificationReceiptItem > 0) {
-            query.whereHas('receipt', (r) => r.whereDoesntHave('employeeVerificationXReceipts', (evxr) => {
-                evxr.where('item', '>', employeeVerificationReceiptItem)
-                    .where('companiesId', authenticate.companies_id);
             }));
         }
         if (emolumentCode) {

@@ -16,9 +16,6 @@ EmployeeVerificationXReceiptValidator.createSchema = Validator_1.schema.create({
         Validator_1.rules.unsigned(),
         Validator_1.rules.exists({ table: 'employee_verifications', column: 'id' }),
     ]),
-    date: Validator_1.schema.date({
-        format: 'yyyy-MM-dd HH:mm:ss',
-    }),
 });
 EmployeeVerificationXReceiptValidator.updateSchema = Validator_1.schema.create({
     receiptId: Validator_1.schema.number.optional([
@@ -36,7 +33,6 @@ EmployeeVerificationXReceiptValidator.updateSchema = Validator_1.schema.create({
 EmployeeVerificationXReceiptValidator.messages = {
     'receiptId.required': 'O campo receiptId é obrigatório',
     'employeeVerificationId.required': 'O campo employeeVerificationId é obrigatório',
-    'date.required': 'O campo date é obrigatório',
     'receiptId.exists': 'O recibo informado não foi encontrado',
     'employeeVerificationId.exists': 'A conferência de funcionário informada não foi encontrada',
 };
