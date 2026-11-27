@@ -97,7 +97,7 @@ export default class EmployeeVerificationXReceiptsController {
         companiesId,
         employeeVerificationId: payload.employeeVerificationId,
         userId,
-        date: payload.date as DateTime,
+        date: DateTime.now().setZone('America/Sao_Paulo'),
         item: (last?.item || 0) + 1,
       }, { client: trx })
     })
@@ -212,7 +212,7 @@ export default class EmployeeVerificationXReceiptsController {
         current.employeeVerificationId = payload.employeeVerificationId
       }
       if (payload.date !== undefined) {
-        current.date = payload.date as DateTime
+        current.date = (payload.date as DateTime).setZone('America/Sao_Paulo', { keepLocalTime: true })
       }
       await current.save()
 
